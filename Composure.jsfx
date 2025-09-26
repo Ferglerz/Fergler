@@ -1,0 +1,751 @@
+// Advanced 6-Point Compressor JSFX
+// Professional multi-algorithm compressor with interactive graph
+// Author: Custom JSFX Generator
+// Version: 1.0
+
+desc:Advanced 6-Point Compressor
+
+//==============================================================================
+// SLIDER DEFINITIONS
+//==============================================================================
+
+slider1:threshold_db=-20<-60,0,0.1>Threshold (dB)
+slider2:ratio=4<1,20,0.1>Ratio
+slider3:attack_ms=10<0.1,100,0.1>Attack (ms)
+slider4:release_ms=100<10,1000,1>Release (ms)
+slider5:knee_db=2<0,10,0.1>Knee (dB)
+slider6:makeup_gain_db=0<-20,20,0.1>Makeup Gain (dB)
+slider7:mix_wet=100<0,100,1>Mix %
+slider8:compressor_type=0<0,3,1{Clean Digital,Varimu,FET,Optical}>Compressor Type
+slider9:use_sidechain=0<0,1,1{No,Yes}>Use Sidechain
+slider10:hp_freq=20<20,200,1>HP Filter (Hz)
+slider11:lp_freq=20000<1000,20000,10>LP Filter (Hz)
+slider12:rms_size_ms=10<1,100,0.1>RMS Window (ms)
+slider13:lookahead_ms=0<0,10,0.1>Lookahead (ms)
+slider14:hold_ms=0<0,50,0.1>Hold Time (ms)
+slider15:max_gr_db=-20<-40,0,1>Max GR (dB)
+slider16:ratio_curve=0<-2,2,0.01>Ratio Curve (exp)
+slider17:attack_curve=0<-2,2,0.01>Attack Curve
+slider18:release_curve=0<-2,2,0.01>Release Curve
+slider19:over_the_top=100<0,200,1>Over The Top % (Analog Character Intensity)
+
+//==============================================================================
+// INITIALIZATION
+//==============================================================================
+
+@init
+
+// Constants
+srate_inv = 1 / srate;
+pi = $pi;
+log10_20 = 20 / log(10);
+log_10_20 = log(10) / 20;
+
+// Memory allocation
+freemem = 0;
+
+// Lookahead buffer allocation
+max_lookahead_samples = ceil(0.01 * srate); // 10ms max
+lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
+lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
+lookahead_pos = 0;
+
+// RMS buffer allocation  
+max_rms_samples = ceil(0.1 * srate); // 100ms max
+rms_buffer = freemem; freemem += max_rms_samples;
+rms_sum = 0;
+rms_pos = 0;
+
+// Filter states
+hp_x1_l = hp_x2_l = hp_y1_l = hp_y2_l = 0;
+hp_x1_r = hp_x2_r = hp_y1_r = hp_y2_r = 0;
+lp_x1_l = lp_x2_l = lp_y1_l = lp_y2_l = 0;
+lp_x1_r = lp_x2_r = lp_y1_r = lp_y2_r = 0;
+
+// Envelope followers
+envelope_attack = 0;
+envelope_release = 0;
+envelope_out = 0;
+hold_counter = 0;
+
+// Advanced compressor state variables
+compression_history = 0;        // Tracks recent compression activity
+photocell_charge = 0;          // Optical compressor photocell state
+tube_saturation = 0;           // Varimu tube saturation accumulator
+fet_transient_detector = 0;    // FET transient detection
+program_release_timer = 0;     // Program-dependent release timing
+average_input_level = 0;       // Running average for program-dependent behavior
+
+// Harmonic distortion buffers
+harmonic_buffer_l = freemem; freemem += 32;
+harmonic_buffer_r = freemem; freemem += 32;
+harmonic_pos = 0;
+
+// Graph parameters
+graph_x = 50;
+graph_y = 50;
+graph_size = 500;
+num_points = 6;
+
+// Initialize graph points (input_db, output_db, knee_factor)
+// Point 0: Fixed bottom-left (-60, -60, 0)
+graph_points = freemem; freemem += num_points * 3;
+graph_points[0] = -60; graph_points[1] = -60; graph_points[2] = 0;  // Point 0
+graph_points[3] = -40; graph_points[4] = -35; graph_points[5] = 2;  // Point 1
+graph_points[6] = -20; graph_points[7] = -15; graph_points[8] = 2;  // Point 2
+graph_points[9] = -10; graph_points[10] = -8; graph_points[11] = 2;  // Point 3
+graph_points[12] = -5; graph_points[13] = -3; graph_points[14] = 2;  // Point 4
+graph_points[15] = 0; graph_points[16] = 0; graph_points[17] = 0;    // Point 5: Fixed top-right
+
+// Mouse interaction
+mouse_down = 0;
+selected_point = -1;
+mouse_x_prev = 0;
+mouse_y_prev = 0;
+
+// Current level display
+current_input_db = -60;
+current_gr_db = 0;
+
+//==============================================================================
+// UTILITY FUNCTIONS
+//==============================================================================
+
+function db_to_linear(db) (
+  exp(db * log_10_20)
+);
+
+function linear_to_db(linear) (
+  linear > 0 ? log(linear) * log10_20 : -150
+);
+
+function smooth_knee(x, threshold, knee) (
+  knee > 0 ? (
+    x <= threshold - knee/2 ? x :
+    x >= threshold + knee/2 ? threshold + (x - threshold) :
+    threshold - knee/2 + (knee/4) * (1 + sin(pi * (x - threshold) / knee))
+  ) : (
+    x <= threshold ? x : threshold + (x - threshold)
+  )
+);
+
+//==============================================================================
+// FILTER FUNCTIONS  
+//==============================================================================
+
+function calc_biquad_hp(freq) (
+  w = 2 * pi * freq * srate_inv;
+  cosw = cos(w);
+  sinw = sin(w);
+  alpha = sinw / sqrt(2);
+  
+  b0 = (1 + cosw) / 2;
+  b1 = -(1 + cosw);
+  b2 = (1 + cosw) / 2;
+  a0 = 1 + alpha;
+  a1 = -2 * cosw;
+  a2 = 1 - alpha;
+  
+  // Normalize
+  a1 /= a0; a2 /= a0; b0 /= a0; b1 /= a0; b2 /= a0;
+);
+
+function calc_biquad_lp(freq) (
+  w = 2 * pi * freq * srate_inv;
+  cosw = cos(w);
+  sinw = sin(w);
+  alpha = sinw / sqrt(2);
+  
+  b0 = (1 - cosw) / 2;
+  b1 = 1 - cosw;
+  b2 = (1 - cosw) / 2;
+  a0 = 1 + alpha;
+  a1 = -2 * cosw;
+  a2 = 1 - alpha;
+  
+  // Normalize
+  a1 /= a0; a2 /= a0; b0 /= a0; b1 /= a0; b2 /= a0;
+);
+
+function process_biquad(input, x1, x2, y1, y2) (
+  output = b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+  x2 = x1; x1 = input;
+  y2 = y1; y1 = output;
+  output
+);
+
+//==============================================================================
+// COMPRESSOR ALGORITHMS
+//==============================================================================
+
+function generate_tube_harmonics(input, saturation_amount, intensity_factor) local(x, x2, x3, harmonic_content, scaled_saturation) (
+  scaled_saturation = saturation_amount * intensity_factor;
+  x = input * (1 + scaled_saturation * 0.3);
+  x2 = x * x;
+  x3 = x2 * x;
+  
+  // Tube-like even harmonic distortion with soft clipping
+  clip_threshold = 0.7 / (1 + scaled_saturation * 0.3); // More clipping with higher intensity
+  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + pow((x - clip_threshold) * 4 * intensity_factor, 2));
+  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + pow((x + clip_threshold) * 4 * intensity_factor, 2));
+  
+  // Add even harmonics (2nd, 4th) - scaled by intensity
+  harmonic_content = x + x2 * scaled_saturation * 0.1 + x2 * x2 * scaled_saturation * 0.02;
+  harmonic_content
+);
+
+function generate_fet_harmonics(input, compression_amount, intensity_factor) local(x, x3, x5, clipped, scaled_compression) (
+  scaled_compression = compression_amount * intensity_factor;
+  x = input;
+  x3 = x * x * x;
+  x5 = x3 * x * x;
+  
+  // FET-like odd harmonic distortion with hard clipping onset
+  scaled_compression > 0.3 / intensity_factor ? ( // Clipping kicks in earlier with higher intensity
+    clipped = x;
+    clip_point = 0.8 / (1 + scaled_compression * 0.5);
+    clipped > clip_point ? clipped = clip_point + (clipped - clip_point) * (0.1 / intensity_factor);
+    clipped < -clip_point ? clipped = -clip_point + (clipped + clip_point) * (0.1 / intensity_factor);
+    x = clipped;
+  );
+  
+  // Add odd harmonics (3rd, 5th) - scaled by intensity
+  x + x3 * scaled_compression * 0.08 + x5 * scaled_compression * 0.015
+);
+
+function update_compression_history(current_gr, dt, intensity_factor) (
+  // Exponential moving average of compression activity - more sensitive with higher intensity
+  history_rate = 0.001 * intensity_factor;
+  compression_history = compression_history * (1 - history_rate) + abs(current_gr) * history_rate;
+  
+  // Program-dependent release timer - more dramatic with higher intensity
+  abs(current_gr) > 0.1 ? (
+    program_release_timer = min(program_release_timer + dt * 2 * intensity_factor, 1.0);
+  ) : (
+    program_release_timer = max(program_release_timer - dt * 0.5 / intensity_factor, 0);
+  );
+);
+
+function apply_compressor_character(gain_reduction, type, input_level, dt, intensity_factor) local(gr_factor, output_gr, tube_drive, fet_response, optical_response, scaled_intensity) (
+  gr_factor = abs(gain_reduction);
+  scaled_intensity = intensity_factor;
+  
+  // Update compression history for all types with intensity scaling
+  update_compression_history(gain_reduction, dt, scaled_intensity);
+  
+  type == 0 ? ( // Clean Digital
+    gain_reduction
+  ) : type == 1 ? ( // Varimu (Tube/Valve) - Complex program-dependent behavior
+    
+    // Tube saturation builds up with sustained compression - faster with higher intensity
+    saturation_rate = 0.0005 * scaled_intensity;
+    decay_rate = 0.9995 - (scaled_intensity - 1) * 0.0002; // Slower decay at higher intensities
+    tube_saturation = tube_saturation * decay_rate + gr_factor * saturation_rate;
+    
+    // Program-dependent release - more dramatic with higher intensity
+    release_factor = 1 + compression_history * 2 * scaled_intensity + tube_saturation * 1.5 * scaled_intensity;
+    
+    // Soft knee becomes more pronounced with tube saturation  
+    tube_drive = gr_factor * (1 + tube_saturation * 0.5 * scaled_intensity);
+    tube_drive = tube_drive - pow(tube_drive, 1.3) * 0.15 * scaled_intensity; // More compression curve shaping
+    
+    // Even softer at high compression due to transformer saturation
+    saturation_threshold = 0.7 / scaled_intensity; // Lower threshold with higher intensity
+    tube_drive > saturation_threshold ? (
+      excess = tube_drive - saturation_threshold;
+      tube_drive = saturation_threshold + excess / (1 + excess * 1.5 * scaled_intensity);
+    );
+    
+    output_gr = sign(gain_reduction) * tube_drive;
+    
+    // Store release factor for envelope processing
+    varimu_release_factor = release_factor;
+    
+    output_gr
+    
+  ) : type == 2 ? ( // FET (1176-style) - Level and transient dependent
+    
+    // Transient detection affects attack speed - more sensitive with higher intensity
+    input_change = abs(input_level - average_input_level);
+    transient_sensitivity = 0.05 * scaled_intensity;
+    transient_decay = 0.95 - (scaled_intensity - 1) * 0.02; // Slower decay = more memory
+    fet_transient_detector = fet_transient_detector * transient_decay + input_change * transient_sensitivity;
+    
+    // Attack gets faster with louder signals and transients - more dramatic with intensity
+    fet_attack_factor = 1 + input_level * 0.5 * scaled_intensity + fet_transient_detector * 2 * scaled_intensity;
+    
+    // FET compression curve - more aggressive at higher levels and intensities
+    fet_response = gr_factor;
+    threshold = 0.5 / scaled_intensity; // Lower threshold with higher intensity
+    input_level > threshold ? (
+      // "Grabby" behavior on loud signals - more pronounced with intensity
+      power_curve = 0.7 - (scaled_intensity - 1) * 0.1; // More aggressive curve
+      fet_response = pow(gr_factor, power_curve) * (1 + input_level * 0.3 * scaled_intensity);
+    );
+    
+    // Limiting behavior at extreme compression - kicks in earlier with higher intensity
+    limiting_threshold = 0.8 / scaled_intensity;
+    fet_response > limiting_threshold ? (
+      limiting_amount = (fet_response - limiting_threshold) * 5 * scaled_intensity;
+      fet_response = limiting_threshold + limiting_amount / (1 + limiting_amount);
+    );
+    
+    output_gr = sign(gain_reduction) * fet_response;
+    
+    // Store attack factor for envelope processing  
+    fet_attack_factor_stored = fet_attack_factor;
+    
+    output_gr
+    
+  ) : type == 3 ? ( // Optical (LA-2A style) - Photocell memory and hysteresis
+    
+    // Photocell charge represents the "memory" of recent compression
+    target_charge = gr_factor * 0.8 + compression_history * 0.2 * scaled_intensity;
+    
+    // Photocell charges faster than it discharges (hysteresis) - more dramatic with intensity
+    charge_rate = 0.3 * scaled_intensity;
+    target_charge > photocell_charge ? (
+      // Charging (compression increasing) - faster with higher intensity
+      photocell_charge += (target_charge - photocell_charge) * charge_rate;
+    ) : (
+      // Discharging (compression decreasing) - slower and more program-dependent with intensity
+      base_discharge_rate = 0.02 / scaled_intensity;
+      discharge_rate = base_discharge_rate / (1 + compression_history * 3 * scaled_intensity);
+      photocell_charge += (target_charge - photocell_charge) * discharge_rate;
+    );
+    
+    // Optical response curve - very smooth and musical, more pronounced with intensity
+    curve_factor = 1.2 - photocell_charge * 0.2 * scaled_intensity;
+    optical_response = photocell_charge * curve_factor;
+    
+    // Program-dependent behavior - release gets slower with sustained compression
+    program_factor = 1 + program_release_timer * 0.8 * scaled_intensity;
+    
+    output_gr = sign(gain_reduction) * optical_response;
+    
+    // Store program factor for envelope processing
+    optical_program_factor = program_factor;
+    
+    output_gr
+    
+  ) : gain_reduction
+);
+
+//==============================================================================
+// GRAPH FUNCTIONS
+//==============================================================================
+
+function db_to_graph_x(db) (
+  graph_x + (db + 60) / 60 * graph_size
+);
+
+function db_to_graph_y(db) (
+  graph_y + graph_size - (db + 60) / 60 * graph_size
+);
+
+function graph_x_to_db(x) (
+  (x - graph_x) / graph_size * 60 - 60
+);
+
+function graph_y_to_db(y) (
+  -((y - graph_y - graph_size) / graph_size * 60 + 60)
+);
+
+function sort_points() local(i, j, temp_in, temp_out, temp_knee) (
+  // Bubble sort points by input level (excluding fixed points 0 and 5)
+  i = 1;
+  while (i < num_points - 2) (
+    j = i + 1;
+    while (j < num_points - 1) (
+      graph_points[i*3] > graph_points[j*3] ? (
+        // Swap points i and j
+        temp_in = graph_points[i*3];
+        temp_out = graph_points[i*3 + 1];
+        temp_knee = graph_points[i*3 + 2];
+        
+        graph_points[i*3] = graph_points[j*3];
+        graph_points[i*3 + 1] = graph_points[j*3 + 1];
+        graph_points[i*3 + 2] = graph_points[j*3 + 2];
+        
+        graph_points[j*3] = temp_in;
+        graph_points[j*3 + 1] = temp_out;
+        graph_points[j*3 + 2] = temp_knee;
+      );
+      j += 1;
+    );
+    i += 1;
+  );
+);
+
+function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t, knee1, knee2, output_db) (
+  // Find the segment
+  i = 0;
+  while (i < num_points - 1 && graph_points[(i+1)*3] < input_db) (
+    i += 1;
+  );
+  
+  // Get interpolation points
+  x1 = graph_points[i*3];
+  y1 = graph_points[i*3 + 1];
+  knee1 = graph_points[i*3 + 2];
+  
+  x2 = graph_points[(i+1)*3];
+  y2 = graph_points[(i+1)*3 + 1];
+  knee2 = graph_points[(i+1)*3 + 2];
+  
+  // Linear interpolation with knee smoothing
+  t = (input_db - x1) / (x2 - x1);
+  output_db = y1 + t * (y2 - y1);
+  
+  // Apply knee smoothing
+  knee_amount = knee1 + t * (knee2 - knee1);
+  knee_amount > 0 ? (
+    output_db = smooth_knee(output_db, y1 + t * (y2 - y1), knee_amount);
+  );
+  
+  output_db
+);
+
+//==============================================================================
+// SLIDER PROCESSING
+//==============================================================================
+
+@slider
+
+// Update filter coefficients
+calc_biquad_hp(hp_freq);
+hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
+
+calc_biquad_lp(lp_freq);
+lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
+
+// Calculate time constants
+rms_samples = floor(rms_size_ms * 0.001 * srate);
+rms_samples = max(1, min(rms_samples, max_rms_samples));
+
+lookahead_samples = floor(lookahead_ms * 0.001 * srate);
+lookahead_samples = max(0, min(lookahead_samples, max_lookahead_samples));
+
+hold_samples = floor(hold_ms * 0.001 * srate);
+
+// Attack and release curves with adjustable shapes
+attack_coeff = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
+release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
+
+// Apply curve shaping
+attack_curve != 0 ? (
+  attack_coeff = pow(attack_coeff, pow(2, attack_curve));
+);
+release_curve != 0 ? (
+  release_coeff = pow(release_coeff, pow(2, release_curve));
+);
+
+makeup_gain_linear = db_to_linear(makeup_gain_db);
+max_gr_linear = db_to_linear(max_gr_db);
+
+// Calculate over-the-top scaling factor
+// 0% = Clean/minimal analog characteristics
+// 100% = Full vintage analog behavior  
+// 200% = Exaggerated "over the top" analog mayhem
+over_the_top_factor = over_the_top * 0.01;
+
+// Initialize compressor-specific variables
+varimu_release_factor = 1;
+fet_attack_factor_stored = 1;  
+optical_program_factor = 1;
+
+//==============================================================================
+// GRAPHICS INTERFACE
+//==============================================================================
+
+@gfx 600 600
+
+gfx_clear = 0x202020;
+
+// Draw graph background
+gfx_set(0.3, 0.3, 0.3, 1);
+gfx_rect(graph_x, graph_y, graph_size, graph_size);
+
+// Draw grid lines
+gfx_set(0.4, 0.4, 0.4, 1);
+i = 0;
+while (i <= 6) (
+  x_pos = graph_x + i * graph_size / 6;
+  y_pos = graph_y + i * graph_size / 6;
+  
+  gfx_line(x_pos, graph_y, x_pos, graph_y + graph_size); // Vertical
+  gfx_line(graph_x, y_pos, graph_x + graph_size, y_pos); // Horizontal
+  i += 1;
+);
+
+// Draw unity line (1:1 compression)
+gfx_set(0.6, 0.6, 0.6, 1);
+gfx_line(graph_x, graph_y + graph_size, graph_x + graph_size, graph_y);
+
+// Draw compression curve
+gfx_set(1, 0.8, 0.2, 1);
+gfx_a = 2;
+i = 0;
+while (i < graph_size) (
+  input_db = graph_x_to_db(graph_x + i);
+  output_db = interpolate_compression_curve(input_db);
+  
+  graph_y_pos = db_to_graph_y(output_db);
+  
+  i == 0 ? gfx_x = graph_x : gfx_lineto(graph_x + i, graph_y_pos);
+  i += 1;
+);
+
+// Draw graph points
+i = 0;
+while (i < num_points) (
+  point_x = db_to_graph_x(graph_points[i*3]);
+  point_y = db_to_graph_y(graph_points[i*3 + 1]);
+  
+  // Fixed points are different color
+  (i == 0 || i == num_points - 1) ? (
+    gfx_set(0.8, 0.8, 0.8, 1);
+  ) : (
+    gfx_set(1, 1, 1, 1);
+  );
+  
+  gfx_circle(point_x, point_y, 6, 1);
+  
+  // Draw knee indicator
+  knee_size = graph_points[i*3 + 2];
+  knee_size > 0 ? (
+    gfx_set(0.5, 0.5, 1, 0.3);
+    gfx_circle(point_x, point_y, 6 + knee_size * 3, 0);
+  );
+  
+  i += 1;
+);
+
+// Draw current input level indicator
+input_x = db_to_graph_x(current_input_db);
+input_y_on_unity = db_to_graph_y(current_input_db);
+input_y_on_curve = db_to_graph_y(interpolate_compression_curve(current_input_db));
+
+// Input level circle on unity line
+gfx_set(0, 1, 0, 0.8);
+gfx_circle(input_x, input_y_on_unity, 4, 1);
+
+// Input level circle on compression curve
+gfx_set(1, 0, 0, 0.8);
+gfx_circle(input_x, input_y_on_curve, 4, 1);
+
+// Draw gain reduction meter
+gr_meter_x = graph_x + graph_size + 20;
+gr_meter_y = graph_y;
+gr_meter_w = 30;
+gr_meter_h = graph_size;
+
+gfx_set(0.2, 0.2, 0.2, 1);
+gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+
+current_gr_db < 0 ? (
+  gr_height = abs(current_gr_db) / abs(max_gr_db) * gr_meter_h;
+  gfx_set(1, 0.5, 0, 1);
+  gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+);
+
+// Mouse interaction
+mouse_cap & 1 ? ( // Left mouse button
+  !mouse_down ? ( // Start of drag
+    mouse_down = 1;
+    selected_point = -1;
+    
+    // Find closest draggable point
+    i = 1; // Skip fixed points 0 and 5
+    while (i < num_points - 1) (
+      point_x = db_to_graph_x(graph_points[i*3]);
+      point_y = db_to_graph_y(graph_points[i*3 + 1]);
+      
+      dist_sq = (mouse_x - point_x) * (mouse_x - point_x) + (mouse_y - point_y) * (mouse_y - point_y);
+      dist_sq < 100 ? ( // Within 10 pixels
+        selected_point = i;
+        i = num_points; // Break loop
+      );
+      i += 1;
+    );
+    
+    mouse_x_prev = mouse_x;
+    mouse_y_prev = mouse_y;
+  ) : ( // Continue drag
+    selected_point >= 0 ? (
+      mouse_cap & 4 || mouse_cap & 8 ? ( // Ctrl/Cmd held - adjust knee
+        knee_delta = (mouse_y - mouse_y_prev) * 0.05;
+        graph_points[selected_point*3 + 2] = max(0, min(10, graph_points[selected_point*3 + 2] + knee_delta));
+      ) : ( // Normal drag - move point
+        new_input_db = graph_x_to_db(mouse_x);
+        new_output_db = graph_y_to_db(mouse_y);
+        
+        // Constrain to graph bounds
+        new_input_db = max(-60, min(0, new_input_db));
+        new_output_db = max(-60, min(0, new_output_db));
+        
+        graph_points[selected_point*3] = new_input_db;
+        graph_points[selected_point*3 + 1] = new_output_db;
+        
+        // Re-sort points to maintain order
+        sort_points();
+      );
+    );
+    
+    mouse_x_prev = mouse_x;
+    mouse_y_prev = mouse_y;
+  );
+) : (
+  mouse_down = 0;
+  selected_point = -1;
+);
+
+// Labels
+gfx_set(1, 1, 1, 1);
+gfx_x = graph_x; gfx_y = graph_y + graph_size + 10;
+gfx_drawstr("Input Level (dB)");
+
+gfx_x = graph_x - 40; gfx_y = graph_y - 10;
+gfx_drawstr("Output");
+
+gfx_x = gr_meter_x; gfx_y = gr_meter_y - 20;
+gfx_drawstr("GR");
+
+//==============================================================================
+// SAMPLE PROCESSING
+//==============================================================================
+
+@sample
+
+// Input selection (main or sidechain)
+detect_l = use_sidechain && num_ch >= 3 ? spl2 : spl0;
+detect_r = use_sidechain && num_ch >= 4 ? spl3 : (num_ch >= 2 ? spl1 : spl0);
+
+// Apply filters to detection signal
+// High-pass filter
+b0 = hp_b0; b1 = hp_b1; b2 = hp_b2; a1 = hp_a1; a2 = hp_a2;
+detect_l = b0 * detect_l + b1 * hp_x1_l + b2 * hp_x2_l - a1 * hp_y1_l - a2 * hp_y2_l;
+hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l;
+
+detect_r = b0 * detect_r + b1 * hp_x1_r + b2 * hp_x2_r - a1 * hp_y1_r - a2 * hp_y2_r;
+hp_x2_r = hp_x1_r; hp_x1_r = detect_r; hp_y2_r = hp_y1_r; hp_y1_r = detect_r;
+
+// Low-pass filter  
+b0 = lp_b0; b1 = lp_b1; b2 = lp_b2; a1 = lp_a1; a2 = lp_a2;
+detect_l = b0 * detect_l + b1 * lp_x1_l + b2 * lp_x2_l - a1 * lp_y1_l - a2 * lp_y2_l;
+lp_x2_l = lp_x1_l; lp_x1_l = detect_l; lp_y2_l = lp_y1_l; lp_y1_l = detect_l;
+
+detect_r = b0 * detect_r + b1 * lp_x1_r + b2 * lp_x2_r - a1 * lp_y1_r - a2 * lp_y2_r;
+lp_x2_r = lp_x1_r; lp_x1_r = detect_r; lp_y2_r = lp_y1_r; lp_y1_r = detect_r;
+
+// RMS calculation with circular buffer
+detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
+rms_sum -= rms_buffer[rms_pos];
+rms_buffer[rms_pos] = detect_squared;
+rms_sum += detect_squared;
+rms_pos = (rms_pos + 1) % rms_samples;
+
+rms_level = sqrt(rms_sum / rms_samples);
+input_level_db = linear_to_db(rms_level);
+current_input_db = input_level_db;
+
+// Get target output level from compression curve
+target_output_db = interpolate_compression_curve(input_level_db);
+target_gr_db = target_output_db - input_level_db;
+
+// Apply ratio curve scaling
+ratio_curve != 0 ? (
+  gr_factor = abs(target_gr_db) / abs(max_gr_db);
+  curve_factor = pow(gr_factor, pow(2, ratio_curve));
+  target_gr_db *= curve_factor;
+);
+
+// Limit maximum gain reduction
+target_gr_db = max(max_gr_db, target_gr_db);
+
+// Apply compressor character with sophisticated modeling
+dt = srate_inv;
+average_input_level = average_input_level * 0.999 + rms_level * 0.001;
+target_gr_db = apply_compressor_character(target_gr_db, compressor_type, rms_level, dt, over_the_top_factor);
+
+// Envelope follower with program-dependent time constants
+target_gr_linear = db_to_linear(target_gr_db);
+
+// Apply compressor-specific time constant modifications
+effective_attack_coeff = attack_coeff;
+effective_release_coeff = release_coeff;
+
+compressor_type == 1 ? ( // Varimu - slower release with compression history, scaled by intensity
+  release_scaling = pow(varimu_release_factor, over_the_top_factor);
+  effective_release_coeff = pow(release_coeff, release_scaling);
+) : compressor_type == 2 ? ( // FET - faster attack with level/transients, scaled by intensity  
+  attack_scaling = pow(1/fet_attack_factor_stored, over_the_top_factor);
+  effective_attack_coeff = pow(attack_coeff, attack_scaling);
+) : compressor_type == 3 ? ( // Optical - program-dependent release, scaled by intensity
+  release_scaling = pow(optical_program_factor, over_the_top_factor);
+  effective_release_coeff = pow(release_coeff, release_scaling);
+);
+
+target_gr_linear < envelope_out ? ( // Attack
+  hold_counter = hold_samples;
+  envelope_out = target_gr_linear + (envelope_out - target_gr_linear) * effective_attack_coeff;
+) : ( // Release (or hold)
+  hold_counter > 0 ? (
+    hold_counter -= 1;
+  ) : (
+    envelope_out = target_gr_linear + (envelope_out - target_gr_linear) * effective_release_coeff;
+  );
+);
+
+current_gr_db = linear_to_db(envelope_out);
+
+// Lookahead processing
+lookahead_samples > 0 ? (
+  // Store current sample in lookahead buffer
+  lookahead_buffer_l[lookahead_pos] = spl0;
+  lookahead_buffer_r[lookahead_pos] = num_ch >= 2 ? spl1 : spl0;
+  
+  // Get delayed sample
+  delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+  spl0 = lookahead_buffer_l[delayed_pos];
+  num_ch >= 2 ? spl1 = lookahead_buffer_r[delayed_pos];
+  
+  lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+);
+
+// Apply gain reduction
+spl0 *= envelope_out * makeup_gain_linear;
+num_ch >= 2 ? spl1 *= envelope_out * makeup_gain_linear;
+
+// Apply compressor-specific harmonic distortion
+compression_amount = 1 - envelope_out; // Amount of compression being applied
+
+compressor_type == 1 ? ( // Varimu - tube harmonics
+  harmonic_intensity = (tube_saturation + compression_amount * 0.5) * over_the_top_factor;
+  spl0 = generate_tube_harmonics(spl0, harmonic_intensity, over_the_top_factor);
+  num_ch >= 2 ? spl1 = generate_tube_harmonics(spl1, harmonic_intensity, over_the_top_factor);
+  
+) : compressor_type == 2 ? ( // FET - transistor harmonics
+  harmonic_intensity = compression_amount * over_the_top_factor;
+  spl0 = generate_fet_harmonics(spl0, harmonic_intensity, over_the_top_factor);
+  num_ch >= 2 ? spl1 = generate_fet_harmonics(spl1, harmonic_intensity, over_the_top_factor);
+  
+) : compressor_type == 3 ? ( // Optical - very subtle coloration
+  // Optical compressors are generally quite clean, just slight warmth - scaled by intensity
+  compression_amount > (0.2 / over_the_top_factor) ? ( // Kicks in earlier with higher intensity
+    warmth = compression_amount * 0.1 * over_the_top_factor;
+    harmonic_amount = warmth * 0.05;
+    spl0 = spl0 + spl0 * spl0 * spl0 * harmonic_amount; // Subtle 3rd harmonic
+    num_ch >= 2 ? spl1 = spl1 + spl1 * spl1 * spl1 * harmonic_amount;
+  );
+);
+
+// Wet/dry mix
+mix_dry = (100 - mix_wet) * 0.01;
+mix_wet_factor = mix_wet * 0.01;
+
+input_l = use_sidechain && num_ch >= 3 ? spl2 : spl0;
+input_r = use_sidechain && num_ch >= 4 ? spl3 : (num_ch >= 2 ? spl1 : spl0);
+
+spl0 = spl0 * mix_wet_factor + input_l * mix_dry;
+num_ch >= 2 ? spl1 = spl1 * mix_wet_factor + input_r * mix_dry;
