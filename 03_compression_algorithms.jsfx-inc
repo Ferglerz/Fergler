@@ -1,0 +1,170 @@
+// Compression Algorithms Module
+// Contains all compressor character models and harmonic processing algorithms
+// Implements Varimu, Bridged Diode, VCA, PWM/Fairchild, FET, and Optical compression styles
+
+@init
+
+//==============================================================================
+// COMPRESSOR CHARACTER ALGORITHMS
+//==============================================================================
+
+function generate_tube_harmonics(input, saturation_amount, intensity_factor) local(x, x2, harmonic_content, scaled_saturation, clip_threshold) (
+  scaled_saturation = saturation_amount * intensity_factor;
+  x = input * (1 + scaled_saturation * 0.3);
+  x2 = x * x;
+
+  clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
+  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + pow((x - clip_threshold) * 4 * intensity_factor, 2));
+  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + pow((x + clip_threshold) * 4 * intensity_factor, 2));
+
+  harmonic_content = x + x2 * scaled_saturation * 0.1 + x2 * x2 * scaled_saturation * 0.02;
+  harmonic_content
+);
+
+function generate_fet_harmonics(input, compression_amount, intensity_factor) local(x, x3, x5, clipped, scaled_compression, clip_point) (
+  scaled_compression = compression_amount * intensity_factor;
+  x = input;
+  x3 = x * x * x;
+  x5 = x3 * x * x;
+
+  scaled_compression > 0.3 / intensity_factor ? (
+    clipped = x;
+    clip_point = 0.8 / (1 + scaled_compression * 0.5);
+    clipped > clip_point ? clipped = clip_point + (clipped - clip_point) * (0.1 / intensity_factor);
+    clipped < -clip_point ? clipped = -clip_point + (clipped + clip_point) * (0.1 / intensity_factor);
+    x = clipped;
+  );
+
+  x + x3 * scaled_compression * 0.08 + x5 * scaled_compression * 0.015
+);
+
+function apply_harmonic_processing(input, gr_amount, type, amount, drive, mix, even_boost, odd_boost) local(driven, processed, dry_signal, wet_signal, asymL, asymR, even_proc, odd_proc) (
+  // No processing if harmonic type is off or amount is zero
+  type == 0 || amount <= 0.0001 ? (
+    input
+  ) : (
+    dry_signal = input;
+    driven = input * drive;
+
+    type == 1 ? ( // Tube Even
+      processed = tanh(abs(driven)) * (driven < 0 ? -1 : 1);
+      even_proc = processed * (1 + even_boost);
+      processed = even_proc;
+    ) : type == 2 ? ( // Tube Odd
+      processed = tanh(driven);
+      odd_proc = processed * (1 + odd_boost);
+      processed = odd_proc;
+    ) : type == 3 ? ( // Tube Both
+      even_proc = tanh(abs(driven)) * (driven < 0 ? -1 : 1) * (1 + even_boost);
+      odd_proc = tanh(driven) * (1 + odd_boost);
+      processed = 0.5 * (even_proc + odd_proc);
+    ) : ( // Tape Saturation
+      asymL = driven * (driven > 0 ? 1.02 : 0.98);
+      processed = atan(asymL) / (pi/2);
+      // Apply even/odd boost to tape saturation components
+      processed = processed * (1 + 0.5 * (even_boost + odd_boost));
+    );
+
+    // Scale back by drive to maintain levels
+    processed = processed / max(drive, 1);
+
+    // Apply amount (intensity) - this is driven by gain reduction amount
+    intensity = amount * (1 + gr_amount * 0.5); // More harmonics with more GR
+    wet_signal = dry_signal + intensity * (processed - dry_signal);
+
+    // Final dry/wet mix
+    dry_signal * (1 - mix) + wet_signal * mix
+  )
+);
+
+function soft_clip_limiter(input, prev_sample) local(oversample1, oversample2, peak_detected, limited) (
+  // 2x oversampling for inter-sample peak detection
+  oversample1 = (input + prev_sample) * 0.5;
+  oversample2 = input;
+
+  // Detect peaks above threshold
+  peak_detected = max(abs(oversample1), abs(oversample2)) > 0.95;
+
+  peak_detected ? (
+    // Soft clipping using tanh
+    limited = tanh(input * 0.95) * (1.0 / tanh(0.95));
+  ) : (
+    limited = input;
+  );
+
+  limited
+);
+
+function update_compression_history(current_gr, dt, intensity_factor) (
+  history_rate = 0.001 * intensity_factor;
+  compression_history = compression_history * (1 - history_rate) + abs(current_gr) * history_rate;
+
+  abs(current_gr) > 0.1 ? (
+    program_release_timer = min(program_release_timer + dt * 2 * intensity_factor, 1.0);
+  ) : (
+    program_release_timer = max(program_release_timer - dt * 0.5 / intensity_factor, 0);
+  );
+);
+
+function apply_compressor_character(gain_reduction, type, input_level, dt, intensity_factor) local(scaled_intensity, saturation_rate, decay_rate, input_change, transient_sensitivity, transient_decay, target_charge, charge_rate, base_discharge_rate, discharge_rate, atk_coef, rel_coef, relF, relS, bl, prog, rel_ms, r1, r2, r3, det_delta, transient_boost, target, rf, rs, drive, sat, sat_effect_dB) (
+  scaled_intensity = intensity_factor;
+  update_compression_history(gain_reduction, dt, scaled_intensity);
+
+  type == 0 ? ( // Clean Digital - no character modifications
+    gain_reduction
+  ) : type == 1 ? ( // Varimu (preserve existing)
+    saturation_rate = 0.0005 * scaled_intensity;
+    decay_rate = 0.9995 - (scaled_intensity - 1) * 0.0002;
+    tube_saturation = tube_saturation * decay_rate + abs(gain_reduction) * saturation_rate;
+    varimu_release_factor = 1 + compression_history * 1.5 * scaled_intensity + tube_saturation * 1.0 * scaled_intensity;
+    gain_reduction
+  ) : type == 2 ? ( // Bridged Diode
+    atk_coef = exp(-1/(0.0003*srate));
+    relF = exp(-1/(0.04*srate));
+    relS = exp(-1/(0.4*srate));
+    bl = clamp(abs(gain_reduction)/24, 0, 1);
+    gain_reduction < bridged_diode_env ?
+      (bridged_diode_env = atk_coef*bridged_diode_env + (1-atk_coef)*gain_reduction) :
+      (bridged_diode_env = bl*(relS*bridged_diode_env + (1-relS)*gain_reduction) + (1-bl)*(relF*bridged_diode_env + (1-relF)*gain_reduction));
+    bridged_diode_env
+  ) : type == 3 ? ( // VCA
+    atk_coef = exp(-1/(0.001*srate));
+    prog = clamp(input_level*10, 0, 1);
+    rel_ms = 0.06*(1 - 0.6*prog) + 0.4*(0.6*prog);
+    rel_coef = exp(-1/(rel_ms*srate));
+    gain_reduction < vca_env ?
+      (vca_env = atk_coef*vca_env + (1-atk_coef)*gain_reduction) :
+      (vca_env = rel_coef*vca_env + (1-rel_coef)*gain_reduction);
+    vca_env
+  ) : type == 4 ? ( // PWM/Fairchild
+    atk_coef = exp(-1/(0.01*srate));
+    r1 = exp(-1/(0.06*srate));
+    r2 = exp(-1/(0.2*srate));
+    r3 = exp(-1/(0.8*srate));
+    gain_reduction < pwm_env ?
+      (pwm_env = atk_coef*pwm_env + (1-atk_coef)*gain_reduction) :
+      (pwm_env = r3*(r2*(r1*pwm_env + (1-r1)*gain_reduction) + (1-r2)*gain_reduction) + (1-r3)*gain_reduction);
+    pwm_env
+  ) : type == 5 ? ( // FET (1176-like) - updated from old FET
+    atk_coef = exp(-1/(0.00015*srate));
+    rel_coef = exp(-1/(0.05*srate));
+    det_delta = linear_to_db(input_level) - prev_detector_db;
+    transient_boost = det_delta > 3 ? min(det_delta*0.6, 6) : 0;
+    target = gain_reduction - transient_boost;
+    target < fet_env ?
+      (fet_env = atk_coef*fet_env + (1-atk_coef)*target) :
+      (fet_env = rel_coef*fet_env + (1-rel_coef)*target);
+    prev_detector_db = linear_to_db(input_level);
+    fet_env
+  ) : type == 6 ? ( // Optical (LA-2A-like) - updated from old Optical
+    atk_coef = exp(-1/(0.018*srate));
+    rf = exp(-1/(0.12*srate));
+    rs = exp(-1/(0.9*srate));
+    gain_reduction < optical_env ?
+      (optical_env = atk_coef*optical_env + (1-atk_coef)*gain_reduction) :
+      (optical_env = rs*(rf*optical_env + (1-rf)*gain_reduction) + (1-rs)*gain_reduction);
+    optical_env
+  ) : ( // Default fallback
+    gain_reduction
+  )
+);

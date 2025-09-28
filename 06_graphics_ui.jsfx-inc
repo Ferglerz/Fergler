@@ -1,0 +1,209 @@
+// Graphics and UI Module
+// Handles all visual rendering including graph display, compression curves,
+// level indicators, gain reduction meter, and interactive visual elements
+
+//==============================================================================
+// GRAPHICS RENDERING
+//==============================================================================
+@init
+
+function draw_grid() local(i, x_pos, y_pos) (
+  gfx_set(0.4, 0.4, 0.4, 1);
+  i = 0;
+  while (i <= 6) (
+    x_pos = GRAPH_X + i * GRAPH_SIZE / 6;
+    y_pos = GRAPH_Y + i * GRAPH_SIZE / 6;
+    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE);
+    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos);
+    i += 1;
+  );
+);
+
+function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, actual_input_db, adjusted_input_db, raw_output_db, effective_output_db) (
+  // Main compression curve
+  gfx_set(1, 0.8, 0.2, 1);
+  i = 0;
+  while (i < GRAPH_SIZE) (
+    input_db = graph_x_to_db(GRAPH_X + i);
+    output_db = interpolate_compression_curve(input_db);
+    graph_y_pos = db_to_graph_y(output_db);
+    i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i, graph_y_pos);
+    i += 1;
+  );
+
+  // Effective curve with global offset
+  global_offset_db != 0 ? (
+    gfx_set(1, 0.6, 0.8, 0.8);
+    i = 0;
+    while (i < GRAPH_SIZE) (
+      actual_input_db = graph_x_to_db(GRAPH_X + i);
+      adjusted_input_db = actual_input_db - global_offset_db;
+      raw_output_db = interpolate_compression_curve(adjusted_input_db);
+      effective_output_db = raw_output_db + global_offset_db;
+      graph_y_pos = db_to_graph_y(effective_output_db);
+      i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i, graph_y_pos);
+      i += 1;
+    );
+  );
+);
+
+function draw_knee_curves() local(i, point_x, point_y, knee_size, input_center, output_center, knee_range, curve_points, j, t, test_input, knee_factor, smooth_factor, test_output, curve_x, curve_y, first_point) (
+  i = 0;
+  while (i < num_points) (
+    knee_size = graph_points[i*3 + 2];
+    knee_size > 0 ? (
+      gfx_set(0.7, 0.7, 1, 0.8);
+      input_center = graph_points[i*3];
+      output_center = graph_points[i*3 + 1];
+      knee_range = knee_size;
+
+      curve_points = 20;
+      j = 0;
+      first_point = 1;
+      while (j < curve_points) (
+        t = (j - curve_points/2) / (curve_points/2);
+        test_input = input_center + t * knee_range;
+
+        test_input >= input_center - knee_range/2 && test_input <= input_center + knee_range/2 ? (
+          knee_factor = (test_input - input_center) / knee_range;
+          smooth_factor = 0.5 + 0.5 * sin(knee_factor * PI);
+          test_output = output_center + (test_input - input_center) * smooth_factor;
+
+          curve_x = db_to_graph_x(test_input);
+          curve_y = db_to_graph_y(test_output);
+
+          first_point ? (
+            gfx_x = curve_x; gfx_y = curve_y;
+            first_point = 0;
+          ) : (
+            gfx_lineto(curve_x, curve_y);
+          );
+        );
+        j += 1;
+      );
+    );
+    i += 1;
+  );
+);
+
+function draw_graph_points() local(i, point_x, point_y, knee_size) (
+  i = 0;
+  while (i < num_points) (
+    point_x = db_to_graph_x(graph_points[i*3]);
+    point_y = db_to_graph_y(graph_points[i*3 + 1]);
+    knee_size = graph_points[i*3 + 2];
+
+    // Knee indicator circle
+    knee_size > 0 ? (
+      gfx_set(0.5, 0.5, 1, 0.3);
+      gfx_circle(point_x, point_y, 6 + knee_size * 3, 0);
+    );
+
+    // Point color
+    (i == 0 || i == num_points - 1) ? (
+      gfx_set(0.9, 0.9, 0.6, 1);
+    ) : (
+      gfx_set(1, 1, 1, 1);
+    );
+
+    gfx_circle(point_x, point_y, 6, 1);
+    i += 1;
+  );
+);
+
+function draw_level_indicators() local(input_x, adjusted_input_for_display, input_x_adjusted, input_y_on_unity, input_y_on_curve, input_y_raw_curve) (
+  input_x = db_to_graph_x(current_input_db);
+  adjusted_input_for_display = current_input_db - global_offset_db;
+  input_x_adjusted = db_to_graph_x(adjusted_input_for_display);
+
+  input_y_on_unity = db_to_graph_y(current_input_db);
+  input_y_on_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display) + global_offset_db);
+
+  gfx_set(0, 1, 0, 0.8);
+  gfx_circle(input_x, input_y_on_unity, 4, 1);
+
+  gfx_set(1, 0, 0, 0.8);
+  gfx_circle(input_x, input_y_on_curve, 4, 1);
+
+  global_offset_db != 0 ? (
+    gfx_set(1, 1, 0, 0.6);
+    input_y_raw_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display));
+    gfx_circle(input_x_adjusted, input_y_raw_curve, 3, 1);
+  );
+);
+
+function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, gr_height) (
+  gr_meter_x = GRAPH_X + GRAPH_SIZE + 20;
+  gr_meter_y = GRAPH_Y;
+  gr_meter_w = 30;
+  gr_meter_h = GRAPH_SIZE;
+
+  gfx_set(0.2, 0.2, 0.2, 1);
+  gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+
+  current_gr_db < 0 ? (
+    gr_height = abs(current_gr_db) / abs(max_gr_db) * gr_meter_h;
+    gfx_set(1, 0.5, 0, 1);
+    gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+  );
+);
+
+function draw_labels_and_info() (
+  gfx_set(1, 1, 1, 1);
+  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 10;
+  gfx_drawstr("Input Level (dB)");
+
+  gfx_x = GRAPH_X - 40; gfx_y = GRAPH_Y - 10;
+  gfx_drawstr("");
+
+  gfx_x = GRAPH_X + GRAPH_SIZE + 20; gfx_y = GRAPH_Y - 20;
+  gfx_drawstr("GR");
+
+  global_offset_db != 0 ? (
+    gfx_set(1, 1, 0.6, 1);
+    gfx_x = GRAPH_X + GRAPH_SIZE + 60; gfx_y = GRAPH_Y + 20;
+    gfx_printf("Offset: %+.1f dB", global_offset_db);
+  );
+
+  gfx_set(0.8, 0.8, 1, 1);
+  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 30;
+  gfx_printf("Points: %d/%d", num_points, MAX_POINTS);
+
+  gfx_set(0.7, 0.7, 0.7, 1);
+  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 45;
+  gfx_drawstr("Click empty: Add | Right-click/Alt+click point: Delete | Ctrl+Drag: Knee");
+);
+
+function draw_graph_background() (
+  // Draw graph background
+  gfx_set(0.3, 0.3, 0.3, 1);
+  gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
+
+  // Draw unity line
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y);
+);
+
+function render_complete_interface() (
+  // Set background color
+  gfx_clear = 0x202020;
+
+  // Initialize graph points if needed
+  !graph_initialized || num_points < MIN_POINTS || num_points > MAX_POINTS || num_points == 0 ? (
+    init_graph_points();
+    graph_initialized = 1;
+  );
+
+  // Draw all interface elements in order
+  draw_graph_background();
+  draw_grid();
+  draw_compression_curves();
+  draw_knee_curves();
+  draw_graph_points();
+  draw_level_indicators();
+  draw_gain_reduction_meter();
+  draw_labels_and_info();
+
+  // Handle user interaction
+  process_mouse_input();
+);
