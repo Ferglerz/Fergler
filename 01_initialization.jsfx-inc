@@ -44,7 +44,6 @@ function init_constants() (
   // Point management
   MIN_POINTS = 4;
   MAX_POINTS = 12;
-  DEFAULT_KNEE_SIZE = 2;
   MOUSE_CLICK_RADIUS = 10;
 
   // Visual configuration

@@ -78,32 +78,28 @@ function is_point_in_graph(x, y) (
 // COMPRESSION CURVE MATH
 //==============================================================================
 
-function smooth_knee(x, threshold, knee) (
-  knee > 0 ? (
-    x <= threshold - knee/2 ? x :
-    x >= threshold + knee/2 ? threshold + (x - threshold) :
-    threshold - knee/2 + (knee/4) * (1 + sin(PI * (x - threshold) / knee))
-  ) : (
-    x <= threshold ? x : threshold + (x - threshold)
-  )
-);
 
 function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t) (
-  // Find the segment
-  i = 0;
-  while (i < num_points - 1 && graph_points[(i+1)*3] < input_db) (
-    i += 1;
-  );
+  // Bounds checking
+  input_db <= graph_points[0] ? graph_points[1] : (
+    input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
+      // Find the segment
+      i = 0;
+      while (i < num_points - 1 && graph_points[(i+1)*2] < input_db) (
+        i += 1;
+      );
 
-  // Get the segment endpoints
-  x1 = graph_points[i*3];
-  y1 = graph_points[i*3 + 1];
+      // Get the segment endpoints
+      x1 = graph_points[i*2];
+      y1 = graph_points[i*2 + 1];
 
-  x2 = graph_points[(i+1)*3];
-  y2 = graph_points[(i+1)*3 + 1];
+      x2 = graph_points[(i+1)*2];
+      y2 = graph_points[(i+1)*2 + 1];
 
-  // Calculate t parameter and do linear interpolation
-  t = clamp((input_db - x1) / (x2 - x1), 0, 1);
-  y1 + t * (y2 - y1);
+      // Calculate t parameter and do linear interpolation
+      t = clamp((input_db - x1) / (x2 - x1), 0, 1);
+      y1 + t * (y2 - y1)
+    )
+  )
 );
 

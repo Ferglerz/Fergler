@@ -56,27 +56,24 @@ import 04_audio_processing.jsfx-inc
 import 05_graph_management.jsfx-inc
 import 06_graphics_ui.jsfx-inc
 
+@serialize
+// Prevent memory/variables from being cleared on @init by having a non-empty @serialize section
+ext_noinit = 1.0;
+
 @init
 
-// Initialize graph points FIRST, before anything else can touch them
-!graph_points_ever_initialized ? (
-  // Set fixed memory location for graph points
-  graph_points = 10000;
-
-  // Initialize the actual point data
-  graph_points[0] = -30; graph_points[1] = -30; graph_points[2] = 0;  // Corner point
-  graph_points[3] = -18; graph_points[4] = -18; graph_points[5] = 2;
-  graph_points[6] = -6;  graph_points[7] = -6;  graph_points[8] = 2;
-  graph_points[9] = 6;   graph_points[10] = 6;  graph_points[11] = 2;
-  graph_points[12] = 18; graph_points[13] = 18; graph_points[14] = 2;
-  graph_points[15] = 30; graph_points[16] = 30; graph_points[17] = 0;  // Corner point
-
-  num_points = 6;
-  graph_points_ever_initialized = 1;
-);
+// Set up graph points memory location (must be done first)
+!graph_points ? graph_points = 10000;
 
 // Initialize all constants, memory, and state variables
 perform_complete_initialization();
+
+// Initialize graph points if not already done
+!graph_initialized ? (
+  num_points = 6;  // Ensure correct point count
+  init_graph_points();
+  graph_initialized = 1;
+);
 
 //==============================================================================
 // MAIN SECTIONS
