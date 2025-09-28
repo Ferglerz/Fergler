@@ -48,6 +48,7 @@ slider30:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 // INCLUDE MODULES
 //==============================================================================
 
+// For Claude: These are import, not @import or include or @include
 import 01_initialization.jsfx-inc
 import 02_shared_utilities.jsfx-inc
 import 03_compression_algorithms.jsfx-inc

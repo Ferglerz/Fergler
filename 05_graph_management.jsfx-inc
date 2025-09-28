@@ -91,19 +91,38 @@ function delete_point(point_index) local(i) (
   );
 );
 
-function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq) (
-  i = 0;
-  while (i < num_points) (
+function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, dist, found_point) (
+  // Skip corner points (indices 0 and num_points-1) - they are invisible and non-interactive
+  found_point = -1;
+  i = 1;
+  while (i < num_points - 1) (
     point_x = db_to_graph_x(graph_points[i*3]);
     point_y = db_to_graph_y(graph_points[i*3 + 1]);
     dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
+    dist = sqrt(dist_sq);
+
+    // Debug: show distance to first point
+    i == 1 ? (
+      debug_dist_to_point1 = dist;
+      debug_point1_x = point_x;
+      debug_point1_y = point_y;
+    );
+
+    // Debug all points
+    i == 2 ? (
+      debug_dist_to_point2 = dist;
+      debug_point2_x = point_x;
+      debug_point2_y = point_y;
+    );
+
     dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
-      i; // Return point index
+      found_point = i;
+      i = num_points; // Break out of loop
     ) : (
       i += 1;
     );
   );
-  -1; // No point found
+  found_point;
 );
 
 
@@ -111,43 +130,22 @@ function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq) (
 // MOUSE INTERACTION HANDLERS
 //==============================================================================
 
-function handle_point_movement() local(new_input_db, new_output_db, i, old_input_db) (
-  new_input_db = clamp(graph_x_to_db(mouse_x), GRAPH_MIN_DB, GRAPH_MAX_DB);
-  new_output_db = clamp(graph_y_to_db(mouse_y), GRAPH_MIN_DB, GRAPH_MAX_DB);
-
-  // Store old position for sorting lookup
-  old_input_db = graph_points[selected_point*3];
-
-  // Constrain corner points
-  selected_point == 0 ? (
-    new_input_db = GRAPH_MIN_DB;
-    new_output_db = GRAPH_MIN_DB;
-  ) : selected_point == num_points - 1 ? (
-    new_input_db = GRAPH_MAX_DB;
-    new_output_db = GRAPH_MAX_DB;
-  );
-
-  // Update point position
-  graph_points[selected_point*3] = new_input_db;
-  graph_points[selected_point*3 + 1] = new_output_db;
-
-  // For middle points, handle sorting and find new index
+function handle_point_movement() local(new_input_db, new_output_db) (
+  // Only allow movement of non-corner points
   selected_point > 0 && selected_point < num_points - 1 ? (
-    // Only sort if input position actually changed significantly
-    abs(new_input_db - old_input_db) > 0.1 ? (
-      sort_points();
+    new_input_db = graph_x_to_db(mouse_x);
+    new_output_db = graph_y_to_db(mouse_y);
 
-      // Find the moved point's new index
-      i = 0;
-      while (i < num_points) (
-        abs(graph_points[i*3] - new_input_db) < 0.01 && abs(graph_points[i*3 + 1] - new_output_db) < 0.01 ? (
-          selected_point = i;
-          i = num_points; // break
-        ) : (
-          i += 1;
-        );
-      );
-    );
+    // Constrain to graph bounds
+    new_input_db = clamp(new_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    new_output_db = clamp(new_output_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+
+    // Update point position
+    graph_points[selected_point*3] = new_input_db;
+    graph_points[selected_point*3 + 1] = new_output_db;
+
+    // Re-sort points to maintain order (like the old code)
+    sort_points();
   );
 );
 
@@ -156,10 +154,28 @@ function handle_knee_adjustment() local(knee_delta) (
   graph_points[selected_point*3 + 2] = clamp(graph_points[selected_point*3 + 2] + knee_delta, 0, 10);
 );
 
-function handle_point_addition() local(new_input_db, new_output_db) (
+function handle_point_addition() local(new_input_db, new_output_db, i, point_x, point_y, dist_sq, too_close) (
   new_input_db = clamp(graph_x_to_db(mouse_x), GRAPH_MIN_DB, GRAPH_MAX_DB);
   new_output_db = clamp(graph_y_to_db(mouse_y), GRAPH_MIN_DB, GRAPH_MAX_DB);
-  add_point(new_input_db, new_output_db);
+
+  // Check if too close to existing points (buffer area)
+  too_close = 0;
+  i = 1;
+  while (i < num_points - 1 && !too_close) (
+    point_x = db_to_graph_x(graph_points[i*3]);
+    point_y = db_to_graph_y(graph_points[i*3 + 1]);
+    dist_sq = (mouse_x - point_x) * (mouse_x - point_x) + (mouse_y - point_y) * (mouse_y - point_y);
+    dist_sq < (MOUSE_CLICK_RADIUS * 2) * (MOUSE_CLICK_RADIUS * 2) ? (
+      too_close = 1;
+    );
+    i += 1;
+  );
+
+  !too_close ? (
+    add_point(new_input_db, new_output_db);
+  ) : (
+    -1; // Return -1 if too close to add
+  );
 );
 
 function handle_point_deletion() local(point_to_delete) (
@@ -170,42 +186,34 @@ function handle_point_deletion() local(point_to_delete) (
 );
 
 function process_mouse_input() (
+  // Always update hover state first
+  hovered_point = find_point_at_mouse(mouse_x, mouse_y);
+
   mouse_cap & 1 ? ( // Left mouse button pressed
-    !mouse_down ? (
-      // Mouse just pressed down
+    !mouse_down ? ( // Start of click/drag
       mouse_down = 1;
-      mouse_moved = 0; // Track if mouse has moved during this click
 
       mouse_cap & 16 ? ( // Alt+click = delete point
         handle_point_deletion();
         selected_point = -1;
       ) : (
-        // Normal click - find point under mouse
+        // Find point under mouse for selection
         selected_point = find_point_at_mouse(mouse_x, mouse_y);
+        selected_point == -1 && is_point_in_graph(mouse_x, mouse_y) ? (
+          // Click in empty space - add point
+          selected_point = handle_point_addition();
+        );
       );
 
       mouse_x_prev = mouse_x;
       mouse_y_prev = mouse_y;
-    ) : (
-      // Mouse is being held down
-      // Check if mouse has moved enough to be considered a drag
-      abs(mouse_x - mouse_x_prev) > 2 || abs(mouse_y - mouse_y_prev) > 2 ? (
-        mouse_moved = 1;
-      );
-
+    ) : ( // Continue drag
       selected_point >= 0 ? (
-        // We have a selected point
-        mouse_moved ? (
-          // Mouse has moved - drag the point
-          mouse_cap & 4 || mouse_cap & 8 || mouse_cap & 32 ? (
-            // Ctrl/Shift/Cmd + drag = adjust knee
-            handle_knee_adjustment();
-          ) : (
-            // Normal drag = move point
-            handle_point_movement();
-          );
+        mouse_cap & 4 || mouse_cap & 8 || mouse_cap & 32 ? ( // Ctrl/Shift/Cmd + drag = adjust knee
+          handle_knee_adjustment();
+        ) : ( // Normal drag = move point
+          handle_point_movement();
         );
-        // If mouse hasn't moved yet, do nothing (wait for movement)
       );
 
       mouse_x_prev = mouse_x;
@@ -213,20 +221,12 @@ function process_mouse_input() (
     );
   ) : mouse_cap & 2 ? ( // Right mouse button
     !mouse_down ? (
+      mouse_down = 1;
       handle_point_deletion();
     );
   ) : (
-    // Mouse button released
-    mouse_down == 1 && !mouse_moved && selected_point == -1 ? (
-      // This was a click (not drag) in empty space - add point
-      is_point_in_graph(mouse_x, mouse_y) ? (
-        selected_point = handle_point_addition();
-      );
-    );
-
-    // Reset state
+    // Mouse button released - reset state
     mouse_down = 0;
     selected_point = -1;
-    mouse_moved = 0;
   );
 );

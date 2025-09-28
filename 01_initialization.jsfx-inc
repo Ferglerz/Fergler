@@ -11,6 +11,7 @@
 // Graph state - these need to persist across @init calls
 num_points = 6;
 selected_point = -1;
+hovered_point = -1;
 mouse_down = 0;
 mouse_x_prev = 0;
 mouse_y_prev = 0;
@@ -139,6 +140,14 @@ function init_state_variables() (
   // Display state
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
+
+  // Debug variables
+  debug_dist_to_point1 = -1;
+  debug_point1_x = -1;
+  debug_point1_y = -1;
+  debug_dist_to_point2 = -1;
+  debug_point2_x = -1;
+  debug_point2_y = -1;
 );
 
 //==============================================================================
