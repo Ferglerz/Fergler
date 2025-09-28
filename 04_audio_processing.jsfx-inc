@@ -10,7 +10,7 @@
 //==============================================================================
 
 function calc_biquad_hp(freq) (
-  w = 2 * PI * freq * SRATE_INV;
+  w = 2 * $pi * freq * SRATE_INV;
   cosw = cos(w);
   sinw = sin(w);
   alpha = sinw / sqrt(2);
@@ -26,7 +26,7 @@ function calc_biquad_hp(freq) (
 );
 
 function calc_biquad_lp(freq) (
-  w = 2 * PI * freq * SRATE_INV;
+  w = 2 * $pi * freq * SRATE_INV;
   cosw = cos(w);
   sinw = sin(w);
   alpha = sinw / sqrt(2);
@@ -190,6 +190,7 @@ function calculate_gain_reduction(input_level_db) local(adjusted_input_db, targe
   // Apply compression curve with global offset
   adjusted_input_db = input_level_db - global_offset_db;
   target_output_db = interpolate_compression_curve(adjusted_input_db);
+  target_output_db += global_offset_db;  // Add offset back to output
   target_gr_db = target_output_db - input_level_db;
 
   // Apply strength and curves
@@ -201,7 +202,7 @@ function calculate_gain_reduction(input_level_db) local(adjusted_input_db, targe
     target_gr_db *= curve_factor;
   );
 
-  target_gr_db = min(max_gr_db, target_gr_db);
+  target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
 
   target_gr_db
 );

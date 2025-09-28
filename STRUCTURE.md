@@ -23,6 +23,10 @@ The Composure Modular JSFX is a professional multi-algorithm compressor with an 
 - `init_state_variables()` - Initialize processing state
 - `perform_complete_initialization()` - Master initialization function
 
+**Important Constants:**
+- Uses Reaper's built-in `$pi` constant directly throughout the codebase
+- All mathematical constants are defined in `init_constants()` function
+
 **Memory Layout:**
 - Graph points: 10000+
 - Control definitions: 30000+
@@ -168,6 +172,12 @@ The Composure Modular JSFX is a professional multi-algorithm compressor with an 
 - **@gfx**: Visual interface rendering
 - **@sample**: Real-time audio processing
 
+**Slider Variable Naming:**
+- `slider1:name` declares the variable name for that slider
+- Slider order is correct: slider1=attack_ms, slider2=attack_curve, etc.
+- UI parameter system maps parameter indices to these slider variables
+- All audio processing uses the correct slider variable names
+
 **Parameter Categories:**
 - Basic Controls: Strength, Threshold, Attack, Release, Makeup Gain, Mix
 - Advanced Controls: Compressor Type, Sidechain, Filters, RMS settings
@@ -239,6 +249,18 @@ The modules are imported in strict dependency order:
 - **Harmonic Processing**: Dedicated saturation stage
 - **Lookahead Processing**: Zero-latency lookahead
 - **Soft-Clipping Limiter**: Brickwall limiting with musical character
+
+## Critical Fixes Applied
+
+### Mathematical Constants
+- **Uses Reaper's built-in $pi directly**: No need for separate PI variable
+- **Direct $pi usage throughout codebase**: Ensures compatibility and accuracy
+- **Required for audio processing**: Filter coefficient calculations use $pi directly
+
+### Slider Variable System
+- **Slider naming is correct**: `slider1:name` declares variable name
+- **UI parameter mapping works**: Maps parameter indices to slider variables
+- **Audio processing uses correct variables**: All references use proper slider names
 
 ## Benefits
 

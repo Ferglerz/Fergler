@@ -32,7 +32,7 @@ function tanh(x) (
 // Helper function for atan (arctangent)
 function atan(x) (
   abs(x) > 1 ? (
-    x > 0 ? pi/2 - atan(1/x) : -pi/2 - atan(1/x)
+    x > 0 ? $pi/2 - atan(1/x) : -$pi/2 - atan(1/x)
   ) : (
     // Taylor series approximation for |x| <= 1
     x - x*x*x/3 + x*x*x*x*x/5 - x*x*x*x*x*x*x/7

@@ -60,7 +60,7 @@ function apply_harmonic_processing(input, gr_amount, type, amount, drive, mix, e
       processed = 0.5 * (even_proc + odd_proc);
     ) : ( // Tape Saturation
       asymL = driven * (driven > 0 ? 1.02 : 0.98);
-      processed = atan(asymL) / (pi/2);
+      processed = atan(asymL) / ($pi/2);
       // Apply even/odd boost to tape saturation components
       processed = processed * (1 + 0.5 * (even_boost + odd_boost));
     );
