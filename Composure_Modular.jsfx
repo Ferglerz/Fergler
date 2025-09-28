@@ -73,6 +73,25 @@ import 06_graphics_ui.jsfx-inc
 // Prevent memory/variables from being cleared on @init by having a non-empty @serialize section
 ext_noinit = 1.0; // need this to not clear on bringing up the UI or alt+tabbing
 
+// Serialize graph points data for persistence across plugin duplication and project saves
+// Format: [version][num_points][point1_x][point1_y][point2_x][point2_y]...
+// Version 1: Basic graph points serialization
+// This ensures graph points are preserved when:
+// - Duplicating the plugin instance
+// - Copying/pasting the track
+// - Saving and reopening the project
+// - Restarting REAPER
+file_var(0, graph_serialization_version);
+file_var(0, num_points);
+
+// Save all graph points
+i = 0;
+while (i < num_points) (
+  file_var(0, graph_points[i*2]);     // input_db
+  file_var(0, graph_points[i*2 + 1]); // output_db
+  i += 1;
+);
+
 @init
 
 // Set up graph points memory location (must be done first)
@@ -89,9 +108,15 @@ setup_control_layout();
 
 // Initialize graph points if not already done
 !graph_initialized ? (
-  num_points = 6;  // Ensure correct point count
-  init_graph_points();
-  graph_initialized = 1;
+  // Try to restore graph points from serialized data
+  restore_graph_points_from_serialization();
+  
+  // If restoration failed or no data exists, initialize with default points
+  !graph_initialized ? (
+    num_points = 6;  // Ensure correct point count
+    init_graph_points();
+    graph_initialized = 1;
+  );
 );
 
 //==============================================================================

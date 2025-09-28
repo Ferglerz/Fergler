@@ -19,6 +19,7 @@
   mouse_y_prev = 0;
   // mouse_moved removed - not used anywhere
   graph_initialized = 0;
+  graph_serialization_version = 1; // Version for serialization compatibility
   persistent_vars_initialized = 1;
 );
 
