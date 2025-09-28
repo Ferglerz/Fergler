@@ -88,27 +88,22 @@ function smooth_knee(x, threshold, knee) (
   )
 );
 
-function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t, knee1, knee2, output_db, knee_amount) (
+function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t) (
+  // Find the segment
   i = 0;
   while (i < num_points - 1 && graph_points[(i+1)*3] < input_db) (
     i += 1;
   );
 
+  // Get the segment endpoints
   x1 = graph_points[i*3];
   y1 = graph_points[i*3 + 1];
-  knee1 = graph_points[i*3 + 2];
 
   x2 = graph_points[(i+1)*3];
   y2 = graph_points[(i+1)*3 + 1];
-  knee2 = graph_points[(i+1)*3 + 2];
 
-  t = (input_db - x1) / (x2 - x1);
-  output_db = y1 + t * (y2 - y1);
-
-  knee_amount = knee1 + t * (knee2 - knee1);
-  knee_amount > 0 ? (
-    output_db = smooth_knee(output_db, y1 + t * (y2 - y1), knee_amount);
-  );
-
-  output_db
+  // Calculate t parameter and do linear interpolation
+  t = clamp((input_db - x1) / (x2 - x1), 0, 1);
+  y1 + t * (y2 - y1);
 );
+

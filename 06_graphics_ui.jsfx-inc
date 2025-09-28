@@ -19,15 +19,16 @@ function draw_grid() local(i, x_pos, y_pos) (
   );
 );
 
-function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, actual_input_db, adjusted_input_db, raw_output_db, effective_output_db) (
-  // Main compression curve
+function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, actual_input_db, adjusted_input_db, raw_output_db, effective_output_db, step_size) (
+  // Main compression curve with higher resolution for smooth knee display
   gfx_set(1, 0.8, 0.2, 1);
+  step_size = 0.5; // Higher resolution - draw every 0.5 pixels instead of every pixel
   i = 0;
-  while (i < GRAPH_SIZE) (
-    input_db = graph_x_to_db(GRAPH_X + i);
+  while (i < GRAPH_SIZE * 2) ( // Double the points for smoother curves
+    input_db = graph_x_to_db(GRAPH_X + i * step_size);
     output_db = interpolate_compression_curve(input_db);
     graph_y_pos = db_to_graph_y(output_db);
-    i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i, graph_y_pos);
+    i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos);
     i += 1;
   );
 
@@ -35,13 +36,13 @@ function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, ac
   global_offset_db != 0 ? (
     gfx_set(1, 0.6, 0.8, 0.8);
     i = 0;
-    while (i < GRAPH_SIZE) (
-      actual_input_db = graph_x_to_db(GRAPH_X + i);
+    while (i < GRAPH_SIZE * 2) (
+      actual_input_db = graph_x_to_db(GRAPH_X + i * step_size);
       adjusted_input_db = actual_input_db - global_offset_db;
       raw_output_db = interpolate_compression_curve(adjusted_input_db);
       effective_output_db = raw_output_db + global_offset_db;
       graph_y_pos = db_to_graph_y(effective_output_db);
-      i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i, graph_y_pos);
+      i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos);
       i += 1;
     );
   );
@@ -86,20 +87,13 @@ function draw_knee_curves() local(i, point_x, point_y, knee_size, input_center, 
   );
 );
 
-function draw_graph_points() local(i, point_x, point_y, knee_size, point_radius, is_hovered) (
+function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered) (
   // Skip corner points (indices 0 and num_points-1) - they are invisible
   i = 1;
   while (i < num_points - 1) (
     point_x = db_to_graph_x(graph_points[i*3]);
     point_y = db_to_graph_y(graph_points[i*3 + 1]);
-    knee_size = graph_points[i*3 + 2];
     is_hovered = (i == hovered_point);
-
-    // Knee indicator circle
-    knee_size > 0 ? (
-      gfx_set(0.5, 0.5, 1, 0.3);
-      gfx_circle(point_x, point_y, 4 + knee_size * 3, 0);
-    );
 
     // Point appearance based on hover state
     is_hovered ? (
@@ -155,15 +149,14 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
 );
 
 function draw_labels_and_info() (
-  gfx_set(1, 1, 1, 1);
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 10;
-  gfx_drawstr("Input Level (dB)");
-
-  gfx_x = GRAPH_X - 40; gfx_y = GRAPH_Y - 10;
-  gfx_drawstr("");
-
   gfx_x = GRAPH_X + GRAPH_SIZE + 20; gfx_y = GRAPH_Y - 20;
+  gfx_set(1, 1, 1, 1);
   gfx_drawstr("GR");
+
+  // Points text in top left of graph area in light grey
+  gfx_set(0.7, 0.7, 0.7, 1);
+  gfx_x = GRAPH_X + 10; gfx_y = GRAPH_Y + 15;
+  gfx_printf("Points: %d/%d", num_points, MAX_POINTS);
 
   global_offset_db != 0 ? (
     gfx_set(1, 1, 0.6, 1);
@@ -171,13 +164,8 @@ function draw_labels_and_info() (
     gfx_printf("Offset: %+.1f dB", global_offset_db);
   );
 
-  gfx_set(0.8, 0.8, 1, 1);
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 30;
-  gfx_printf("Points: %d/%d", num_points, MAX_POINTS);
-
-
   gfx_set(0.7, 0.7, 0.7, 1);
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 45;
+  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 15;
   gfx_drawstr("Click empty: Add | Right-click/Alt+click point: Delete | Ctrl+Drag: Knee");
 );
 
@@ -195,17 +183,10 @@ function render_complete_interface() (
   // Set background color
   gfx_clear = 0x202020;
 
-  // Initialize graph points if needed (only if explicitly not initialized)
-  !graph_initialized ? (
-    init_graph_points();
-    graph_initialized = 1;
-  );
-
   // Draw all interface elements in order
   draw_graph_background();
   draw_grid();
   draw_compression_curves();
-  draw_knee_curves();
   draw_graph_points();
   draw_level_indicators();
   draw_gain_reduction_meter();
