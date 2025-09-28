@@ -175,19 +175,9 @@ function draw_labels_and_info() (
   gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 30;
   gfx_printf("Points: %d/%d", num_points, MAX_POINTS);
 
-  // Debug info
-  gfx_set(1, 0.5, 0.5, 1);
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 50;
-  gfx_printf("Hover: %d | Mouse: %d,%d | Selected: %d", hovered_point, mouse_x, mouse_y, selected_point);
-
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 62;
-  gfx_printf("Dist to P1: %.1f | P1: %.1f,%.1f | Radius: %d", debug_dist_to_point1, debug_point1_x, debug_point1_y, MOUSE_CLICK_RADIUS);
-
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 74;
-  gfx_printf("Dist to P2: %.1f | P2: %.1f,%.1f", debug_dist_to_point2, debug_point2_x, debug_point2_y);
 
   gfx_set(0.7, 0.7, 0.7, 1);
-  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 80;
+  gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 45;
   gfx_drawstr("Click empty: Add | Right-click/Alt+click point: Delete | Ctrl+Drag: Knee");
 );
 
@@ -205,8 +195,8 @@ function render_complete_interface() (
   // Set background color
   gfx_clear = 0x202020;
 
-  // Initialize graph points if needed
-  !graph_initialized || num_points < MIN_POINTS || num_points > MAX_POINTS || num_points == 0 ? (
+  // Initialize graph points if needed (only if explicitly not initialized)
+  !graph_initialized ? (
     init_graph_points();
     graph_initialized = 1;
   );

@@ -91,7 +91,37 @@ function delete_point(point_index) local(i) (
   );
 );
 
-function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, dist, found_point) (
+function remove_displaced_points(moved_input_db, moved_output_db) local(i, same_position_count, points_to_remove, removal_count) (
+  // Count how many points are at approximately the same position as the moved point
+  same_position_count = 0;
+  i = 1;
+  while (i < num_points - 1) (
+    abs(graph_points[i*3] - moved_input_db) < 2.0 && abs(graph_points[i*3 + 1] - moved_output_db) < 2.0 ? (
+      same_position_count += 1;
+    );
+    i += 1;
+  );
+
+  // If more than 2 points are at the same position, remove the extras
+  same_position_count > 2 ? (
+    points_to_remove = same_position_count - 2;
+    removal_count = 0;
+
+    // Remove points from the end backwards to avoid index shifting issues
+    i = num_points - 2; // Start from last non-corner point
+    while (i > 0 && removal_count < points_to_remove && num_points > MIN_POINTS) (
+      abs(graph_points[i*3] - moved_input_db) < 2.0 && abs(graph_points[i*3 + 1] - moved_output_db) < 2.0 ? (
+        delete_point(i);
+        removal_count += 1;
+        i -= 1; // Adjust index after deletion
+      ) : (
+        i -= 1;
+      );
+    );
+  );
+);
+
+function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, found_point) (
   // Skip corner points (indices 0 and num_points-1) - they are invisible and non-interactive
   found_point = -1;
   i = 1;
@@ -99,21 +129,6 @@ function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, dist, fou
     point_x = db_to_graph_x(graph_points[i*3]);
     point_y = db_to_graph_y(graph_points[i*3 + 1]);
     dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
-    dist = sqrt(dist_sq);
-
-    // Debug: show distance to first point
-    i == 1 ? (
-      debug_dist_to_point1 = dist;
-      debug_point1_x = point_x;
-      debug_point1_y = point_y;
-    );
-
-    // Debug all points
-    i == 2 ? (
-      debug_dist_to_point2 = dist;
-      debug_point2_x = point_x;
-      debug_point2_y = point_y;
-    );
 
     dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
       found_point = i;
@@ -130,7 +145,7 @@ function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, dist, fou
 // MOUSE INTERACTION HANDLERS
 //==============================================================================
 
-function handle_point_movement() local(new_input_db, new_output_db) (
+function handle_point_movement() local(new_input_db, new_output_db, old_input_db) (
   // Only allow movement of non-corner points
   selected_point > 0 && selected_point < num_points - 1 ? (
     new_input_db = graph_x_to_db(mouse_x);
@@ -140,12 +155,20 @@ function handle_point_movement() local(new_input_db, new_output_db) (
     new_input_db = clamp(new_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     new_output_db = clamp(new_output_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
 
+    // Store old position to check if significant movement occurred
+    old_input_db = graph_points[selected_point*3];
+
     // Update point position
     graph_points[selected_point*3] = new_input_db;
     graph_points[selected_point*3 + 1] = new_output_db;
 
-    // Re-sort points to maintain order (like the old code)
+    // Re-sort points to maintain order
     sort_points();
+
+    // Check if significant movement occurred and clean up displaced points
+    abs(new_input_db - old_input_db) > 1.0 ? (
+      remove_displaced_points(new_input_db, new_output_db);
+    );
   );
 );
 
