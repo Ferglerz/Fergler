@@ -17,7 +17,7 @@
   mouse_down = 0;
   mouse_x_prev = 0;
   mouse_y_prev = 0;
-  mouse_moved = 0;
+  // mouse_moved removed - not used anywhere
   graph_initialized = 0;
   persistent_vars_initialized = 1;
 );
@@ -28,7 +28,6 @@
 
 function init_constants() (
   // Mathematical constants
-  PI = $pi;
   LOG10_20 = 20 / log(10);
   LOG_10_20 = log(10) / 20;
   SRATE_INV = 1 / srate;
@@ -36,7 +35,7 @@ function init_constants() (
   // Graph configuration
   GRAPH_X = 50;
   GRAPH_Y = 50;
-  GRAPH_SIZE = 500;
+  GRAPH_SIZE = 350;  // Increased to accommodate more controls (2 rows = ~70px, but making it bigger)
   GRAPH_RANGE_DB = 60; // -30 to +30
   GRAPH_MIN_DB = -30;
   GRAPH_MAX_DB = 30;
@@ -47,12 +46,11 @@ function init_constants() (
   MOUSE_CLICK_RADIUS = 10;
 
   // Visual configuration
-  GFX_WIDTH = 600;
-  GFX_HEIGHT = 700;
+  GFX_WIDTH = 3500;  // Reduced to match narrower UI panel
+  GFX_HEIGHT = 450;  // Increased to accommodate larger graph
 
   // Math constants
-  eps = 0.000000000000000000000000000001;
-  pi = 3.141592653589793;
+  eps = 0.000000000000000000000000000001; // MUST be a decimal, not scientific notation
 );
 
 //==============================================================================
@@ -141,16 +139,7 @@ function init_state_variables() (
   // Display state
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
-
-  // Debug variables
-  debug_dist_to_point1 = -1;
-  debug_point1_x = -1;
-  debug_point1_y = -1;
-  debug_dist_to_point2 = -1;
-  debug_point2_x = -1;
-  debug_point2_y = -1;
-
-  // DON'T reset graph_initialized here - let it persist across @init calls
+  
   // graph_initialized should only be set in the global scope or by explicit user action
 );
 
@@ -164,4 +153,5 @@ function perform_complete_initialization() (
   init_state_variables();
 
   // NEVER call init_graph_points() here - points are initialized in main @init only
+  // init_ui_constants() is called in main file after all imports
 );

@@ -1,0 +1,191 @@
+// UI Core Module
+// Basic UI constants, configuration, and core utility functions
+// Foundation for the modular UI library system
+
+@init
+
+//==============================================================================
+// UI CONSTANTS AND CONFIGURATION
+//==============================================================================
+
+function init_ui_constants() (
+  // UI Panel Configuration
+  UI_PANEL_X = GRAPH_X + GRAPH_SIZE + 60;  // Start after GR meter (30px) + gap (30px)
+  UI_PANEL_Y = GRAPH_Y;
+  UI_PANEL_W = 800;  // Reduced panel width to match narrower columns
+  UI_PANEL_H = GRAPH_SIZE;  // Same height as graph (now 350px)
+
+  // Control Dimensions
+  SLIDER_W = 135;  // 75% of 180
+  SLIDER_H = 20;
+  BUTTON_W = 80;
+  BUTTON_H = 25;
+  DROPDOWN_W = 120;
+  DROPDOWN_H = 25;
+
+  // Spacing
+  CONTROL_SPACING_Y = 40;  // Increased by 5 pixels for less cramped layout
+  CONTROL_SPACING_X = 180;  // Reduced spacing to match narrower sliders
+  LABEL_HEIGHT = 15;
+
+  // Colors
+  UI_BG_R = 0.15; UI_BG_G = 0.15; UI_BG_B = 0.15;
+  SLIDER_BG_R = 0.3; SLIDER_BG_G = 0.3; SLIDER_BG_B = 0.3;
+  SLIDER_FILL_R = 0.8; SLIDER_FILL_G = 0.6; SLIDER_FILL_B = 0.2;
+  BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
+  BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
+  TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
+
+  // Control States
+  ui_mouse_down = 0;
+  ui_drag_control = -1;
+  ui_mouse_x_prev = 0;
+  ui_mouse_y_prev = 0;
+
+  // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
+  // Type: 0=slider, 1=button, 2=dropdown
+  num_controls = 30;  // All 30 parameters now have UI controls
+  
+  // Allocate memory for control definitions (10 values per control)
+  control_defs = 30000;  // Start after graph points
+  freemem = control_defs + num_controls * 10;
+);
+
+//==============================================================================
+// PARAMETER VALUE MANAGEMENT
+//==============================================================================
+
+function get_param_value(param_index) (
+  // Time-related (0-5)
+  param_index == 0 ? attack_ms :
+  param_index == 1 ? attack_curve :
+  param_index == 2 ? release_ms :
+  param_index == 3 ? release_curve :
+  param_index == 4 ? lookahead_ms :
+  param_index == 5 ? hold_ms :
+  // RMS & Detection (6-9)
+  param_index == 6 ? rms_size_ms :
+  param_index == 7 ? rms_normalization :
+  param_index == 8 ? detection_mode :
+  param_index == 9 ? max_gr_db :
+  // Filtering (10-11)
+  param_index == 10 ? hp_freq :
+  param_index == 11 ? lp_freq :
+  // Character & Harmonics (12-19)
+  param_index == 12 ? over_the_top :
+  param_index == 13 ? harmonic_type :
+  param_index == 14 ? harmonic_amount :
+  param_index == 15 ? harmonic_drive :
+  param_index == 16 ? harmonic_mix :
+  param_index == 17 ? harmonic_even_boost :
+  param_index == 18 ? harmonic_odd_boost :
+  param_index == 19 ? prog_release_mode :
+  // Globals (20-29)
+  param_index == 20 ? strength :
+  param_index == 21 ? global_offset_db :
+  param_index == 22 ? strength_curve :
+  param_index == 23 ? makeup_gain_db :
+  param_index == 24 ? mix_wet :
+  param_index == 25 ? compressor_type :
+  param_index == 26 ? use_sidechain :
+  param_index == 27 ? listen_to_sidechain :
+  param_index == 28 ? prog_release_type :
+  param_index == 29 ? brickwall_limiter :
+  0;
+);
+
+function set_param_value(param_index, value) (
+  // Time-related (0-5)
+  param_index == 0 ? (attack_ms = value; sliderchange(attack_ms)) :
+  param_index == 1 ? (attack_curve = value; sliderchange(attack_curve)) :
+  param_index == 2 ? (release_ms = value; sliderchange(release_ms)) :
+  param_index == 3 ? (release_curve = value; sliderchange(release_curve)) :
+  param_index == 4 ? (lookahead_ms = value; sliderchange(lookahead_ms)) :
+  param_index == 5 ? (hold_ms = value; sliderchange(hold_ms)) :
+  // RMS & Detection (6-9)
+  param_index == 6 ? (rms_size_ms = value; sliderchange(rms_size_ms)) :
+  param_index == 7 ? (rms_normalization = value; sliderchange(rms_normalization)) :
+  param_index == 8 ? (detection_mode = value; sliderchange(detection_mode)) :
+  param_index == 9 ? (max_gr_db = value; sliderchange(max_gr_db)) :
+  // Filtering (10-11)
+  param_index == 10 ? (hp_freq = value; sliderchange(hp_freq)) :
+  param_index == 11 ? (lp_freq = value; sliderchange(lp_freq)) :
+  // Character & Harmonics (12-19)
+  param_index == 12 ? (over_the_top = value; sliderchange(over_the_top)) :
+  param_index == 13 ? (harmonic_type = value; sliderchange(harmonic_type)) :
+  param_index == 14 ? (harmonic_amount = value; sliderchange(harmonic_amount)) :
+  param_index == 15 ? (harmonic_drive = value; sliderchange(harmonic_drive)) :
+  param_index == 16 ? (harmonic_mix = value; sliderchange(harmonic_mix)) :
+  param_index == 17 ? (harmonic_even_boost = value; sliderchange(harmonic_even_boost)) :
+  param_index == 18 ? (harmonic_odd_boost = value; sliderchange(harmonic_odd_boost)) :
+  param_index == 19 ? (prog_release_mode = value; sliderchange(prog_release_mode)) :
+  // Globals (20-29)
+  param_index == 20 ? (strength = value; sliderchange(strength)) :
+  param_index == 21 ? (global_offset_db = value; sliderchange(global_offset_db)) :
+  param_index == 22 ? (strength_curve = value; sliderchange(strength_curve)) :
+  param_index == 23 ? (makeup_gain_db = value; sliderchange(makeup_gain_db)) :
+  param_index == 24 ? (mix_wet = value; sliderchange(mix_wet)) :
+  param_index == 25 ? (compressor_type = value; sliderchange(compressor_type)) :
+  param_index == 26 ? (use_sidechain = value; sliderchange(use_sidechain)) :
+  param_index == 27 ? (listen_to_sidechain = value; sliderchange(listen_to_sidechain)) :
+  param_index == 28 ? (prog_release_type = value; sliderchange(prog_release_type)) :
+  param_index == 29 ? (brickwall_limiter = value; sliderchange(brickwall_limiter)) :
+  0;
+);
+
+function get_control_label(index) (
+  // Time-related (0-5)
+  index == 0 ? "Attack (ms)" :
+  index == 1 ? "Attack Curve" :
+  index == 2 ? "Release (ms)" :
+  index == 3 ? "Release Curve" :
+  index == 4 ? "Lookahead (ms)" :
+  index == 5 ? "Hold (ms)" :
+  // RMS & Detection (6-9)
+  index == 6 ? "RMS Window (ms)" :
+  index == 7 ? "RMS Norm" :
+  index == 8 ? "Detection Mode" :
+  index == 9 ? "Max GR (dB)" :
+  // Filtering (10-11)
+  index == 10 ? "HP Filter (Hz)" :
+  index == 11 ? "LP Filter (Hz)" :
+  // Character & Harmonics (12-19)
+  index == 12 ? "Character %" :
+  index == 13 ? "Harmonic Type" :
+  index == 14 ? "Harmonic Amount" :
+  index == 15 ? "Harmonic Drive" :
+  index == 16 ? "Harmonic Mix" :
+  index == 17 ? "Even Boost" :
+  index == 18 ? "Odd Boost" :
+  index == 19 ? "Prog Release" :
+  // Globals (20-29)
+  index == 20 ? "Strength" :
+  index == 21 ? "Threshold (dB)" :
+  index == 22 ? "Strength Curve" :
+  index == 23 ? "Makeup Gain (dB)" :
+  index == 24 ? "Mix %" :
+  index == 25 ? "Compressor Type" :
+  index == 26 ? "Sidechain" :
+  index == 27 ? "Listen SC" :
+  index == 28 ? "Prog Release Type" :
+  index == 29 ? "Limiter" :
+  "Unknown";
+);
+
+//==============================================================================
+// UI PANEL RENDERING
+//==============================================================================
+
+function draw_ui_panel_background() (
+  gfx_set(UI_BG_R, UI_BG_G, UI_BG_B, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H);
+
+  // Draw panel border
+  gfx_set(0.5, 0.5, 0.5, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H, 0);
+);
+
+// Note: render_custom_ui_controls() moved to 09_ui_rendering.jsfx-inc
+// to avoid cross-module function definition order issues
+
+// Note: init_ui_constants() is called in main file after all modules are loaded

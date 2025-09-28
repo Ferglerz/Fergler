@@ -190,7 +190,6 @@ function calculate_gain_reduction(input_level_db) local(adjusted_input_db, targe
   // Apply compression curve with global offset
   adjusted_input_db = input_level_db - global_offset_db;
   target_output_db = interpolate_compression_curve(adjusted_input_db);
-  target_output_db += global_offset_db;
   target_gr_db = target_output_db - input_level_db;
 
   // Apply strength and curves
@@ -202,7 +201,7 @@ function calculate_gain_reduction(input_level_db) local(adjusted_input_db, targe
     target_gr_db *= curve_factor;
   );
 
-  target_gr_db = max(max_gr_db, target_gr_db);
+  target_gr_db = min(max_gr_db, target_gr_db);
 
   target_gr_db
 );

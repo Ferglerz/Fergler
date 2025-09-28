@@ -2,10 +2,11 @@
 // Handles all visual rendering including graph display, compression curves,
 // level indicators, gain reduction meter, and interactive visual elements
 
+@init
+
 //==============================================================================
 // GRAPHICS RENDERING
 //==============================================================================
-@init
 
 function draw_grid() local(i, x_pos, y_pos) (
   gfx_set(0.4, 0.4, 0.4, 1);
@@ -13,8 +14,8 @@ function draw_grid() local(i, x_pos, y_pos) (
   while (i <= 6) (
     x_pos = GRAPH_X + i * GRAPH_SIZE / 6;
     y_pos = GRAPH_Y + i * GRAPH_SIZE / 6;
-    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE);
-    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos);
+    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1); // Antialiased
+    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1); // Antialiased
     i += 1;
   );
 );
@@ -28,11 +29,16 @@ function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, ac
     input_db = graph_x_to_db(GRAPH_X + i * step_size);
     output_db = interpolate_compression_curve(input_db);
     graph_y_pos = db_to_graph_y(output_db);
-    i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos);
+    // Clamp y position to graph boundaries to prevent line extension
+    graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
+    i == 0 ? (
+      gfx_x = GRAPH_X;
+      gfx_y = graph_y_pos;
+    ) : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos, 1); // Antialiased
     i += 1;
   );
 
-  // Effective curve with global offset
+  // Effective curve with global offset - this should move vertically, not diagonally
   global_offset_db != 0 ? (
     gfx_set(1, 0.6, 0.8, 0.8);
     i = 0;
@@ -40,9 +46,15 @@ function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, ac
       actual_input_db = graph_x_to_db(GRAPH_X + i * step_size);
       adjusted_input_db = actual_input_db - global_offset_db;
       raw_output_db = interpolate_compression_curve(adjusted_input_db);
+      // Fix: Only add offset to output, not input - this makes it move vertically
       effective_output_db = raw_output_db + global_offset_db;
       graph_y_pos = db_to_graph_y(effective_output_db);
-      i == 0 ? gfx_x = GRAPH_X : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos);
+      // Clamp y position to graph boundaries to prevent line extension
+      graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
+      i == 0 ? (
+        gfx_x = GRAPH_X;
+        gfx_y = graph_y_pos;
+      ) : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos, 1); // Antialiased
       i += 1;
     );
   );
@@ -68,7 +80,7 @@ function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered
       gfx_set(1, 1, 1, 0.8); // Slightly transparent white
     );
 
-    gfx_circle(point_x, point_y, point_radius, 1);
+    gfx_circle(point_x, point_y, point_radius, 1, 1); // Antialiased
     i += 1;
   );
 );
@@ -82,15 +94,15 @@ function draw_level_indicators() local(input_x, adjusted_input_for_display, inpu
   input_y_on_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display) + global_offset_db);
 
   gfx_set(0, 1, 0, 0.8);
-  gfx_circle(input_x, input_y_on_unity, 4, 1);
+  gfx_circle(input_x, input_y_on_unity, 4, 1, 1); // Antialiased
 
   gfx_set(1, 0, 0, 0.8);
-  gfx_circle(input_x, input_y_on_curve, 4, 1);
+  gfx_circle(input_x, input_y_on_curve, 4, 1, 1); // Antialiased
 
   global_offset_db != 0 ? (
     gfx_set(1, 1, 0, 0.6);
     input_y_raw_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display));
-    gfx_circle(input_x_adjusted, input_y_raw_curve, 3, 1);
+    gfx_circle(input_x_adjusted, input_y_raw_curve, 3, 1, 1); // Antialiased
   );
 );
 
@@ -108,7 +120,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
 
   // Draw center line (0dB)
   gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y);
+  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1); // Antialiased
 
   // Check if audio is active (playback state 1 = playing, 5 = recording)
   is_audio_active = (play_state == 1) || (play_state == 5);
@@ -159,7 +171,7 @@ function draw_graph_background() (
 
   // Draw unity line
   gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y);
+  gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
 );
 
 function render_complete_interface() (
@@ -168,12 +180,24 @@ function render_complete_interface() (
 
   // Draw all interface elements in order
   draw_graph_background();
+  
+  // Set clipping rectangle for graph area to prevent lines from drawing outside
+  gfx_set(0, 0, 0, 1, 1); // Mode 1 = clip to rectangle
+  gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
+  
   draw_grid();
   draw_compression_curves();
   draw_graph_points();
   draw_level_indicators();
+  
+  // Reset clipping
+  gfx_set(0, 0, 0, 1, 0); // Mode 0 = normal drawing
+  
   draw_gain_reduction_meter();
   draw_labels_and_info();
+
+  // Draw custom UI controls
+  render_custom_ui_controls();
 
   // Handle user interaction
   process_mouse_input();
