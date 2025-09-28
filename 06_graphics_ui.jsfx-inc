@@ -94,19 +94,40 @@ function draw_level_indicators() local(input_x, adjusted_input_for_display, inpu
   );
 );
 
-function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, gr_height) (
+function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, gr_height, meter_center_y, max_range_db, is_audio_active) (
   gr_meter_x = GRAPH_X + GRAPH_SIZE + 20;
   gr_meter_y = GRAPH_Y;
   gr_meter_w = 30;
   gr_meter_h = GRAPH_SIZE;
+  meter_center_y = gr_meter_y + gr_meter_h / 2;
+  max_range_db = 30; // -30dB to +30dB range
 
+  // Draw meter background
   gfx_set(0.2, 0.2, 0.2, 1);
   gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 
-  current_gr_db < 0 ? (
-    gr_height = abs(current_gr_db) / abs(max_gr_db) * gr_meter_h;
-    gfx_set(1, 0.5, 0, 1);
-    gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+  // Draw center line (0dB)
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y);
+
+  // Check if audio is active (playback state 1 = playing, 5 = recording)
+  is_audio_active = (play_state == 1) || (play_state == 5);
+
+  // Only show meter when audio is active
+  is_audio_active ? (
+    current_gr_db < 0 ? (
+      // Gain reduction (negative) - render from top down in orange/red
+      gr_height = abs(current_gr_db) / max_range_db * gr_meter_h;
+      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
+      gfx_set(1, 0.5, 0, 1); // Orange color for reduction
+      gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
+    ) : current_gr_db > 0 ? (
+      // Gain boost (positive) - render from bottom up in blue
+      gr_height = current_gr_db / max_range_db * gr_meter_h;
+      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
+      gfx_set(0.2, 0.5, 1, 1); // Blue color for boost
+      gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+    );
   );
 );
 
