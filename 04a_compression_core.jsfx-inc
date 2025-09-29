@@ -1,0 +1,198 @@
+// Compression Core Module
+// Basic gain reduction calculation, core compression logic, and compression curve interpolation
+// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 03a_graph_data.jsfx-inc
+
+@init
+
+//==============================================================================
+// CORE COMPRESSION FUNCTIONS
+//==============================================================================
+
+function update_compression_history(current_gr, dt, intensity_factor) (
+  history_rate = 0.001 * intensity_factor;
+  compression_history = compression_history * (1 - history_rate) + abs(current_gr) * history_rate;
+  // Prevent denormalization
+  abs(compression_history) < eps ? compression_history = 0;
+
+  abs(current_gr) > 0.1 ? (
+    program_release_timer = min(program_release_timer + dt * 2 * intensity_factor, 1.0);
+  ) : (
+    program_release_timer = max(program_release_timer - dt * 0.5 / intensity_factor, 0);
+  );
+);
+
+//==============================================================================
+// COMPRESSION CHARACTER APPLICATION
+//==============================================================================
+
+function apply_compressor_character(gain_reduction, type, input_level, dt, intensity_factor) local(scaled_intensity, saturation_rate, decay_rate, input_change, transient_sensitivity, transient_decay, target_charge, charge_rate, base_discharge_rate, discharge_rate, atk_coef, rel_coef, relF, relS, bl, prog, rel_ms, r1, r2, r3, det_delta, transient_boost, target, rf, rs, drive, sat, sat_effect_dB) (
+  scaled_intensity = intensity_factor;
+  update_compression_history(gain_reduction, dt, scaled_intensity);
+
+  type == 0 ? ( // Clean Digital - no character modifications
+    gain_reduction
+  ) : type == 1 ? ( // Varimu (preserve existing)
+    saturation_rate = 0.0005 * scaled_intensity;
+    decay_rate = 0.9995 - (scaled_intensity - 1) * 0.0002;
+    tube_saturation = tube_saturation * decay_rate + abs(gain_reduction) * saturation_rate;
+    // Prevent denormalization
+    abs(tube_saturation) < eps ? tube_saturation = 0;
+    varimu_release_factor = 1 + compression_history * 1.5 * scaled_intensity + tube_saturation * 1.0 * scaled_intensity;
+    gain_reduction
+  ) : type == 2 ? ( // Bridged Diode
+    atk_coef = exp(-1/(0.0003*srate));
+    relF = exp(-1/(0.04*srate));
+    relS = exp(-1/(0.4*srate));
+    bl = clamp(abs(gain_reduction)/24, 0, 1);
+    gain_reduction < bridged_diode_env ?
+      (bridged_diode_env = atk_coef*bridged_diode_env + (1-atk_coef)*gain_reduction) :
+      (bridged_diode_env = bl*(relS*bridged_diode_env + (1-relS)*gain_reduction) + (1-bl)*(relF*bridged_diode_env + (1-relF)*gain_reduction));
+    // Prevent denormalization
+    abs(bridged_diode_env) < eps ? bridged_diode_env = 0;
+    bridged_diode_env
+  ) : type == 3 ? ( // VCA
+    atk_coef = exp(-1/(0.001*srate));
+    prog = clamp(input_level*10, 0, 1);
+    rel_ms = 0.06*(1 - 0.6*prog) + 0.4*(0.6*prog);
+    rel_coef = exp(-1/(rel_ms*srate));
+    gain_reduction < vca_env ?
+      (vca_env = atk_coef*vca_env + (1-atk_coef)*gain_reduction) :
+      (vca_env = rel_coef*vca_env + (1-rel_coef)*gain_reduction);
+    // Prevent denormalization
+    abs(vca_env) < eps ? vca_env = 0;
+    vca_env
+  ) : type == 4 ? ( // PWM/Fairchild
+    atk_coef = exp(-1/(0.01*srate));
+    r1 = exp(-1/(0.06*srate));
+    r2 = exp(-1/(0.2*srate));
+    r3 = exp(-1/(0.8*srate));
+    gain_reduction < pwm_env ?
+      (pwm_env = atk_coef*pwm_env + (1-atk_coef)*gain_reduction) :
+      (pwm_env = r3*(r2*(r1*pwm_env + (1-r1)*gain_reduction) + (1-r2)*gain_reduction) + (1-r3)*gain_reduction);
+    // Prevent denormalization
+    abs(pwm_env) < eps ? pwm_env = 0;
+    pwm_env
+  ) : type == 5 ? ( // FET (1176-like) - updated from old FET
+    atk_coef = exp(-1/(0.00015*srate));
+    rel_coef = exp(-1/(0.05*srate));
+    det_delta = linear_to_db(input_level) - prev_detector_db;
+    transient_boost = det_delta > 3 ? min(det_delta*0.6, 6) : 0;
+    target = gain_reduction - transient_boost;
+    target < fet_env ?
+      (fet_env = atk_coef*fet_env + (1-atk_coef)*target) :
+      (fet_env = rel_coef*fet_env + (1-rel_coef)*target);
+    // Prevent denormalization
+    abs(fet_env) < eps ? fet_env = 0;
+    prev_detector_db = linear_to_db(input_level);
+    fet_env
+  ) : type == 6 ? ( // Optical (LA-2A-like) - updated from old Optical
+    atk_coef = exp(-1/(0.018*srate));
+    rf = exp(-1/(0.12*srate));
+    rs = exp(-1/(0.9*srate));
+    gain_reduction < optical_env ?
+      (optical_env = atk_coef*optical_env + (1-atk_coef)*gain_reduction) :
+      (optical_env = rs*(rf*optical_env + (1-rf)*gain_reduction) + (1-rs)*gain_reduction);
+    // Prevent denormalization
+    abs(optical_env) < eps ? optical_env = 0;
+    optical_env
+  ) : ( // Default fallback
+    gain_reduction
+  )
+);
+
+//==============================================================================
+// COMPRESSION UTILITIES
+//==============================================================================
+
+function reset_compression_state() (
+  compression_history = 0;
+  tube_saturation = 0;
+  fet_transient_detector = 0;
+  program_release_timer = 0;
+  average_input_level = 0;
+  varimu_release_factor = 1;
+  fet_attack_factor_stored = 1;
+  optical_program_factor = 1;
+  
+  // Reset character model states
+  bridged_diode_env = 0;
+  vca_env = 0;
+  pwm_env = 0;
+  fet_env = 0;
+  optical_env = 0;
+  tape_env = 0;
+  prev_detector_db = 0;
+);
+
+function get_compression_history() (
+  compression_history;
+);
+
+function get_tube_saturation() (
+  tube_saturation;
+);
+
+function get_varimu_release_factor() (
+  varimu_release_factor;
+);
+
+function get_compressor_type() (
+  compressor_type;
+);
+
+function get_over_the_top_factor() local(factor) (
+  factor = over_the_top * 0.01;
+  factor;
+);
+
+//==============================================================================
+// COMPRESSION CURVE INTERPOLATION
+//==============================================================================
+
+function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t, curve_amount, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, bezier_t) (
+  // Bounds checking
+  input_db <= graph_points[0] ? graph_points[1] : (
+    input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
+      // Find the segment
+      i = 0;
+      while (i < num_points - 1 && graph_points[(i+1)*2] < input_db) (
+        i += 1;
+      );
+
+      // Get the segment endpoints
+      x1 = graph_points[i*2];
+      y1 = graph_points[i*2 + 1];
+      x2 = graph_points[(i+1)*2];
+      y2 = graph_points[(i+1)*2 + 1];
+
+      // Check if this segment has a curve (only check the second point of the segment)
+      curve_amount = get_curve_amount(i + 1);
+      
+      curve_amount > 0 && i + 1 < num_points - 1 ? (
+        // Use bezier interpolation for curved segments
+        calculate_bezier_control_points(i + 1, curve_amount);
+        
+        // Get the four points for the bezier curve
+        p0_x = graph_points[i*2];
+        p0_y = graph_points[i*2 + 1];
+        p1_x = bezier_control1_x;
+        p1_y = bezier_control1_y;
+        p2_x = bezier_control2_x;
+        p2_y = bezier_control2_y;
+        p3_x = graph_points[(i+2)*2];
+        p3_y = graph_points[(i+2)*2 + 1];
+        
+        // Calculate bezier t parameter (0-1 across the entire curve)
+        bezier_t = clamp((input_db - p0_x) / (p3_x - p0_x), 0, 1);
+        
+        // Evaluate bezier curve
+        evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
+        bezier_result_y
+      ) : (
+        // Use linear interpolation for straight segments
+        t = clamp((input_db - x1) / (x2 - x1), 0, 1);
+        y1 + t * (y2 - y1)
+      )
+    )
+  )
+);

@@ -1,0 +1,74 @@
+// Filter Processing Module
+// Filter processing including biquad filters and sidechain filtering
+// Depends on: 02a_math_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// FILTER APPLICATION
+//==============================================================================
+
+function apply_sidechain_filters(detect_l, detect_r) local(detect_l_filtered, detect_r_filtered) (
+  // Apply highpass filter
+  detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;
+  hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l_filtered;
+
+  detect_r_filtered = hp_b0 * detect_r + hp_b1 * hp_x1_r + hp_b2 * hp_x2_r - hp_a1 * hp_y1_r - hp_a2 * hp_y2_r;
+  hp_x2_r = hp_x1_r; hp_x1_r = detect_r; hp_y2_r = hp_y1_r; hp_y1_r = detect_r_filtered;
+
+  // Apply lowpass filter
+  detect_l = lp_b0 * detect_l_filtered + lp_b1 * lp_x1_l + lp_b2 * lp_x2_l - lp_a1 * lp_y1_l - lp_a2 * lp_y2_l;
+  lp_x2_l = lp_x1_l; lp_x1_l = detect_l_filtered; lp_y2_l = lp_y1_l; lp_y1_l = detect_l;
+
+  detect_r = lp_b0 * detect_r_filtered + lp_b1 * lp_x1_r + lp_b2 * lp_x2_r - lp_a1 * lp_y1_r - lp_a2 * lp_y2_r;
+  lp_x2_r = lp_x1_r; lp_x1_r = detect_r_filtered; lp_y2_r = lp_y1_r; lp_y1_r = detect_r;
+
+  // Return filtered signals via global variables
+  filtered_l = detect_l;
+  filtered_r = detect_r;
+);
+
+//==============================================================================
+// FILTER STATE MANAGEMENT
+//==============================================================================
+
+function reset_filter_states() (
+  // Reset highpass filter states
+  hp_x1_l=hp_x2_l=hp_y1_l=hp_y2_l=0;
+  hp_x1_r=hp_x2_r=hp_y1_r=hp_y2_r=0;
+  
+  // Reset lowpass filter states
+  lp_x1_l=lp_x2_l=lp_y1_l=lp_y2_l=0;
+  lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
+);
+
+function get_filter_coefficients(filter_type) local(coeffs) (
+  filter_type == "hp" ? (
+    coeffs = hp_b0; // Return b0 as representative
+  ) : filter_type == "lp" ? (
+    coeffs = lp_b0; // Return b0 as representative
+  ) : (
+    coeffs = 0;
+  );
+  coeffs;
+);
+
+//==============================================================================
+// FILTER UTILITIES
+//==============================================================================
+
+function update_filter_coefficients() (
+  // Update highpass filter coefficients
+  calc_biquad_hp(hp_freq);
+  hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
+
+  // Update lowpass filter coefficients
+  calc_biquad_lp(lp_freq);
+  lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
+);
+
+function is_filter_enabled(filter_type) (
+  filter_type == "hp" ? (hp_freq > 20) : (
+    filter_type == "lp" ? (lp_freq < 20000) : 0
+  );
+);

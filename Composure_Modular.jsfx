@@ -7,6 +7,7 @@
 
 desc:Advanced Multi-Model Compressor (Modular)
 
+
 //==============================================================================
 // SLIDER DEFINITIONS
 //==============================================================================
@@ -30,7 +31,7 @@ slider11:hp_freq=20<20,200,1>-HP Filter (Hz)
 slider12:lp_freq=20000<1000,20000,10>-LP Filter (Hz)
 
 // Character & Harmonics parameters (13-20)
-slider13:over_the_top=100<0,200,1>-Over The Top % (Analog Character Intensity)
+slider13:over_the_top=100<0,200,1>-Over The Top
 slider14:harmonic_type=0<0,4,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation}>-Harmonic Type
 slider15:harmonic_amount=0<0,1,0.01>-Harmonic Amount
 slider16:harmonic_drive=1<0.5,10,0.1>-Harmonic Drive
@@ -41,42 +42,70 @@ slider20:prog_release_mode=0<0,1,1{Fixed Release,Program-Dependent Release}>-Pro
 
 // Global parameters (21-30)
 slider21:strength=1<0.5,10,0.1>-Strength
-slider22:global_offset_db=0<-30,30,0.1>-Global Offset (dB) - Traditional Threshold Control
+slider22:global_offset_db=0<-30,30,0.1>-Global Offset (dB)
 slider23:strength_curve=0<-2,2,0.01>-Strength Curve (exp)
 slider24:makeup_gain_db=0<-20,20,0.1>-Makeup Gain (dB)
-slider25:mix_wet=100<0,100,1>-Mix %
-slider26:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
-slider27:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
-slider28:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
-slider29:prog_release_type=0<0,2,1{Level-Dependent,Rate-Of-Change,Hybrid}>-Program Release Type
-slider30:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+slider25:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
+slider26:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
+slider27:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
+slider28:prog_release_type=0<0,2,1{Level-Dependent,Rate-Of-Change,Hybrid}>-Program Release Type
+slider29:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 
-
+// SEARCH STOP
 
 //==============================================================================
 // INCLUDE MODULES
 //==============================================================================
 
 // For Claude: These are import, not @import or include or @include
-import 01_initialization.jsfx-inc
-import 02_shared_utilities.jsfx-inc
-import 03_compression_algorithms.jsfx-inc
-import 04_audio_processing.jsfx-inc
-import 07_ui_core.jsfx-inc
-import 08_ui_controls.jsfx-inc
-import 09_ui_rendering.jsfx-inc
-import 10_ui_interaction.jsfx-inc
-import 05_graph_management.jsfx-inc
-import 06_graphics_ui.jsfx-inc
+
+// Core foundation modules
+import 01a_memory.jsfx-inc
+import 01b_state.jsfx-inc
+import 01c_initialization.jsfx-inc
+import 01e_ui_config.jsfx-inc
+
+// Utility modules
+import 02a_math_utils.jsfx-inc
+import 02b_audio_utils.jsfx-inc
+import 02c_dsp_utils.jsfx-inc
+import 02d_ui_utils.jsfx-inc
+
+// UI interaction (depends on utilities)
+import 01d_ui_interaction.jsfx-inc
+
+// Graph data modules
+import 03a_graph_data.jsfx-inc
+import 03b_graph_interaction.jsfx-inc
+
+// Audio processing modules
+import 04a_compression_core.jsfx-inc
+import 04b_harmonic_models.jsfx-inc
+import 04c_filters.jsfx-inc
+import 04d_detection.jsfx-inc
+import 04e_envelope.jsfx-inc
+import 04f_effects.jsfx-inc
+
+// UI modules
+import 05a_ui_core.jsfx-inc
+import 05b_ui_controls.jsfx-inc
+import 05c_ui_rendering.jsfx-inc
+import 05e_ui_graph.jsfx-inc
+
+
+//==============================================================================
+// SERIALIZE
+//==============================================================================
 
 @serialize
 // Prevent memory/variables from being cleared on @init by having a non-empty @serialize section
 ext_noinit = 1.0; // need this to not clear on bringing up the UI or alt+tabbing
 
 // Serialize graph points data for persistence across plugin duplication and project saves
-// Format: [version][num_points][point1_x][point1_y][point2_x][point2_y]...
+// Format: [version][num_points][point1_x][point1_y][point2_x][point2_y]...[curve1][curve2]...
 // Version 1: Basic graph points serialization
-// This ensures graph points are preserved when:
+// Version 2: Added curve data serialization
+// This ensures graph points and curves are preserved when:
 // - Duplicating the plugin instance
 // - Copying/pasting the track
 // - Saving and reopening the project
@@ -92,16 +121,223 @@ while (i < num_points) (
   i += 1;
 );
 
+// Save curve data (Version 2+)
+graph_serialization_version >= 2 ? (
+  i = 0;
+  while (i < num_points) (
+    file_var(0, get_curve_amount(i));
+    i += 1;
+  );
+);
+
 @init
 
-// Set up graph points memory location (must be done first)
-!graph_points ? graph_points = 10000;
+//==============================================================================
+// FILE READING VARIABLES
+//==============================================================================
+
+// File reading variables
+file_loaded = 0;
+
+// Slider name parsing variables
+slider_names_count = 0;
+slider_names_loaded = 0;
+
+// Define base address for slider name string storage (use slots 0-1023)
+// Starting at 100 to leave room for other temporary strings (0-99)
+// Allocating slots 100-199 for up to 100 slider names
+SLIDER_NAMES_BASE = 100;
+
+// Define base address for dropdown options storage (use slots 200-799)
+// Each slider can have up to 20 options, 30 sliders max = 600 slots
+DROPDOWN_OPTIONS_BASE = 200;
+dropdown_option_counts_base = 10000; // Memory array for option counts per slider
+
+//==============================================================================
+// FILE READING FUNCTIONS
+//==============================================================================
+
+function extract_slider_name(line, array_index)
+(
+  line_len = strlen(line);
+  found_greater = 0;
+  found_dash = 0;
+  name_start = 0;
+  
+  // Find the > symbol position manually
+  i = 0;
+  while(i < line_len && !found_greater) (
+    char = str_getchar(line, i);
+    (char == 62) ? ( // 62 is '>' character
+      found_greater = 1;
+      name_start = i + 1;
+    );
+    i += 1;
+  );
+  
+  (found_greater) ? (
+    // Check if there's a dash right after the > symbol
+    (name_start < line_len) ? (
+      char = str_getchar(line, name_start);
+      (char == 45) ? ( // 45 is '-' character
+        found_dash = 1;
+        name_start += 1;
+      );
+    );
+    
+    // Extract the name directly to the string slot (using fixed slots 0-1023)
+    name_len = line_len - name_start;
+    strcpy_substr(SLIDER_NAMES_BASE + array_index, line, name_start, name_len);
+    
+    // Debug: save extracted names for first 5 sliders
+    (array_index == 0) ? strcpy(#debug_extracted_0, SLIDER_NAMES_BASE + 0);
+    (array_index == 1) ? strcpy(#debug_extracted_1, SLIDER_NAMES_BASE + 1);
+    (array_index == 2) ? strcpy(#debug_extracted_2, SLIDER_NAMES_BASE + 2);
+    (array_index == 3) ? strcpy(#debug_extracted_3, SLIDER_NAMES_BASE + 3);
+    (array_index == 4) ? strcpy(#debug_extracted_4, SLIDER_NAMES_BASE + 4);
+  );
+  
+  slider_name;
+);
+
+function extract_dropdown_options(line, slider_index)
+local(line_len, i, char, found_open_brace, found_close_brace, brace_start, brace_end,
+      options_str, option_count, option_start, in_option, opt_idx, base_slot)
+(
+  line_len = strlen(line);
+  found_open_brace = 0;
+  found_close_brace = 0;
+  option_count = 0;
+  
+  // Find the { symbol position
+  i = 0;
+  while(i < line_len && !found_open_brace) (
+    char = str_getchar(line, i);
+    (char == 123) ? ( // 123 is '{' character
+      found_open_brace = 1;
+      brace_start = i + 1;
+    );
+    i += 1;
+  );
+  
+  // Find the } symbol position
+  (found_open_brace) ? (
+    while(i < line_len && !found_close_brace) (
+      char = str_getchar(line, i);
+      (char == 125) ? ( // 125 is '}' character
+        found_close_brace = 1;
+        brace_end = i;
+      );
+      i += 1;
+    );
+  );
+  
+  // Extract dropdown options if both braces found
+  (found_open_brace && found_close_brace) ? (
+    // Base slot for this slider's options (20 options per slider max)
+    base_slot = DROPDOWN_OPTIONS_BASE + (slider_index * 20);
+    
+    // Extract the options string (content between { and })
+    strcpy_substr(#options_temp, line, brace_start, brace_end - brace_start);
+    
+    // Parse comma-separated options
+    option_start = 0;
+    opt_idx = 0;
+    i = 0;
+    while(i <= strlen(#options_temp)) (
+      char = str_getchar(#options_temp, i);
+      
+      // Found comma or end of string
+      (char == 44 || i == strlen(#options_temp)) ? ( // 44 is ','
+        // Extract this option
+        strcpy_substr(base_slot + opt_idx, #options_temp, option_start, i - option_start);
+        opt_idx += 1;
+        option_start = i + 1;
+      );
+      
+      i += 1;
+    );
+    
+    // Store the number of options for this slider
+    dropdown_option_counts_base[slider_index] = opt_idx;
+    option_count = opt_idx;
+  ) : (
+    // No dropdown options found
+    dropdown_option_counts_base[slider_index] = 0;
+  );
+  
+  option_count;
+);
+
+function parse_slider_definitions()
+(
+  // Try to open the Composure_Modular.jsfx file
+  handle = file_open("Composure_Modular.jsfx");
+  
+  (handle != -1) ? (
+    line_count = 0;
+    found_stop = 0;
+    slider_names_count = 0;
+    
+    // Read file line by line until we hit // SEARCH STOP
+    while(file_avail(handle) > 0 && !found_stop) (
+      str = #;
+      file_string(handle, str);
+      line_count += 1;
+      
+      // Check if this is the stop line (look for "// SEARCH STOP")
+      (strlen(str) >= 14) ? (
+        (str_getchar(str, 0) == 47 && str_getchar(str, 1) == 47 && 
+         str_getchar(str, 2) == 32 && str_getchar(str, 3) == 83 && 
+         str_getchar(str, 4) == 69 && str_getchar(str, 5) == 65 && 
+         str_getchar(str, 6) == 82 && str_getchar(str, 7) == 67 && 
+         str_getchar(str, 8) == 72 && str_getchar(str, 9) == 32 && 
+         str_getchar(str, 10) == 83 && str_getchar(str, 11) == 84 && 
+         str_getchar(str, 12) == 79 && str_getchar(str, 13) == 80) ? (
+          found_stop = 1;
+        ) : (
+          // Check if line starts with "slider" (6 characters)
+          (strlen(str) >= 6) ? (
+            (str_getchar(str, 0) == 115 && str_getchar(str, 1) == 108 && 
+             str_getchar(str, 2) == 105 && str_getchar(str, 3) == 100 && 
+             str_getchar(str, 4) == 101 && str_getchar(str, 5) == 114) ? (
+              // Extract slider name and store it
+              extract_slider_name(str, slider_names_count);
+              // Extract dropdown options if they exist
+              extract_dropdown_options(str, slider_names_count);
+              slider_names_count += 1;
+            );
+          );
+        );
+      );
+    );
+    
+    file_close(handle);
+    file_loaded = 1;
+    slider_names_loaded = 1;
+  ) : (
+    file_loaded = 0;
+    slider_names_loaded = 0;
+    strcpy(#file_first_line, "File not found");
+  );
+  
+  file_loaded;
+);
+
+function read_composure_file()
+(
+  parse_slider_definitions();
+);
+
+// Call the file reading function during initialization
+read_composure_file();
 
 // Initialize all constants, memory, and state variables
 perform_complete_initialization();
 
-// Initialize UI constants after all modules are loaded
-init_ui_constants();
+
+// Initialize curve data
+init_curve_data();
 
 // Set up control layout after UI constants are initialized
 setup_control_layout();
@@ -120,17 +356,13 @@ setup_control_layout();
 );
 
 //==============================================================================
-// MAIN SECTIONS
+// ON SLIDER UPDATES
 //==============================================================================
 
 @slider
 
 // Update filter coefficients
-calc_biquad_hp(hp_freq);
-hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
-
-calc_biquad_lp(lp_freq);
-lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
+update_filter_coefficients();
 
 // Calculate time constants
 rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
@@ -155,9 +387,134 @@ lookahead_samples > 0 ? (
   pdc_delay = 0;
 );
 
+//==============================================================================
+// GFX RUNTIME
+//==============================================================================
+
 @gfx 3500 450
 
+// Render the main interface first
 render_complete_interface();
+
+    // Debug slider name extraction
+    (slider_names_loaded) ? (
+      gfx_set(1, 1, 1, 0.8);
+      gfx_x = 10;
+      gfx_y = 450;
+      gfx_printf("=== DEBUG: Slider Names ===");
+      gfx_y += 20;
+      
+      gfx_x = 10;
+      gfx_printf("Total sliders found: %d", slider_names_count);
+      gfx_y += 25;
+
+      // Show what was extracted during parsing
+      gfx_x = 10;
+      gfx_printf("EXTRACTED (during parsing):");
+      gfx_y += 20;
+      gfx_x = 10;
+      gfx_printf("0: '%s'", #debug_extracted_0);
+      gfx_y += 15;
+      gfx_x = 10;
+      gfx_printf("1: '%s'", #debug_extracted_1);
+      gfx_y += 15;
+      gfx_x = 10;
+      gfx_printf("2: '%s'", #debug_extracted_2);
+      gfx_y += 15;
+      gfx_x = 10;
+      gfx_printf("3: '%s'", #debug_extracted_3);
+      gfx_y += 15;
+      gfx_x = 10;
+      gfx_printf("4: '%s'", #debug_extracted_4);
+      gfx_y += 25;
+      
+      // Show what's actually in the array (using fixed string slots)
+      gfx_x = 10;
+      gfx_printf("STORED (in array):");
+      gfx_y += 20;
+      gfx_x = 10;
+      slot_idx = SLIDER_NAMES_BASE + 0;
+      gfx_printf("0: '%s'", slot_idx);
+      gfx_y += 15;
+      gfx_x = 10;
+      slot_idx = SLIDER_NAMES_BASE + 1;
+      gfx_printf("1: '%s'", slot_idx);
+      gfx_y += 15;
+      gfx_x = 10;
+      slot_idx = SLIDER_NAMES_BASE + 2;
+      gfx_printf("2: '%s'", slot_idx);
+      gfx_y += 15;
+      gfx_x = 10;
+      slot_idx = SLIDER_NAMES_BASE + 3;
+      gfx_printf("3: '%s'", slot_idx);
+      gfx_y += 15;
+      gfx_x = 10;
+      slot_idx = SLIDER_NAMES_BASE + 4;
+      gfx_printf("4: '%s'", slot_idx);
+      gfx_y += 25;
+      
+      // Show what get_parsed_slider_name returns
+      gfx_x = 10;
+      gfx_printf("RETRIEVED (via function):");
+      gfx_y += 20;
+      debug_i = 1;
+      while(debug_i <= min(5, slider_names_count)) (
+        gfx_x = 10;
+        gfx_printf("%d: '%s'", debug_i, get_parsed_slider_name(debug_i));
+        gfx_y += 15;
+        debug_i += 1;
+      );
+      
+      // Debug dropdown options extraction
+      gfx_y += 10;
+      gfx_x = 10;
+      gfx_printf("=== DEBUG: Dropdown Options ===");
+      gfx_y += 20;
+      
+      // Show dropdown options for slider 14 (Harmonic Type)
+      gfx_x = 10;
+      gfx_printf("Slider 14 (Harmonic Type) - %d options:", get_dropdown_option_count(14));
+      gfx_y += 15;
+      debug_opt_i = 0;
+      while(debug_opt_i < get_dropdown_option_count(14)) (
+        gfx_x = 20;
+        gfx_printf("  %d: '%s'", debug_opt_i, get_dropdown_option(14, debug_opt_i));
+        gfx_y += 12;
+        debug_opt_i += 1;
+      );
+      
+      gfx_y += 8;
+      // Show dropdown options for slider 25 (Compressor Type)
+      gfx_x = 10;
+      gfx_printf("Slider 25 (Compressor Type) - %d options:", get_dropdown_option_count(25));
+      gfx_y += 15;
+      debug_opt_i = 0;
+      while(debug_opt_i < get_dropdown_option_count(25)) (
+        gfx_x = 20;
+        gfx_printf("  %d: '%s'", debug_opt_i, get_dropdown_option(25, debug_opt_i));
+        gfx_y += 12;
+        debug_opt_i += 1;
+      );
+      
+      gfx_y += 8;
+      // Show dropdown options for slider 28 (Program Release Type)
+      gfx_x = 10;
+      gfx_printf("Slider 28 (Program Release Type) - %d options:", get_dropdown_option_count(28));
+      gfx_y += 15;
+      debug_opt_i = 0;
+      while(debug_opt_i < get_dropdown_option_count(28)) (
+        gfx_x = 20;
+        gfx_printf("  %d: '%s'", debug_opt_i, get_dropdown_option(28, debug_opt_i));
+        gfx_y += 12;
+        debug_opt_i += 1;
+      );
+    );
+// Render the contents of the sliders file (filename:0) in the UI
+
+
+//==============================================================================
+// ON SAMPLE 
+//==============================================================================
 
 @sample
 
@@ -172,8 +529,9 @@ detection_mode > 0.5 ? (
   detect_r = use_sidechain && num_ch >= 4 ? spl3 : (num_ch >= 2 ? spl1 : spl0);
 ) : (
   // Feedback mode: detect from previous output (stored in feedback_l/feedback_r)
-  detect_l = use_sidechain && num_ch >= 3 ? spl2 : (feedback_l_prev ? feedback_l_prev : spl0);
-  detect_r = use_sidechain && num_ch >= 4 ? spl3 : (feedback_r_prev ? feedback_r_prev : (num_ch >= 2 ? spl1 : spl0));
+  // Use feedback values only if they exist (not zero), otherwise use current input
+  detect_l = use_sidechain && num_ch >= 3 ? spl2 : (abs(feedback_l_prev) > eps ? feedback_l_prev : spl0);
+  detect_r = use_sidechain && num_ch >= 4 ? spl3 : (abs(feedback_r_prev) > eps ? feedback_r_prev : (num_ch >= 2 ? spl1 : spl0));
 );
 
 // Apply filters
@@ -198,6 +556,8 @@ target_gr_db = calculate_gain_reduction(input_level_db);
 // Apply compressor character
 dt = SRATE_INV;
 average_input_level = average_input_level * 0.999 + detector_level * 0.001;
+// Prevent denormalization
+abs(average_input_level) < eps ? average_input_level = 0;
 target_gr_db = apply_compressor_character(target_gr_db, compressor_type, detector_level, dt, over_the_top_factor);
 
 // Process envelope following

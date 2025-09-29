@@ -1,0 +1,49 @@
+// Audio Utilities Module
+// Audio-specific utility functions
+// Depends on: 02a_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// AUDIO PROCESSING UTILITY FUNCTIONS
+//==============================================================================
+
+function db_to_linear(db) (
+  exp(db * LOG_10_20)
+);
+
+function linear_to_db(linear) (
+  linear > 0 ? log(linear) * LOG10_20 : -150
+);
+
+
+//==============================================================================
+// AUDIO LEVEL UTILITIES
+//==============================================================================
+
+// Convert dB to percentage (0-100)
+function db_to_percentage(db, min_db, max_db) local(range) (
+  range = max_db - min_db;
+  range > 0 ? clamp((db - min_db) / range * 100, 0, 100) : 0
+);
+
+// Convert percentage to dB (0-100)
+function percentage_to_db(percent, min_db, max_db) local(range) (
+  range = max_db - min_db;
+  min_db + clamp(percent, 0, 100) / 100 * range
+);
+
+// Normalize audio level to 0-1 range
+function normalize_audio_level(level, max_level) (
+  max_level > 0 ? clamp(level / max_level, 0, 1) : 0
+);
+
+// Convert audio level to dB with safe handling
+function safe_linear_to_db(linear) (
+  linear > eps ? linear_to_db(linear) : -150
+);
+
+// Convert dB to linear with safe handling
+function safe_db_to_linear(db) (
+  db > -150 ? db_to_linear(db) : eps
+);

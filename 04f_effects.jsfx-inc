@@ -1,0 +1,129 @@
+// Effects Processing Module
+// Lookahead processing, harmonic processing, and final mix
+// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// LOOKAHEAD PROCESSING
+//==============================================================================
+
+function process_lookahead(input_l_orig, input_r_orig) local(delayed_pos, processed_l, processed_r) (
+  lookahead_samples > 0 ? (
+    lookahead_buffer_l[lookahead_pos] = input_l_orig;
+    lookahead_buffer_r[lookahead_pos] = input_r_orig;
+
+    delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+    processed_l = lookahead_buffer_l[delayed_pos];
+    processed_r = lookahead_buffer_r[delayed_pos];
+
+    lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+  ) : (
+    processed_l = input_l_orig;
+    processed_r = input_r_orig;
+  );
+
+  // Return processed signals via global variables
+  lookahead_out_l = processed_l;
+  lookahead_out_r = processed_r;
+);
+
+//==============================================================================
+// HARMONIC PROCESSING
+//==============================================================================
+
+function apply_harmonic_processing(input, gr_amount, type, amount, drive, mix, even_boost, odd_boost) local(driven, processed, dry_signal, wet_signal, asymL, asymR, even_proc, odd_proc) (
+  // No processing if harmonic type is off or amount is zero
+  type == 0 || amount <= 0.0001 ? (
+    input
+  ) : (
+    dry_signal = input;
+    driven = input * drive;
+
+    type == 1 ? ( // Tube Even
+      processed = tanh(abs(driven)) * (driven < 0 ? -1 : 1);
+      even_proc = processed * (1 + even_boost);
+      processed = even_proc;
+    ) : type == 2 ? ( // Tube Odd
+      processed = tanh(driven);
+      odd_proc = processed * (1 + odd_boost);
+      processed = odd_proc;
+    ) : type == 3 ? ( // Tube Both
+      even_proc = tanh(abs(driven)) * (driven < 0 ? -1 : 1) * (1 + even_boost);
+      odd_proc = tanh(driven) * (1 + odd_boost);
+      processed = 0.5 * (even_proc + odd_proc);
+    ) : ( // Tape Saturation
+      asymL = driven * (driven > 0 ? 1.02 : 0.98);
+      processed = atan(asymL) / ($pi/2);
+      // Apply even/odd boost to tape saturation components
+      processed = processed * (1 + 0.5 * (even_boost + odd_boost));
+    );
+
+    // Scale back by drive to maintain levels
+    processed = processed / max(drive, 1);
+
+    // Apply amount (intensity) - this is driven by gain reduction amount
+    intensity = amount * (1 + gr_amount * 0.5); // More harmonics with more GR
+    wet_signal = dry_signal + intensity * (processed - dry_signal);
+
+    // Final dry/wet mix
+    dry_signal * (1 - mix) + wet_signal * mix
+  )
+);
+
+//==============================================================================
+// FINAL MIX PROCESSING
+//==============================================================================
+
+function apply_final_mix(processed_l, processed_r, input_l_orig, input_r_orig) local(final_l, final_r) (
+  // Final mix - always 100% wet (no dry signal)
+  final_l = processed_l;
+  final_r = processed_r;
+
+  // Return final signals via global variables
+  final_out_l = final_l;
+  final_out_r = final_r;
+);
+
+//==============================================================================
+// EFFECTS UTILITIES
+//==============================================================================
+
+function reset_lookahead_state() (
+  lookahead_pos = 0;
+  lookahead_samples = calculate_lookahead_samples(lookahead_ms);
+);
+
+function get_lookahead_samples() (
+  lookahead_samples;
+);
+
+function set_lookahead_samples(samples) (
+  lookahead_samples = clamp(samples, 0, max_lookahead_samples);
+);
+
+function is_lookahead_enabled() (
+  lookahead_samples > 0;
+);
+
+function get_harmonic_type() (
+  harmonic_type;
+);
+
+function get_harmonic_amount() (
+  harmonic_amount;
+);
+
+function get_harmonic_drive() (
+  harmonic_drive;
+);
+
+function get_harmonic_mix() (
+  harmonic_mix;
+);
+
+
+function get_makeup_gain_linear() local(gain_linear) (
+  gain_linear = db_to_linear(makeup_gain_db);
+  gain_linear;
+);

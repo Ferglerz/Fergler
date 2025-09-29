@@ -1,0 +1,785 @@
+<html><head><title>JSFX Coding Documentation HTML Dump</title></head><body>
+
+Note: the most recent updated JSFX documentation is available here: <a href="http://reaper.fm/sdk/js">REAPER/JS Programming Reference</a>.
+<BR><BR>
+The old, outdated version follows:
+
+<BR><BR>
+<h1>JSFX Coding Documentation HTML Dump</h1>
+<h3>Version 1.0, Copyright (C) 2004-2007, Cockos Incorporated</h3>
+<a href="#p0">editor keys</a>, <A href="#p1">effect format</a>, <A href="#p2">code format</a>, <A href="#p3">reference</a>
+<pre><a name=p0><h2>Editor Controls</h2>
+<b>JSFX Editor Controls</b>
+The text editor is similar to most standard text editors. Here is a list of some
+of the less obvious controls:
+
+  ESC, Ctrl+Q:  quit the editor (prompt for save)
+  Ctrl+S: save (and recompile) effect
+  Ctrl+N: save as new effect
+  Ctrl+R: toggle auto recompiling (recompile on edit)
+  Ctrl+Z: undo
+  Ctrl+Y: redo
+  Ctrl+F: find string
+  Ctrl+G: find next
+  Ctrl+K: look up symbol (can use to debug the value of a variable)
+  Insert: toggle overwrite mode
+
+Text selection / copy / paste:
+  Ctrl+E: select text (once in select mode, use arrow keys)
+  Ctrl+C: copy text
+  Ctrl+X: cut text
+  Ctrl+V: paste text
+  Ctrl+A: select all
+
+<a name=p1><h2>Effect Format</h2>
+<b>JSFX Effect Format</b>
+--------------------------------------------------------------------------------
+Using the effect editor, you may modify existing effects as well as create new
+effects. Effects are composed of eight parts:
+
+<b>  1. User readable description of the effect</b>
+        desc:effect description
+     This provides a user-readable description of the effect. For example, you
+     may wish to describe what it does, i.e. 'Reverb' or 'Delay', etc.
+
+<b>  2. 'Slider' definition(s)</b>
+        slider1:5&lt;0,10,1&gt;slider description
+        ...
+     You may specify as few as none and as many as eight of these, ranging from
+     slider1 to slider8. The first value in the above definition (5) specifies
+     the default value of the slider. The second value (0) specifies the minimum
+     extent of the slider, and the third value (10) specifies the maximum
+     extent. Finally, the fourth value (1), which is optional, specifies the
+     increment of the slider when using the knobs/arrow keys. If not specified
+     this defaults to 1/100th of the slider range.
+
+     There are also some extended slider syntaxes. One is to have name aliases
+     for positive integer values of the slider. Here is an example:
+        slider1:0&lt;0,2,1{off,on,really really on}&gt;my option
+     This will allow the user to switch between off, on and really really on
+     which corresponds to 0, 1 and 2.
+
+     The other extended slider syntax allows the user to select files in a
+     particular directory, and then code in @slider can open and read the
+     selected file. For example:
+        slider1:/my_directory:default_value:slider name
+     This will look in data/my_directory for all files of .wav, .txt, or .raw.
+     Later, in the @slider section, you can have code:
+       lastslider1 != (slider1|0) ?
+       (
+         lastslider1=slider1|0;
+         myfile = file_open(slider1);
+         myfile &gt; 0 ?
+         (
+            file_var(myfile,somevar);
+            file_close(myfile);
+         )
+       );
+
+<b>  3. Data filename definition(s) (optional)</b>
+        filename:0,filename.raw
+        filename:1,somefile.wav
+     Specify a list of filenames which can be opened with file_open() in user code.
+     This is list of files must be in order and not skip any values, starting with 0.
+     To open the files in your code, use file_open(index). See file_open() for more
+     information.
+
+<b>  4. Initialization code</b>
+        @init
+        myvar=0;
+        somevar=32;
+        ...
+     Initialization code is specified by @init on a line by itself, followed by
+     any number of lines of code (see the Code Format page for code format).
+     Initialization code is executed on the first load of an effect. Use this to
+     initialize any variables that only need to be initialized once, 
+     i.e. constants.
+
+<b>  5. Slider change code</b>
+        @slider
+        myvar=slider1;
+        ...
+     Slider change code is specified by @slider on a line by itself, followed by
+     any number of lines of code (see the Code Format page for code format).
+     Slider change code is executed both on the first load of an effect, and at
+     any subsequent slider change (knob movement, keyboard change, etc). Use
+     this to modify any variables that need to be modified when the parameters
+     of your effect change, or to validate the changes to the effect (if you
+     modify the contents of slider1-slider8 in this code, the values shown by
+     the slider in the UI will be updated).
+
+<b>  6. On-block code</b>
+        @block
+        myvar+=samplesblock;
+        ...
+     On-block code is specified by @block on a line by itself, followed by
+     any number of lines of code (see the Code Format page for code format).
+     On-block code is executed prior to processing every block of samples
+     (which is usually around 128-1024 samples), and allows code to execute
+     very often (many times per second), but not at every sample. This is often
+     good for checking or setting triggers (see the trigger section on the
+     reference page)
+
+<b>  7. Per-sample code</b>
+        @sample
+        spl0 *= 2;
+        spl1 *= 2;
+        ...
+     Per-sample code is specified by @sample on a line by itself, followed by
+     any number of lines of code (see the Code Format page for code format).
+     Per-sample code is executed for every sample processed, and allows for
+     direct manipulation of each sample (the variables spl0 and spl1, for left
+     and right channels, respectively).
+
+<b>  8. Serialization code (optional)</b>
+        @serialize
+        file_var(0,mystatevar);
+        file_var(0,myotherstatevar);
+        file_mem(0,offset,length);
+        ...
+     Serialization code is specified by @serialize on a line by itself,
+     followed by any number of lines of code (see the Code Format page
+     for code format). This code is executed when the user loads a preset,
+     or saves a preset. It should only really call the special
+     serialization functions, whose function depends on whether it is a
+     load or save operation (your calling code can also query the mode, if
+     desired, using file_avail(). if file_avail(0) returns &gt;= 0, it is read,
+     otherwise it is a write)). For the file handle for all file functions,
+     just use 0, rather than calling file_open().
+
+For more information on defining the code sections, hit the right arrow to go
+to the 'Code Format' page.
+&lt;end&gt;
+<a name=p2><h2>Code format</h2>
+<b>Writing code with JSFX</b>
+--------------------------------------------------------------------------------
+JSFX lets you create effects with a simple language that has many
+similarities to C. For example, to assign a value to a variable, you can do:
+  x = 5;
+Note that variables do not need to be declared--by simply using a variable,
+it is declared. Variable names are not case sensitive, so using x is the same as
+as using X. All variables are numbers.
+
+Comments can be specified by using // to comment until end of line:
+  x = 5; // set x to equal 5
+Comments can also be specified by beginning with /* and ending with */:
+  x = 5; /* this is a multi-line
+            comment */
+or,
+  x = 5; /* bla bla */ y=5;
+
+There are a plethora of built-in operators, most of which behave very much like
+their C counterparts:
+  x = 5*y;
+  x = 5 * y + 4;
+  x = y + z;
+For a full list of the available operators, see the Reference Page.
+
+There are built-in functions, many of which may be familiar:
+  x = pow(2,y); // raise 2 to the Yth power
+  x = sin($pi * 1.5); // get SINE of 1.5 * PI
+  x = min(y,z); // get minimum of Y or Z
+
+For a full list of the available functions, see the Reference Page.
+
+Each effect has its own limited amount of memory that it can use for temporary
+storage. The syntax to access the private memory is as follows:
+   buffer = 1024; // set buffer to reference the local memory starting at 1024
+   x=buffer[0]; // read first item in buffer
+   buffer[1]=x; // write to second item in buffer
+   buffer[n]=x; // write to n'th item in buffer
+Each effect has 1,048,576 slots of storage, so you may partition your memory use
+however you desire.
+
+There are logic operators available, to allow for conditional code, for example:
+  x == 5 ? y = 3; // if x is equal to 5, then set y to 3. 
+  x == 5 ? y = 3 : z += 1; /* if x is equal to 5, then set y to 3, otherwise add
+                              one to Z */
+  x == 5 ? (
+     y = 3;    // if x is equal to 5, do all of this. 
+     x = cos(z);
+     z += 5;
+  );
+  x == 5 ? (
+    foo=1; // if x==5
+  ) : ( 
+    foo=2; // if x!=5
+  );
+The operators || (logical or) and &amp&amp (logical and) can also be used for this
+purpose:
+  x == 5 &amp&amp z=y; // if x is equal to 5, set z to y
+
+&lt;end&gt;
+<a name=p3><h2>Reference</h2>
+<b>JSFX Code Reference</b>
+--------------------------------------------------------------------------------
+
+<b>Operators</b>
+
+The following operators can be used within your code segments to make expressions:
+
+<b>  =</b>
+    Example: y = z;
+    Assigns the value of 'z' to 'y'. 'z' can be a variable or an expression.
+
+<b>  *</b>
+    Example: y * z
+    Multiplies two values and returns the product.
+
+<b>  /</b>
+    Example: y / z
+    Divides two values and returns the quotient.
+
+<b>  %</b>
+    Example: y % z
+    Divides two values and returns the remainder.
+
+<b>  ^</b>
+    Example: y ^ z
+    Returns the first parameter raised to the second parameter-th power.
+
+<b>  +</b>
+    Example: y + z
+    Adds two values and returns the sum.
+
+<b>  -</b>
+    Example: y - z
+    Subtracts two values and returns the difference.
+
+<b>  |</b>
+    Example: y | z
+    Converts both values to integer, and returns bitwise OR of values.
+
+<b>  &amp</b>
+    Example: y &amp z
+    Converts both values to integer, and returns bitwise AND of values.
+
+<b>  *=</b>
+    Example: y *= z
+    Multiplies two values and stores the product back into 'y'.
+
+<b>  /=</b>
+    Example: y /= z
+    Divides two values and stores the quotient back into 'y'.
+
+<b>  %=</b>
+    Example: y %= z
+    Divides two values and stores the remainder back into 'y'.
+
+<b>  ^=</b>
+    Example: y ^= z
+    Raises first parameter to the second parameter-th power, saves back to 'y'.
+
+<b>  +=</b>
+    Example: y += z
+    Adds two values and stores the sum back into 'y'.
+
+<b>  -=</b>
+    Example: y -= z
+    Subtracts two values and stores the difference back into 'y'.
+
+<b>  |=</b>
+    Example: y |= z
+    Converts both values to integer, and stores the bitwise OR into 'y'
+
+<b>  &amp=</b>
+    Example: y &amp= z
+    Converts both values to integer, and stores the bitwise AND into 'y'
+
+<b>  ||</b>
+    Example: y || z
+    Returns logical OR of values. If y is nonzero, 'z' is not evaluated.
+
+<b>  &amp&amp</b>
+    Example: y &amp&amp z
+    Returns logical AND of values. If y is zero, 'z' is not evaluated.
+
+<b>  ==</b>
+    Example: y == z
+    Compares two values, returns 1 if equal, 0 if not.
+
+<b>  !=</b>
+    Example: y != z
+    Compares two values, returns 0 if equal, 1 if not.
+
+<b>  &lt;</b>
+    Example: y &lt; z
+    Compares two values, returns 1 if first parameter is less than second.
+
+<b>  &gt;</b>
+    Example: y &gt; z
+    Compares two values, returns 1 if first parameter is greater than second.
+
+<b>  &lt;=</b>
+    Example: y &lt;= z
+    Compares two values, returns 1 if first is less than or equal to second.
+
+<b>  &gt;=</b>
+    Example: y &gt;= z
+    Compares two values, returns 1 if first is greater than or equal to second.
+
+<b>  !</b>
+    Example: !z
+    Returns the logical NOT of the parameter.
+
+<b>  ?</b>
+    Example: y ? z;
+    Example: y ? z : x;
+    Evaluates the first parameter 'y', and if nonzero, evaluates and returns
+    the second parameter 'z'. If a third parameter 'x' is specified, and the
+    first parameter is zero, evaluates and returns 'x'. The latter two
+    expressions may often contain multiple statements seperated by semicolons,
+    i.e.
+      x % 5 ? (
+        f += 1;
+        x *= 1.5;
+      ) : (
+        f=max(3,f);
+        x=0;
+      );
+
+<b>  [ ]</b>
+    Example: z=x[y]; or x[y]=z;
+    Example: z=gmem[y]; or gmem[y]=z;
+    In the first form, you may use brackets to index into memory that is
+    local to your effect. Your effect has 1 million items of memory
+    and you may access them either with fixed offsets (i.e. 16811[0]) or
+    with variables (myBuffer[5]). If a value in the brackets is omitted
+    then 0 is used instead.
+    If 'gmem' is specified (the second form), then instead of local effect
+    memory, the buffer is the global storage buffer, which is 1 million items
+    that are shared across all effects.
+
+
+
+<b>Simple Functions</b>
+
+The following functions can be used within your code segments:
+
+<b>  sin(angle)</b>
+    Example: s = sin(theta);
+    Returns the Sine of the angle specified (specified in radians).
+    (To convert from degrees to radians, multiply by $pi/180, or 0.017453)
+
+<b>  cos(angle)</b>
+    Example: s = cos(theta);
+    Returns the Cosine of the angle specified (specified in radians).
+
+<b>  tan(angle)</b>
+    Example: s = tan(theta);
+    Returns the Tangent of the angle specified (specified in radians).
+
+<b>  asin(x)</b>
+    Example: theta = asin(s);
+    Returns the Arc Sine of the value specified (return value is in radians).
+
+<b>  acos(x)</b>
+    Example: theta = acos(s);
+    Returns the Arc Cosine of the value specified (return value is in radians).
+
+<b>  atan(x)</b>
+    Example: theta = atan(s);
+    Returns the Arc Tangent of the value specified (return value is in radians).
+
+<b>  atan2(x,y)</b>
+    Example: theta = atan2(s,sd);
+    Returns the Arc Tangent of s divided by sd (return value is in radians).
+
+<b>  sqr(x)</b>
+    Example: ss = sqr(s);
+    Returns the square of the parameter (i.e. same as ss=s*s;).
+
+<b>  sqrt(x)</b>
+    Example: ss = sqrt(s);
+    Returns the square root of the parameter.
+    The parameter should be greater than or equal to zero.
+
+<b>  pow(x,y)</b>
+    Example: p = pow(s,y);
+    Returns the first parameter raised to the second parameter-th power.
+    This is exactly the same as the operator ^, and is provided for
+    compatibility.
+
+<b>  exp(x)</b>
+    Example: ss = exp(s);
+    Returns the number e (approx 2.718) raised to the parameter-th power.
+
+<b>  log(x)</b>
+    Example: ss = log(s);
+    Returns the natural logarithm (base e) of the parameter.
+
+<b>  log10(x)</b>
+    Example: ss = log10(s);
+    Returns the logarithm (base 10) of the parameter.
+
+<b>  abs(x)</b>
+    Example: ss = abs(s);
+    Returns the absolute value of the parameter.
+
+<b>  min(x,y)</b>
+    Example: s = min(x,y);
+    Returns the minimum value of the two parameters.
+
+<b>  max(x,y)</b>
+    Example: s = max(x,y);
+    Returns the maximum value of the two parameters.
+
+<b>  sign(x)</b>
+    Example: s = sign(x);
+    Returns the sign of the parameter (-1, 0, or 1).
+
+<b>  rand(x)</b>
+    Example: s = rand(x);
+    Returns a psuedorandom number between 0 and the parameter.
+
+<b>  floor(x)</b>
+    Example: s = floor(x);
+    Rounds the value to the lowest integer possible (i.e. 3.9 becomes 3).
+
+<b>  ceil(x)</b>
+    Example: s = ceil(x);
+    Rounds the value to the highest integer possible (i.e. 3.1 becomes 4).
+
+<b>  invsqrt(x)</b>
+    Example: s = invsqrt(x);
+    Returns an inverse square root (1/sqrt(x)) approximation of the parameter.
+
+
+
+<b>Special Functions</b>
+
+The following functions are more complex than the simple functions above:
+
+<b>  loop(count,code)</b>
+    Example: loop(32, 
+                    r += b;
+                    b = buf * 1.5;
+             );
+    Evaluates the second parameter a finite number of times, specified by the
+    first parameter. If the first parameter is less than 1, the second parameter
+    is not evaluated. Be careful with specifying large values for the first
+    parameter -- it is possible to hang your effect for long periods of time
+    doing so. The maximum for the first parameter is approximately 1 million.
+
+<b>  while(code)</b>
+    Example: while(
+                    a += b;
+                    b *= 1.5;
+                    a &lt; 1000; // as long as a is below 1000, we go again.
+             );
+    Evaluates the first parameter a finite number of times, until the last
+    statement in the code block is zero. There is an artificial limit for
+    number of executions of about 1 million.
+
+<b>  mdct(start_index, size), imdct(start_index, size)</b>
+    Example:  mdct(0, 512);
+    Performs a modified DCT (or inverse in the case of imdct()) on the data
+    in the local memory buffer at the offset specified by the first parameter.
+    The second parameter controls the size of the MDCT, and it MUST be one of
+    the following: 64, 128, 256, 512, or 1024. The MDCT takes the number of
+    inputs provided, and replaces the first half of them with the results. The
+    IMDCT takes size/2 inputs, and gives size results.
+    Note that the MDCT must NOT cross a 16,384 item boundary, so be sure to
+    specify the offset accordingly.
+    The MDCT/IMDCT provided also provide windowing, so your code is not required
+    to window the overlapped results, but simply add them. See the example
+    effects for more information.
+
+<b>  fft(start_index, size), ifft(start_index, size)</b>
+<b>  fft_permute(index,size), fft_ipermute(index,size)</b>
+    Example:  fft(0, 512);
+              fft_permute(0, 512);
+              0[32]=0;
+              fft_ipermute(0, 512);
+              ifft(0, 512);
+              // scale output by 1/512.0, too.
+    Performs a FFT (or inverse in the case of ifft()) on the data in the local
+    memory buffer at the offset specified by the first parameter.
+    The size of the FFT is specified by the second parameter, which must be
+    32, 64, 128, 256, 512, 1024, 2048, or 4096. The outputs are permuted, so if
+    you plan to use them in-order, call fft_permute(idx, size) before and
+    fft_ipermute(idx,size) after your in-order use.
+    Your inputs or outputs will need to be scaled down by 1/size, if used.
+    Note that the FFT/IFFT require real/imaginary input pairs (so a
+    256 point FFT actually works with 512 items), while the real FFT/IFFT
+    (rfft() and irfft(), below) provide a real-FFT.
+    Note that the FFT/IFFT must NOT cross a 16,384 item boundary, so be sure to
+    specify the offset accordingly.
+
+<b>  rfft(start_index, size), irfft(start_index, size)</b>
+<b>  rfft_permute(index,size), rfft_ipermute(index, size)</b>
+    Example:  rfft(0, 512);
+              rfft_permute(0, 512);
+              0[16]=0;
+              rfft_ipermute(0, 512);
+              rifft(0, 512);
+              // scale output by 1/512.0, too.
+    Performs a real FFT (or inverse in the case of irfft()) on the data
+    in the localmemory buffer at the offset specified by the first parameter.
+    The size of the FFT is specified by the second parameter, which must be
+    32, 64, 128, 256, 512, 1024, 2048, or 4096. The outputs are permuted, so if
+    you plan to use them in-order, call rfft_permute(idx, size) before and
+    rfft_ipermute(idx, size) after your in-order use.
+    Your inputs or outputs will need to be scaled down by 1/size, if used.
+    rfft() and irfft() provide a real-FFT, which uses only a single value
+    per point.
+    Note that the FFT/IFFT must NOT cross a 16,384 item boundary, so be sure to
+    specify the offset accordingly.
+
+<b>  convolve_c(dest,src,size), convolve_r(dest,src,size)</b>
+    Used to convolve two buffers, typically after FFTing them.
+    convolve_c works with complex numbers, convolve_r works with
+    real numbers. The sizes specify number of items (in the case of
+    convolve_c, this signifies the number of complex number pairs).
+    Note that the convolution must NOT cross a 16,384 item boundary, 
+    so be sure to specify the offset accordingly.
+
+<b>  freembuf(top)</b>
+    Example: freembuf(top);
+    The freembuf() function provides a facility for you to notify the memory
+    manager that you are no longer using a portion of the local memory buffer.
+    For example, if the user changed a parameter on your effect halving your
+    memory requirements, you should use the lowest indices possible, and call
+    this function with the highest index you are using plus 1, i.e. if you are
+    using 128,000 items, you should call freembuf(128001); If you are no longer
+    using any memory, you should call freembuf(0);
+    Note that calling this does not guarantee that the memory is freed or
+    cleared, it just provides a hint that it is OK to free it.
+
+<b>  memcpy(dest,source,length)</b>
+     Example: memcpy(0,1024,1024);
+   The memcpy() function provides the ability to quickly copy regions of the
+   local memory buffer. The regions may overlap, but neither region may cross
+   a 16,384 item boundary (they may be on different pages, however).
+
+<b>  memset(dest,value,length)</b>
+     Example: memset(0,0,1024);
+   The memset() function provides the ability to quickly set a region of the
+   local memory buffer to a particular value. Unlike memcpy(), this region
+   may be of any length and cross any boundaries.
+
+<b>  sliderchange(mask)</b>
+     Example: sliderchange(slider4);
+     or
+     Example: sliderchange(2 ^ sliderindex);
+   The sliderchange() function provides a facility for you to notify JSFX
+   that you have changed a slider1-slider8 variable so that it can update the
+   display. This function is not necessary to call from the @slider code
+   segment, it is provided so that other code (i.e. @block or @sample) can
+   update the sliders. The parameter can be the variables slider1-slider8, in
+   which case that slider is refreshed. Otherwise, it can be a bitmask of which
+   sliders have changed, where 1 would be the first slider, 2 would be the
+   second, 4 would be the third, and so on (up to 128 being the 8th slider). 
+
+<b>  set_slider(effect.slider,value)</b>
+<b>  get_slider(effect.slider)</b>
+    Example:  set_slider(1.3,get_slider(1.3)+1);
+   Sets (or gets) the value of any effects' slider. The whole number of the first
+   parameter is the index of the effect, starting at 1. The fractional part of the
+   number specifies the slider index (1-8) of the slider.
+
+<b>  set_bypass(effect,value)</b>
+<b>  get_bypass(effect)</b>
+    Example: set_bypass(1,!get_bypass(1));
+   Sets (or gets) the bypass state of any effect. Set to any positive nonzero value
+   to bypass the effect, zero to have the effect be active.
+
+
+<b>File Functions</b>
+
+The following functions can be used in @serialize sections, @preload sections,
+and extended file-slider code sections. On @serialize sections, they can be for
+read or for write, but on all others they are for reading only.
+
+<b>  file_open(index or slider)</b>
+    Example: 
+      filename:0,myfile.wav
+      handle = file_open(0);
+
+    Example: 
+      slider1:/mydata:mydef.wav:WAV File
+      handle = file_open(slider1);
+
+    Opens a file from either the effect filename list or from a file slider.
+    Once open, you may use all of the file functions available. Be sure to
+    close the file handle when done with it, using file_close().
+
+<b>  file_close(handle)</b>
+    Example: file_close(handle);
+    Closes a file opened with file_open().
+
+<b>  file_rewind(handle)</b>
+    Example: file_rewind(handle);
+    You can use this to rewind the current file to the beginning, to
+    re-read the file etc.
+
+<b>  file_var(handle,variable)</b>
+    Example: file_var(handle,myVar);
+    This reads (or writes) the variable from(to) the current file.
+
+<b>  file_mem(handle,offset, length)</b>
+    Example: file_mem(handle,offset,len);
+    This reads (or writes) the block of local memory from(to) the current file.
+    Returns the actual number of items read (or written).
+
+<b>  file_avail(handle)</b>
+    Example: len=file_avail(handle);
+    Returns the number of items remaining in the file, if it is in read
+    mode. Returns &lt; 0 if in write mode. If the file is in text mode
+    (file_text(handle) returns TRUE), then the return value is simply
+    0 if EOF, 1 if not EOF.
+
+<b>  file_riff(handle,nch,samplrate)</b>
+    Example:
+      file_riff(handle,nch,samplrate);
+      nch ? file_mem(handle,0,file_avail(0));
+    If the file was a RIFF WAV file (and ended in .wav),
+    this will set the first parameter to the number of
+    channels, and the second to the samplerate.
+
+<b>  file_text(handle,istext)</b>
+    Example:
+      istext=file_text(handle);
+      istext ? use_diff_avail syntax;
+    If the file was a text file (and ended in .txt), this will
+    return 1. If you need to use different file_avail() logic
+    for text files (you often will), you can query it this way.
+
+<b>  Text file notes</b>
+    Note that if in a extended file-slider code section or a @preload section, and
+    the extension of the file is .txt, it will read one line at a time, ignoring
+    non-number lines. Note that file_avail() should be called to check for EOF
+    after each read, and if it returns 0, the last file_var() should be ignored.
+    You can also use file_mem(offs,bignum) and it will read the maximum available.
+
+    The format of each line in the text file can be either a floating point number,
+    a binary number beginning with 'b', i.e. b0101010111, or a hexadecimal number
+    beginning with 'x', i.e. xDEADF000.
+    For more information on the format of the text file, view the help when editing a text
+    file.
+<b>MIDI Functions</b>
+
+The following functions can be used in @block or @sample sections
+on supported platforms (currently only REAPER, but soon standalone).
+offset is offset from current block, in samples. msg1 is status byte,
+msg23 is second (and third if available) data bytes, second byte is
+low 8 bits (msg23&amp0xff), third byte is next 8 bits (msg23/256)&amp0xff.
+
+<b>  midisend(offset,msg1,msg23)</b>
+    Example: midisend(0,9*16 + 0,69|(127*256)); // send note 69 to 
+                                 channel 0 at velocity 127 (max)
+
+<b>  midirecv(offset,msg1,msg23)</b>
+    Example: 
+     midirecv(offset,msg1,msg23);
+     (msg1&amp240)==9*16 ? ( /* note on! */ )
+    note: midirecv returns msg1 as a return value, as well.
+    so you can do things like: 
+       while( midirecv(offs,msg1,msg23) ? ( midisend(offs,msg1,msg23); ); );
+
+
+
+
+<b>Special Variables</b>
+
+The following variables are used by JSFX for special purposes:
+
+<b>  spl0, spl1</b>
+    Context: @sample only
+    Usage: read/write
+    The variables spl0 and spl1 represent the current sample pair in the @sample
+    code. Their values are meaningful from -1 to 1, and anything outside of this
+    range will be clamped before playback. On a very basic level, their values
+    represent the speaker position at that point in time.
+
+<b>  srate</b>
+    Context: available everywhere
+    Usage: read-only
+    The srate variable is set by the system to whatever the current sampling
+    frequency is set to. In general this will never change, and is system
+    specific. Usually it will be 48000 or 96000, represting 48khz or 96khz.
+
+<b>  samplesblock</b>
+    Context: @block only
+    Usage: read-only
+    The samplesblock variable can be used within the @block code to see how
+    many samples will come before the next @block code. Useful for tracking
+    time, etc.
+
+<b>  slider1-slider8</b>
+    Context: @slider, @block, @sample
+    Usage: read/write
+    The variables slider1, slider2, ... slider8 allow interaction between the
+    user and the effect, allowing the effect to be adjusted by the user and
+    likewise allow the effect to show the user information (see the function
+    sliderchange()). The values of these sliders are purely user-defined, and
+    will be shown to the user, as well as tweaked by the user. If you modify
+    one of these values in the @block or @sample code, it is recommended that
+    you call the sliderchange() function.
+
+<b>  trigger</b>
+    Context: @block, @sample
+    Usage: read/write
+    The trigger variable provides a facility for triggering effects.
+    Effects can be triggered by the user, or by other effects. The trigger
+    variable is a bitmask, where each bit represents a unique trigger. For
+    example, to check for trigger 5 (triggered also by the key '5' on the
+    keyboard):
+      isourtrig = trigger &amp (2^5);
+    Conversely, to set trigger 5:
+      trigger |= 2^5;
+    Or, to clear trigger 5:
+      trigger &amp (2^5) ? trigger -= 2^5;
+    The trigger variable is preserved across effects, so that an effect
+    higher on the effect list can control an effect that is lower.
+    It is recommended that you use this variable in @block, but only
+    sparingly in @sample.
+
+<b>  reg00-reg99</b>
+    Context: available everywhere
+    Usage: read/write
+    The 100 variables reg00, reg01, reg02, .. reg99 are shared across all
+    effects and can be used for inter-effect communication. Their use should
+    be documented in the effect descriptions to avoid collisions with other
+    effects.
+
+<b>  tempo</b>
+    Context: @block, @sample
+    Usage: read-only
+    The current project tempo, if supported (REAPER), or 120 on standalone.
+
+<b>  play_state</b>
+    Context: @block, @sample
+    Usage: read-only
+    The current playback state in REAPER (0=stopped, &lt;0=error, 1=playing,
+    2=paused, 5=recording, 6=record paused.
+
+<b>  play_position</b>
+    Context: @block, @sample
+    Usage: read-only
+    The current playback position in REAPER (at last @block), in seconds.
+
+<b>  beat_position</b>
+    Context: @block, @sample
+    Usage: read-only
+    The current playback position (at last @block) in REAPER, in beats
+    (beats usually = quarternotes).
+
+<b>  pdc_delay</b>
+    Context: @block, @slider
+    Usage: read-write
+    The current delay added by the plug-in, in samples. Note that you shouldnt
+    change this too often.
+
+<b>  pdc_bot_ch, pdc_top_ch</b>
+    Context: @block, @slider
+    Usage: read-write
+    The channels that are delayed by pdc_delay. For example:
+    pdc_bot_ch=0; pdc_top_ch=2; // delays the first two channels (spl0/spl1).
+    pdc_bot_ch=2; pdc_top_ch=5; // delays channels spl2,spl3, and spl4.
+    (this is provided so that channels you dont delay can be delayed properly
+    by the host.
+
+
+&lt;end&gt;
+</pre></body></html>

@@ -1,0 +1,115 @@
+// Harmonic Processing Models Module
+// Harmonic generation algorithms and character-specific processing
+// Depends on: 02a_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// HARMONIC GENERATION ALGORITHMS
+//==============================================================================
+
+function generate_tube_harmonics(input, saturation_amount, intensity_factor) local(x, x2, harmonic_content, scaled_saturation, clip_threshold) (
+  scaled_saturation = saturation_amount * intensity_factor;
+  x = input * (1 + scaled_saturation * 0.3);
+  x2 = x * x;
+
+  clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
+  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + pow((x - clip_threshold) * 4 * intensity_factor, 2));
+  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + pow((x + clip_threshold) * 4 * intensity_factor, 2));
+
+  harmonic_content = x + x2 * scaled_saturation * 0.1 + x2 * x2 * scaled_saturation * 0.02;
+  harmonic_content
+);
+
+function generate_fet_harmonics(input, compression_amount, intensity_factor) local(x, x3, x5, clipped, scaled_compression, clip_point) (
+  scaled_compression = compression_amount * intensity_factor;
+  x = input;
+  x3 = x * x * x;
+  x5 = x3 * x * x;
+
+  scaled_compression > 0.3 / intensity_factor ? (
+    clipped = x;
+    clip_point = 0.8 / (1 + scaled_compression * 0.5);
+    clipped > clip_point ? clipped = clip_point + (clipped - clip_point) * (0.1 / intensity_factor);
+    clipped < -clip_point ? clipped = -clip_point + (clipped + clip_point) * (0.1 / intensity_factor);
+    x = clipped;
+  );
+
+  x + x3 * scaled_compression * 0.08 + x5 * scaled_compression * 0.015
+);
+
+//==============================================================================
+// CHARACTER-SPECIFIC HARMONIC PROCESSING
+//==============================================================================
+
+function apply_tube_character_harmonics(input, drive_amount, even_boost, odd_boost) local(processed, even_proc, odd_proc) (
+  driven = input * drive_amount;
+  
+  // Tube even harmonics
+  even_proc = tanh(abs(driven)) * (driven < 0 ? -1 : 1);
+  even_proc = even_proc * (1 + even_boost);
+  
+  // Tube odd harmonics
+  odd_proc = tanh(driven);
+  odd_proc = odd_proc * (1 + odd_boost);
+  
+  // Combine both
+  processed = 0.5 * (even_proc + odd_proc);
+  
+  // Scale back by drive to maintain levels
+  processed / max(drive_amount, 1);
+);
+
+function apply_tape_character_harmonics(input, drive_amount, even_boost, odd_boost) local(asymL, processed) (
+  driven = input * drive_amount;
+  
+  // Asymmetric saturation for tape character
+  asymL = driven * (driven > 0 ? 1.02 : 0.98);
+  processed = atan(asymL) / ($pi/2);
+  
+  // Apply even/odd boost to tape saturation components
+  processed * (1 + 0.5 * (even_boost + odd_boost));
+);
+
+function apply_clean_harmonics(input, drive_amount) (
+  // Clean processing - minimal harmonic generation
+  input * drive_amount;
+);
+
+//==============================================================================
+// HARMONIC UTILITIES
+//==============================================================================
+
+function get_harmonic_type_name(type) local(name) (
+  type == 0 ? name = "Off" :
+  type == 1 ? name = "Tube Even" :
+  type == 2 ? name = "Tube Odd" :
+  type == 3 ? name = "Tube Both" :
+  type == 4 ? name = "Tape Saturation" :
+  name = "Unknown";
+  name;
+);
+
+function get_harmonic_type_count() (
+  5; // 0-4 types available
+);
+
+function is_harmonic_processing_enabled() (
+  harmonic_type > 0 && harmonic_amount > 0;
+);
+
+function calculate_harmonic_intensity(gr_amount) local(intensity) (
+  intensity = harmonic_amount * (1 + gr_amount * 0.5);
+  intensity;
+);
+
+function get_harmonic_parameters() local(type, amount, drive, mix, even_boost, odd_boost) (
+  type = harmonic_type;
+  amount = harmonic_amount;
+  drive = harmonic_drive;
+  mix = harmonic_mix;
+  even_boost = harmonic_even_boost;
+  odd_boost = harmonic_odd_boost;
+  // Return amount as representative since JSFX doesn't support multiple returns
+  amount;
+);

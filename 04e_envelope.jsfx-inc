@@ -1,0 +1,118 @@
+// Envelope Processing Module
+// Envelope following and program-dependent release algorithms
+// Depends on: 02a_math_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// ENVELOPE FOLLOWING AND PROGRAM RELEASE
+//==============================================================================
+
+function process_envelope_following(target_gr_db, detector_level) local(global_attack_coef, rel_mult, rel_fast, rel_med, rel_slow, gr_amount, det_delta, rel_coef_use, blend_fast, blend_slow, sum, base, fixed_rel_coef) (
+  // Global smoothing with program-dependent release
+  global_attack_coef = exp(-1/(max(0.0001, attack_ms*0.001)*srate));
+
+  // Attack always uses global attack coefficient
+  target_gr_db < global_smoothed_gain_db ? (
+    global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
+  ) : (
+    // Release path: check if program-dependent mode is enabled
+    prog_release_mode > 0.5 ? (
+      // Program-dependent release: use release slider as multiplier (0..2000ms -> 0.5x..2.0x)
+      rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+
+      // Base release coefficients adjusted by multiplier
+      rel_fast = exp(-1/(base_fast_s * rel_mult * srate));
+      rel_med = exp(-1/(base_med_s * rel_mult * srate));
+      rel_slow = exp(-1/(base_slow_s * rel_mult * srate));
+
+      gr_amount = abs(target_gr_db);
+      det_delta = prev_detector_db - linear_to_db(detector_level);
+
+      // Select release coefficient based on program release type
+      rel_coef_use = rel_med;
+      prog_release_type == 0 ? (
+        // Level-dependent: deeper GR -> slower release
+        blend_fast = clamp(1 - gr_amount / 6, 0, 1);
+        blend_slow = clamp(gr_amount / 6, 0, 1);
+        sum = blend_fast + blend_slow + eps;
+        rel_coef_use = (blend_fast * rel_fast + blend_slow * rel_slow) / sum;
+      ) : prog_release_type == 1 ? (
+        // Rate-of-change: fast release if level drops rapidly
+        rel_coef_use = det_delta > 3 ? rel_fast : rel_slow;
+      ) : (
+        // Hybrid: combine level base then bias by rate-of-change
+        blend_fast = clamp(1 - gr_amount / 6, 0, 1);
+        blend_slow = clamp(gr_amount / 6, 0, 1);
+        base = (blend_fast * rel_fast + blend_slow * rel_slow) / max(blend_fast + blend_slow, eps);
+        rel_coef_use = det_delta > 3 ? min(base, rel_fast) : max(base, rel_slow);
+      );
+
+      global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
+    ) : (
+      // Fixed release mode: use release slider as direct time
+      fixed_rel_coef = exp(-1/(max(0.0001, release_ms*0.001) * srate));
+      global_smoothed_gain_db = fixed_rel_coef * global_smoothed_gain_db + (1 - fixed_rel_coef) * target_gr_db;
+    );
+  );
+
+  global_smoothed_gain_db
+);
+
+//==============================================================================
+// ENVELOPE UTILITIES
+//==============================================================================
+
+function reset_envelope_state() (
+  global_smoothed_gain_db = 0;
+  modelGR_dB_prev = 0;
+  prev_detector_db = 0;
+  program_release_timer = 0;
+  average_input_level = 0;
+);
+
+function get_global_smoothed_gain_db() (
+  global_smoothed_gain_db;
+);
+
+function set_global_smoothed_gain_db(value) (
+  global_smoothed_gain_db = value;
+);
+
+function get_prev_detector_db() (
+  prev_detector_db;
+);
+
+function set_prev_detector_db(value) (
+  prev_detector_db = value;
+);
+
+function update_prev_detector_db(level) (
+  prev_detector_db = linear_to_db(level);
+);
+
+function is_program_release_enabled() (
+  prog_release_mode > 0.5;
+);
+
+function get_program_release_type() (
+  prog_release_type;
+);
+
+function get_base_release_times() local(fast, med, slow) (
+  fast = base_fast_s;
+  med = base_med_s;
+  slow = base_slow_s;
+  // Return medium as representative since JSFX doesn't support multiple returns
+  med;
+);
+
+function calculate_effective_release_time() local(effective_time) (
+  effective_time = prog_release_mode > 0.5 ? (
+    // Program-dependent release time calculation
+    base_med_s * 1000 // Convert to milliseconds
+  ) : (
+    release_ms
+  );
+  effective_time;
+);

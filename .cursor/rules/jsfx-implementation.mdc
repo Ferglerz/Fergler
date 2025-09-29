@@ -1,0 +1,165 @@
+---
+alwaysApply: true
+---
+
+# JSFX Implementation Guidelines
+
+## Constants and Mathematical Operations
+
+### Critical Constants
+- **ALWAYS use `$pi` directly** - never define a separate PI variable
+- Common constants (define in config module):
+  - `LOG10_20` = log(10)/20
+  - `SRATE_INV` = 1/srate
+  - `eps` = small epsilon value for safe divisions
+
+### Audio Conversions
+- **dB to linear**: `exp(db * LOG10_20)` where `LOG10_20 = log(10)/20`
+- **Linear to dB**: `log(linear) * 20 / log(10)`
+- **Degrees to radians**: multiply by `$pi/180`
+- **Safe divisions**: add small epsilon to denominators to avoid divide-by-zero
+
+## Memory Management
+
+### Allocation Strategy
+- Memory allocation **must be centralized** in `01a_memory.jsfx-inc`
+- Use lowest memory indices possible
+- Allocate memory sequentially to avoid conflicts
+- Call `freembuf(highest_index + 1)` when reducing memory usage
+- FFT, convolution, and MDCT operations must NOT cross 16,384 item boundaries
+
+### Memory Operations
+- `memcpy(dest, source, length)` - efficient copying
+- `memset(dest, value, length)` - initialization
+
+## Parameter System
+
+### Slider Variables
+- Format: `slider1:variable_name<min,max,inc>Description`
+- The variable name after colon becomes the actual variable (e.g., `slider1:attack_ms` creates `attack_ms`)
+- **Use declared slider variable names in code, not slider1/slider2 directly**
+
+### Updating Parameters
+- Call `sliderchange(mask)` when modifying slider values in @block or @sample
+- Bitmask values: 1=slider1, 2=slider2, 4=slider3, etc.
+- Changes in @slider section automatically update UI (no sliderchange() needed)
+
+## UI and Graphics
+
+### UI Module Organization
+- **05a** (UI core): Foundation and initialization
+- **05b** (UI controls): Control definitions and layout
+- **05c** (UI rendering): Drawing operations
+- **05e** (UI graph): Interactive graph visualization
+
+### Graphics Implementation
+- Rendering happens in **@gfx section**
+- Graph coordinates/dimensions defined in UI config: `GRAPH_X`, `GRAPH_Y`, `GRAPH_SIZE`
+- Control dimensions use constants: `SLIDER_*`, `BUTTON_*`, `DROPDOWN_*`
+- Mouse interaction via: `mouse_x`, `mouse_y`, `mouse_cap`
+- Color definitions use format: `*_R`, `*_G`, `*_B`
+
+### Rendering Order
+1. Background
+2. Controls
+3. Graph
+4. Meters
+5. Interactive elements
+
+## Audio Processing Pipeline
+
+### DSP Flow (@sample section)
+Input → Sidechain filters → RMS detection → Gain reduction calculation → Character modeling → Envelope processing → Lookahead → Harmonic processing → Final mix → Output
+
+### Processing Components
+- **Filters**: Biquad filters for HP/LP filtering
+- **Detection**: Feedforward or feedback mode
+- **Compression**: Curve interpolation (linear or bezier)
+- **Character models**: Tube, FET, tape, optical, VCA (add harmonics and saturation)
+- **Lookahead**: Circular buffer processing
+- **Mix**: Wet/dry blending
+
+### Performance Optimization
+- Calculate filter coefficients in **@slider or @block**, apply in **@sample**
+- Use @block instead of @sample whenever possible
+- Centralize all DSP utilities in `02c_dsp_utils.jsfx-inc`# JSFX Implementation Guidelines
+
+## Constants and Mathematical Operations
+
+### Critical Constants
+- **ALWAYS use `$pi` directly** - never define a separate PI variable
+- Common constants (define in config module):
+  - `LOG10_20` = log(10)/20
+  - `SRATE_INV` = 1/srate
+  - `eps` = small epsilon value for safe divisions
+
+### Audio Conversions
+- **dB to linear**: `exp(db * LOG10_20)` where `LOG10_20 = log(10)/20`
+- **Linear to dB**: `log(linear) * 20 / log(10)`
+- **Degrees to radians**: multiply by `$pi/180`
+- **Safe divisions**: add small epsilon to denominators to avoid divide-by-zero
+
+## Memory Management
+
+### Allocation Strategy
+- Memory allocation **must be centralized** in `01a_memory.jsfx-inc`
+- Use lowest memory indices possible
+- Allocate memory sequentially to avoid conflicts
+- Call `freembuf(highest_index + 1)` when reducing memory usage
+- FFT, convolution, and MDCT operations must NOT cross 16,384 item boundaries
+
+### Memory Operations
+- `memcpy(dest, source, length)` - efficient copying
+- `memset(dest, value, length)` - initialization
+
+## Parameter System
+
+### Slider Variables
+- Format: `slider1:variable_name<min,max,inc>Description`
+- The variable name after colon becomes the actual variable (e.g., `slider1:attack_ms` creates `attack_ms`)
+- **Use declared slider variable names in code, not slider1/slider2 directly**
+
+### Updating Parameters
+- Call `sliderchange(mask)` when modifying slider values in @block or @sample
+- Bitmask values: 1=slider1, 2=slider2, 4=slider3, etc.
+- Changes in @slider section automatically update UI (no sliderchange() needed)
+
+## UI and Graphics
+
+### UI Module Organization
+- **05a** (UI core): Foundation and initialization
+- **05b** (UI controls): Control definitions and layout
+- **05c** (UI rendering): Drawing operations
+- **05e** (UI graph): Interactive graph visualization
+
+### Graphics Implementation
+- Rendering happens in **@gfx section**
+- Graph coordinates/dimensions defined in UI config: `GRAPH_X`, `GRAPH_Y`, `GRAPH_SIZE`
+- Control dimensions use constants: `SLIDER_*`, `BUTTON_*`, `DROPDOWN_*`
+- Mouse interaction via: `mouse_x`, `mouse_y`, `mouse_cap`
+- Color definitions use format: `*_R`, `*_G`, `*_B`
+
+### Rendering Order
+1. Background
+2. Controls
+3. Graph
+4. Meters
+5. Interactive elements
+
+## Audio Processing Pipeline
+
+### DSP Flow (@sample section)
+Input → Sidechain filters → RMS detection → Gain reduction calculation → Character modeling → Envelope processing → Lookahead → Harmonic processing → Final mix → Output
+
+### Processing Components
+- **Filters**: Biquad filters for HP/LP filtering
+- **Detection**: Feedforward or feedback mode
+- **Compression**: Curve interpolation (linear or bezier)
+- **Character models**: Tube, FET, tape, optical, VCA (add harmonics and saturation)
+- **Lookahead**: Circular buffer processing
+- **Mix**: Wet/dry blending
+
+### Performance Optimization
+- Calculate filter coefficients in **@slider or @block**, apply in **@sample**
+- Use @block instead of @sample whenever possible
+- Centralize all DSP utilities in `02c_dsp_utils.jsfx-inc`

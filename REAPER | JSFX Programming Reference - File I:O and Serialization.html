@@ -1,0 +1,254 @@
+
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+
+<title>REAPER | JSFX Programming Reference - File I/O and Serialization</title>
+
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700' rel='stylesheet' type='text/css'>
+<link href='../../main.css?v12' rel='stylesheet' type='text/css'>
+
+<script>
+function showHeaderMenu(nm) {
+  var d = document.getElementById(nm);
+  if (d.style.display != "inline") d.style.display = "inline";
+  else d.style.display = "none";
+  return false;
+}
+
+var g_onload = function() {
+
+
+};
+</script>
+
+
+</head>
+<body onLoad="g_onload();">
+
+<div class='black'>
+  <div class='strip'>
+
+    <div style='width:320px; float:left; text-align:right; margin-top:28px;'>
+      <div class='hdrlink black'>
+        <a href='../../download.php'>
+        <div class='hdrtop green'>DOWNLOAD REAPER</div>
+        <div class='hdrbottom'>Version 7.47: September 26, 2025</div>
+        </a>
+      </div>
+      <div style='height:11px;'></div>
+      <div class='hdrlink black'>
+        <a href='../../purchase.php'>
+        <div class='hdrtop'>PURCHASE</div>
+        <div class='hdrbottom'>&nbsp;</div>
+        </a>
+      </div>
+      <div style='height:11px;'></div>
+      <div class='hdrlink black'>
+        <a href='../../userguide.php'>
+        <div class='hdrtop'>DOWNLOAD USER GUIDE</div>
+        <div class='hdrbottom'>&nbsp;</div>
+        </a>
+      </div>
+    </div>
+
+    <div style='width:360px; float:left; overflow:hidden;'>
+      <center><a href='../../index.php'><img src='../../v5img/logo_sc.jpg'></a></center>
+    </div>
+  
+    <div style='width:320px; float:right; text-align:left; margin-top:28px;'>
+      <div class='hdrlink black'>
+        <a href='#' onClick="return showHeaderMenu('resourcesmenu');">
+        <div class='hdrtop'>RESOURCES</div>
+        </a>
+        <div style='position:relative'>
+          <div id='resourcesmenu' class='headermenu dark'>
+            <a href="../../langpack">Language Packs</a>
+            <BR><a href="https://stash.reaper.fm/tag/Themes" target='_blank' rel='noopener noreferrer'>Themes</a>
+            <BR><a href="https://stash.reaper.fm/" target='_blank' rel='noopener noreferrer'>REAPER Stash</a>
+            <BR><a href="http://www.sws-extension.org/" target='_blank' rel='noopener noreferrer'>SWS REAPER Extension</a>
+            <BR><a href="https://reapack.com" target='_blank' rel='noopener noreferrer'>ReaPack Package Manager</a>
+            <BR><a href="http://reaperblog.net" target='_blank' rel='noopener noreferrer'>The (unofficial) REAPER Blog</a>
+          </div>
+        </div>
+        <a href='#' onClick="return showHeaderMenu('resourcesmenu');">
+        <div class='hdrbottom'>&nbsp;</div>
+        </a>
+      </div>
+      <div style='height:11px;'></div>
+      <div class='hdrlink black'>
+        <a href='../../videos.php'>
+        <div class='hdrtop'>VIDEOS</div>
+        <div class='hdrbottom'>&nbsp;</div>
+        </a>
+      </div>
+      <div style='height:11px;'></div>
+      <div class='hdrlink black'>
+        <a href='https://forum.cockos.com/forumdisplay.php?f=20'>
+        <div class='hdrtop'>FORUM</div>
+        <div class='hdrbottom'>&nbsp;</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class='light'><div class='light strip'><font size=-2><a href="js.php">back to main JSFX reference page</a></font>
+<br><br><br>
+<div class='heading'>JSFX Programming Reference - File I/O and Serialization</div>
+<li><a href="file.php#js_file">File I/O and Serialization</a>
+<br><br>
+<hr><font size=-2><a href="#">top</a></font>&nbsp;&nbsp;<font size=3><b><a name="js_file">File I/O and Serialization</a></b></font>
+<BR><BR>
+The following functions can be used in the <a href="index.php#sec_serialize">@serialize section</a> or in other sections.
+<BR><BR> 
+<b>Using with @serialize</b>:<BR>
+Pass 0 as a handle to various file_*() functions, but do not call file_open() or file_close(). Simple @serialize code will often appear the same for read and write, as file_var(0,x) will read/write x depending on the mode. If you want to have different logic per mode, you can check file_avail(0)&gt;=0 to determine if it is in read mode.
+<BR><BR> 
+<b>Using in other sections</b>:<BR>
+file_open() and file_close() can be used to open files for reading in any section.
+<BR><BR> 
+<ul> 
+<li><a name="file_open"></a><b>file_open(index or slider)</b><BR> 
+    Example: <pre> 
+      filename:0,myfile.wav
+      handle = file_open(0);</pre> 
+    Example: <pre> 
+      slider1:/mydata:mydef.wav:WAV File
+      handle = file_open(slider1);
+    </pre> 
+    Example (<i> REAPER 4.59+</i>): <pre> 
+      handle = file_open(string);
+    </pre> 
+    Opens a file from either the effect filename list or from a file slider, or from a <a href="strings.php">string</a> (<i>REAPER 4.59+</i>).
+    Once open, you may use all of the file functions available. Be sure to
+    close the file handle when done with it, using file_close(). The search path for finding files depends on the method used, but generally speaking in 4.59+ it will look
+    in the same path as the current effect, then in the JS Data/ directory. 
+   <BR><BR>
+    <i>REAPER v6.17+</i>: string can be an absolute path to a file.
+   <BR><BR> 
+    If file_open() fails, it will return &lt; 0 (usually -1).
+<BR><BR> 
+<li><a name="file_close"></a><b>file_close(handle)</b><BR> 
+    Example: <pre> 
+      file_close(handle);
+    </pre> 
+    Closes a file opened with file_open().
+<BR><BR> 
+<li><a name="file_rewind"></a><b>file_rewind(handle)</b><BR> 
+    Example: <pre> 
+       file_rewind(handle);
+    </pre> 
+    Use this to rewind the current file to the beginning, to re-read the file etc.
+<BR><BR> 
+<li><a name="file_var"></a><b>file_var(handle,variable)</b><BR> 
+    Example: <pre> 
+       file_var(handle,myVar);
+     </pre> 
+    This reads (or writes if in a @serialize write) the variable from(to) the current file.
+<BR><BR> 
+<li><a name="file_mem"></a><b>file_mem(handle,offset, length)</b><BR> 
+    Example: <pre> 
+       amt=file_mem(handle,offset,len);
+    </pre> 
+    This reads (or writes) the block of local memory from(to) the current file.
+    Returns the actual number of items read (or written).
+<BR><BR> 
+<li><a name="file_avail"></a><b>file_avail(handle)</b><BR> 
+    Example:<pre> 
+       len=file_avail(handle);
+    </pre> 
+    Returns the number of items remaining in the file, if it is in read
+    mode. Returns &lt; 0 if in write mode. If the file is in text mode
+    (file_text(handle) returns TRUE), then the return value is simply
+    0 if EOF, 1 if not EOF.
+<BR><BR> 
+<li><a name="file_riff"></a><b>file_riff(handle,nch,samplrate)</b><BR> 
+    Example:<pre> 
+      file_riff(handle,nch,samplrate);
+      nch ? file_mem(handle,0,file_avail(0));
+    </pre> 
+    If the file was a media file (.wav, .ogg, etc), this will set the first parameter to the number of channels, and the second to the samplerate.
+   <BR><BR>
+    <i>REAPER 6.29+</i>: if the caller sets nch to 'rqsr' and samplerate to a valid samplerate, the file will be resampled to the desired samplerate (this must ONLY be called before any file_var() or file_mem() calls and will change the value returned by file_avail())
+<BR><BR> 
+<li><b><a name="file_text"></a>file_text(handle,istext)</b><BR> 
+    Example:<pre> 
+      istext=file_text(handle);
+      istext ? use_diff_avail syntax;
+    </pre> 
+    If the file was a text file (and ended in .txt), this will
+    return 1. If you need to use different file_avail() logic
+    for text files (you often will), you can query it this way.
+<BR><BR> 
+    <b>Text file notes</b><BR> 
+    Note that if in an extended file-slider code section, and the extension of the 
+    file is .txt, it will read a series of tokens (see below) delimited by newlines or commas.
+    Comments can be specified with a ; or # which makes the rest of the line ignored.
+    <BR><BR>
+    Note that file_avail() should be called to check for EOF
+    after each read, and if it returns 0, the last file_var() should be ignored.
+    <BR><BR> 
+    You can also use file_mem(offs,bignum) and it will read the maximum available.
+    <BR><BR> 
+    The format of each newline or comma delimited record can be:<ul>
+       <li>a floating point number
+       <li>a binary number beginning with 'b', i.e. b0101010111
+       <li>a hexadecimal number beginning with 'x', i.e. xDEADF000.
+       <li>a combination of numbers or symbolic values using basic +. -, |, &amp; and parentheses.
+       <li>an assignment (e.g. NAME = 1.0) to create a symbolic constants (this does not count as a record and is otherwise ignored)
+    </ul>
+    <BR> 
+<BR><BR> 
+<li><b><a name="file_string"></a>file_string(handle,str)</b> <i> -- REAPER 4.59+</i><BR> 
+Reads or writes a <A href="strings.php">string</a> from/to the file handle. If operating on a normal file, the string will be a line of text (possibly including newline or other characters). If in @serialize, the string will be encoded as a blob with length, which means that it is binary-safe (you can include NUL characters within the string etc).
+</ul> 
+<br><br></div></div><div class='foot black'>
+<div class='black strip' style='margin-bottom:20px;'>
+<br>
+
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;<a href='../../index.php'>Home</a></div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='http://www.cockos.com/company.php' target='_blank' rel='noopener noreferrer'>Company</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../reviews.php'>Reviews</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../radio.php'>Radio</a><br>
+</div>
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;<a href='../../about.php'>About</a></div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../about.php#technical'>Technical</a><br>
+</div>
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;<a href='../../download.php'>Download</a></div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../download-old.php'>Old Versions</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../langpack'>Language Packs</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../reaplugs/'>ReaPlugs</a><br>
+</div>
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;<a href='../../purchase.php'>Purchase</a></div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../license-lookup/index.php'>Lost License</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../dist-agreement.php'>Distribution</a><br>
+</div>
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;Developer</div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/walter/'>Theme Development</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/cursors/cursors.php'>Custom Cursors</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/js/js.php'>JSFX Programming</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/reascript/reascript.php'>ReaScript</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/plugin/plugin.php'>Extensions SDK</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/vst/vst_ext.php'>Extensions to VST SDK</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../sdk/osc/osc.php'>OSC</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../langpack#langpack_dev'>Language Pack Template</a><br>
+</div>
+<div class='footitem'>
+<div class='foot'>&nbsp;&nbsp;Resources</div>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../userguide.php'>User Guide</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='../../videos.php'>Videos</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='https://stash.reaper.fm' target='_blank' rel='noopener noreferrer'>Stash</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href='https://forum.cockos.com/forumdisplay.php?f=20'>Forum</a><br>
+</div>
+
+</div>
+</div>
+
+</body></html>

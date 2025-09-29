@@ -40,9 +40,6 @@ uix_font_dirty = 0;
 uix_latestchar = 0;
 uix_char_consumed = 0;
 
-// Used to work around what I think might be a JSFX bug, where srate is sometimes = 0 in @init, but only if @gfx is defined, the UI is displaying, *and* an earlier effect has set latency with pdc_delay.
-uix_prev_srate = 44100;
-
 uix_error = 0;
 function uix_clamp255(v) (
 	min(255, max(0, floor(v + 0.5)));
@@ -182,13 +179,6 @@ function uix_unreserved_screen_below(limit) (
 );
 
 function ui_setup(stackstart) local(uix_screenstack_end, uix_drawconfig_end) (
-	// Mitigate some gnarly behaviour - see uix_prev_srate at top
-	!srate ? (
-		srate = uix_prev_srate;
-		debug.gnarly_srate_hack += 1;
-	);
-	uix_prev_srate = srate;
-
 	!uix_hassetup || stackstart != uix_screenstack ? (
 		uix_hassetup = 1;
 
@@ -386,14 +376,6 @@ function uix_undo_point(soft) local(time) (
 	uix_last_undo_time = time;
 );
 
-function ui_automate(slidervar*, new_value) (
-	slidervar !== new_value ? (
-		slidervar = new_value;
-		slider_automate(slidervar);
-		1
-	) : 0;
-);
-
 function ui_left() (
 	uix_round ? (
 		floor(uix_drawconfig_current[16/*uix_DRAWCONFIG:LEFT*/] + 0.5);
@@ -553,35 +535,9 @@ function ui_font_refresh() (
 	uix_setgfxfont();
 );
 
-function ui_font() (
-	uix_font_dirty = 1;
-	uix_setgfxcolor();
-	uix_setgfxfont();
-);
-
 function ui_fill() (
 	uix_setgfxcolor();
 	gfx_rect(ui_left_retina(), ui_top_retina(), ui_width_retina(), ui_height_retina());
-);
-
-function ui_image_fill(imageBuffer, width, height, alpha) local(scaling, visibleWidth, visibleHeight, a) (
-	scaling = max(ui_width()/width, ui_height()/height);
-	visibleWidth = ui_width()/scaling;
-	visibleHeight = ui_height()/scaling;
-	a = gfx_a;
-	gfx_a = alpha;
-	gfx_blit(imageBuffer, scaling, 0, (width - visibleWidth)*uix_drawconfig_current[20/*uix_DRAWCONFIG:HALIGN*/], (height - visibleHeight)*uix_drawconfig_current[21/*uix_DRAWCONFIG:VALIGN*/], visibleWidth, visibleHeight, ui_left(), ui_top(), ui_width(), ui_height());
-	gfx_a = a;
-);
-function ui_image_fill(imageBuffer, width, height) (
-	ui_image_fill(imageBuffer, width, height, 1);
-);
-function ui_image_fill(imageBuffer, alpha) local(width, height) (
-	gfx_getimgdim(imageBuffer, width, height);
-	ui_image_fill(imageBuffer, width, height, alpha);
-);
-function ui_image_fill(imageBuffer) (
-	ui_image_fill(imageBuffer, 1);
 );
 
 function ui_texth_retina() (
@@ -1283,7 +1239,7 @@ function ui_key_next() (
 
 //////// Fancy graphics ////////
 
-function ui_graph_step(buffer, length, step, offset, modulo_length, low, high) local(i, i2, v, x, y, mid, top, bottom, height, left, width) (
+function ui_graph_circular(buffer, length, step, offset, modulo_length, low, high) local(i, i2, v, x, y, mid, top, bottom, height, left, width) (
 	low == high ? (
 		i = 0;
 		mid = low;
@@ -1297,9 +1253,6 @@ function ui_graph_step(buffer, length, step, offset, modulo_length, low, high) l
 		low = min(low, 2*mid - high);
 		high = max(high, 2*mid - low);
 	);
-	length < 1 ? length = 1;
-
-	modulo_length = max(1, max(length>>4, modulo_length));
 
 	top = ui_top_retina() + 0.5;
 	bottom = ui_bottom_retina() - 0.5;
@@ -1325,24 +1278,14 @@ function ui_graph_step(buffer, length, step, offset, modulo_length, low, high) l
 	);
 	(high - low)/2;
 );
-function ui_graph_step(buffer, length, step, offset, low, high) (
-	ui_graph_step(buffer, length, step, offset, length, low, high);
+function ui_graph_circular(buffer, length, step, offset, low, high) (
+	ui_graph_circular(buffer, length, step, offset, length, low, high);
 );
 function ui_graph_step(buffer, length, step, low, high) (
-	ui_graph_step(buffer, length, step, 0, length, low, high);
-);
-
-function ui_graph(buffer, length, offset, modulo_length, low, high) local(points, step) (
-	step = 1;
-	points = min(length, ui_width()*4);
-	step = max(1, ceil(length/points));
-	ui_graph_step(buffer + (offset%step), floor(length/step), step, floor(offset/step), floor(modulo_length/step), low, high);
-);
-function ui_graph(buffer, length, offset, low, high) (
-	ui_graph(buffer, length, offset, length, low, high);
+	ui_graph_circular(buffer, length, step, 0, low, high);
 );
 function ui_graph(buffer, length, low, high) (
-	ui_graph(buffer, length, 0, low, high);
+	ui_graph_step(buffer, length, 1, low, high);
 );
 
 /////////////// DEBUG/TUTORIAL ///////////////
@@ -1474,6 +1417,7 @@ function control_start(defaultPage, theme, imageBuffer) local(reset, i, x, y) (
 			gfx_dest = -1;
 		);
 		gfx_x = gfx_y = 0;
+		// TODO: how does retina affect this?
 		gfx_blit(uix_control_reserved_screen, 1, 0);
 		ui_color(245, 255, 255);
 		ui_fontface("Verdana");
@@ -1804,7 +1748,7 @@ function control_background_inset(state) (
 		ui_fill();
 		ui_color(255, 255, 255);
 	) : uix_control_theme == 2/*uix_THEME:TRON*/ ? (
-		ui_color(0, 0, 0, 0.57);
+		ui_color(32, 32, 32);
 		ui_fill();
 		ui_color(205, 167, 119);
 	) : uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
@@ -1943,7 +1887,7 @@ function control_group(text) local(texth, textw, textl, textr, textv) (
 			uix_control_theme == 1/*uix_THEME:BLACK_AND_WHITE*/ ? (
 				ui_color(255, 255, 255);
 			) : uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
-				uix_control_color_from_theme(151, 30, 0.5);
+				uix_control_color_from_theme(151, 30, 0.25);
 			) : (
 				ui_color(102, 102, 102, 0.5);
 			);
@@ -1969,11 +1913,6 @@ function control_group(text) local(texth, textw, textl, textr, textv) (
 				ui_pop();
 			ui_pop();
 			ui_padbottom();
-
-			// Border colour is lighter
-			uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
-				uix_control_color_from_theme(151, 30, 0.25);
-			);
 
 			!textw ? textl = textr = ui_left_retina();
 			ui_push();
@@ -2420,23 +2359,22 @@ function control_dial(value, range_low, range_high) (
 	control_dial(value, range_low, range_high, 0);
 );
 
-function uix_control_dial_angle(angle, isUnit) local(display_angle, radius, centrex, centrey, inner_radius, x1, x2, y1, y2) (
+function control_dial_angle(angle) local(radius, centrex, centrey, inner_radius, x1, x2, y1, y2) (
 	radius = min(min(ui_width_retina(), ui_height_retina())/2 - 1, 30*uix_drawconfig_current[9/*uix_DRAWCONFIG:RETINA_SCALING*/]);
 	centrex = (ui_left_retina() + radius) + (ui_width_retina() - radius*2 - 1)*ui_halign();
 	centrey = (ui_top_retina() + radius) + (ui_height_retina() - radius*2 - 1)*ui_valign();
 
-	display_angle = isUnit ? 2*$pi*angle : angle;
 	uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
 		gfx_blit(uix_control_theme_buffer, 1, 0, 980, 20, 120, 120, centrex - radius + 0.5, centrey - radius + 0.5, radius*2, radius*2);
-		gfx_blit(uix_control_theme_buffer, 1, display_angle, 980, 200, 120, 120, centrex - radius + 0.5, centrey - radius + 0.5, radius*2, radius*2);
+		gfx_blit(uix_control_theme_buffer, 1, angle, 980, 200, 120, 120, centrex - radius + 0.5, centrey - radius + 0.5, radius*2, radius*2);
 	) : (
 		inner_radius = radius - 4;
 		uix_control_background_enabled_circle(centrex, centrey, radius, "none");
 
-		x1 = centrex + sin(display_angle)*inner_radius*0.5;
-		y1 = centrey - cos(display_angle)*inner_radius*0.5;
-		x2 = centrex + sin(display_angle)*inner_radius;
-		y2 = centrey - cos(display_angle)*inner_radius;
+		x1 = centrex + sin(angle)*inner_radius*0.5;
+		y1 = centrey - cos(angle)*inner_radius*0.5;
+		x2 = centrex + sin(angle)*inner_radius;
+		y2 = centrey - cos(angle)*inner_radius;
 		uix_thick_line(x1, y1, x2, y2);
 
 		ui_pad(5, 5);
@@ -2444,31 +2382,13 @@ function uix_control_dial_angle(angle, isUnit) local(display_angle, radius, cent
 		uix_control_finish_enabled_circle(centrex, centrey, radius, 0);
 	);
 
-	isUnit ? (
-		angle = uix_control_dragvalue(angle, -0.03, 1.03, 0);
-		angle -= floor(angle);
-	) : (
-		angle = uix_control_dragvalue(angle, -0.1, 2*$pi + 0.1, 0);
-		angle < 0 ? angle += 2*$pi;
-		angle >= 2*$pi ? angle -= 2*$pi;
-	);
+	angle = uix_control_dragvalue(angle, -0.1, 2*$pi + 0.1, 0);
+	angle < 0 ? angle += 2*$pi;
+	angle >= 2*$pi ? angle -= 2*$pi;
 	angle;
-);
-function control_dial_angle(angle) (
-	uix_control_dial_angle(angle, 0);
 );
 function control_dial_angle(angle, default) (
 	angle = control_dial_angle(angle);
-	ui_click() && ui_clickcount() == 2 ? (
-		angle = default;
-	);
-	angle;
-);
-function control_dial_angle_unit(angle) (
-	angle = uix_control_dial_angle(angle, 1);
-);
-function control_dial_angle_unit(angle, default) (
-	angle = uix_control_dial_angle(angle, 1);
 	ui_click() && ui_clickcount() == 2 ? (
 		angle = default;
 	);
@@ -2499,7 +2419,7 @@ function control_dialog(title, width, height, doneText, cancelText) local(accept
 	width = min(width + ui_padding_x()*2, ui_width());
 	height = min(height + ui_padding_y()*2, ui_height());
 	ui_pad((ui_width() - width)/2, (ui_height() - height)/2);
-	uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? ui_push_clip(1) : ui_push();
+	ui_push();
 		uix_control_theme == 1/*uix_THEME:BLACK_AND_WHITE*/ ? (
 			ui_color(0, 0, 0);
 			ui_fill();
@@ -2510,16 +2430,6 @@ function control_dialog(title, width, height, doneText, cancelText) local(accept
 			ui_fill();
 			ui_color(255, 255, 255, 0.1);
 			ui_border();
-		) : uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
-			y = 0;
-			while (y < gfx_h) (
-				x = 0;
-				while (x < gfx_w) (
-					gfx_blit(uix_control_theme_buffer, ui_retina(), 0, 20, 20, 120, 120, x, y);
-					x += 120*ui_retina();
-				);
-				y += 120;
-			);
 		) : (
 			ui_color(242, 242, 242);
 			ui_fill();
@@ -2527,19 +2437,6 @@ function control_dialog(title, width, height, doneText, cancelText) local(accept
 			ui_border();
 		);
 	ui_pop();
-
-
-	// set main colour
-	uix_control_theme == 1/*uix_THEME:BLACK_AND_WHITE*/ ? (
-		ui_color(255, 255, 255);
-	) : uix_control_theme == 2/*uix_THEME:TRON*/ ? (
-		ui_color(255, 255, 255);
-	) : uix_control_theme == 3/*uix_THEME:BITMAP_SIMPLE*/ ? (
-		uix_control_color_from_theme(151, 30);
-		ui_border();
-	) : (
-		ui_color(12, 12, 12);
-	);
 
 	ui_key() == 27 ? (
 		accepted = (cancelText >= 0) ? -1 : 1;

@@ -1,7 +1,7 @@
-// Graphics and UI Module
-// Handles all visual rendering including graph display, compression curves,
-// level indicators, gain reduction meter, and interactive visual elements
-
+// UI Graph Module
+// Handles graph display, compression curves, level indicators, gain reduction meter,
+// and interactive visual elements for the compression curve graph
+// Depends on: 01b_state.jsfx-inc, 01d_ui_interaction.jsfx-inc, 02a_math_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data.jsfx-inc, 03b_graph_interaction.jsfx-inc, 05a_ui_core.jsfx-inc, 05c_ui_rendering.jsfx-inc
 @init
 
 //==============================================================================
@@ -60,27 +60,114 @@ function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, ac
   );
 );
 
+function draw_bezier_curves() local(i, j, point_index, curve_amount, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, bezier_x, bezier_y, graph_x_pos, graph_y_pos, step_size) (
+  // Draw bezier curves for points that have curves
+  gfx_set(1, 0.8, 0.2, 1);
+  step_size = 0.5; // Smaller steps for smoother curves
+  
+  i = 1;
+  while (i < num_points - 1) (
+    curve_amount = get_curve_amount(i);
+    curve_amount > 0 ? (
+      // Calculate bezier control points
+      calculate_bezier_control_points(i, curve_amount);
+      
+      // Get the four points for the bezier curve
+      p0_x = graph_points[(i-1)*2];
+      p0_y = graph_points[(i-1)*2 + 1];
+      p1_x = bezier_control1_x;
+      p1_y = bezier_control1_y;
+      p2_x = bezier_control2_x;
+      p2_y = bezier_control2_y;
+      p3_x = graph_points[(i+1)*2];
+      p3_y = graph_points[(i+1)*2 + 1];
+      
+      // Draw the bezier curve
+      t = 0;
+      while (t <= 1) (
+        evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
+        graph_x_pos = db_to_graph_x(bezier_result_x);
+        graph_y_pos = db_to_graph_y(bezier_result_y);
+        
+        // Clamp positions to graph boundaries
+        graph_x_pos = max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, graph_x_pos));
+        graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
+        
+        t == 0 ? (
+          gfx_x = graph_x_pos;
+          gfx_y = graph_y_pos;
+        ) : gfx_lineto(graph_x_pos, graph_y_pos, 1); // Antialiased
+        
+        t += step_size / 100; // Adjust step size for smoothness
+      );
+    );
+    i += 1;
+  );
+);
 
-function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered) (
+
+function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered, is_selected, input_db, output_db, text_x, text_y, curve_amount, is_curved) (
   // Skip corner points (indices 0 and num_points-1) - they are invisible
   i = 1;
   while (i < num_points - 1) (
     point_x = db_to_graph_x(graph_points[i*2]);
     point_y = db_to_graph_y(graph_points[i*2 + 1]);
     is_hovered = (i == hovered_point);
+    is_selected = (i == selected_point);
+    curve_amount = get_curve_amount(i);
+    is_curved = curve_amount > 0;
 
-    // Point appearance based on hover state
+    // Point appearance based on hover state and curve status
     is_hovered ? (
       // Hovered point - larger and brighter
       point_radius = 6;
-      gfx_set(1, 1, 0.5, 1); // Yellowish highlight
+      is_curved ? (
+        gfx_set(1, 0.8, 0.2, 1); // Orange for curved points
+      ) : (
+        gfx_set(1, 1, 0.5, 1); // Yellowish highlight for normal points
+      );
     ) : (
       // Normal point - smaller
       point_radius = 4;
-      gfx_set(1, 1, 1, 0.8); // Slightly transparent white
+      is_curved ? (
+        gfx_set(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
+      ) : (
+        gfx_set(1, 1, 1, 0.8); // Slightly transparent white for normal points
+      );
     );
 
     gfx_circle(point_x, point_y, point_radius, 1, 1); // Antialiased
+    
+    // Draw curve indicator for curved points
+    is_curved ? (
+      gfx_set(1, 0.8, 0.2, 0.6);
+      gfx_circle(point_x, point_y, point_radius + 2, 0, 1); // Hollow circle outline
+    );
+    
+    // Show dB values when dragging a point
+    is_selected && mouse_down ? (
+      input_db = graph_points[i*2];
+      output_db = graph_points[i*2 + 1];
+      text_x = point_x + 15; // Position text to the right of the point
+      text_y = point_y; // Center vertically with the point
+      
+      // Draw rounded rectangle background for text with 50% opacity
+      gfx_set(0, 0, 0, 0.5);
+      gfx_roundrect(text_x - 6, text_y - 10, 70, 20, 4); // More padding, rounded corners
+      
+      // Draw distance from 1:1 line (compression amount)
+      gfx_set(1, 1, 1, 1);
+      gfx_x = text_x;
+      gfx_y = text_y - 4; // Center text vertically in the rounded rectangle
+      gfx_printf("%.1f dB", output_db - input_db);
+      
+      // Show curve amount if curved
+      is_curved ? (
+        gfx_y = text_y + 8;
+        gfx_printf("Curve: %.0f%%", curve_amount);
+      );
+    );
+    
     i += 1;
   );
 );
@@ -112,7 +199,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
   gr_meter_w = 30;
   gr_meter_h = GRAPH_SIZE;
   meter_center_y = gr_meter_y + gr_meter_h / 2;
-  max_range_db = 30; // -30dB to +30dB range
+  max_range_db = 40; // -40dB to +40dB range for gain reduction display
 
   // Draw meter background
   gfx_set(0.2, 0.2, 0.2, 1);
@@ -150,8 +237,8 @@ function draw_labels_and_info() (
 
   // Points text in top left of graph area in light grey
   gfx_set(0.7, 0.7, 0.7, 1);
-  gfx_x = GRAPH_X + 10; gfx_y = GRAPH_Y + 15;
-  gfx_printf("Points: %d/%d", num_points, MAX_POINTS);
+  gfx_x = GRAPH_X + 10; gfx_y = GRAPH_Y + 12;
+  gfx_printf("%d/%d", num_points, MAX_POINTS);
 
   global_offset_db != 0 ? (
     gfx_set(1, 1, 0.6, 1);
@@ -161,7 +248,7 @@ function draw_labels_and_info() (
 
   gfx_set(0.7, 0.7, 0.7, 1);
   gfx_x = GRAPH_X; gfx_y = GRAPH_Y + GRAPH_SIZE + 15;
-  gfx_drawstr("Click empty: Add | Right-click/Alt+click point: Delete");
+  gfx_drawstr("Click empty: Add | Right-click/Alt+click point: Delete | Cmd+drag point: Curve");
 );
 
 function draw_graph_background() (
@@ -174,7 +261,7 @@ function draw_graph_background() (
   gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
 );
 
-function render_complete_interface() (
+function render_complete_interface() local(has_any_curves, i) (
   // Set background color
   gfx_clear = 0x202020;
 
@@ -186,7 +273,21 @@ function render_complete_interface() (
   gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
   
   draw_grid();
-  draw_compression_curves();
+  
+  // Check if any points have curves - if so, draw bezier curves, otherwise draw normal curves
+  has_any_curves = 0;
+  i = 1;
+  while (i < num_points - 1 && !has_any_curves) (
+    get_curve_amount(i) > 0 ? has_any_curves = 1;
+    i += 1;
+  );
+  
+  has_any_curves ? (
+    draw_bezier_curves();
+  ) : (
+    draw_compression_curves();
+  );
+  
   draw_graph_points();
   draw_level_indicators();
   

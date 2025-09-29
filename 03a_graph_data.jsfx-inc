@@ -1,0 +1,356 @@
+// Graph Data Management Module
+// Graph point data management, serialization, and curve mathematics
+// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// GRAPH CONFIGURATION
+//==============================================================================
+
+// Graph layout and behavior (GRAPH_X, GRAPH_Y, GRAPH_SIZE defined in 05_ui_core.jsfx-inc)
+GRAPH_RANGE_DB = 80; // -80 to 0
+GRAPH_MIN_DB = -80;
+GRAPH_MAX_DB = 0;
+
+// Point management
+MIN_POINTS = 4;
+MAX_POINTS = 12;
+MOUSE_CLICK_RADIUS = 10;
+
+// Graph state - these need to persist across @init calls
+// Use a special flag to track if these have been initialized
+!persistent_vars_initialized ? (
+  num_points = 6;
+  selected_point = -1;
+  hovered_point = -1;
+  mouse_down = 0;
+  mouse_x_prev = 0;
+  mouse_y_prev = 0;
+  graph_initialized = 0;
+  graph_serialization_version = 2; // Version for serialization compatibility (increased for curve support)
+  persistent_vars_initialized = 1;
+  
+  // Curve data - track which points have curves and their amounts (0-100%)
+  // curve_amounts[i] = 0 means point i has no curve, > 0 means curved with that percentage
+  curve_amounts = 0; // Will be allocated in memory
+  curve_mode = 0; // 0 = normal mode, 1 = curve mode
+);
+
+//==============================================================================
+// CURVE DATA MANAGEMENT
+//==============================================================================
+
+function init_curve_data() (
+  // Allocate memory for curve amounts (one value per point)
+  !curve_amounts ? curve_amounts = freemem;
+  freemem += MAX_POINTS;
+  
+  // Initialize all curves to 0 (no curves)
+  i = 0;
+  while (i < MAX_POINTS) (
+    curve_amounts[i] = 0;
+    i += 1;
+  );
+);
+
+function get_curve_amount(point_index) (
+  point_index >= 0 && point_index < MAX_POINTS ? curve_amounts[point_index] : 0;
+);
+
+function set_curve_amount(point_index, amount) (
+  point_index >= 0 && point_index < MAX_POINTS ? (
+    curve_amounts[point_index] = clamp(amount, 0, 100);
+  );
+);
+
+function has_curve(point_index) (
+  get_curve_amount(point_index) > 0;
+);
+
+function clear_curve(point_index) (
+  set_curve_amount(point_index, 0);
+);
+
+function clear_all_curves() (
+  i = 0;
+  while (i < MAX_POINTS) (
+    curve_amounts[i] = 0;
+    i += 1;
+  );
+);
+
+function get_curve_mode() (
+  curve_mode;
+);
+
+function set_curve_mode(mode) (
+  curve_mode = mode > 0.5 ? 1 : 0;
+);
+
+// Note: Graph coordinate functions moved to 02d_ui_utils.jsfx-inc
+
+//==============================================================================
+// GRAPH DATA MANAGEMENT
+//==============================================================================
+
+function init_graph_points() (
+  // Initialize points on diagonal line (1:1 compression)
+  graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
+  graph_points[2] = -60; graph_points[3] = -60;
+  graph_points[4] = -40; graph_points[5] = -40;
+  graph_points[6] = -20; graph_points[7] = -20;
+  graph_points[8] = -10; graph_points[9] = -10;
+  graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
+);
+
+function restore_graph_points_from_serialization() local(saved_version, saved_num_points, i, success, point_valid) (
+  // Try to read serialized data
+  success = 0;
+  
+  // Read version and point count
+  saved_version = file_var(0, 0);
+  saved_num_points = file_var(0, 0);
+  
+  // Validate version and point count
+  saved_version >= 1 && saved_version <= graph_serialization_version &&
+  saved_num_points >= MIN_POINTS && 
+  saved_num_points <= MAX_POINTS ? (
+    // Read all points and validate each one
+    point_valid = 1;
+    i = 0;
+    while (i < saved_num_points && point_valid) (
+      graph_points[i*2] = file_var(0, 0);     // input_db
+      graph_points[i*2 + 1] = file_var(0, 0); // output_db
+      
+      // Validate point is within reasonable bounds
+      graph_points[i*2] < GRAPH_MIN_DB - 10 || 
+      graph_points[i*2] > GRAPH_MAX_DB + 10 ||
+      graph_points[i*2 + 1] < GRAPH_MIN_DB - 10 || 
+      graph_points[i*2 + 1] > GRAPH_MAX_DB + 10 ? (
+        point_valid = 0;
+      );
+      i += 1;
+    );
+    
+    // Read curve data if version 2 or higher
+    saved_version >= 2 ? (
+      i = 0;
+      while (i < saved_num_points) (
+        set_curve_amount(i, file_var(0, 0));
+        i += 1;
+      );
+    ) : (
+      // Clear all curves for older versions
+      clear_all_curves();
+    );
+    
+    // Validate that corner points are still in place and all points are valid
+    point_valid && 
+    graph_points[0] == GRAPH_MIN_DB && 
+    graph_points[1] == GRAPH_MIN_DB && 
+    graph_points[(saved_num_points-1)*2] == GRAPH_MAX_DB && 
+    graph_points[(saved_num_points-1)*2 + 1] == GRAPH_MAX_DB ? (
+      num_points = saved_num_points;
+      graph_initialized = 1;
+      success = 1;
+    );
+  );
+  
+  success
+);
+
+function sort_points() local(i, j, temp_in, temp_out) (
+  i = 1;
+  while (i < num_points - 2) (
+    j = i + 1;
+    while (j < num_points - 1) (
+      graph_points[i*2] > graph_points[j*2] ? (
+        temp_in = graph_points[i*2];
+        temp_out = graph_points[i*2 + 1];
+
+        graph_points[i*2] = graph_points[j*2];
+        graph_points[i*2 + 1] = graph_points[j*2 + 1];
+
+        graph_points[j*2] = temp_in;
+        graph_points[j*2 + 1] = temp_out;
+      );
+      j += 1;
+    );
+    i += 1;
+  );
+);
+
+function add_point(input_db, output_db) local(insert_pos, i, new_point_index) (
+  num_points >= MAX_POINTS ? -1 : (
+    insert_pos = num_points - 1;
+
+    i = num_points;
+    while (i > insert_pos) (
+      graph_points[i*2] = graph_points[(i-1)*2];
+      graph_points[i*2 + 1] = graph_points[(i-1)*2 + 1];
+      i -= 1;
+    );
+
+    graph_points[insert_pos*2] = input_db;
+    graph_points[insert_pos*2 + 1] = output_db;
+
+    num_points += 1;
+    sort_points();
+
+    // Find the new index of the added point after sorting
+    new_point_index = 0;
+    i = 0;
+    while (i < num_points) (
+      abs(graph_points[i*2] - input_db) < 0.01 && abs(graph_points[i*2 + 1] - output_db) < 0.01 ? (
+        new_point_index = i;
+        i = num_points; // break
+      ) : (
+        i += 1;
+      );
+    );
+    new_point_index;
+  );
+);
+
+function delete_point(point_index) local(i) (
+  point_index <= 0 || point_index >= num_points - 1 || num_points <= MIN_POINTS ? 0 : (
+    i = point_index;
+    while (i < num_points - 1) (
+      graph_points[i*2] = graph_points[(i+1)*2];
+      graph_points[i*2 + 1] = graph_points[(i+1)*2 + 1];
+      i += 1;
+    );
+    num_points -= 1;
+    1;
+  );
+);
+
+function remove_displaced_points(moved_input_db, moved_output_db) local(i, same_position_count, points_to_remove, removal_count) (
+  // Count how many points are at approximately the same position as the moved point
+  same_position_count = 0;
+  i = 1;
+  while (i < num_points - 1) (
+    abs(graph_points[i*2] - moved_input_db) < 2.0 && abs(graph_points[i*2 + 1] - moved_output_db) < 2.0 ? (
+      same_position_count += 1;
+    );
+    i += 1;
+  );
+
+  // If more than 2 points are at the same position, remove the extras
+  same_position_count > 2 ? (
+    points_to_remove = same_position_count - 2;
+    removal_count = 0;
+
+    // Remove points from the end backwards to avoid index shifting issues
+    i = num_points - 2; // Start from last non-corner point
+    while (i > 0 && removal_count < points_to_remove && num_points > MIN_POINTS) (
+      abs(graph_points[i*2] - moved_input_db) < 2.0 && abs(graph_points[i*2 + 1] - moved_output_db) < 2.0 ? (
+        delete_point(i);
+        removal_count += 1;
+        i -= 1; // Adjust index after deletion
+      ) : (
+        i -= 1;
+      );
+    );
+  );
+);
+
+function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, found_point) (
+  // Skip corner points (indices 0 and num_points-1) - they are invisible and non-interactive
+  found_point = -1;
+  i = 1;
+  while (i < num_points - 1) (
+    point_x = db_to_graph_x(graph_points[i*2]);
+    point_y = db_to_graph_y(graph_points[i*2 + 1]);
+    dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
+
+    dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
+      found_point = i;
+      i = num_points; // Break out of loop
+    ) : (
+      i += 1;
+    );
+  );
+  found_point;
+);
+
+function get_point_count() (
+  num_points;
+);
+
+function get_max_points() (
+  MAX_POINTS;
+);
+
+function get_min_points() (
+  MIN_POINTS;
+);
+
+function is_graph_initialized() (
+  graph_initialized;
+);
+
+function set_graph_initialized(initialized) (
+  graph_initialized = initialized;
+);
+
+
+//==============================================================================
+// BEZIER CURVE CALCULATIONS
+//==============================================================================
+
+function calculate_bezier_control_points(point_index, curve_amount) local(
+  prev_point_x, prev_point_y, curr_point_x, curr_point_y, next_point_x, next_point_y,
+  distance_prev, distance_next, control1_x, control1_y, control2_x, control2_y,
+  direction_prev_x, direction_prev_y, direction_next_x, direction_next_y
+) (
+  // Get the three points involved
+  prev_point_x = graph_points[(point_index-1)*2];
+  prev_point_y = graph_points[(point_index-1)*2 + 1];
+  curr_point_x = graph_points[point_index*2];
+  curr_point_y = graph_points[point_index*2 + 1];
+  next_point_x = graph_points[(point_index+1)*2];
+  next_point_y = graph_points[(point_index+1)*2 + 1];
+  
+  // Calculate distances to neighboring points
+  distance_prev = sqrt((curr_point_x - prev_point_x)^2 + (curr_point_y - prev_point_y)^2);
+  distance_next = sqrt((next_point_x - curr_point_x)^2 + (next_point_y - curr_point_y)^2);
+  
+  // Calculate directions (normalized)
+  direction_prev_x = (curr_point_x - prev_point_x) / max(distance_prev, eps);
+  direction_prev_y = (curr_point_y - prev_point_y) / max(distance_prev, eps);
+  direction_next_x = (next_point_x - curr_point_x) / max(distance_next, eps);
+  direction_next_y = (next_point_y - curr_point_y) / max(distance_next, eps);
+  
+  // Calculate control points as percentage along the lines
+  curve_factor = curve_amount / 100.0;
+  control1_x = curr_point_x - direction_prev_x * distance_prev * curve_factor * 0.3;
+  control1_y = curr_point_y - direction_prev_y * distance_prev * curve_factor * 0.3;
+  control2_x = curr_point_x + direction_next_x * distance_next * curve_factor * 0.3;
+  control2_y = curr_point_y + direction_next_y * distance_next * curve_factor * 0.3;
+  
+  // Return control points via global variables
+  bezier_control1_x = control1_x;
+  bezier_control1_y = control1_y;
+  bezier_control2_x = control2_x;
+  bezier_control2_y = control2_y;
+);
+
+function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) local(
+  u, tt, uu, uuu, ttt, result_x, result_y
+) (
+  u = 1 - t;
+  tt = t * t;
+  uu = u * u;
+  uuu = uu * u;
+  ttt = tt * t;
+  
+  result_x = uuu * p0_x + 3 * uu * t * p1_x + 3 * u * tt * p2_x + ttt * p3_x;
+  result_y = uuu * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + ttt * p3_y;
+  
+  // Return result via global variables
+  bezier_result_x = result_x;
+  bezier_result_y = result_y;
+);
+

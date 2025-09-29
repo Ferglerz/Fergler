@@ -1,0 +1,107 @@
+// Detection Processing Module
+// RMS detection, level processing, and gain reduction calculation
+// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc, 02_shared_utilities.jsfx-inc
+
+@init
+
+//==============================================================================
+// RMS AND LEVEL DETECTION
+//==============================================================================
+
+function process_rms_detection(detect_l, detect_r) local(detect_squared, rms_level, peak_level, normalized_rms) (
+  // RMS calculation with optional normalization
+  detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
+  rms_sum -= rms_buffer[rms_pos];
+  rms_buffer[rms_pos] = detect_squared;
+  rms_sum += detect_squared;
+  rms_pos = (rms_pos + 1) % rms_samples;
+
+  rms_level = sqrt(rms_sum / rms_samples);
+
+  // Apply RMS normalization if enabled
+  rms_normalization > 0.5 ? (
+    // Track running maximum for normalization
+    rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999); // slow decay
+
+    // Normalize RMS to 0..1 relative to running max
+    normalized_rms = rms_level / (rms_max + eps);
+
+    // Use peak detection for final level but shape with normalized RMS
+    peak_level = max(abs(detect_l), abs(detect_r));
+    detector_level = normalized_rms * peak_level;
+  ) : (
+    // Standard RMS or peak detection
+    rms_size_ms > 0 ? (
+      detector_level = rms_level;
+    ) : (
+      detector_level = max(abs(detect_l), abs(detect_r)); // peak mode when RMS window = 0
+    );
+  );
+
+  detector_level
+);
+
+//==============================================================================
+// LEVEL CALCULATION AND CURVE APPLICATION
+//==============================================================================
+
+function calculate_gain_reduction(input_level_db) local(adjusted_input_db, target_output_db, target_gr_db, gr_factor, curve_factor) (
+  // Apply compression curve with global offset
+  adjusted_input_db = input_level_db - global_offset_db;
+  target_output_db = interpolate_compression_curve(adjusted_input_db);
+  target_output_db += global_offset_db;  // Add offset back to output
+  target_gr_db = target_output_db - input_level_db;
+
+  // Apply strength and curves
+  target_gr_db *= strength;
+
+  strength_curve != 0 ? (
+    gr_factor = abs(target_gr_db) / abs(max_gr_db);
+    curve_factor = pow(gr_factor, pow(2, strength_curve));
+    target_gr_db *= curve_factor;
+  );
+
+  target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
+
+  target_gr_db
+);
+
+//==============================================================================
+// DETECTION UTILITIES
+//==============================================================================
+
+function reset_detection_state() (
+  rms_sum = 0;
+  rms_pos = 0;
+  rms_max = 0.0001;
+  detector_level = 0;
+);
+
+function get_detector_level() (
+  detector_level;
+);
+
+function get_rms_level() local(rms_level) (
+  rms_samples > 0 ? (
+    rms_level = sqrt(rms_sum / rms_samples);
+    rms_level;
+  ) : (
+    0;
+  );
+);
+
+function is_rms_normalization_enabled() (
+  rms_normalization > 0.5;
+);
+
+function get_rms_max() (
+  rms_max;
+);
+
+function set_rms_max(new_max) (
+  rms_max = new_max;
+);
+
+function update_rms_samples() (
+  rms_samples = calculate_rms_samples(rms_size_ms);
+);

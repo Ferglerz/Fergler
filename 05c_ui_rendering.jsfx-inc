@@ -1,6 +1,7 @@
 // UI Rendering Module
 // Control rendering and drawing functions
 // Handles the visual representation of all UI controls
+// Depends on: 02d_ui_utils.jsfx-inc
 
 @init
 
@@ -73,32 +74,16 @@ function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) lo
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
   gfx_x = x + 5; gfx_y = y + 5;
 
-  // Display text based on parameter type
-  param_index == 13 ? (
-    // Harmonic type
-    current_index == 0 ? gfx_drawstr("Off") :
-    current_index == 1 ? gfx_drawstr("Tube Even") :
-    current_index == 2 ? gfx_drawstr("Tube Odd") :
-    current_index == 3 ? gfx_drawstr("Tube Both") :
-    current_index == 4 ? gfx_drawstr("Tape Sat") :
-    gfx_drawstr("Unknown");
-  ) : param_index == 25 ? (
-    // Compressor type
-    current_index == 0 ? gfx_drawstr("Clean Digital") :
-    current_index == 1 ? gfx_drawstr("Varimu") :
-    current_index == 2 ? gfx_drawstr("Bridged Diode") :
-    current_index == 3 ? gfx_drawstr("VCA") :
-    current_index == 4 ? gfx_drawstr("PWM/Fairchild") :
-    current_index == 5 ? gfx_drawstr("FET") :
-    current_index == 6 ? gfx_drawstr("Optical") :
-    gfx_drawstr("Unknown");
-  ) : param_index == 28 ? (
-    // Program release type
-    current_index == 0 ? gfx_drawstr("Level Dep") :
-    current_index == 1 ? gfx_drawstr("Rate Dep") :
-    current_index == 2 ? gfx_drawstr("Hybrid") :
-    gfx_drawstr("Unknown");
+  // Display text using dynamic dropdown options
+  get_dropdown_option_count(param_index) > 0 ? (
+    // Use dynamically extracted dropdown options
+    current_index < get_dropdown_option_count(param_index) ? (
+      gfx_drawstr(get_dropdown_option(param_index, current_index));
+    ) : (
+      gfx_drawstr("Unknown");
+    );
   ) : (
+    // Fallback for non-dropdown parameters
     gfx_printf("%.0f", current_value);
   );
 
@@ -122,11 +107,11 @@ function draw_control(index) local(type, x, y, w, h, param_index, min_val, max_v
   max_val = get_control_max(index);
   
   // Get current parameter value
-  current_value = get_param_value(param_index);
+  current_value = slider(param_index);
   
-  type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_control_label(index)) :
-  type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_control_label(index)) :
-  type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_control_label(index), param_index) :
+  type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_control_label(param_index)) :
+  type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_control_label(param_index)) :
+  type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_control_label(param_index), param_index) :
   0;
 );
 

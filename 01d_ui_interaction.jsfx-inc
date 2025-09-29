@@ -1,30 +1,25 @@
 // UI Interaction Module
 // Mouse interaction and event handling for UI controls
 // Handles user input, control state management, and event processing
+// Depends on: 01e_ui_config.jsfx-inc, 02d_ui_utils.jsfx-inc, 05a_ui_core.jsfx-inc
 
 @init
+
+//==============================================================================
+// UI CONTROL STATES
+//==============================================================================
+
+// Control States
+ui_mouse_down = 0;
+ui_drag_control = -1;
+ui_mouse_x_prev = 0;
+ui_mouse_y_prev = 0;
 
 //==============================================================================
 // GENERIC MOUSE INTERACTION
 //==============================================================================
 
-function is_point_in_control(x, y, control_index) local(ctrl_x, ctrl_y, ctrl_w, ctrl_h) (
-  ctrl_x = get_control_x(control_index);
-  ctrl_y = get_control_y(control_index);
-  ctrl_w = get_control_w(control_index);
-  ctrl_h = get_control_h(control_index);
-  x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
-);
-
-function update_slider_value(control_index, mouse_x) local(ctrl_x, ctrl_w, min_val, max_val, normalized_pos) (
-  ctrl_x = get_control_x(control_index);
-  ctrl_w = get_control_w(control_index);
-  min_val = get_control_min(control_index);
-  max_val = get_control_max(control_index);
-  normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
-  normalized_pos = max(0, min(1, normalized_pos));
-  min_val + normalized_pos * (max_val - min_val);
-);
+// Note: is_point_in_control() and update_slider_value() moved to 02d_ui_utils.jsfx-inc
 
 function handle_ui_mouse_input() local(i, control_type, param_index, current_value, max_options, found_control) (
   mouse_cap & 1 ? ( // Left mouse button
@@ -37,19 +32,19 @@ function handle_ui_mouse_input() local(i, control_type, param_index, current_val
           found_control = 1;
           control_type = get_control_type(i);
           param_index = get_control_param(i);
-          current_value = get_param_value(param_index);
+          current_value = slider(param_index);
           
           control_type == 0 ? (
             // Slider - start drag
             ui_drag_control = i;
-            set_param_value(param_index, update_slider_value(i, mouse_x));
+            slider(param_index) = update_slider_value(i, mouse_x);
           ) : control_type == 1 ? (
             // Button - toggle
-            set_param_value(param_index, current_value > 0.5 ? 0 : 1);
+            slider(param_index) = current_value > 0.5 ? 0 : 1;
           ) : control_type == 2 ? (
             // Dropdown - cycle
-            max_options = param_index == 13 ? 5 : param_index == 25 ? 7 : param_index == 28 ? 3 : 2;
-            set_param_value(param_index, (current_value + 1) % max_options);
+            max_options = param_index == 14 ? 5 : param_index == 25 ? 7 : param_index == 28 ? 3 : 2;
+            slider(param_index) = (current_value + 1) % max_options;
           );
         );
         i += 1;
@@ -60,7 +55,7 @@ function handle_ui_mouse_input() local(i, control_type, param_index, current_val
     ) : ( // Continue drag
       ui_drag_control >= 0 ? (
         // Update dragged slider
-        set_param_value(get_control_param(ui_drag_control), update_slider_value(ui_drag_control, mouse_x));
+        slider(get_control_param(ui_drag_control)) = update_slider_value(ui_drag_control, mouse_x);
       );
     );
   ) : (

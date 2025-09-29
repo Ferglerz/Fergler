@@ -1,0 +1,84 @@
+// Mathematical Utilities Module
+// Pure mathematical functions and utilities
+// No dependencies - contains all mathematical constants
+
+@init
+
+//==============================================================================
+// MATHEMATICAL CONSTANTS
+//==============================================================================
+
+// Audio processing constants
+LOG10_20 = 20 / log(10);
+LOG_10_20 = log(10) / 20;
+SRATE_INV = 1 / srate;
+eps = 0.000000000000000000000000000001; // MUST be a decimal, not scientific notation
+
+//==============================================================================
+// MATHEMATICAL UTILITY FUNCTIONS
+//==============================================================================
+
+function clamp(value, min_val, max_val) (
+  max(min_val, min(max_val, value))
+);
+
+// Helper function for tanh (hyperbolic tangent)
+function tanh(x) (
+  x > 10 ? 1 : (
+    x < -10 ? -1 : (
+      (exp(2*x) - 1) / (exp(2*x) + 1)
+    )
+  )
+);
+
+// Helper function for atan (arctangent)
+function atan(x) (
+  abs(x) > 1 ? (
+    x > 0 ? $pi/2 - atan(1/x) : -$pi/2 - atan(1/x)
+  ) : (
+    // Taylor series approximation for |x| <= 1
+    x - x*x*x/3 + x*x*x*x*x/5 - x*x*x*x*x*x*x/7
+  )
+);
+
+// Helper function for pow (power function)
+function pow(base, exponent) (
+  base > 0 ? exp(exponent * log(base)) : (
+    base == 0 ? (exponent > 0 ? 0 : 1) : (
+      // Handle negative base (assuming integer exponent)
+      exp(exponent * log(abs(base))) * (exponent % 2 == 0 ? 1 : -1)
+    )
+  )
+);
+
+// Linear interpolation
+function lerp(a, b, t) (
+  a + t * (b - a)
+);
+
+// Smoothstep function
+function smoothstep(edge0, edge1, x) local(t) (
+  t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  t * t * (3.0 - 2.0 * t)
+);
+
+// Smootherstep function
+function smootherstep(edge0, edge1, x) local(t) (
+  t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+);
+
+// Sign function
+function sign(x) (
+  x > 0 ? 1 : (x < 0 ? -1 : 0)
+);
+
+// Fractional part
+function fract(x) (
+  x - floor(x)
+);
+
+// Modulo function (proper modulo, not remainder)
+function mod(x, y) (
+  y != 0 ? x - y * floor(x/y) : 0
+);

@@ -1,0 +1,119 @@
+---
+alwaysApply: true
+---
+
+# JSFX Modular Architecture
+
+## Module Structure and Dependency Phases
+
+**CRITICAL**: Modules must be imported in strict dependency order based on phase prefixes.
+
+### Phase Organization
+- **Phase 0 (00)**: Configuration
+- **Phase 1 (01)**: Foundation
+  - `a` = memory
+  - `b` = state
+  - `c` = initialization
+  - `d` = UI interaction
+  - `e` = UI config
+- **Phase 2 (02)**: Utilities
+  - `a` = math utils
+  - `b` = audio utils
+  - `c` = DSP utils
+  - `d` = UI utils
+- **Phase 3 (03)**: Graph
+  - `a` = graph data
+  - `b` = graph interaction
+- **Phase 4 (04)**: Audio Processing
+  - `a` = compression core
+  - `b` = harmonic models
+  - `c` = filters
+  - `d` = detection
+  - `e` = envelope
+  - `f` = effects
+- **Phase 5 (05)**: UI Components
+  - `a` = UI core
+  - `b` = UI controls
+  - `c` = UI rendering
+  - `e` = UI graph
+
+## File Naming Convention
+Format: `[phase][letter]_[descriptive_name].jsfx-inc`
+
+Examples:
+- `01a_memory.jsfx-inc`
+- `02a_math_utils.jsfx-inc`
+- `05c_ui_rendering.jsfx-inc`
+
+Main file: `Composure_Modular.jsfx`
+
+## Module Design Principles
+- Each module has a **single focused responsibility**
+- Clear dependencies - only depend on lower-phase modules
+- **Never create circular dependencies**
+- Use `import` directive to include modules
+- Centralize related functionality within appropriate phase
+
+## Memory Layout Address Ranges
+- `GRAPH_POINTS_START`: 10000+
+- `CONTROL_DEFS_START`: 30000+
+- `AUDIO_BUFFERS_START`: 40000+
+
+Define all memory layout constants in config module (00_config.jsfx-inc).# JSFX Modular Architecture
+
+## Module Structure and Dependency Phases
+
+**CRITICAL**: Modules must be imported in strict dependency order based on phase prefixes.
+
+### Phase Organization
+- **Phase 0 (00)**: Configuration
+- **Phase 1 (01)**: Foundation
+  - `a` = memory
+  - `b` = state
+  - `c` = initialization
+  - `d` = UI interaction
+  - `e` = UI config
+- **Phase 2 (02)**: Utilities
+  - `a` = math utils
+  - `b` = audio utils
+  - `c` = DSP utils
+  - `d` = UI utils
+- **Phase 3 (03)**: Graph
+  - `a` = graph data
+  - `b` = graph interaction
+- **Phase 4 (04)**: Audio Processing
+  - `a` = compression core
+  - `b` = harmonic models
+  - `c` = filters
+  - `d` = detection
+  - `e` = envelope
+  - `f` = effects
+- **Phase 5 (05)**: UI Components
+  - `a` = UI core
+  - `b` = UI controls
+  - `c` = UI rendering
+  - `e` = UI graph
+
+## File Naming Convention
+Format: `[phase][letter]_[descriptive_name].jsfx-inc`
+
+Examples:
+- `01a_memory.jsfx-inc`
+- `02a_math_utils.jsfx-inc`
+- `05c_ui_rendering.jsfx-inc`
+
+Main file: `Composure_Modular.jsfx`
+
+## Module Design Principles
+- Each module has a **single focused responsibility**
+- Clear dependencies - only depend on lower-phase modules
+- **Never create circular dependencies**
+- Use `import` directive to include modules
+- Centralize related functionality within appropriate phase
+
+## Memory Layout Address Ranges
+- `GRAPH_POINTS_START`: 10000+
+- `CONTROL_DEFS_START`: 30000+
+- `AUDIO_BUFFERS_START`: 40000+
+
+Define all memory layout constants in config module (00_config.jsfx-inc).
