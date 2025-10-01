@@ -1,0 +1,91 @@
+// Debug Logging Module
+// Centralized debug message collection and rendering
+// No dependencies - foundation level
+
+@init
+
+//==============================================================================
+// DEBUG CONFIGURATION
+//==============================================================================
+
+DEBUG_ENABLED = 1; // Set to 0 to disable all debug output
+DEBUG_MAX_MESSAGES = 100;
+DEBUG_START_Y = 450; // Y position where debug output starts
+DEBUG_LINE_HEIGHT = 15;
+DEBUG_TEXT_COLOR_R = 1.0;
+DEBUG_TEXT_COLOR_G = 1.0;
+DEBUG_TEXT_COLOR_B = 1.0;
+DEBUG_TEXT_ALPHA = 0.8;
+
+// Debug message storage (using string slots 5000-5099)
+debug_message_count = 0;
+DEBUG_MESSAGES_BASE = 5000;
+
+//==============================================================================
+// DEBUG LOGGING FUNCTIONS
+//==============================================================================
+
+function debug_clear() (
+  debug_message_count = 0;
+);
+
+function debug_log(message) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    strcpy(DEBUG_MESSAGES_BASE + debug_message_count, message);
+    debug_message_count += 1;
+  );
+);
+
+function debug_logf(format, value) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value);
+    debug_message_count += 1;
+  );
+);
+
+function debug_log2f(format, value1, value2) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2);
+    debug_message_count += 1;
+  );
+);
+
+function debug_log3f(format, value1, value2, value3) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2, value3);
+    debug_message_count += 1;
+  );
+);
+
+// Note: debug_section removed - use debug_log() directly with formatted strings
+
+function debug_separator() (
+  DEBUG_ENABLED ? (
+    debug_log("----------------------------------------");
+  );
+);
+
+function debug_render() local(i, y_pos) (
+  DEBUG_ENABLED && debug_message_count > 0 ? (
+    gfx_set(DEBUG_TEXT_COLOR_R, DEBUG_TEXT_COLOR_G, DEBUG_TEXT_COLOR_B, DEBUG_TEXT_ALPHA);
+    y_pos = DEBUG_START_Y;
+    
+    i = 0;
+    while (i < debug_message_count) (
+      gfx_x = 10;
+      gfx_y = y_pos;
+      gfx_drawstr(DEBUG_MESSAGES_BASE + i);
+      y_pos += DEBUG_LINE_HEIGHT;
+      i += 1;
+    );
+  );
+);
+
+function debug_get_message_count() (
+  debug_message_count;
+);
+
+function debug_is_enabled() (
+  DEBUG_ENABLED;
+);
+

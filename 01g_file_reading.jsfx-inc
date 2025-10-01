@@ -1,0 +1,221 @@
+// File Reading Module  
+// Simplified slider definition parsing with robust string handling
+// Depends on: 01f_debug_logging.jsfx-inc
+
+@init
+
+//==============================================================================
+// FILE READING CONFIGURATION
+//==============================================================================
+
+// String slot allocation
+// Slots 0-99: Reserved for temporary #variables (JSFX system)
+// Slots 100-199: Slider names (100 slots for up to 100 sliders)
+// Slots 200-1999: Dropdown options (20 options × 100 sliders = 2000 slots)
+// Slots 5000-5099: Debug messages (see 01f_debug_logging.jsfx-inc)
+
+SLIDER_NAMES_BASE = 100;
+DROPDOWN_OPTIONS_BASE = 200;
+MAX_OPTIONS_PER_SLIDER = 20;
+
+// Non-string memory for option counts (array of integers)
+dropdown_option_counts_base = 10000;
+
+// File reading state
+slider_names_count = 0;
+slider_names_loaded = 0;
+
+//==============================================================================
+// CHARACTER SCANNING UTILITIES
+//==============================================================================
+
+function scan_for_char(str, char, start_pos) local(i, len, pos) (
+  len = strlen(str);
+  pos = -1;
+  i = start_pos;
+  
+  while (i < len && pos < 0) (
+    str_getchar(str, i) == char ? pos = i;
+    i += 1;
+  );
+  pos;
+);
+
+function is_slider_line(str) (
+  strlen(str) >= 6 && strncmp(str, "slider", 6) == 0;
+);
+
+function is_stop_line(str) (
+  strcmp(str, "// SEARCH STOP") == 0;
+);
+
+//==============================================================================
+// SLIDER NAME EXTRACTION
+//==============================================================================
+
+function extract_slider_name(line, index) (
+  len = strlen(line);
+  
+  // Find '>' character (ASCII 62)
+  pos_greater = scan_for_char(line, 62, 0);
+  
+  pos_greater >= 0 ? (
+    name_start = pos_greater + 1;
+    
+    // Check for optional '-' after '>' (ASCII 45)
+    name_start < len && str_getchar(line, name_start) == 45 ? (
+      name_start += 1;
+    );
+    
+    // Extract name to dedicated string slot
+    name_len = len - name_start;
+    name_len > 0 ? (
+      target_slot = SLIDER_NAMES_BASE + index;
+      strcpy_substr(target_slot, line, name_start, name_len);
+      debug_log3f("Slider %d -> slot %d: %s", index + 1, target_slot, target_slot);
+      1; // Success
+    ) : (
+      debug_logf("WARNING: Empty slider name for index %d", index);
+      0;
+    );
+  ) : (
+    debug_logf("WARNING: No '>' found in slider line %d", index + 1);
+    0;
+  );
+);
+
+//==============================================================================
+// DROPDOWN OPTIONS EXTRACTION  
+//==============================================================================
+
+function extract_dropdown_options(line, slider_index) (
+  // Find '{' (ASCII 123) and '}' (ASCII 125)
+  pos_open = scan_for_char(line, 123, 0);
+  
+  pos_open >= 0 ? (
+    pos_close = scan_for_char(line, 125, pos_open);
+    
+    pos_close > pos_open ? (
+      // Extract options substring to temporary string
+      strcpy_substr(#dropdown_temp, line, pos_open + 1, pos_close - pos_open - 1);
+      temp_len = strlen(#dropdown_temp);
+      
+      // Parse comma-separated options
+      base_slot = DROPDOWN_OPTIONS_BASE + (slider_index * MAX_OPTIONS_PER_SLIDER);
+      opt_count = 0;
+      option_start = 0;
+      i = 0;
+      
+      while (i <= temp_len && opt_count < MAX_OPTIONS_PER_SLIDER) (
+        char = str_getchar(#dropdown_temp, i);
+        
+        // Found comma (ASCII 44) or end of string
+        (char == 44 || i == temp_len) ? (
+          i > option_start ? (
+            strcpy_substr(base_slot + opt_count, #dropdown_temp, option_start, i - option_start);
+            debug_log3f("  Option %d (slot %d): %s", 
+              opt_count, base_slot + opt_count, base_slot + opt_count);
+            opt_count += 1;
+          );
+          option_start = i + 1;
+        );
+        i += 1;
+      );
+      
+      dropdown_option_counts_base[slider_index] = opt_count;
+      debug_log2f("  Total %d options for slider %d", opt_count, slider_index + 1);
+      opt_count;
+    ) : (
+      debug_logf("WARNING: Malformed dropdown (no closing brace) in slider %d", slider_index + 1);
+      dropdown_option_counts_base[slider_index] = 0;
+      0;
+    );
+  ) : (
+    // No dropdown options (normal case)
+    dropdown_option_counts_base[slider_index] = 0;
+    0;
+  );
+);
+
+//==============================================================================
+// MAIN FILE READING FUNCTION
+//==============================================================================
+
+function read_slider_definitions() local(handle, slider_count, found_stop, line_count) (
+  debug_log("");
+  debug_log("=== SLIDER DEFINITION PARSING ===");
+  debug_log("Opening Composure_Modular.jsfx...");
+  
+  handle = file_open("Composure_Modular.jsfx");
+  
+  handle != -1 ? (
+    slider_count = 0;
+    found_stop = 0;
+    line_count = 0;
+    
+    while (file_avail(handle) > 0 && !found_stop) (
+      file_string(handle, #line);
+      line_count += 1;
+      
+      is_stop_line(#line) ? (
+        found_stop = 1;
+        debug_logf("Found stop marker at line %d", line_count);
+      ) : is_slider_line(#line) ? (
+        extract_slider_name(#line, slider_count);
+        extract_dropdown_options(#line, slider_count);
+        slider_count += 1;
+      );
+    );
+    
+    file_close(handle);
+    
+    slider_names_count = slider_count;
+    slider_names_loaded = 1;
+    
+    debug_separator();
+    debug_logf("SUCCESS: Loaded %d slider definitions", slider_count);
+    1; // Success
+  ) : (
+    debug_log("ERROR: Could not open Composure_Modular.jsfx");
+    debug_log("Check that file exists in same directory as plugin");
+    
+    slider_names_count = 0;
+    slider_names_loaded = 0;
+    0; // Failed
+  );
+);
+
+//==============================================================================
+// ACCESSOR FUNCTIONS (for 02d_ui_utils.jsfx-inc)
+//==============================================================================
+
+function get_slider_name(slider_num) local(array_index) (
+  slider_names_loaded && slider_num > 0 && slider_num <= slider_names_count ? (
+    array_index = slider_num - 1;
+    SLIDER_NAMES_BASE + array_index; // Return string slot number
+  ) : (
+    debug_logf("WARNING: Invalid slider number %d requested", slider_num);
+    #empty_str = "";
+    #empty_str;
+  );
+);
+
+function get_dropdown_option_count(slider_num) local(array_index) (
+  array_index = slider_num - 1;
+  array_index >= 0 && array_index < slider_names_count ? (
+    dropdown_option_counts_base[array_index]
+  ) : 0;
+);
+
+function get_dropdown_option(slider_num, option_index) local(base_slot, array_index) (
+  array_index = slider_num - 1;
+  array_index >= 0 && option_index >= 0 && 
+  option_index < get_dropdown_option_count(slider_num) ? (
+    base_slot = DROPDOWN_OPTIONS_BASE + (array_index * MAX_OPTIONS_PER_SLIDER);
+    base_slot + option_index; // Return string slot number
+  ) : (
+    #empty_str = "";
+    #empty_str;
+  );
+);
+

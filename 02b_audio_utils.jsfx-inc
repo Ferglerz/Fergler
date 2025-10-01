@@ -38,12 +38,3 @@ function normalize_audio_level(level, max_level) (
   max_level > 0 ? clamp(level / max_level, 0, 1) : 0
 );
 
-// Convert audio level to dB with safe handling
-function safe_linear_to_db(linear) (
-  linear > eps ? linear_to_db(linear) : -150
-);
-
-// Convert dB to linear with safe handling
-function safe_db_to_linear(db) (
-  db > -150 ? db_to_linear(db) : eps
-);

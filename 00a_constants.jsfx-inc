@@ -1,0 +1,35 @@
+// Constants Module
+// All magic numbers and configuration constants
+// Must be imported first - no dependencies
+
+@init
+
+//==============================================================================
+// AUDIO CONSTANTS
+//==============================================================================
+
+EPS = 0.000000000000000000000000000001;
+
+
+//==============================================================================
+// COMPRESSION CONSTANTS
+//==============================================================================
+
+MAX_GR_RANGE_DB = 30.0; // For normalization calculations
+MIN_DETECTOR_LEVEL = 0.000001; // Prevent log(0)
+DEFAULT_ENVELOPE = 1.0;
+
+//==============================================================================
+// PERFORMANCE CONSTANTS
+//==============================================================================
+
+DENORMAL_THRESHOLD = pow(10, -15); // Faster than eps for denormal checks
+HISTORY_DECAY = 0.999;
+HISTORY_UPDATE = 0.001;
+
+//==============================================================================
+// UI CONSTANTS (moved from inline definitions)
+//==============================================================================
+
+MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
+

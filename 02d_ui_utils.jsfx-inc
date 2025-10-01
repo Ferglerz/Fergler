@@ -4,11 +4,6 @@
 
 @init
 
-// Global variables for slider name parsing (declared here for access)
-slider_names_count;
-slider_names_loaded;
-SLIDER_NAMES_BASE;
-
 //==============================================================================
 // CONTROL ACCESSOR FUNCTIONS
 //==============================================================================
@@ -73,55 +68,13 @@ function is_point_in_graph(x, y) (
 );
 
 //==============================================================================
-// PARAMETER MANAGEMENT FUNCTIONS
+// PARAMETER LABEL FUNCTIONS (now use 01g_file_reading.jsfx-inc)
 //==============================================================================
 
-function get_parsed_slider_name(index)
-local(array_index)
-(
-  // Return the slider name from string storage (using fixed slots 0-1023)
-  (slider_names_loaded && index > 0 && index <= slider_names_count) ? (
-    array_index = index - 1; // Convert to 0-based index
-    SLIDER_NAMES_BASE + array_index  // Return the slot number directly
-  ) : (
-    #unknown_str = "Unknown";
-    #unknown_str
-  );
+function get_control_label(slider_index) (
+  // Delegate to file reading module
+  get_slider_name(slider_index)
 );
 
-function get_control_label(index) (
-  // Use dynamic slider names from JSFX file
-  get_parsed_slider_name(index)
-);
-
-//==============================================================================
-// DROPDOWN OPTIONS FUNCTIONS
-//==============================================================================
-
-function get_dropdown_option_count(slider_num) 
-local(array_index)
-(
-  // Convert 1-based slider number to 0-based array index
-  array_index = slider_num - 1;
-  // Return the number of dropdown options for a slider
-  (array_index >= 0 && array_index < slider_names_count) ? (
-    dropdown_option_counts_base[array_index]
-  ) : (
-    0
-  );
-);
-
-function get_dropdown_option(slider_num, option_index)
-local(base_slot, array_index)
-(
-  // Convert 1-based slider number to 0-based array index
-  array_index = slider_num - 1;
-  // Return the dropdown option string for a specific slider and option index
-  (array_index >= 0 && option_index >= 0 && option_index < get_dropdown_option_count(slider_num)) ? (
-    base_slot = DROPDOWN_OPTIONS_BASE + (array_index * 20);
-    base_slot + option_index
-  ) : (
-    #empty_str = "";
-    #empty_str
-  );
-);
+// Note: get_dropdown_option_count() and get_dropdown_option() are now
+// defined in 01g_file_reading.jsfx-inc and available globally
