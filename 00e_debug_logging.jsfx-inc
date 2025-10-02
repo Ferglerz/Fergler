@@ -1,0 +1,208 @@
+// Debug Logging Module
+// Centralized debug message collection and rendering
+// No dependencies - foundation level
+
+@init
+
+//==============================================================================
+// DEBUG CONFIGURATION
+//==============================================================================
+
+DEBUG_ENABLED = 1; // Set to 0 to disable all debug output
+DEBUG_MAX_MESSAGES = 100;
+DEBUG_START_Y = 450; // Y position where debug output starts
+DEBUG_LINE_HEIGHT = 15;
+DEBUG_TEXT_COLOR_R = 1.0;
+DEBUG_TEXT_COLOR_G = 1.0;
+DEBUG_TEXT_COLOR_B = 1.0;
+DEBUG_TEXT_ALPHA = 0.8;
+
+// Debug message storage (using string slots 50-149 - tested working range)
+debug_message_count = 0;
+DEBUG_MESSAGES_BASE = 50;
+
+// Debug scrolling
+debug_scroll_offset = 0;
+DEBUG_VISIBLE_LINES = 20; // Number of debug lines visible at once
+
+//==============================================================================
+// DEBUG LOGGING FUNCTIONS
+//==============================================================================
+
+function debug_clear() (
+  debug_message_count = 0;
+  debug_scroll_offset = 0;
+);
+
+function debug_log(message) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    strcpy(DEBUG_MESSAGES_BASE + debug_message_count, message);
+    debug_message_count += 1;
+    // Auto-scroll to bottom when new messages are added
+    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
+  );
+);
+
+function debug_logf(format, value) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value);
+    debug_message_count += 1;
+    // Auto-scroll to bottom when new messages are added
+    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
+  );
+);
+
+function debug_log2f(format, value1, value2) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2);
+    debug_message_count += 1;
+    // Auto-scroll to bottom when new messages are added
+    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
+  );
+);
+
+function debug_log3f(format, value1, value2, value3) (
+  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2, value3);
+    debug_message_count += 1;
+    // Auto-scroll to bottom when new messages are added
+    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
+  );
+);
+
+// Note: debug_section removed - use debug_log() directly with formatted strings
+
+function debug_separator() (
+  DEBUG_ENABLED ? (
+    debug_log("----------------------------------------");
+  );
+);
+
+function debug_handle_scroll() (
+  DEBUG_ENABLED ? (
+    // Check if mouse is in debug area (simple bounds check)
+    mouse_in_debug_area = (mouse_x >= 10 && mouse_x <= 400 && 
+                          mouse_y >= DEBUG_START_Y && mouse_y <= DEBUG_START_Y + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT)) ? 1 : 0;
+    
+    // Handle mouse wheel scrolling - JSFX mouse wheel is handled via mouse_cap
+    mouse_in_debug_area ? (
+      // Mouse wheel up (scroll up in messages = go to earlier messages)
+      mouse_cap & 64 ? ( // Wheel up
+        debug_scroll_offset = max(0, debug_scroll_offset - 1);
+      );
+      
+      // Mouse wheel down (scroll down in messages = go to later messages) 
+      mouse_cap & 128 ? ( // Wheel down
+        debug_scroll_offset = min(max(0, debug_message_count - DEBUG_VISIBLE_LINES), debug_scroll_offset + 1);
+      );
+      
+      // Alternative: Use Ctrl+scroll for debug scrolling
+      mouse_cap & 4 ? ( // Ctrl key held
+        mouse_cap & 64 ? ( // Ctrl + Wheel up
+          debug_scroll_offset = max(0, debug_scroll_offset - 3); // Faster scrolling with Ctrl
+        );
+        mouse_cap & 128 ? ( // Ctrl + Wheel down
+          debug_scroll_offset = min(max(0, debug_message_count - DEBUG_VISIBLE_LINES), debug_scroll_offset + 3);
+        );
+      );
+    );
+  );
+);
+
+function debug_render() (
+  DEBUG_ENABLED && debug_message_count > 0 ? (
+    // Handle scrolling first
+    debug_handle_scroll();
+    
+    gfx_set(DEBUG_TEXT_COLOR_R, DEBUG_TEXT_COLOR_G, DEBUG_TEXT_COLOR_B, DEBUG_TEXT_ALPHA);
+    y_pos = DEBUG_START_Y;
+    
+    // Calculate which messages to show based on scroll offset
+    start_index = debug_scroll_offset;
+    end_index = min(debug_message_count, start_index + DEBUG_VISIBLE_LINES);
+    
+    // Draw visible messages
+    i = start_index;
+    while (i < end_index) (
+      gfx_x = 10;
+      gfx_y = y_pos;
+      current_slot = DEBUG_MESSAGES_BASE + i;
+      gfx_drawstr(current_slot);
+      y_pos += DEBUG_LINE_HEIGHT;
+      i += 1;
+    );
+    
+    // Draw scroll indicator if there are more messages than visible
+    debug_message_count > DEBUG_VISIBLE_LINES ? (
+      gfx_set(0.5, 0.5, 0.5, 0.8); // Gray color for scroll indicator
+      gfx_x = 350;
+      gfx_y = DEBUG_START_Y + 10;
+      gfx_drawstr("Scroll: Wheel or Click");
+      
+      // Draw scroll bar
+      scroll_bar_x = 380;
+      scroll_bar_y = DEBUG_START_Y;
+      scroll_bar_h = DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT;
+      scroll_thumb_y = scroll_bar_y + (debug_scroll_offset * scroll_bar_h / debug_message_count);
+      scroll_thumb_h = (DEBUG_VISIBLE_LINES * scroll_bar_h) / debug_message_count;
+      
+      gfx_set(0.3, 0.3, 0.3, 0.8); // Dark gray for scroll track
+      gfx_rect(scroll_bar_x, scroll_bar_y, 3, scroll_bar_h);
+      
+      gfx_set(0.7, 0.7, 0.7, 0.8); // Light gray for scroll thumb
+      gfx_rect(scroll_bar_x, scroll_thumb_y, 3, scroll_thumb_h);
+      
+      // Handle click-to-scroll on scroll bar
+      mouse_in_scroll_area = (mouse_x >= scroll_bar_x && mouse_x <= scroll_bar_x + 3 && 
+                             mouse_y >= scroll_bar_y && mouse_y <= scroll_bar_y + scroll_bar_h) ? 1 : 0;
+      
+      mouse_in_scroll_area && mouse_cap & 1 ? ( // Left mouse button
+        // Calculate clicked position relative to scroll bar
+        click_pos = (mouse_y - scroll_bar_y) / scroll_bar_h;
+        new_offset = floor(click_pos * debug_message_count);
+        debug_scroll_offset = max(0, min(new_offset, debug_message_count - DEBUG_VISIBLE_LINES));
+      );
+      
+      // Add scroll up/down buttons
+      scroll_up_x = 350;
+      scroll_up_y = DEBUG_START_Y;
+      scroll_down_x = 350;
+      scroll_down_y = DEBUG_START_Y + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT) - 20;
+      
+      gfx_set(0.6, 0.6, 0.6, 0.8);
+      gfx_rect(scroll_up_x, scroll_up_y, 20, 15);
+      gfx_set(0.0, 0.0, 0.0, 1.0);
+      gfx_x = scroll_up_x + 7;
+      gfx_y = scroll_up_y + 3;
+      gfx_drawstr("↑");
+      
+      gfx_set(0.6, 0.6, 0.6, 0.8);
+      gfx_rect(scroll_down_x, scroll_down_y, 20, 15);
+      gfx_set(0.0, 0.0, 0.0, 1.0);
+      gfx_x = scroll_down_x + 7;
+      gfx_y = scroll_down_y + 3;
+      gfx_drawstr("↓");
+      
+      // Handle scroll button clicks
+      mouse_in_scroll_up = (mouse_x >= scroll_up_x && mouse_x <= scroll_up_x + 20 && 
+                           mouse_y >= scroll_up_y && mouse_y <= scroll_up_y + 15) ? 1 : 0;
+      mouse_in_scroll_down = (mouse_x >= scroll_down_x && mouse_x <= scroll_down_x + 20 && 
+                             mouse_y >= scroll_down_y && mouse_y <= scroll_down_y + 15) ? 1 : 0;
+      
+      mouse_in_scroll_up && mouse_cap & 1 ? (
+        debug_scroll_offset = max(0, debug_scroll_offset - 1);
+      );
+      
+      mouse_in_scroll_down && mouse_cap & 1 ? (
+        debug_scroll_offset = min(max(0, debug_message_count - DEBUG_VISIBLE_LINES), debug_scroll_offset + 1);
+      );
+    );
+  );
+);
+
+function debug_get_message_count() (
+  debug_message_count;
+);
+
+
+

@@ -9,11 +9,22 @@
 //==============================================================================
 
 function allocate_memory() (
-  // Set up graph points memory location (must be done first)
-  !graph_points ? graph_points = GRAPH_POINTS_START;
+  // Initialize automatic memory allocation
+  freemem = 0;
+  
+  // Allocate graph points memory (2 values per point: x,y)
+  !graph_points ? graph_points = freemem;
+  freemem += MAX_POINTS * 2;
+  
+  // Allocate curve amounts memory (1 value per point)
+  !curve_amounts ? curve_amounts = freemem;
+  freemem += MAX_POINTS;
+  
+  // Allocate control definitions memory (10 values per control)
+  !control_defs ? control_defs = freemem;
+  freemem += NUM_CONTROLS * 10;
 
   // Always allocate audio buffers (these can be reallocated safely)
-  freemem = AUDIO_BUFFERS_START;  // Start audio buffers after config
   max_lookahead_samples = ceil(0.01 * srate);
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
@@ -23,32 +34,12 @@ function allocate_memory() (
 );
 
 function allocate_control_memory() (
-  // Control definitions are allocated in ui_controls module, just verify
-  control_defs = CONTROL_DEFS_START;
-  freemem = control_defs + num_controls * 10;
-  
-  // Slider names now use JSFX built-in memory system
-  // No manual allocation needed
+  // Control definitions memory is now allocated in ui_controls module
+  // This function is kept for compatibility but does nothing
+  // since control_defs allocation happens in 05b_ui_controls.jsfx-inc
+  1; // No-op statement to ensure valid syntax
 );
 
 function get_memory_usage() (
-  total_memory = freemem - GRAPH_POINTS_START;
-  total_memory;
-);
-
-function validate_memory_layout() (
-  is_valid = 1;
-  
-  // Check that graph points memory is set
-  !graph_points ? is_valid = 0;
-  
-  // Check that control definitions memory is set
-  !control_defs ? is_valid = 0;
-  
-  // Check that audio buffers are allocated
-  !lookahead_buffer_l ? is_valid = 0;
-  !lookahead_buffer_r ? is_valid = 0;
-  !rms_buffer ? is_valid = 0;
-  
-  is_valid;
+  freemem; // Return current memory usage
 );

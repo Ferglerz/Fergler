@@ -15,6 +15,13 @@ function process_input_stage() (
   input_l_orig = spl0;
   input_r_orig = spl1;
 
+  // Update display values 4x per second (every srate/4 samples)
+  display_update_counter += 1;
+  display_update_counter >= (srate * 0.25) ? (
+    display_update_counter = 0;
+    display_input_sample = max(abs(spl0), abs(spl1)); // Peak input level
+  );
+
   // Pre-calculate channel availability flags
   has_stereo = (num_ch >= 2);
   has_sidechain_l = (use_sidechain && num_ch >= 3);
@@ -44,13 +51,13 @@ function process_detection_source_selection() (
 );
 
 //==============================================================================
-// SIDECHAIN FILTERING
+// DETECTION FILTERING
 //==============================================================================
 
-function process_sidechain_filtering() (
-  stage_sidechain_filtering > 0.5 ? (
-    // Apply sidechain filters to detection signal
-    apply_sidechain_filters(detect_l, detect_r);
+function process_detection_filtering() (
+  stage_filtering > 0.5 ? (
+    // Apply filters to active detection signal (sidechain or regular)
+    apply_detection_filters(detect_l, detect_r);
     // Update detection signals with filtered versions
     detect_l = filtered_l;
     detect_r = filtered_r;
@@ -109,6 +116,9 @@ function process_gain_reduction_application() (
     processed_l = input_l_orig;
     processed_r = input_r_orig;
   );
+  
+  // Update display post-graph level
+  display_post_graph = max(abs(processed_l), abs(processed_r));
 );
 
 //==============================================================================
@@ -117,9 +127,17 @@ function process_gain_reduction_application() (
 
 function process_harmonic_processing_stage() (
   stage_harmonics > 0.5 ? (
-    // Apply harmonic processing to gain-reduced signal
-    apply_harmonic_processing(processed_l, target_gr_db, harmonic_type, harmonic_amount,
-                             harmonic_drive, harmonic_mix, harmonic_even_boost, harmonic_odd_boost);
+    // Get envelope and detector information for dynamic harmonic processing
+    envelope_amount = abs(global_smoothed_gain_db) / 30.0; // Normalize to 0-1 range
+    current_detector_level = get_detector_level();
+    
+    // Apply harmonic processing to gain-reduced signal (both channels)
+    processed_l = apply_harmonic_processing(processed_l, target_gr_db, envelope_amount, current_detector_level,
+                                           harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, 
+                                           harmonic_even_boost, harmonic_odd_boost);
+    processed_r = apply_harmonic_processing(processed_r, target_gr_db, envelope_amount, current_detector_level,
+                                           harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, 
+                                           harmonic_even_boost, harmonic_odd_boost);
   );
 );
 
@@ -129,8 +147,16 @@ function process_harmonic_processing_stage() (
 
 function process_final_mix() (
   stage_final_mix > 0.5 ? (
-    // Apply final mix processing (currently 100% wet)
-    apply_final_mix(processed_l, processed_r, input_l_orig, input_r_orig);
+    // Apply makeup gain (inlined from apply_final_mix)
+    final_l = processed_l * makeup_gain_linear;
+    final_r = processed_r * makeup_gain_linear;
+    
+    // Update display post-makeup level
+    display_post_makeup = max(abs(final_l), abs(final_r));
+
+    // Return final signals via global variables
+    final_out_l = final_l;
+    final_out_r = final_r;
   );
 );
 
@@ -193,8 +219,8 @@ function process_complete_audio_chain() (
   // === DETECTION SOURCE SELECTION ===
   process_detection_source_selection();
 
-  // === SIDECHAIN FILTERING ===
-  process_sidechain_filtering();
+  // === DETECTION FILTERING ===
+  process_detection_filtering();
 
   // === LISTEN MODE (early exit) ===
   continue_processing = process_listen_mode();

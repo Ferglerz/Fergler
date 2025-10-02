@@ -1,0 +1,153 @@
+// UI Controls Module
+// Control definition system and layout management
+// Handles control creation, positioning, and property management
+
+@init
+
+//==============================================================================
+// CONTROL CONFIGURATION
+//==============================================================================
+
+// Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
+// Type: 0=slider, 1=button, 2=dropdown
+// NUM_CONTROLS is now defined in 00a_constants.jsfx-inc as 34
+
+// Control definitions memory is allocated in 01a_memory.jsfx-inc
+// control_defs pointer is set there
+
+//==============================================================================
+// CONTROL DEFINITION SYSTEM
+//==============================================================================
+
+function define_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
+  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown
+  control_defs[index*10 + 1] = x;         // X position
+  control_defs[index*10 + 2] = y;         // Y position
+  control_defs[index*10 + 3] = w;         // Width
+  control_defs[index*10 + 4] = h;         // Height
+  control_defs[index*10 + 5] = param_index; // Parameter index (0-28 for sliders)
+  control_defs[index*10 + 6] = min_val;   // Min value
+  control_defs[index*10 + 7] = max_val;   // Max value
+  control_defs[index*10 + 8] = 0;         // Reserved for options count
+  control_defs[index*10 + 9] = 0;         // Reserved for options pointer
+);
+
+//==============================================================================
+// CONTROL LAYOUT AND INITIALIZATION
+//==============================================================================
+
+function setup_control_layout() (
+  // Initialize control positioning - moved down by 16 pixels
+  control_x = UI_PANEL_X + 20;
+  control_y = UI_PANEL_Y + 20;  // Start higher since we have more space now
+  row = 0;
+
+  // Column 1: Time-related parameters (0-5) + some globals (20-22)
+  define_control(0, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, get_slider_min(1), get_slider_max(1), "Attack (ms)");
+  row += 1;
+  define_control(1, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve");
+  row += 1;
+  define_control(2, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, get_slider_min(3), get_slider_max(3), "Release (ms)");
+  row += 1;
+  define_control(3, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve");
+  row += 1;
+  define_control(4, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead (ms)");
+  row += 1;
+  define_control(5, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "Hold (ms)");
+  row += 1;
+  define_control(20, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 21, get_slider_min(21), get_slider_max(21), "Strength");
+  row += 1;
+  define_control(21, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 22, get_slider_min(22), get_slider_max(22), "Threshold (dB)");
+  row += 1;
+  define_control(22, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 23, get_slider_min(23), get_slider_max(23), "Strength Curve");
+  row += 1;
+
+  // Column 2: RMS & Detection (6-9) + Filtering (10-11) + some globals (23-25)
+  control_x += CONTROL_SPACING_X;
+  row = 0;
+  define_control(6, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 7, get_slider_min(7), get_slider_max(7), "RMS Window (ms)");
+  row += 1;
+  define_control(7, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 8, get_slider_min(8), get_slider_max(8), "RMS Norm");
+  row += 1;
+  define_control(8, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 9, get_slider_min(9), get_slider_max(9), "Detection Mode");
+  row += 1;
+  define_control(9, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, get_slider_min(10), get_slider_max(10), "Max GR (dB)");
+  row += 1;
+  define_control(10, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, get_slider_min(11), get_slider_max(11), "HP Filter (Hz)");
+  row += 1;
+  define_control(11, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 12, get_slider_min(12), get_slider_max(12), "LP Filter (Hz)");
+  row += 1;
+  define_control(23, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 24, get_slider_min(24), get_slider_max(24), "Makeup Gain (dB)");
+  row += 1;
+  define_control(24, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 25, get_slider_min(25), get_slider_max(25), "Compressor Type");
+  row += 1;
+
+  // Column 3: Character & Harmonics (12-19) + some globals (26-27)
+  control_x += CONTROL_SPACING_X;
+  row = 0;
+  define_control(12, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 13, get_slider_min(13), get_slider_max(13), "Character %");
+  row += 1;
+  define_control(13, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 14, get_slider_min(14), get_slider_max(14), "Harmonic Type");
+  row += 1;
+  define_control(14, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Harmonic Amount");
+  row += 1;
+  define_control(15, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Harmonic Drive");
+  row += 1;
+  define_control(16, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Harmonic Mix");
+  row += 1;
+  define_control(17, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Even Boost");
+  row += 1;
+  define_control(18, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Odd Boost");
+  row += 1;
+  define_control(19, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 20, get_slider_min(20), get_slider_max(20), "Prog Release");
+  row += 1;
+  define_control(25, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 26, get_slider_min(26), get_slider_max(26), "Sidechain");
+  row += 1;
+  define_control(26, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 27, get_slider_min(27), get_slider_max(27), "Listen SC");
+  row += 1;
+
+  // Column 4: Remaining globals (28-29) + Advanced Envelope (36-40)
+  control_x += CONTROL_SPACING_X;
+  row = 0;
+  define_control(27, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 28, get_slider_min(28), get_slider_max(28), "Prog Release Type");
+  row += 1;
+  define_control(28, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 29, get_slider_min(29), get_slider_max(29), "Limiter");
+  row += 1;
+  
+  // Advanced Envelope Controls (36-40)
+  define_control(29, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 36, get_slider_min(36), get_slider_max(36), "Multi-Stage");
+  row += 1;
+  define_control(30, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 37, get_slider_min(37), get_slider_max(37), "GR Threshold");
+  row += 1;
+  define_control(31, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 38, get_slider_min(38), get_slider_max(38), "Input Level");
+  row += 1;
+  define_control(32, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 39, get_slider_min(39), get_slider_max(39), "Transient Amt");
+  row += 1;
+  define_control(33, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 40, get_slider_min(40), get_slider_max(40), "Transient Thr");
+  row += 1;
+);
+
+//==============================================================================
+// HEADER CONTROLS
+//==============================================================================
+
+function setup_header_controls() (
+  // Draw test knob in top right corner
+  // Position: 5px margin from right edge, centered vertically in header
+  test_knob_x = gfx_w - 5 - SMALL_KNOB_SIZE;
+  test_knob_y = (HEADER_HEIGHT - SMALL_KNOB_SIZE) / 2;
+  
+  // Draw test knob with a sample value (0.7 out of 0-1 range)
+  draw_small_knob(test_knob_x, test_knob_y, 0.7, 0, 1);
+);
+
+function render_custom_ui_controls() (
+  // Draw all controls
+  i = 0;
+  while (i < num_controls) (
+    draw_control(i);
+    i += 1;
+  );
+);
+
+// Note: setup_control_layout() is called in main file after UI constants are loaded

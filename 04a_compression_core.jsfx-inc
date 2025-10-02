@@ -1,6 +1,6 @@
 // Compression Core Module
 // Basic gain reduction calculation, core compression logic, and compression curve interpolation
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 03a_graph_data.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc, 03a_graph_data.jsfx-inc
 
 @init
 
@@ -100,46 +100,6 @@ function apply_compressor_character(gain_reduction, type, input_level, dt, inten
   )
 );
 
-//==============================================================================
-// COMPRESSION UTILITIES
-//==============================================================================
-
-function reset_compression_state() (
-  compression_history = 0;
-  tube_saturation = 0;
-  fet_transient_detector = 0;
-  program_release_timer = 0;
-  varimu_release_factor = 1;
-  
-  // Reset character model states
-  bridged_diode_env = 0;
-  vca_env = 0;
-  pwm_env = 0;
-  fet_env = 0;
-  optical_env = 0;
-  prev_detector_db = 0;
-);
-
-function get_compression_history() (
-  compression_history;
-);
-
-function get_tube_saturation() (
-  tube_saturation;
-);
-
-function get_varimu_release_factor() (
-  varimu_release_factor;
-);
-
-function get_compressor_type() (
-  compressor_type;
-);
-
-function get_over_the_top_factor() (
-  factor = over_the_top * 0.01;
-  factor;
-);
 
 //==============================================================================
 // COMPRESSION CURVE INTERPOLATION
@@ -168,18 +128,18 @@ function interpolate_compression_curve(input_db) (
         // Use bezier interpolation for curved segments
         calculate_bezier_control_points(i + 1, curve_amount);
         
-        // Get the four points for the bezier curve
-        p0_x = graph_points[i*2];
-        p0_y = graph_points[i*2 + 1];
-        p1_x = bezier_control1_x;
+        // Get the four points for the bezier curve (using invisible endpoints)
+        p0_x = bezier_p0_x;  // Invisible point toward previous
+        p0_y = bezier_p0_y;
+        p1_x = bezier_control1_x;  // Control point (current point)
         p1_y = bezier_control1_y;
-        p2_x = bezier_control2_x;
+        p2_x = bezier_control2_x;  // Control point (current point)
         p2_y = bezier_control2_y;
-        p3_x = graph_points[(i+2)*2];
-        p3_y = graph_points[(i+2)*2 + 1];
+        p3_x = bezier_p3_x;  // Invisible point toward next
+        p3_y = bezier_p3_y;
         
-        // Calculate bezier t parameter (0-1 across the entire curve)
-        bezier_t = clamp((input_db - p0_x) / (p3_x - p0_x), 0, 1);
+        // Calculate bezier t parameter (0-1 across the curve between invisible points)
+        bezier_t = clamp((input_db - p0_x) / max(p3_x - p0_x, eps), 0, 1);
         
         // Evaluate bezier curve
         evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);

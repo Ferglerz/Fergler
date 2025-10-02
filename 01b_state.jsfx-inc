@@ -1,6 +1,6 @@
 // State Management Module
 // State variable initialization and management
-// Depends on: 02a_math_utils.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc
 
 @init
 
@@ -14,6 +14,13 @@ function init_state_variables() (
   rms_sum = 0;
   rms_pos = 0;
   lookahead_pos = 0;
+  
+  // Clear RMS buffer
+  i = 0;
+  while (i < max_rms_samples) (
+    rms_buffer[i] = 0;
+    i += 1;
+  );
 
   // Filter states
   hp_x1_l=hp_x2_l=hp_y1_l=hp_y2_l=0;
@@ -57,6 +64,13 @@ function init_state_variables() (
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
   
+  // Real-time signal display variables (updated 4x per second)
+  display_input_sample = 0;
+  display_rms_level = 0;
+  display_post_graph = 0;
+  display_post_makeup = 0;
+  display_update_counter = 0;
+  
   // Multi-stage release state (3 cascaded envelope followers)
   release_stage_1_env = 0;
   release_stage_2_env = 0;
@@ -72,4 +86,8 @@ function init_state_variables() (
     threshold_lines_initialized = 1;
     // Default positions already set by sliders
   );
+  
+  // Initialize RMS samples calculation (must be done after srate is available)
+  rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 );

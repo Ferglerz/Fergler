@@ -1,6 +1,6 @@
 // DSP Utilities Module
 // Digital Signal Processing utility functions
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc
 
 @init
 
@@ -40,26 +40,6 @@ function calc_biquad_lp(freq) (
   a1 /= a0; a2 /= a0; b0 /= a0; b1 /= a0; b2 /= a0;
 );
 
-
-//==============================================================================
-// ENVELOPE PROCESSING UTILITIES
-//==============================================================================
-
-// Calculate time constant from time in seconds
-function time_to_coefficient(time_seconds) (
-  time_seconds > 0 ? exp(-1 / (time_seconds * srate)) : 0
-);
-
-// Calculate time constant from time in milliseconds
-function ms_to_coefficient(time_ms) (
-  time_ms > 0 ? exp(-1000 / (time_ms * srate)) : 0
-);
-
-// Apply curve modification to time constant
-function apply_curve_to_coefficient(coeff, curve) (
-  curve != 0 ? pow(coeff, pow(2, curve)) : coeff
-);
-
 //==============================================================================
 // LOOKAHEAD PROCESSING UTILITIES
 //==============================================================================
@@ -72,6 +52,30 @@ function calculate_lookahead_samples(lookahead_ms) (
 // Calculate RMS window samples
 function calculate_rms_samples(rms_ms) (
   clamp(floor(rms_ms * 0.001 * srate), 1, max_rms_samples)
+);
+
+//==============================================================================
+// LOOKAHEAD PROCESSING
+//==============================================================================
+
+function process_lookahead(input_l_orig, input_r_orig) (
+  lookahead_samples > 0 ? (
+    lookahead_buffer_l[lookahead_pos] = input_l_orig;
+    lookahead_buffer_r[lookahead_pos] = input_r_orig;
+
+    delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+    processed_l = lookahead_buffer_l[delayed_pos];
+    processed_r = lookahead_buffer_r[delayed_pos];
+
+    lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+  ) : (
+    processed_l = input_l_orig;
+    processed_r = input_r_orig;
+  );
+
+  // Return processed signals via global variables
+  lookahead_out_l = processed_l;
+  lookahead_out_r = processed_r;
 );
 
 //==============================================================================

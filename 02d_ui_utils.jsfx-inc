@@ -1,6 +1,11 @@
 // UI Utilities Module
-// Pure UI utility functions with no dependencies
+// Pure UI utility functions and coordinate conversions
 // Contains control accessor functions and basic UI utilities
+//
+// Dependencies:
+// - 00a_constants.jsfx-inc (for GRAPH_* and UI constants)
+// - 01g_file_reading.jsfx-inc (for get_slider_name function)
+// - 01a_memory.jsfx-inc (for control_defs array)
 
 @init
 
@@ -44,7 +49,7 @@ function update_slider_value(control_index, mouse_x) (
 //==============================================================================
 
 // These functions convert between dB values and graph coordinates
-// They only depend on constants defined in 01e_ui_config.jsfx-inc
+// They only depend on constants defined in 00a_constants.jsfx-inc
 
 function db_to_graph_x(db) (
   GRAPH_X + (db - GRAPH_MIN_DB) / GRAPH_RANGE_DB * GRAPH_SIZE
@@ -68,13 +73,41 @@ function is_point_in_graph(x, y) (
 );
 
 //==============================================================================
-// PARAMETER LABEL FUNCTIONS (now use 01g_file_reading.jsfx-inc)
+// COORDINATE CLAMPING HELPERS
 //==============================================================================
 
-function get_control_label(slider_index) (
-  // Delegate to file reading module
-  get_slider_name(slider_index)
+function clamp_to_graph_bounds(x, y) (
+  clamped_x = max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, x));
+  clamped_y = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, y));
 );
 
-// Note: get_dropdown_option_count() and get_dropdown_option() are now
-// defined in 01g_file_reading.jsfx-inc and available globally
+function clamp_x_to_graph(x) (
+  max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, x))
+);
+
+function clamp_y_to_graph(y) (
+  max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, y))
+);
+
+//==============================================================================
+// DRAWING HELPERS
+//==============================================================================
+
+function draw_indicator_circle(x, y, radius, r, g, b, alpha, filled) (
+  gfx_set(r, g, b, alpha);
+  gfx_circle(x, y, radius, filled, 1); // Always antialiased
+);
+
+function draw_text_background(x, y, width, height, corner_radius, bg_alpha) (
+  gfx_set(0, 0, 0, bg_alpha);
+  gfx_roundrect(x, y, width, height, corner_radius);
+);
+
+function draw_curve_segment(end_x, end_y, is_first_point) (
+  is_first_point ? (
+    gfx_x = end_x;
+    gfx_y = end_y;
+  ) : (
+    gfx_lineto(end_x, end_y, 1); // Antialiased
+  );
+);

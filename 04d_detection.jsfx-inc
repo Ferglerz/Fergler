@@ -1,6 +1,6 @@
 // Detection Processing Module
 // RMS detection, level processing, gain reduction calculation, and transient detection
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc
+// Depends on: 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc, 00d_dsp_utils.jsfx-inc
 
 @init
 
@@ -9,6 +9,13 @@
 //==============================================================================
 
 function process_rms_detection(detect_l, detect_r) (
+  // Debug: Log detection inputs occasionally
+  DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+    debug_logf("RMS Detection: L=%.3f", detect_l);
+    debug_logf("RMS Detection: R=%.3f", detect_r);
+    debug_logf("RMS samples=%d", rms_samples);
+  );
+  
   // RMS calculation with optional normalization
   detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
   rms_sum -= rms_buffer[rms_pos];
@@ -17,6 +24,14 @@ function process_rms_detection(detect_l, detect_r) (
   rms_pos = (rms_pos + 1) % rms_samples;
 
   rms_level = sqrt(rms_sum / rms_samples);
+  
+  // Update display RMS level
+  display_rms_level = rms_level;
+  
+  // Debug: Also store some debug values for display
+  debug_detect_l = detect_l;
+  debug_detect_r = detect_r;
+  debug_rms_sum = rms_sum;
 
   // Apply RMS normalization if enabled
   rms_normalization > 0.5 ? (
@@ -91,11 +106,21 @@ function detect_transients(current_level_db) (
   transient_gr_reduction
 );
 
-function calculate_gain_reduction(input_level_db) (
-  // Apply compression curve with global offset
-  adjusted_input_db = input_level_db - global_offset_db;
-  target_output_db = interpolate_compression_curve(adjusted_input_db);
-  target_output_db += global_offset_db;  // Add offset back to output
+function calculate_gain_reduction(input_level_linear) (
+  // Convert input level to dB for curve lookup
+  input_level_db = linear_to_db(max(input_level_linear, MIN_DETECTOR_LEVEL));
+  
+  // Debug: Log gain reduction calculation occasionally
+  DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+    debug_logf("GR Calc: input_linear=%.3f", input_level_linear);
+    debug_logf("GR Calc: input_db=%.1f", input_level_db);
+  );
+  
+  // Update display level for visualization
+  current_input_db = input_level_db;
+  
+  // Apply compression curve - global offset should only shift the curve vertically
+  target_output_db = interpolate_compression_curve(input_level_db) + global_offset_db;
   target_gr_db = target_output_db - input_level_db;
 
   // Apply strength and curves
@@ -113,6 +138,9 @@ function calculate_gain_reduction(input_level_db) (
   transient_reduction = detect_transients(input_level_db);
   target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
 
+  // Update display GR for visualization
+  current_gr_db = target_gr_db;
+
   target_gr_db
 );
 
@@ -120,38 +148,6 @@ function calculate_gain_reduction(input_level_db) (
 // DETECTION UTILITIES
 //==============================================================================
 
-function reset_detection_state() (
-  rms_sum = 0;
-  rms_pos = 0;
-  rms_max = 0.0001;
-  detector_level = 0;
-);
-
 function get_detector_level() (
   detector_level;
-);
-
-function get_rms_level() (
-  rms_samples > 0 ? (
-    rms_level = sqrt(rms_sum / rms_samples);
-    rms_level;
-  ) : (
-    0;
-  );
-);
-
-function is_rms_normalization_enabled() (
-  rms_normalization > 0.5;
-);
-
-function get_rms_max() (
-  rms_max;
-);
-
-function set_rms_max(new_max) (
-  rms_max = new_max;
-);
-
-function update_rms_samples() (
-  rms_samples = calculate_rms_samples(rms_size_ms);
 );

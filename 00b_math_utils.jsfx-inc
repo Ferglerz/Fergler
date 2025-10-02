@@ -4,18 +4,15 @@
 
 @init
 
-//==============================================================================
-// MATHEMATICAL CONSTANTS
-//==============================================================================
+// === MATHEMATICAL CONSTANTS ===
 
 // Audio processing constants
 LOG10_20 = 20 / log(10);
 LOG_10_20 = log(10) / 20;
 eps = 0.000000000000000000000000000001; // MUST be a decimal, not scientific notation
 
-//==============================================================================
-// MATHEMATICAL UTILITY FUNCTIONS
-//==============================================================================
+
+// ===MATHEMATICAL UTILITY FUNCTIONS
 
 function clamp(value, min_val, max_val) (
   max(min_val, min(max_val, value))
@@ -29,5 +26,15 @@ function tanh(x) (
     )
   )
 );
+
+function db_to_linear(db) (
+  exp(db * LOG_10_20)
+);
+
+function linear_to_db(linear) (
+  linear > 0 ? log(linear) * LOG10_20 : -150
+);
+
+
 
 

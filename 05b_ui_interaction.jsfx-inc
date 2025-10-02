@@ -1,0 +1,235 @@
+// UI Interaction Module
+// All mouse interaction and event handling for UI controls and graph
+// Consolidated interaction handling for the entire interface
+// Depends on: 00a_constants.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data.jsfx-inc, 05a_ui_threshold_lines.jsfx-inc
+
+@init
+
+//==============================================================================
+// UI CONTROL STATES
+//==============================================================================
+
+// Control States
+ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
+
+// Graph interaction states
+dragging_point = -1;
+hovered_point = -1;
+curve_drag_started = 0;
+curve_drag_start_x = 0;
+curve_drag_start_y = 0;
+curve_drag_start_amount = 0;
+waiting_for_mouse_release = 0; // Flag to prevent interaction after CMD release during curve drag
+
+//==============================================================================
+// GENERIC UI CONTROL INTERACTION
+//==============================================================================
+
+function handle_ui_mouse_input() (
+  MOUSE_LEFT_BUTTON ? (
+    ui_drag_control == -1 ? ( // Start of click - no control selected yet
+      // Check controls until we find one under the mouse
+      i = 0;
+      while (i < NUM_CONTROLS && ui_drag_control == -1) (
+        is_point_in_control(mouse_x, mouse_y, i) ? (
+          control_type = get_control_type(i);
+          param_index = get_control_param(i);
+          current_value = slider(param_index);
+          
+          control_type == 0 ? (
+            // Slider - start drag
+            ui_drag_control = i;
+            slider(param_index) = update_slider_value(i, mouse_x);
+            sliderchange(1 << (param_index - 1));
+          ) : control_type == 1 ? (
+            // Button - toggle (don't start drag for buttons)
+            slider(param_index) = current_value > 0.5 ? 0 : 1;
+            sliderchange(1 << (param_index - 1));
+            ui_drag_control = -2; // Special value to prevent further checks
+          ) : control_type == 2 ? (
+            // Dropdown - cycle (don't start drag for dropdowns)
+            max_options = get_dropdown_option_count(param_index);
+            slider(param_index) = (current_value + 1) % max_options;
+            sliderchange(1 << (param_index - 1));
+            ui_drag_control = -2; // Special value to prevent further checks
+          );
+        );
+        i += 1;
+      );
+    ) : ( // Continue drag
+      ui_drag_control >= 0 ? (
+        // Update dragged slider
+        param_index = get_control_param(ui_drag_control);
+        slider(param_index) = update_slider_value(ui_drag_control, mouse_x);
+        sliderchange(1 << (param_index - 1));
+      );
+    );
+  ) : (
+    // Mouse released - reset drag state
+    ui_drag_control = -1;
+  );
+);
+
+//==============================================================================
+// GRAPH INTERACTION FUNCTIONS
+//==============================================================================
+
+function handle_point_movement() (
+  // Only allow movement of non-corner points
+  dragging_point > 0 && dragging_point < num_points - 1 ? (
+    // Convert mouse position to dB values
+    new_input_db = graph_x_to_db(mouse_x);
+    new_output_db = graph_y_to_db(mouse_y);
+
+    // Constrain to graph bounds
+    new_input_db = clamp(new_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    new_output_db = clamp(new_output_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+
+    // Store old position to check if significant movement occurred
+    old_input_db = graph_points[dragging_point*2];
+
+    // Update point position
+    graph_points[dragging_point*2] = new_input_db;
+    graph_points[dragging_point*2 + 1] = new_output_db;
+
+    // Re-sort points to maintain order
+    sort_points();
+
+    // Check if significant movement occurred and clean up displaced points
+    abs(new_input_db - old_input_db) > 1.0 ? (
+      remove_displaced_points(new_input_db, new_output_db);
+    );
+  );
+);
+
+function handle_curve_adjustment() (
+  // Only allow curve adjustment of non-corner points
+  dragging_point > 0 && dragging_point < num_points - 1 ? (
+    // Initialize curve drag on first call
+    !curve_drag_started ? (
+      curve_drag_started = 1;
+      curve_drag_start_x = mouse_x;
+      curve_drag_start_y = mouse_y;
+      curve_drag_start_amount = get_curve_amount(dragging_point);
+    );
+    
+    // Calculate total drag distance from start
+    dx = mouse_x - curve_drag_start_x;
+    dy = mouse_y - curve_drag_start_y;
+    total_drag_distance = sqrt(dx * dx + dy * dy);
+    max_drag_distance = 100; // Maximum drag distance for 100% curve
+    
+    // Calculate new curve amount (starting amount + drag distance)
+    new_curve_amount = curve_drag_start_amount + (total_drag_distance / max_drag_distance * 100);
+    new_curve_amount = clamp(new_curve_amount, 0, 100);
+    
+    // Set the curve amount for this point
+    set_curve_amount(dragging_point, new_curve_amount);
+  );
+);
+
+function handle_point_addition() (
+  new_input_db = clamp(graph_x_to_db(mouse_x), GRAPH_MIN_DB, GRAPH_MAX_DB);
+  new_output_db = clamp(graph_y_to_db(mouse_y), GRAPH_MIN_DB, GRAPH_MAX_DB);
+
+  // Check if too close to existing points (buffer area)
+  too_close = 0;
+  i = 1;
+  while (i < num_points - 1 && !too_close) (
+    point_x = db_to_graph_x(graph_points[i*2]);
+    point_y = db_to_graph_y(graph_points[i*2 + 1]);
+    dist_sq = (mouse_x - point_x) * (mouse_x - point_x) + (mouse_y - point_y) * (mouse_y - point_y);
+    dist_sq < (MOUSE_CLICK_RADIUS * 2) * (MOUSE_CLICK_RADIUS * 2) ? (
+      too_close = 1;
+    );
+    i += 1;
+  );
+
+  !too_close ? (
+    add_point(new_input_db, new_output_db);
+  ) : (
+    -1; // Return -1 if too close to add
+  );
+);
+
+function handle_point_deletion() (
+  // Delete point at mouse position (middle-click or ctrl+click)
+  target_point = find_point_at_mouse(mouse_x, mouse_y);
+  
+  target_point >= 0 && num_points > 2 ? ( // Keep at least 2 points
+    delete_point(target_point);
+  );
+);
+
+//==============================================================================
+// MAIN MOUSE INPUT PROCESSING
+//==============================================================================
+
+function process_mouse_input() (
+  // Handle custom UI controls first (they have priority)
+  handle_ui_mouse_input();
+
+  // Only process graph mouse input if not interacting with UI controls
+  ui_drag_control == -1 ? (
+    // Always update hover state first
+    hovered_point = find_point_at_mouse(mouse_x, mouse_y);
+
+    MOUSE_LEFT_BUTTON ? ( // Left mouse button pressed
+      // Skip all interaction if waiting for mouse release
+      !waiting_for_mouse_release ? (
+        !mouse_down ? ( // Start of click/drag
+          mouse_down = 1;
+
+          MOUSE_ALT_KEY ? ( // Alt+click = delete point
+            handle_point_deletion();
+            dragging_point = -1;
+          ) : (
+            // Find point under mouse for selection
+            dragging_point = find_point_at_mouse(mouse_x, mouse_y);
+            dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) ? (
+              // Click in empty space - add point
+              dragging_point = handle_point_addition();
+            );
+          );
+
+          mouse_x_prev = mouse_x;
+          mouse_y_prev = mouse_y;
+        ) : ( // Continue drag
+          dragging_point >= 0 ? (
+            MOUSE_CTRL_KEY ? ( // Cmd+drag = adjust curve
+              handle_curve_adjustment();
+            ) : (
+              // CMD released mid-drag: if we were adjusting curve, revert and cancel drag
+              curve_drag_started ? (
+                // Revert curve to starting amount
+                set_curve_amount(dragging_point, curve_drag_start_amount);
+                // Reset all drag states and wait for mouse release
+                curve_drag_started = 0;
+                mouse_down = 0;
+                dragging_point = -1;
+                waiting_for_mouse_release = 1; // Block further interaction until mouse up
+              ) : (
+                // Normal drag = move point
+                handle_point_movement();
+              );
+            );
+          );
+
+          mouse_x_prev = mouse_x;
+          mouse_y_prev = mouse_y;
+        );
+      );
+    ) : MOUSE_RIGHT_BUTTON ? ( // Right mouse button
+      !mouse_down ? (
+        mouse_down = 1;
+        handle_point_deletion();
+      );
+    ) : (
+      // Mouse button released - reset all states
+      mouse_down = 0;
+      dragging_point = -1;
+      curve_drag_started = 0;
+      waiting_for_mouse_release = 0; // Clear the waiting flag
+    );
+  );
+);

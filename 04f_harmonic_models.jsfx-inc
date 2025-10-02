@@ -1,86 +1,16 @@
 // Harmonic Processing Models Module
 // Harmonic generation algorithms, character-specific processing, and harmonic application
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc
+// Depends on: 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc
 
 @init
 
-//==============================================================================
-// HARMONIC GENERATION ALGORITHMS
-//==============================================================================
-
-function generate_tube_harmonics(input, saturation_amount, intensity_factor) (
-  scaled_saturation = saturation_amount * intensity_factor;
-  x = input * (1 + scaled_saturation * 0.3);
-  x2 = x * x;
-
-  clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
-  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + sqr((x - clip_threshold) * 4 * intensity_factor));
-  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + sqr((x + clip_threshold) * 4 * intensity_factor));
-
-  harmonic_content = x + x2 * scaled_saturation * 0.1 + x2 * x2 * scaled_saturation * 0.02;
-  harmonic_content
-);
-
-function generate_fet_harmonics(input, compression_amount, intensity_factor) (
-  scaled_compression = compression_amount * intensity_factor;
-  x = input;
-  x3 = x * x * x;
-  x5 = x3 * x * x;
-
-  scaled_compression > 0.3 / intensity_factor ? (
-    clipped = x;
-    clip_point = 0.8 / (1 + scaled_compression * 0.5);
-    clipped > clip_point ? clipped = clip_point + (clipped - clip_point) * (0.1 / intensity_factor);
-    clipped < -clip_point ? clipped = -clip_point + (clipped + clip_point) * (0.1 / intensity_factor);
-    x = clipped;
-  );
-
-  x + x3 * scaled_compression * 0.08 + x5 * scaled_compression * 0.015
-);
-
-//==============================================================================
-// CHARACTER-SPECIFIC HARMONIC PROCESSING
-//==============================================================================
-
-function apply_tube_character_harmonics(input, drive_amount, even_boost, odd_boost) (
-  driven = input * drive_amount;
-  
-  // Tube even harmonics
-  even_proc = tanh(abs(driven)) * (driven < 0 ? -1 : 1);
-  even_proc = even_proc * (1 + even_boost);
-  
-  // Tube odd harmonics
-  odd_proc = tanh(driven);
-  odd_proc = odd_proc * (1 + odd_boost);
-  
-  // Combine both
-  processed = 0.5 * (even_proc + odd_proc);
-  
-  // Scale back by drive to maintain levels
-  processed / max(drive_amount, 1);
-);
-
-function apply_tape_character_harmonics(input, drive_amount, even_boost, odd_boost) (
-  driven = input * drive_amount;
-  
-  // Asymmetric saturation for tape character
-  asymL = driven * (driven > 0 ? 1.02 : 0.98);
-  processed = atan(asymL) / ($pi/2);
-  
-  // Apply even/odd boost to tape saturation components
-  processed * (1 + 0.5 * (even_boost + odd_boost));
-);
-
-function apply_clean_harmonics(input, drive_amount) (
-  // Clean processing - minimal harmonic generation
-  input * drive_amount;
-);
+// Enhanced harmonic algorithms integrated into apply_harmonic_processing() function
 
 //==============================================================================
 // HARMONIC PROCESSING APPLICATION
 //==============================================================================
 
-function apply_harmonic_processing(input, gr_amount, type, amount, drive, mix, even_boost, odd_boost) (
+function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_level, type, amount, drive, mix, even_boost, odd_boost) (
   // No processing if harmonic type is off or amount is zero
   type == 0 || amount <= 0.0001 ? (
     input
@@ -88,30 +18,89 @@ function apply_harmonic_processing(input, gr_amount, type, amount, drive, mix, e
     dry_signal = input;
     driven = input * drive;
 
-    type == 1 ? ( // Tube Even
+    type == 1 ? ( // Tube Even (Simple)
       processed = tanh(abs(driven)) * (driven < 0 ? -1 : 1);
       even_proc = processed * (1 + even_boost);
       processed = even_proc;
-    ) : type == 2 ? ( // Tube Odd
+    ) : type == 2 ? ( // Tube Odd (Simple)
       processed = tanh(driven);
       odd_proc = processed * (1 + odd_boost);
       processed = odd_proc;
-    ) : type == 3 ? ( // Tube Both
+    ) : type == 3 ? ( // Tube Both (Simple)
       even_proc = tanh(abs(driven)) * (driven < 0 ? -1 : 1) * (1 + even_boost);
       odd_proc = tanh(driven) * (1 + odd_boost);
       processed = 0.5 * (even_proc + odd_proc);
-    ) : ( // Tape Saturation
+    ) : type == 4 ? ( // Tape Saturation
       asymL = driven * (driven > 0 ? 1.02 : 0.98);
       processed = atan(asymL) / ($pi/2);
       // Apply even/odd boost to tape saturation components
       processed = processed * (1 + 0.5 * (even_boost + odd_boost));
+    ) : type == 5 ? ( // Enhanced Tube (Sophisticated)
+      // Use envelope and GR information for dynamic saturation
+      scaled_saturation = amount * (1 + abs(gr_amount) * 0.3) * (1 + envelope_amount * 0.2);
+      x = driven * (1 + scaled_saturation * 0.3);
+      x2 = x * x;
+      x4 = x2 * x2;
+      
+      // Dynamic clipping threshold based on compression
+      clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
+      x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + sqr((x - clip_threshold) * 4));
+      x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + sqr((x + clip_threshold) * 4));
+      
+      // Explicit harmonic generation with boost controls
+      processed = x + x2 * scaled_saturation * 0.1 * (1 + even_boost) + 
+                  x4 * scaled_saturation * 0.02 * (1 + even_boost * 0.5);
+      
+      // Add subtle odd harmonics if odd_boost is used
+      odd_boost > 0 ? (
+        x3 = x2 * x;
+        processed += x3 * scaled_saturation * 0.05 * odd_boost;
+      );
+    ) : type == 6 ? ( // FET (Solid State)
+      // FET harmonics respond to compression amount and detector level
+      scaled_compression = amount * (1 + abs(gr_amount) * 0.4) * (1 + detector_level * 0.3);
+      x = driven;
+      x3 = x * x * x;
+      x5 = x3 * x * x;
+      
+      // Hard clipping characteristic of FET circuits
+      scaled_compression > 0.3 ? (
+        clip_point = 0.8 / (1 + scaled_compression * 0.5);
+        x > clip_point ? x = clip_point + (x - clip_point) * 0.1;
+        x < -clip_point ? x = -clip_point + (x + clip_point) * 0.1;
+      );
+      
+      // Odd harmonic generation with boost control
+      processed = x + x3 * scaled_compression * 0.08 * (1 + odd_boost) + 
+                  x5 * scaled_compression * 0.015 * (1 + odd_boost * 0.5);
+      
+      // Add subtle even harmonics if even_boost is used
+      even_boost > 0 ? (
+        x2 = x * x;
+        processed += x2 * scaled_compression * 0.03 * even_boost;
+      );
+    ) : ( // Clean Drive (type == 7)
+      // Clean processing with minimal harmonic generation
+      // Responds to envelope for dynamic drive amount
+      dynamic_drive = drive * (1 + envelope_amount * 0.1);
+      processed = driven * (dynamic_drive / drive);
+      
+      // Very subtle saturation at high levels
+      abs(processed) > 0.8 ? (
+        processed = processed > 0 ? 
+          0.8 + (processed - 0.8) * 0.1 : 
+          -0.8 + (processed + 0.8) * 0.1;
+      );
     );
 
-    // Scale back by drive to maintain levels
+    // Improved level management with proper drive compensation
     processed = processed / max(drive, 1);
 
-    // Apply amount (intensity) - this is driven by gain reduction amount
-    intensity = amount * (1 + gr_amount * 0.5); // More harmonics with more GR
+    // Apply amount (intensity) - enhanced with envelope information
+    base_intensity = amount * (1 + abs(gr_amount) * 0.5);
+    envelope_modulation = envelope_amount * 0.2; // Subtle envelope modulation
+    intensity = base_intensity * (1 + envelope_modulation);
+    
     wet_signal = dry_signal + intensity * (processed - dry_signal);
 
     // Final dry/wet mix
@@ -129,30 +118,17 @@ function get_harmonic_type_name(type) (
   type == 2 ? name = "Tube Odd" :
   type == 3 ? name = "Tube Both" :
   type == 4 ? name = "Tape Saturation" :
+  type == 5 ? name = "Enhanced Tube" :
+  type == 6 ? name = "FET" :
+  type == 7 ? name = "Clean Drive" :
   name = "Unknown";
   name;
 );
 
 function get_harmonic_type_count() (
-  5; // 0-4 types available
+  8; // 0-7 types available
 );
 
 function is_harmonic_processing_enabled() (
   harmonic_type > 0 && harmonic_amount > 0;
-);
-
-function calculate_harmonic_intensity(gr_amount) (
-  intensity = harmonic_amount * (1 + gr_amount * 0.5);
-  intensity;
-);
-
-function get_harmonic_parameters() (
-  type = harmonic_type;
-  amount = harmonic_amount;
-  drive = harmonic_drive;
-  mix = harmonic_mix;
-  even_boost = harmonic_even_boost;
-  odd_boost = harmonic_odd_boost;
-  // Return amount as representative since JSFX doesn't support multiple returns
-  amount;
 );

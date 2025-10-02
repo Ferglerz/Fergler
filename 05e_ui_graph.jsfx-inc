@@ -1,7 +1,7 @@
 // UI Graph Module
 // Handles graph display, compression curves, level indicators, gain reduction meter,
 // and interactive visual elements for the compression curve graph
-// Depends on: 01b_state.jsfx-inc, 01d_ui_interaction.jsfx-inc, 02a_math_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data.jsfx-inc, 03b_graph_interaction.jsfx-inc, 05a_ui_core.jsfx-inc, 05c_ui_rendering.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 00d_dsp_utils.jsfx-inc, 01b_state.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data.jsfx-inc, 05a_ui_interaction.jsfx-inc, 05c_ui_rendering.jsfx-inc
 @init
 
 //==============================================================================
@@ -30,11 +30,8 @@ function draw_compression_curves() (
     output_db = interpolate_compression_curve(input_db);
     graph_y_pos = db_to_graph_y(output_db);
     // Clamp y position to graph boundaries to prevent line extension
-    graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
-    i == 0 ? (
-      gfx_x = GRAPH_X;
-      gfx_y = graph_y_pos;
-    ) : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos, 1); // Antialiased
+    graph_y_pos = clamp_y_to_graph(graph_y_pos);
+    draw_curve_segment(GRAPH_X + i * step_size, graph_y_pos, i == 0);
     i += 1;
   );
 
@@ -50,61 +47,168 @@ function draw_compression_curves() (
       effective_output_db = raw_output_db + global_offset_db;
       graph_y_pos = db_to_graph_y(effective_output_db);
       // Clamp y position to graph boundaries to prevent line extension
-      graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
-      i == 0 ? (
-        gfx_x = GRAPH_X;
-        gfx_y = graph_y_pos;
-      ) : gfx_lineto(GRAPH_X + i * step_size, graph_y_pos, 1); // Antialiased
+      graph_y_pos = clamp_y_to_graph(graph_y_pos);
+      draw_curve_segment(GRAPH_X + i * step_size, graph_y_pos, i == 0);
       i += 1;
     );
   );
 );
 
-function draw_bezier_curves() (
-  // Draw bezier curves for points that have curves
-  gfx_set(1, 0.8, 0.2, 1);
-  step_size = 0.5; // Smaller steps for smoother curves
-  
-  i = 1;
-  while (i < num_points - 1) (
-    curve_amount = get_curve_amount(i);
-    curve_amount > 0 ? (
-      // Calculate bezier control points
-      calculate_bezier_control_points(i, curve_amount);
-      
-      // Get the four points for the bezier curve
-      p0_x = graph_points[(i-1)*2];
-      p0_y = graph_points[(i-1)*2 + 1];
-      p1_x = bezier_control1_x;
-      p1_y = bezier_control1_y;
-      p2_x = bezier_control2_x;
-      p2_y = bezier_control2_y;
-      p3_x = graph_points[(i+1)*2];
-      p3_y = graph_points[(i+1)*2 + 1];
-      
-      // Draw the bezier curve
-      t = 0;
-      while (t <= 1) (
-        evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
-        graph_x_pos = db_to_graph_x(bezier_result_x);
-        graph_y_pos = db_to_graph_y(bezier_result_y);
-        
-        // Clamp positions to graph boundaries
-        graph_x_pos = max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, graph_x_pos));
-        graph_y_pos = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, graph_y_pos));
-        
-        t == 0 ? (
-          gfx_x = graph_x_pos;
-          gfx_y = graph_y_pos;
-        ) : gfx_lineto(graph_x_pos, graph_y_pos, 1); // Antialiased
-        
-        t += step_size / 100; // Adjust step size for smoothness
-      );
-    );
-    i += 1;
+// Helper function: Draw debug visualization circles at invisible control points
+function draw_debug_invisible_points(point_index, curve_factor) (
+  DEBUG_ENABLED ? (
+    gfx_set(1, 0, 0, 0.8); // Red debug circles
+    
+    // Invisible point toward previous neighbor
+    invisible1_x = graph_points[point_index*2] + (graph_points[(point_index-1)*2] - graph_points[point_index*2]) * curve_factor;
+    invisible1_y = graph_points[point_index*2 + 1] + (graph_points[(point_index-1)*2 + 1] - graph_points[point_index*2 + 1]) * curve_factor;
+    invisible1_screen_x = db_to_graph_x(invisible1_x);
+    invisible1_screen_y = db_to_graph_y(invisible1_y);
+    gfx_circle(invisible1_screen_x, invisible1_screen_y, 1.5, 1, 1); // 3px diameter
+    
+    // Invisible point toward next neighbor
+    invisible2_x = graph_points[point_index*2] + (graph_points[(point_index+1)*2] - graph_points[point_index*2]) * curve_factor;
+    invisible2_y = graph_points[point_index*2 + 1] + (graph_points[(point_index+1)*2 + 1] - graph_points[point_index*2 + 1]) * curve_factor;
+    invisible2_screen_x = db_to_graph_x(invisible2_x);
+    invisible2_screen_y = db_to_graph_y(invisible2_y);
+    gfx_circle(invisible2_screen_x, invisible2_screen_y, 1.5, 1, 1); // 3px diameter
   );
 );
 
+// Helper function: Draw a bezier curve segment between invisible endpoints
+function draw_bezier_segment(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, step_size) (
+  t = 0;
+  while (t <= 1) (
+    evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
+    graph_x_pos = db_to_graph_x(bezier_result_x);
+    graph_y_pos = db_to_graph_y(bezier_result_y);
+    
+    // Clamp positions to graph boundaries
+    graph_x_pos = clamp_x_to_graph(graph_x_pos);
+    graph_y_pos = clamp_y_to_graph(graph_y_pos);
+    
+    t == 0 ? (
+      gfx_x = graph_x_pos;
+      gfx_y = graph_y_pos;
+    ) : (
+      gfx_lineto(graph_x_pos, graph_y_pos, 1);
+    );
+    
+    t += step_size / 100;
+  );
+);
+
+function draw_mixed_curves() (
+  // Draw each segment according to whether it has a curve or not
+  gfx_set(1, 0.8, 0.2, 1); // Yellow/Orange curve color
+  
+  // Only draw if there are at least two points
+  num_points >= 2 ? (
+    // Initialize drawing position to the first point
+    gfx_x = db_to_graph_x(graph_points[0]);
+    gfx_y = db_to_graph_y(graph_points[1]);
+    
+    // Track if we're coming from an invisible endpoint (for coloring)
+    coming_from_invisible = 0;
+    
+    i = 0;
+    while (i < num_points - 1) (
+      // For segment from point i to point i+1:
+      // Check if point i+1 has a curve (only middle points can have curves)
+      next_point_has_curve = 0;
+      
+      // Point i+1 can only have a curve if it's not a corner point
+      (i + 1) > 0 && (i + 1) < (num_points - 1) ? (
+        curve_amount = get_curve_amount(i + 1);
+        next_point_has_curve = curve_amount > 0;
+      );
+      
+      next_point_has_curve ? (
+      // Draw curved segment using Bezier
+      curve_amt = get_curve_amount(i + 1);
+      calculate_bezier_control_points(i + 1, curve_amt);
+      
+      // Get the four points for the bezier curve (using invisible endpoints)
+      p0_x = bezier_p0_x;  // Invisible point toward previous
+      p0_y = bezier_p0_y;
+      p1_x = bezier_control1_x;  // Control point (current point)
+      p1_y = bezier_control1_y;
+      p2_x = bezier_control2_x;  // Control point (current point)
+      p2_y = bezier_control2_y;
+      p3_x = bezier_p3_x;  // Invisible point toward next
+      p3_y = bezier_p3_y;
+      
+      // 1. Draw segment from regular point i to invisible point p0 (if needed)
+      regular_to_invisible_x = db_to_graph_x(graph_points[i*2]);
+      regular_to_invisible_y = db_to_graph_y(graph_points[i*2 + 1]);
+      invisible_start_x = db_to_graph_x(p0_x);
+      invisible_start_y = db_to_graph_y(p0_y);
+      
+      // Only draw this connecting segment if there's a significant distance
+      connect_distance = sqrt(sqr(invisible_start_x - regular_to_invisible_x) + sqr(invisible_start_y - regular_to_invisible_y));
+      connect_distance > 2 ? (
+        DEBUG_ENABLED ? (
+          gfx_set(1, 0, 1, 1); // DEBUG: MAGENTA for regular to invisible
+        ) : (
+          gfx_set(1, 0.8, 0.2, 1); // Normal yellow color
+        );
+        gfx_x = regular_to_invisible_x;
+        gfx_y = regular_to_invisible_y;
+        gfx_lineto(invisible_start_x, invisible_start_y, 1);
+      );
+      
+      // 2. Draw the curved segment (invisible to invisible) using helper function
+      DEBUG_ENABLED ? (
+        gfx_set(1, 0.8, 0.2, 1); // DEBUG: ORANGE for curved segment
+      ) : (
+        gfx_set(1, 0.8, 0.2, 1); // Normal yellow color
+      );
+      gfx_x = invisible_start_x;
+      gfx_y = invisible_start_y;
+      
+      draw_bezier_segment(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, 0.5);
+      
+      // Draw debug circles using helper function
+      draw_debug_invisible_points(i + 1, curve_amt / 100.0);
+      
+      // After bezier curve, position is at p3 (invisible endpoint)
+      invisible_end_x = db_to_graph_x(p3_x);
+      invisible_end_y = db_to_graph_y(p3_y);
+      
+      gfx_set(1, 0.8, 0.2, 1); // Reset to curve color
+      
+      // Update gfx position and flag that next segment comes from invisible point
+      gfx_x = invisible_end_x;
+      gfx_y = invisible_end_y;
+      coming_from_invisible = 1;
+      ) : (
+      // Draw straight line segment using gfx_lineto for continuity
+      DEBUG_ENABLED ? (
+        // Color based on whether we're coming from an invisible endpoint
+        coming_from_invisible ? (
+          gfx_set(0, 1, 1, 1); // DEBUG: CYAN for segments coming from invisible endpoint
+        ) : (
+          gfx_set(0, 1, 0, 1); // DEBUG: GREEN for normal straight segments
+        );
+      ) : (
+        gfx_set(1, 0.8, 0.2, 1); // Normal yellow color
+      );
+      
+      end_x = db_to_graph_x(graph_points[(i+1)*2]);
+      end_y = db_to_graph_y(graph_points[(i+1)*2 + 1]);
+      
+      // Clamp to graph boundaries
+      end_x = clamp_x_to_graph(end_x);
+      end_y = clamp_y_to_graph(end_y);
+      
+      gfx_lineto(end_x, end_y, 1); // Draw line from current position to next point
+      coming_from_invisible = 0; // Reset flag after drawing
+    );
+    
+    i += 1;
+  );
+  ); // Close the num_points >= 2 check
+);
 
 function draw_graph_points() (
   // Skip corner points (indices 0 and num_points-1) - they are invisible
@@ -113,28 +217,18 @@ function draw_graph_points() (
     point_x = db_to_graph_x(graph_points[i*2]);
     point_y = db_to_graph_y(graph_points[i*2 + 1]);
     is_hovered = (i == hovered_point);
-    is_selected = (i == selected_point);
+    is_dragging = (i == dragging_point);
     curve_amount = get_curve_amount(i);
     is_curved = curve_amount > 0;
 
     // Point appearance based on hover state and curve status
     is_hovered ? (
-      // Hovered point - larger and brighter
       point_radius = 6;
-      is_curved ? (
-        gfx_set(1, 0.8, 0.2, 1); // Orange for curved points
-      ) : (
-        gfx_set(1, 1, 0.5, 1); // Yellowish highlight for normal points
-      );
     ) : (
-      // Normal point - smaller
       point_radius = 4;
-      is_curved ? (
-        gfx_set(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
-      ) : (
-        gfx_set(1, 1, 1, 0.8); // Slightly transparent white for normal points
-      );
     );
+    
+    set_point_color(is_hovered, is_curved);
 
     gfx_circle(point_x, point_y, point_radius, 1, 1); // Antialiased
     
@@ -145,20 +239,16 @@ function draw_graph_points() (
     );
     
     // Show dB values when dragging a point
-    is_selected && mouse_down ? (
+    is_dragging && mouse_down ? (
       input_db = graph_points[i*2];
       output_db = graph_points[i*2 + 1];
       text_x = point_x + 15; // Position text to the right of the point
       text_y = point_y; // Center vertically with the point
       
-      // Draw rounded rectangle background for text with 50% opacity
-      gfx_set(0, 0, 0, 0.5);
-      gfx_roundrect(text_x - 6, text_y - 10, 70, 20, 4); // More padding, rounded corners
-      
       // Draw distance from 1:1 line (compression amount)
       gfx_set(1, 1, 1, 1);
       gfx_x = text_x;
-      gfx_y = text_y - 4; // Center text vertically in the rounded rectangle
+      gfx_y = text_y - 4;
       gfx_printf("%.1f dB", output_db - input_db);
       
       // Show curve amount if curved
@@ -173,24 +263,14 @@ function draw_graph_points() (
 );
 
 function draw_level_indicators() (
+  // Draw input level dot on unity line (green)
   input_x = db_to_graph_x(current_input_db);
-  adjusted_input_for_display = current_input_db - global_offset_db;
-  input_x_adjusted = db_to_graph_x(adjusted_input_for_display);
-
   input_y_on_unity = db_to_graph_y(current_input_db);
-  input_y_on_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display) + global_offset_db);
+  draw_indicator_circle(input_x, input_y_on_unity, 4, 0, 1, 0, 0.8, 1);
 
-  gfx_set(0, 1, 0, 0.8);
-  gfx_circle(input_x, input_y_on_unity, 4, 1, 1); // Antialiased
-
-  gfx_set(1, 0, 0, 0.8);
-  gfx_circle(input_x, input_y_on_curve, 4, 1, 1); // Antialiased
-
-  global_offset_db != 0 ? (
-    gfx_set(1, 1, 0, 0.6);
-    input_y_raw_curve = db_to_graph_y(interpolate_compression_curve(adjusted_input_for_display));
-    gfx_circle(input_x_adjusted, input_y_raw_curve, 3, 1, 1); // Antialiased
-  );
+  // Draw output level dot on compression curve (red)
+  input_y_on_curve = db_to_graph_y(interpolate_compression_curve(current_input_db) + global_offset_db);
+  draw_indicator_circle(input_x, input_y_on_curve, 4, 1, 0, 0, 0.8, 1);
 );
 
 function draw_gain_reduction_meter() (
@@ -232,15 +312,9 @@ function draw_gain_reduction_meter() (
   // Draw GR blend threshold line if visible
   is_gr_blend_line_visible() ? (
     line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
-    is_hovered = (hovered_threshold_line == THRESHOLD_GR_BLEND);
-    is_dragging = (dragging_threshold_line == THRESHOLD_GR_BLEND);
-    
-    // Line color - brighter when hovered/dragging
-    is_hovered || is_dragging ? (
-      gfx_set(1, 1, 0.3, 1);
-    ) : (
-      gfx_set(0.9, 0.9, 0, 0.8);
-    );
+    set_threshold_line_color(THRESHOLD_GR_BLEND, 
+      hovered_threshold_line == THRESHOLD_GR_BLEND, 
+      dragging_threshold_line == THRESHOLD_GR_BLEND);
     
     // Draw line across meter
     gfx_line(gr_meter_x, line_y, gr_meter_x + gr_meter_w, line_y, 1);
@@ -256,15 +330,9 @@ function draw_threshold_lines_on_graph() (
   // Draw input level threshold line if visible
   is_input_level_line_visible() ? (
     line_y = input_level_db_to_graph_y(input_level_threshold_db);
-    is_hovered = (hovered_threshold_line == THRESHOLD_INPUT_LEVEL);
-    is_dragging = (dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
-    
-    // Line color - cyan/blue for input level
-    is_hovered || is_dragging ? (
-      gfx_set(0.3, 1, 1, 1);
-    ) : (
-      gfx_set(0.2, 0.8, 1, 0.8);
-    );
+    set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
+      hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
+      dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
     
     // Draw line across graph
     gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
@@ -278,15 +346,9 @@ function draw_threshold_lines_on_graph() (
   // Draw transient threshold line if visible
   is_transient_line_visible() ? (
     line_y = transient_db_to_graph_y(transient_threshold_db);
-    is_hovered = (hovered_threshold_line == THRESHOLD_TRANSIENT);
-    is_dragging = (dragging_threshold_line == THRESHOLD_TRANSIENT);
-    
-    // Line color - red/orange for transient detection
-    is_hovered || is_dragging ? (
-      gfx_set(1, 0.3, 0.3, 1);
-    ) : (
-      gfx_set(1, 0.5, 0, 0.8);
-    );
+    set_threshold_line_color(THRESHOLD_TRANSIENT, 
+      hovered_threshold_line == THRESHOLD_TRANSIENT, 
+      dragging_threshold_line == THRESHOLD_TRANSIENT);
     
     // Draw line across graph
     gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
@@ -296,6 +358,47 @@ function draw_threshold_lines_on_graph() (
     gfx_y = line_y - 15;
     gfx_printf("Transient: %.1f dB", transient_threshold_db);
   );
+);
+
+function draw_signal_values() (
+  // Draw real-time signal values in bottom right corner of graph
+  text_x = GRAPH_X + GRAPH_SIZE - 180; // Right-justified position (wider for debug)
+  text_y = GRAPH_Y + GRAPH_SIZE - 120;  // Bottom of graph area (taller for debug)
+  line_height = 15;
+  
+  // Background for readability
+  gfx_set(0, 0, 0, 0.7);
+  gfx_rect(text_x - 5, text_y - 5, 175, 115);
+  
+  // Input sample value (green)
+  gfx_set(0, 1, 0, 1);
+  gfx_x = text_x; gfx_y = text_y;
+  gfx_printf("Input: %.3f", display_input_sample);
+  
+  // Detection signals (cyan)
+  gfx_set(0, 1, 1, 1);
+  gfx_x = text_x; gfx_y = text_y + line_height;
+  gfx_printf("Detect L/R: %.3f/%.3f", debug_detect_l, debug_detect_r);
+  
+  // RMS level (yellow) - show debug info
+  gfx_set(1, 1, 0, 1);
+  gfx_x = text_x; gfx_y = text_y + line_height * 2;
+  gfx_printf("RMS: %.3f (sum:%.3f)", display_rms_level, debug_rms_sum);
+  
+  // RMS samples info (white)
+  gfx_set(1, 1, 1, 1);
+  gfx_x = text_x; gfx_y = text_y + line_height * 3;
+  gfx_printf("RMS samples: %d", rms_samples);
+  
+  // Post-graph level (orange)
+  gfx_set(1, 0.6, 0, 1);
+  gfx_x = text_x; gfx_y = text_y + line_height * 4;
+  gfx_printf("Post-GR: %.3f", display_post_graph);
+  
+  // Post-makeup level (red)
+  gfx_set(1, 0, 0, 1);
+  gfx_x = text_x; gfx_y = text_y + line_height * 5;
+  gfx_printf("Output: %.3f", display_post_makeup);
 );
 
 function draw_labels_and_info() (
@@ -327,49 +430,4 @@ function draw_graph_background() (
   // Draw unity line
   gfx_set(0.6, 0.6, 0.6, 1);
   gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
-);
-
-function render_complete_interface() (
-  // Set background color
-  gfx_clear = 0x202020;
-
-  // Draw all interface elements in order
-  draw_graph_background();
-  
-  // Set clipping rectangle for graph area to prevent lines from drawing outside
-  gfx_set(0, 0, 0, 1, 1); // Mode 1 = clip to rectangle
-  gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
-  
-  draw_grid();
-  
-  // Check if any points have curves - if so, draw bezier curves, otherwise draw normal curves
-  has_any_curves = 0;
-  i = 1;
-  while (i < num_points - 1 && !has_any_curves) (
-    get_curve_amount(i) > 0 ? has_any_curves = 1;
-    i += 1;
-  );
-  
-  has_any_curves ? (
-    draw_bezier_curves();
-  ) : (
-    draw_compression_curves();
-  );
-  
-  draw_graph_points();
-  draw_level_indicators();
-  draw_threshold_lines_on_graph();
-  
-  // Reset clipping
-  gfx_set(0, 0, 0, 1, 0); // Mode 0 = normal drawing
-  
-  draw_gain_reduction_meter();
-  draw_labels_and_info();
-
-  // Draw custom UI controls
-  render_custom_ui_controls();
-
-  // Handle user interaction
-  handle_threshold_line_mouse();
-  process_mouse_input();
 );

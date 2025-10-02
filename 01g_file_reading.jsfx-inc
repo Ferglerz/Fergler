@@ -1,6 +1,6 @@
 // File Reading Module  
 // Simplified slider definition parsing with robust string handling
-// Depends on: 01f_debug_logging.jsfx-inc
+// Depends on: 00e_debug_logging.jsfx-inc
 
 @init
 
@@ -12,7 +12,7 @@
 // Slots 0-99: Reserved for temporary #variables (JSFX system)
 // Slots 100-199: Slider names (100 slots for up to 100 sliders)
 // Slots 200-1999: Dropdown options (20 options × 100 sliders = 2000 slots)
-// Slots 5000-5099: Debug messages (see 01f_debug_logging.jsfx-inc)
+// Slots 50-149: Debug messages (see 00e_debug_logging.jsfx-inc)
 
 SLIDER_NAMES_BASE = 100;
 DROPDOWN_OPTIONS_BASE = 200;
@@ -20,6 +20,10 @@ MAX_OPTIONS_PER_SLIDER = 20;
 
 // Non-string memory for option counts (array of integers)
 dropdown_option_counts_base = 10000;
+
+// Slider parameter storage (default, min, max, increment)
+// Each slider has 4 values: [default, min, max, inc]
+slider_params_base = 11000;
 
 // File reading state
 slider_names_count = 0;
@@ -68,6 +72,160 @@ function extract_slider_number(str) (
   );
   
   slider_num;
+);
+
+//==============================================================================
+// STRING TO NUMBER CONVERSION
+//==============================================================================
+
+function string_to_number(str_slot) (
+  len = strlen(str_slot);
+  result = 0;
+  sign = 1;
+  decimal_place = 0;
+  i = 0;
+  
+  // Handle sign
+  i < len && str_getchar(str_slot, i) == 45 ? (
+    sign = -1;
+    i += 1;
+  );
+  
+  // Parse integer part
+  while (i < len) (
+    c = str_getchar(str_slot, i);
+    c == 46 ? (
+      // Found decimal point
+      decimal_place = 1;
+      i += 1;
+    ) : c >= 48 && c <= 57 ? (
+      // Found digit
+      digit = c - 48;
+      decimal_place > 0 ? (
+        result = result + digit * pow(10, -decimal_place);
+        decimal_place += 1;
+      ) : (
+        result = result * 10 + digit;
+      );
+      i += 1;
+    ) : (
+      // Invalid character, stop parsing
+      i = len;
+    );
+  );
+  
+  result * sign;
+);
+
+//==============================================================================
+// SLIDER PARAMETER EXTRACTION
+//==============================================================================
+
+function extract_slider_params(line, slider_index) (
+  len = strlen(line);
+  
+  // Find '=' character (ASCII 61)
+  pos_equals = scan_for_char(line, 61, 0);
+  
+  pos_equals >= 0 ? (
+    // Find '<' character (ASCII 60)
+    pos_less = scan_for_char(line, 60, pos_equals);
+    
+    pos_less > pos_equals ? (
+      // Extract default value (between '=' and '<')
+      default_start = pos_equals + 1;
+      default_len = pos_less - default_start;
+      default_str_start = 50; // Use a temporary string slot under 100
+      strcpy_substr(default_str_start, line, default_start, default_len);
+      
+      // Find '>' character (ASCII 62)
+      pos_greater = scan_for_char(line, 62, pos_less);
+      
+      pos_greater > pos_less ? (
+        // Extract min,max,inc values (between '<' and '>')
+        params_start = pos_less + 1;
+        params_len = pos_greater - params_start;
+        params_str_start = 2001; // Use another temporary string slot
+        
+        debug_logf("pos_less: %d", pos_less);
+        debug_logf("pos_greater: %d", pos_greater);
+        debug_logf("params_start: %d", params_start);
+        debug_logf("params_len: %d", params_len);
+        
+        // Try direct character-by-character parsing instead of substring extraction
+        debug_log("Trying direct parsing...");
+        
+        // Parse min,max,inc directly from the line
+        min_val = 0;
+        max_val = 1;
+        inc_val = 0.01;
+        
+        // Find commas in the original line
+        comma1_in_line = scan_for_char(line, 44, params_start); // ASCII 44 = ','
+        comma2_in_line = scan_for_char(line, 44, comma1_in_line + 1);
+        
+        debug_logf("Comma1 in line at: %d", comma1_in_line);
+        debug_logf("Comma2 in line at: %d", comma2_in_line);
+        
+        // Extract min value (between params_start and comma1_in_line)
+        comma1_in_line > params_start ? (
+          min_len = comma1_in_line - params_start;
+          strcpy_substr(51, line, params_start, min_len);
+          min_val = string_to_number(51);
+          debug_logf("Min string length: %d", min_len);
+        );
+        
+        // Extract max value (between comma1_in_line and comma2_in_line)  
+        comma2_in_line > comma1_in_line ? (
+          max_len = comma2_in_line - comma1_in_line - 1;
+          strcpy_substr(52, line, comma1_in_line + 1, max_len);
+          max_val = string_to_number(52);
+          debug_logf("Max string length: %d", max_len);
+        );
+        
+        // Extract inc value (between comma2_in_line and pos_greater)
+        pos_greater > comma2_in_line ? (
+          inc_len = pos_greater - comma2_in_line - 1;
+          strcpy_substr(53, line, comma2_in_line + 1, inc_len);
+          inc_val = string_to_number(53);
+          debug_logf("Inc string length: %d", inc_len);
+        );
+        
+        // Parse default value
+        default_val = string_to_number(default_str_start);
+        
+        // Store parameters in memory
+        base_offset = slider_index * 4;
+        slider_params_base[base_offset + 0] = default_val;
+        slider_params_base[base_offset + 1] = min_val;
+        slider_params_base[base_offset + 2] = max_val;
+        slider_params_base[base_offset + 3] = inc_val;
+        
+        debug_log2f("Slider %d default: %.3f", slider_index + 1, default_val);
+        debug_log2f("Slider %d min: %.3f", slider_index + 1, min_val);
+        debug_log2f("Slider %d max: %.3f", slider_index + 1, max_val);
+        debug_log2f("Slider %d inc: %.3f", slider_index + 1, inc_val);
+        
+        // Debug: Show what strings we're trying to parse
+        debug_log("Parsing strings:");
+        debug_logf("Default str: %s", default_str_start);
+        debug_logf("Min str: %s", 51);
+        debug_logf("Max str: %s", 52);
+        debug_logf("Inc str: %s", 53);
+        
+        1; // Success
+      ) : (
+        debug_logf("WARNING: No '>' found in slider params for index %d", slider_index);
+        0;
+      );
+    ) : (
+      debug_logf("WARNING: No '<' found in slider params for index %d", slider_index);
+      0;
+    );
+  ) : (
+    debug_logf("WARNING: No '=' found in slider line %d", slider_index + 1);
+    0;
+  );
 );
 
 //==============================================================================
@@ -188,6 +346,7 @@ function read_slider_definitions() (
         slider_num > 0 && slider_num <= 64 ? (
           // Use actual slider number as index (slider_num - 1)
           slider_index = slider_num - 1;
+          extract_slider_params(#line, slider_index);
           extract_slider_name(#line, slider_index);
           extract_dropdown_options(#line, slider_index);
           
@@ -250,4 +409,39 @@ function get_dropdown_option(slider_num, option_index) (
     #empty_str;
   );
 );
+
+//==============================================================================
+// SLIDER PARAMETER ACCESSOR FUNCTIONS
+//==============================================================================
+
+function get_slider_default(slider_num) (
+  array_index = slider_num - 1;
+  array_index >= 0 && array_index < slider_names_count ? (
+    slider_params_base[array_index * 4 + 0]
+  ) : 0
+);
+
+function get_slider_min(slider_num) (
+  array_index = slider_num - 1;
+  array_index >= 0 && array_index < slider_names_count ? (
+    slider_params_base[array_index * 4 + 1]
+  ) : 0
+);
+
+function get_slider_max(slider_num) (
+  array_index = slider_num - 1;
+  array_index >= 0 && array_index < slider_names_count ? (
+    slider_params_base[array_index * 4 + 2]
+  ) : 1
+);
+
+function get_slider_increment(slider_num) (
+  array_index = slider_num - 1;
+  array_index >= 0 && array_index < slider_names_count ? (
+    slider_params_base[array_index * 4 + 3]
+  ) : 0.01
+);
+
+
+
 

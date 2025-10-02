@@ -24,13 +24,80 @@ HISTORY_UPDATE = 0.001;
 
 MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
 
+
 // === MEMORY LAYOUT CONFIGURATION ===
 
-// Memory allocation addresses - these must be set in order
-GRAPH_POINTS_START = 10000;
-CONTROL_DEFS_START = 30000;
-AUDIO_BUFFERS_START = 40000;
+// UI Controls
+NUM_CONTROLS = 34;  // Total number of UI controls
 
-// Buffer sizes (calculated in memory allocation)
+// Audio buffer sizes (calculated in memory allocation)
 max_lookahead_samples = 0;
 max_rms_samples = 0;
+
+// Memory is now allocated automatically using freemem
+// No fixed memory addresses needed
+
+//==============================================================================
+// UI CONFIGURATION
+//==============================================================================
+
+// Header Configuration (defined early for use in calculations)
+HEADER_HEIGHT = 30;
+HEADER_BORDER_HEIGHT = 2;
+HEADER_SHADOW_HEIGHT = 3;
+HEADER_TOTAL_HEIGHT = HEADER_HEIGHT + HEADER_BORDER_HEIGHT + HEADER_SHADOW_HEIGHT;
+
+// Visual configuration
+GFX_WIDTH = 3500;  
+GFX_HEIGHT = 450 + HEADER_TOTAL_HEIGHT;  // Increase height to accommodate header
+
+// Graph layout constants (adjusted for header)
+GRAPH_X = 50;
+GRAPH_Y = 50 + HEADER_TOTAL_HEIGHT;  // Move down to account for header
+GRAPH_SIZE = 350;  // Increased to accommodate more controls
+
+// Note: Graph range constants (GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB) 
+// are defined in 03a_graph_data.jsfx-inc
+
+// UI Panel Configuration
+UI_PANEL_X = GRAPH_X + GRAPH_SIZE + 60;  // Start after GR meter (30px) + gap (30px)
+UI_PANEL_Y = GRAPH_Y;  // Aligned with graph
+UI_PANEL_W = 800;  // Reduced panel width to match narrower columns
+UI_PANEL_H = GRAPH_SIZE;  // Same height as graph (now 350px)
+
+// Control Dimensions
+SLIDER_W = 135;  // 75% of 180
+SLIDER_H = 20;
+BUTTON_W = 80;
+BUTTON_H = 25;
+DROPDOWN_W = 120;
+DROPDOWN_H = 25;
+
+// Spacing
+CONTROL_SPACING_Y = 50;  // Increased by 10 pixels for more comfortable spacing
+CONTROL_SPACING_X = 180;  // Reduced spacing to match narrower sliders
+LABEL_HEIGHT = 15;
+
+// Colors
+UI_BG_R = 0.15; UI_BG_G = 0.15; UI_BG_B = 0.15;
+SLIDER_BG_R = 0.3; SLIDER_BG_G = 0.3; SLIDER_BG_B = 0.3;
+SLIDER_FILL_R = 0.8; SLIDER_FILL_G = 0.6; SLIDER_FILL_B = 0.2;
+BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
+BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
+TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
+
+// Header Colors
+HEADER_BG_R = 0.25; HEADER_BG_G = 0.25; HEADER_BG_B = 0.25;  // Dark gray
+HEADER_BORDER_R = 0.95; HEADER_BORDER_G = 0.93; HEADER_BORDER_B = 0.88;  // Off-white cream
+HEADER_SHADOW_R = 0.1; HEADER_SHADOW_G = 0.1; HEADER_SHADOW_B = 0.1;  // Dark shadow
+
+// Small Knob Configuration
+SMALL_KNOB_SIZE = 22;  // 22 pixel diameter
+SMALL_KNOB_RADIUS = 11;  // Half of size
+SMALL_KNOB_INDICATOR_SIZE = 2;  // 2 pixel circle indicator
+SMALL_KNOB_SHADOW_OFFSET = 2;  // Drop shadow offset
+
+// Small Knob Colors
+SMALL_KNOB_BG_R = 0.3; SMALL_KNOB_BG_G = 0.3; SMALL_KNOB_BG_B = 0.3;  // Dark gray
+SMALL_KNOB_INDICATOR_R = 0.0; SMALL_KNOB_INDICATOR_G = 0.0; SMALL_KNOB_INDICATOR_B = 0.0;  // Pure black
+SMALL_KNOB_SHADOW_R = 0.0; SMALL_KNOB_SHADOW_G = 0.0; SMALL_KNOB_SHADOW_B = 0.0;  // Black shadow

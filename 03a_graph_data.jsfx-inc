@@ -1,6 +1,6 @@
 // Graph Data Management Module
 // Graph point data management, serialization, and curve mathematics
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
 
 @init
 
@@ -27,6 +27,12 @@ MOUSE_CLICK_RADIUS = 10;
   mouse_down = 0;
   mouse_x_prev = 0;
   mouse_y_prev = 0;
+  
+  // Curve adjustment state
+  curve_drag_started = 0;
+  curve_drag_start_x = 0;
+  curve_drag_start_y = 0;
+  
   graph_initialized = 0;
   graph_serialization_version = 2; // Version for serialization compatibility (increased for curve support)
   persistent_vars_initialized = 1;
@@ -42,11 +48,8 @@ MOUSE_CLICK_RADIUS = 10;
 //==============================================================================
 
 function init_curve_data() (
-  // Allocate memory for curve amounts (one value per point)
-  !curve_amounts ? curve_amounts = freemem;
-  freemem += MAX_POINTS;
-  
-  // Initialize all curves to 0 (no curves)
+  // Memory allocation now handled in 01a_memory.jsfx-inc
+  // Just initialize all curves to 0 (no curves)
   i = 0;
   while (i < MAX_POINTS) (
     curve_amounts[i] = 0;
@@ -68,24 +71,12 @@ function has_curve(point_index) (
   get_curve_amount(point_index) > 0;
 );
 
-function clear_curve(point_index) (
-  set_curve_amount(point_index, 0);
-);
-
 function clear_all_curves() (
   i = 0;
   while (i < MAX_POINTS) (
     curve_amounts[i] = 0;
     i += 1;
   );
-);
-
-function get_curve_mode() (
-  curve_mode;
-);
-
-function set_curve_mode(mode) (
-  curve_mode = mode > 0.5 ? 1 : 0;
 );
 
 //==============================================================================
@@ -166,12 +157,15 @@ function sort_points() (
       graph_points[i*2] > graph_points[j*2] ? (
         temp_in = graph_points[i*2];
         temp_out = graph_points[i*2 + 1];
+        temp_curve = curve_amounts[i];
 
         graph_points[i*2] = graph_points[j*2];
         graph_points[i*2 + 1] = graph_points[j*2 + 1];
+        curve_amounts[i] = curve_amounts[j];
 
         graph_points[j*2] = temp_in;
         graph_points[j*2 + 1] = temp_out;
+        curve_amounts[j] = temp_curve;
       );
       j += 1;
     );
@@ -187,11 +181,15 @@ function add_point(input_db, output_db) (
     while (i > insert_pos) (
       graph_points[i*2] = graph_points[(i-1)*2];
       graph_points[i*2 + 1] = graph_points[(i-1)*2 + 1];
+      // Shift curve amounts up as well
+      curve_amounts[i] = curve_amounts[i-1];
       i -= 1;
     );
 
     graph_points[insert_pos*2] = input_db;
     graph_points[insert_pos*2 + 1] = output_db;
+    // New points start with no curve
+    curve_amounts[insert_pos] = 0;
 
     num_points += 1;
     sort_points();
@@ -217,8 +215,12 @@ function delete_point(point_index) (
     while (i < num_points - 1) (
       graph_points[i*2] = graph_points[(i+1)*2];
       graph_points[i*2 + 1] = graph_points[(i+1)*2 + 1];
+      // Shift curve amounts down as well
+      curve_amounts[i] = curve_amounts[i+1];
       i += 1;
     );
+    // Clear the curve amount for the last point
+    curve_amounts[num_points - 1] = 0;
     num_points -= 1;
     1;
   );
@@ -273,25 +275,6 @@ function find_point_at_mouse(x, y) (
   found_point;
 );
 
-function get_point_count() (
-  num_points;
-);
-
-function get_max_points() (
-  MAX_POINTS;
-);
-
-function get_min_points() (
-  MIN_POINTS;
-);
-
-function is_graph_initialized() (
-  graph_initialized;
-);
-
-function set_graph_initialized(initialized) (
-  graph_initialized = initialized;
-);
 
 
 //==============================================================================
@@ -307,28 +290,37 @@ function calculate_bezier_control_points(point_index, curve_amount) (
   next_point_x = graph_points[(point_index+1)*2];
   next_point_y = graph_points[(point_index+1)*2 + 1];
   
-  // Calculate distances to neighboring points
-  distance_prev = sqrt(sqr(curr_point_x - prev_point_x) + sqr(curr_point_y - prev_point_y));
-  distance_next = sqrt(sqr(next_point_x - curr_point_x) + sqr(next_point_y - curr_point_y));
-  
-  // Calculate directions (normalized)
-  direction_prev_x = (curr_point_x - prev_point_x) / max(distance_prev, eps);
-  direction_prev_y = (curr_point_y - prev_point_y) / max(distance_prev, eps);
-  direction_next_x = (next_point_x - curr_point_x) / max(distance_next, eps);
-  direction_next_y = (next_point_y - curr_point_y) / max(distance_next, eps);
-  
-  // Calculate control points as percentage along the lines
+  // Calculate curve factor
   curve_factor = curve_amount / 100.0;
-  control1_x = curr_point_x - direction_prev_x * distance_prev * curve_factor * 0.3;
-  control1_y = curr_point_y - direction_prev_y * distance_prev * curve_factor * 0.3;
-  control2_x = curr_point_x + direction_next_x * distance_next * curve_factor * 0.3;
-  control2_y = curr_point_y + direction_next_y * distance_next * curve_factor * 0.3;
   
-  // Return control points via global variables
+  // Calculate invisible intermediate points (curve_factor % along the lines)
+  // These will be the actual endpoints of our Bezier curve
+  invisible1_x = curr_point_x + (prev_point_x - curr_point_x) * curve_factor;
+  invisible1_y = curr_point_y + (prev_point_y - curr_point_y) * curve_factor;
+  invisible2_x = curr_point_x + (next_point_x - curr_point_x) * curve_factor;
+  invisible2_y = curr_point_y + (next_point_y - curr_point_y) * curve_factor;
+  
+  // For a proper curve, we need to use the current point as a control point
+  // and the invisible points as endpoints
+  // The control points should pull the curve toward the actual point
+  
+  // Control point 1: pulls curve toward current point from invisible1
+  control1_x = curr_point_x;
+  control1_y = curr_point_y;
+  
+  // Control point 2: pulls curve toward current point from invisible2  
+  control2_x = curr_point_x;
+  control2_y = curr_point_y;
+  
+  // Store invisible points as the actual curve endpoints
+  bezier_p0_x = invisible1_x;
+  bezier_p0_y = invisible1_y;
   bezier_control1_x = control1_x;
   bezier_control1_y = control1_y;
   bezier_control2_x = control2_x;
   bezier_control2_y = control2_y;
+  bezier_p3_x = invisible2_x;
+  bezier_p3_y = invisible2_y;
 );
 
 function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) (

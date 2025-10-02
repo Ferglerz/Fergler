@@ -1,6 +1,6 @@
-// Threshold Lines Module
+// UI Threshold Lines Module
 // Manages interactive threshold lines for GR blend and transient detection
-// Depends on: 02a_math_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
 
 @init
 
@@ -183,7 +183,7 @@ function update_dragged_threshold_line(mouse_y) (
 );
 
 function handle_threshold_line_mouse() (
-  mouse_cap & 1 ? ( // Left mouse button
+  MOUSE_LEFT_BUTTON ? ( // Left mouse button
     !ui_mouse_down ? ( // Start of click
       // Check if clicking on a threshold line
       found_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
@@ -204,4 +204,3 @@ function handle_threshold_line_mouse() (
   // Update hover state
   hovered_threshold_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
 );
-
