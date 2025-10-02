@@ -308,8 +308,8 @@ function calculate_bezier_control_points(point_index, curve_amount) (
   next_point_y = graph_points[(point_index+1)*2 + 1];
   
   // Calculate distances to neighboring points
-  distance_prev = sqrt((curr_point_x - prev_point_x)^2 + (curr_point_y - prev_point_y)^2);
-  distance_next = sqrt((next_point_x - curr_point_x)^2 + (next_point_y - curr_point_y)^2);
+  distance_prev = sqrt(sqr(curr_point_x - prev_point_x) + sqr(curr_point_y - prev_point_y));
+  distance_next = sqrt(sqr(next_point_x - curr_point_x) + sqr(next_point_y - curr_point_y));
   
   // Calculate directions (normalized)
   direction_prev_x = (curr_point_x - prev_point_x) / max(distance_prev, eps);

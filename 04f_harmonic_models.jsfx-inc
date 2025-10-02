@@ -14,8 +14,8 @@ function generate_tube_harmonics(input, saturation_amount, intensity_factor) (
   x2 = x * x;
 
   clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
-  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + pow((x - clip_threshold) * 4 * intensity_factor, 2));
-  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + pow((x + clip_threshold) * 4 * intensity_factor, 2));
+  x > clip_threshold ? x = clip_threshold + (x - clip_threshold) / (1 + sqr((x - clip_threshold) * 4 * intensity_factor));
+  x < -clip_threshold ? x = -clip_threshold + (x + clip_threshold) / (1 + sqr((x + clip_threshold) * 4 * intensity_factor));
 
   harmonic_content = x + x2 * scaled_saturation * 0.1 + x2 * x2 * scaled_saturation * 0.02;
   harmonic_content

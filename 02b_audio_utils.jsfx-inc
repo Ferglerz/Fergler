@@ -17,24 +17,4 @@ function linear_to_db(linear) (
 );
 
 
-//==============================================================================
-// AUDIO LEVEL UTILITIES
-//==============================================================================
-
-// Convert dB to percentage (0-100)
-function db_to_percentage(db, min_db, max_db) (
-  range = max_db - min_db;
-  range > 0 ? clamp((db - min_db) / range * 100, 0, 100) : 0
-);
-
-// Convert percentage to dB (0-100)
-function percentage_to_db(percent, min_db, max_db) (
-  range = max_db - min_db;
-  min_db + clamp(percent, 0, 100) / 100 * range
-);
-
-// Normalize audio level to 0-1 range
-function normalize_audio_level(level, max_level) (
-  max_level > 0 ? clamp(level / max_level, 0, 1) : 0
-);
 

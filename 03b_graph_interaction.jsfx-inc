@@ -39,7 +39,7 @@ function handle_curve_adjustment() (
   // Only allow curve adjustment of non-corner points
   selected_point > 0 && selected_point < num_points - 1 ? (
     // Calculate curve amount based on drag distance
-    drag_distance = sqrt((mouse_x - mouse_x_prev)^2 + (mouse_y - mouse_y_prev)^2);
+    drag_distance = sqrt(sqr(mouse_x - mouse_x_prev) + sqr(mouse_y - mouse_y_prev));
     max_drag_distance = 100; // Maximum drag distance for 100% curve
     
     // Calculate curve amount (0-100%)

@@ -85,7 +85,4 @@ function debug_get_message_count() (
   debug_message_count;
 );
 
-function debug_is_enabled() (
-  DEBUG_ENABLED;
-);
 
