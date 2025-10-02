@@ -48,8 +48,22 @@ slider24:makeup_gain_db=0<-20,20,0.1>-Makeup Gain (dB)
 slider25:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
 slider26:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
 slider27:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
-slider28:prog_release_type=0<0,2,1{Level-Dependent,Rate-Of-Change,Hybrid}>-Program Release Type
+slider28:prog_release_type=0<0,3,1{Level-Dependent,Rate-Of-Change,Hybrid,Input-Level}>-Program Release Type
 slider29:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+
+// Stage Control parameters (31-40) - Control which processing stages are active
+slider31:stage_filtering=1<0,1,1{Off,On}>-Sidechain Filtering
+slider32:stage_harmonics=1<0,1,1{Off,On}>-Harmonic Processing
+slider33:stage_lookahead=1<0,1,1{Off,On}>-Lookahead Processing
+slider34:stage_character=1<0,1,1{Off,On}>-Character Processing
+slider35:stage_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+
+// Advanced Envelope parameters (36-40)
+slider36:multi_stage_release=0<0,1,1{Off,On}>-Multi-Stage Release
+slider37:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
+slider38:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider39:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
+slider40:transient_threshold_db=-10<-80,0,0.1>-Transient Threshold (dB)
 
 // SEARCH STOP
 
@@ -82,14 +96,16 @@ import 01d_ui_interaction.jsfx-inc
 // Graph data modules
 import 03a_graph_data.jsfx-inc
 import 03b_graph_interaction.jsfx-inc
+import 03c_threshold_lines.jsfx-inc
 
 // Audio processing modules
 import 04a_compression_core.jsfx-inc
-import 04b_harmonic_models.jsfx-inc
 import 04c_filters.jsfx-inc
 import 04d_detection.jsfx-inc
 import 04e_envelope.jsfx-inc
-import 04f_effects.jsfx-inc
+import 04f_harmonic_models.jsfx-inc
+import 04g_effects.jsfx-inc
+import 04h_audio_processing_chain.jsfx-inc
 
 // UI modules
 import 05a_ui_core.jsfx-inc
@@ -156,7 +172,28 @@ debug_log("Allocating memory...");
 perform_complete_initialization();
 debug_logf("Memory allocated: %d bytes", get_memory_usage());
 
-// 2. Read slider definitions from file
+// 2. Initialize stage control variables
+debug_log("Initializing stage controls...");
+stage_input = 1;                    // Input stage (always needed)
+stage_detection_source = 1;         // Detection source selection
+stage_sidechain_filtering = 1;      // Sidechain filtering
+stage_detection_analysis = 1;       // RMS detection and gain reduction calculation
+stage_character = 1;                // Character application
+stage_envelope = 1;                 // Envelope following
+stage_lookahead = 1;                // Lookahead processing
+stage_gain_reduction = 1;           // Gain reduction application
+stage_harmonics = 1;                // Harmonic processing
+stage_final_mix = 1;                // Final mix
+stage_limiter = 1;                  // Brickwall limiter
+stage_output = 1;                   // Output stage (always needed)
+
+stage_filtering_prev = -1;
+stage_harmonics_prev = -1;
+stage_lookahead_prev = -1;
+stage_character_prev = -1;
+stage_limiter_prev = -1;
+
+// 3. Read slider definitions from file
 debug_log("Reading slider definitions...");
 read_slider_definitions();
 
@@ -267,6 +304,25 @@ slider5 != lookahead_ms_pdc_prev ? (
   lookahead_ms_pdc_prev = slider5;
 );
 
+// --- Stage Control Parameters (31-35) ---
+(slider31 != stage_filtering_prev || slider32 != stage_harmonics_prev ||
+ slider33 != stage_lookahead_prev || slider34 != stage_character_prev ||
+ slider35 != stage_limiter_prev) ? (
+  stage_sidechain_filtering = slider31;
+  stage_harmonics = slider32;
+  stage_lookahead = slider33;
+  stage_character = slider34;
+  stage_limiter = slider35;
+
+  stage_filtering_prev = slider31;
+  stage_harmonics_prev = slider32;
+  stage_lookahead_prev = slider33;
+  stage_character_prev = slider34;
+  stage_limiter_prev = slider35;
+
+  param_changed = 1;
+);
+
 // --- Curve-affecting parameters ---
 (slider21 != strength_prev || slider22 != global_offset_db_prev ||
  slider23 != strength_curve_prev) ? (
@@ -300,101 +356,25 @@ render_complete_interface();
 debug_render();
 
 
+
 //==============================================================================
-// ON SAMPLE 
+
+//==============================================================================
+// AUDIO PROCESSING CHAIN FUNCTIONS - MOVED TO SEPARATE FILE
+//==============================================================================
+
+// All processing chain functions have been moved to 04g_audio_processing_chain.jsfx-inc
+// This ensures proper function declaration order and prevents @sample issues
+
+//==============================================================================
+// ON SAMPLE
 //==============================================================================
 
 @sample
 
-// === INPUT STAGE ===
-// Cache original signals (avoid multiple memory accesses)
-input_l_orig = spl0;
-input_r_orig = spl1;
+//==============================================================================
+// AUDIO PROCESSING PER SAMPLE
+//==============================================================================
 
-// Pre-calculate channel availability flags
-has_stereo = (num_ch >= 2);
-has_sidechain_l = (use_sidechain && num_ch >= 3);
-has_sidechain_r = (use_sidechain && num_ch >= 4);
-
-// === DETECTION SOURCE SELECTION ===
-// Feedforward: use current input or sidechain
-// Feedback: use previous output (stored values)
-detection_mode > 0.5 ? (
-  // Feedforward mode
-  detect_l = has_sidechain_l ? spl2 : spl0;
-  detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
-) : (
-  // Feedback mode with fallback
-  detect_l = has_sidechain_l ? spl2 : (abs(feedback_l_prev) > 0.000000000000000000000000000001 ? feedback_l_prev : spl0);
-  detect_r = has_sidechain_r ? spl3 : (abs(feedback_r_prev) > 0.000000000000000000000000000001 ? feedback_r_prev : (has_stereo ? spl1 : spl0));
-);
-
-// === SIDECHAIN FILTERING ===
-apply_sidechain_filters(detect_l, detect_r);
-detect_l = filtered_l;
-detect_r = filtered_r;
-
-// === LISTEN MODE (early exit) ===
-listen_to_sidechain ? (
-  spl0 = detect_l;
-  has_stereo ? spl1 = detect_r;
-) : (
-  // === MAIN PROCESSING PATH ===
-  
-  // RMS Detection
-  detector_level = process_rms_detection(detect_l, detect_r);
-  input_level_db = linear_to_db(detector_level);
-  current_input_db = input_level_db;
-
-  // Gain Reduction Calculation
-  target_gr_db = calculate_gain_reduction(input_level_db);
-
-  // Character Application
-  dt = 1 / srate;
-  average_input_level = average_input_level * 0.999 + detector_level * 0.001;
-  // Prevent denormalization
-  abs(average_input_level) < 0.000000000000000000000000000001 ? average_input_level = 0;
-  target_gr_db = apply_compressor_character(target_gr_db, compressor_type, detector_level, dt, over_the_top_factor);
-
-  // Envelope Following
-  final_gain_db = process_envelope_following(target_gr_db, detector_level);
-  prev_detector_db = linear_to_db(detector_level);
-
-  // Convert to linear and store for display
-  envelope_out = db_to_linear(final_gain_db);
-  current_gr_db = final_gain_db;
-
-  // Lookahead Processing
-  process_lookahead(input_l_orig, input_r_orig);
-  processed_l = lookahead_out_l;
-  processed_r = lookahead_out_r;
-
-  // Apply gain reduction
-  processed_l *= envelope_out * makeup_gain_linear;
-  processed_r *= envelope_out * makeup_gain_linear;
-
-  // Dedicated harmonic processing stage (driven by gain reduction amount)
-  gr_amount_normalized = abs(current_gr_db) / 30.0; // Normalize GR to 0..1 range
-  processed_l = apply_harmonic_processing(processed_l, gr_amount_normalized, harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, harmonic_even_boost, harmonic_odd_boost);
-  processed_r = apply_harmonic_processing(processed_r, gr_amount_normalized, harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, harmonic_even_boost, harmonic_odd_boost);
-
-  // Final Mix (no wrapper needed)
-  final_l = processed_l;
-  final_r = processed_r;
-
-  // Brickwall Limiter (conditional)
-  brickwall_limiter > 0.5 ? (
-    final_l = soft_clip_limiter(final_l, limiter_prev_l);
-    final_r = soft_clip_limiter(final_r, limiter_prev_r);
-    limiter_prev_l = final_l;
-    limiter_prev_r = final_r;
-  );
-
-  // === OUTPUT STAGE ===
-  spl0 = final_l;
-  has_stereo ? spl1 = final_r;
-
-  // Store for feedback mode
-  feedback_l_prev = final_l;
-  feedback_r_prev = final_r;
-); 
+// Process the complete audio chain using modular functions
+process_complete_audio_chain();

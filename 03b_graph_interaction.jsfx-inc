@@ -8,7 +8,7 @@
 // MOUSE INTERACTION HANDLERS
 //==============================================================================
 
-function handle_point_movement() local(new_input_db, new_output_db, old_input_db) (
+function handle_point_movement() (
   // Only allow movement of non-corner points
   selected_point > 0 && selected_point < num_points - 1 ? (
     new_input_db = graph_x_to_db(mouse_x);
@@ -35,7 +35,7 @@ function handle_point_movement() local(new_input_db, new_output_db, old_input_db
   );
 );
 
-function handle_curve_adjustment() local(curve_amount, drag_distance, max_drag_distance) (
+function handle_curve_adjustment() (
   // Only allow curve adjustment of non-corner points
   selected_point > 0 && selected_point < num_points - 1 ? (
     // Calculate curve amount based on drag distance
@@ -50,7 +50,7 @@ function handle_curve_adjustment() local(curve_amount, drag_distance, max_drag_d
   );
 );
 
-function handle_point_addition() local(new_input_db, new_output_db, i, point_x, point_y, dist_sq, too_close) (
+function handle_point_addition() (
   new_input_db = clamp(graph_x_to_db(mouse_x), GRAPH_MIN_DB, GRAPH_MAX_DB);
   new_output_db = clamp(graph_y_to_db(mouse_y), GRAPH_MIN_DB, GRAPH_MAX_DB);
 
@@ -74,7 +74,7 @@ function handle_point_addition() local(new_input_db, new_output_db, i, point_x, 
   );
 );
 
-function handle_point_deletion() local(point_to_delete) (
+function handle_point_deletion() (
   point_to_delete = find_point_at_mouse(mouse_x, mouse_y);
   point_to_delete > 0 && point_to_delete < num_points - 1 ? (
     delete_point(point_to_delete);
@@ -158,7 +158,7 @@ function set_mouse_down(down) (
   mouse_down = down;
 );
 
-function get_mouse_previous_position() local(x, y) (
+function get_mouse_previous_position() (
   x = mouse_x_prev;
   y = mouse_y_prev;
   // Return via global variables since JSFX doesn't support multiple return values

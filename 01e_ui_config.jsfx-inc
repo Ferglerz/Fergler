@@ -32,7 +32,7 @@ DROPDOWN_W = 120;
 DROPDOWN_H = 25;
 
 // Spacing
-CONTROL_SPACING_Y = 40;  // Increased by 5 pixels for less cramped layout
+CONTROL_SPACING_Y = 50;  // Increased by 10 pixels for more comfortable spacing
 CONTROL_SPACING_X = 180;  // Reduced spacing to match narrower sliders
 LABEL_HEIGHT = 15;
 

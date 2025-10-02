@@ -29,7 +29,7 @@ slider_names_loaded = 0;
 // CHARACTER SCANNING UTILITIES
 //==============================================================================
 
-function scan_for_char(str, char, start_pos) local(i, len, pos) (
+function scan_for_char(str, char, start_pos) (
   len = strlen(str);
   pos = -1;
   i = start_pos;
@@ -47,6 +47,27 @@ function is_slider_line(str) (
 
 function is_stop_line(str) (
   strcmp(str, "// SEARCH STOP") == 0;
+);
+
+// Extract slider number from slider line (e.g., "slider36:..." -> 36)
+function extract_slider_number(str) (
+  len = strlen(str);
+  slider_num = 0;
+  i = 6; // Start after "slider"
+  
+  // Read digits until we hit ':' or non-digit
+  while (i < len) (
+    c = str_getchar(str, i);
+    // Check if character is a digit (ASCII 48-57 for '0'-'9')
+    c >= 48 && c <= 57 ? (
+      slider_num = slider_num * 10 + (c - 48);
+      i += 1;
+    ) : (
+      i = len; // Break
+    );
+  );
+  
+  slider_num;
 );
 
 //==============================================================================
@@ -141,15 +162,15 @@ function extract_dropdown_options(line, slider_index) (
 // MAIN FILE READING FUNCTION
 //==============================================================================
 
-function read_slider_definitions() local(handle, slider_count, found_stop, line_count) (
+function read_slider_definitions() (
   debug_log("");
   debug_log("=== SLIDER DEFINITION PARSING ===");
-  debug_log("Opening Composure_Modular.jsfx...");
+  debug_log("Opening Composure.jsfx...");
   
-  handle = file_open("Composure_Modular.jsfx");
+  handle = file_open("Composure.jsfx");
   
   handle != -1 ? (
-    slider_count = 0;
+    max_slider_num = 0;
     found_stop = 0;
     line_count = 0;
     
@@ -161,22 +182,33 @@ function read_slider_definitions() local(handle, slider_count, found_stop, line_
         found_stop = 1;
         debug_logf("Found stop marker at line %d", line_count);
       ) : is_slider_line(#line) ? (
-        extract_slider_name(#line, slider_count);
-        extract_dropdown_options(#line, slider_count);
-        slider_count += 1;
+        // Extract the actual slider number from the line
+        slider_num = extract_slider_number(#line);
+        
+        slider_num > 0 && slider_num <= 64 ? (
+          // Use actual slider number as index (slider_num - 1)
+          slider_index = slider_num - 1;
+          extract_slider_name(#line, slider_index);
+          extract_dropdown_options(#line, slider_index);
+          
+          // Track highest slider number seen
+          slider_num > max_slider_num ? max_slider_num = slider_num;
+        ) : (
+          debug_log2f("WARNING: Invalid slider number %d at line %d", slider_num, line_count);
+        );
       );
     );
     
     file_close(handle);
     
-    slider_names_count = slider_count;
+    slider_names_count = max_slider_num;
     slider_names_loaded = 1;
     
     debug_separator();
-    debug_logf("SUCCESS: Loaded %d slider definitions", slider_count);
+    debug_logf("SUCCESS: Loaded slider definitions (highest: slider%d)", max_slider_num);
     1; // Success
   ) : (
-    debug_log("ERROR: Could not open Composure_Modular.jsfx");
+    debug_log("ERROR: Could not open Composure.jsfx");
     debug_log("Check that file exists in same directory as plugin");
     
     slider_names_count = 0;
@@ -189,7 +221,7 @@ function read_slider_definitions() local(handle, slider_count, found_stop, line_
 // ACCESSOR FUNCTIONS (for 02d_ui_utils.jsfx-inc)
 //==============================================================================
 
-function get_slider_name(slider_num) local(array_index) (
+function get_slider_name(slider_num) (
   slider_names_loaded && slider_num > 0 && slider_num <= slider_names_count ? (
     array_index = slider_num - 1;
     SLIDER_NAMES_BASE + array_index; // Return string slot number
@@ -200,14 +232,14 @@ function get_slider_name(slider_num) local(array_index) (
   );
 );
 
-function get_dropdown_option_count(slider_num) local(array_index) (
+function get_dropdown_option_count(slider_num) (
   array_index = slider_num - 1;
   array_index >= 0 && array_index < slider_names_count ? (
     dropdown_option_counts_base[array_index]
   ) : 0;
 );
 
-function get_dropdown_option(slider_num, option_index) local(base_slot, array_index) (
+function get_dropdown_option(slider_num, option_index) (
   array_index = slider_num - 1;
   array_index >= 0 && option_index >= 0 && 
   option_index < get_dropdown_option_count(slider_num) ? (

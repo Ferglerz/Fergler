@@ -22,13 +22,13 @@ function linear_to_db(linear) (
 //==============================================================================
 
 // Convert dB to percentage (0-100)
-function db_to_percentage(db, min_db, max_db) local(range) (
+function db_to_percentage(db, min_db, max_db) (
   range = max_db - min_db;
   range > 0 ? clamp((db - min_db) / range * 100, 0, 100) : 0
 );
 
 // Convert percentage to dB (0-100)
-function percentage_to_db(percent, min_db, max_db) local(range) (
+function percentage_to_db(percent, min_db, max_db) (
   range = max_db - min_db;
   min_db + clamp(percent, 0, 100) / 100 * range
 );

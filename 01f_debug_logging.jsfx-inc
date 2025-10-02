@@ -65,7 +65,7 @@ function debug_separator() (
   );
 );
 
-function debug_render() local(i, y_pos) (
+function debug_render() (
   DEBUG_ENABLED && debug_message_count > 0 ? (
     gfx_set(DEBUG_TEXT_COLOR_R, DEBUG_TEXT_COLOR_G, DEBUG_TEXT_COLOR_B, DEBUG_TEXT_ALPHA);
     y_pos = DEBUG_START_Y;

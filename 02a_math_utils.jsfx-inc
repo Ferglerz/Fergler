@@ -57,13 +57,13 @@ function lerp(a, b, t) (
 );
 
 // Smoothstep function
-function smoothstep(edge0, edge1, x) local(t) (
+function smoothstep(edge0, edge1, x) (
   t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
   t * t * (3.0 - 2.0 * t)
 );
 
 // Smootherstep function
-function smootherstep(edge0, edge1, x) local(t) (
+function smootherstep(edge0, edge1, x) (
   t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
   t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 );

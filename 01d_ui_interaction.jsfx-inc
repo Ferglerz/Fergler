@@ -19,9 +19,7 @@ ui_mouse_y_prev = 0;
 // GENERIC MOUSE INTERACTION
 //==============================================================================
 
-// Note: is_point_in_control() and update_slider_value() moved to 02d_ui_utils.jsfx-inc
-
-function handle_ui_mouse_input() local(i, control_type, param_index, current_value, max_options, found_control) (
+function handle_ui_mouse_input() (
   mouse_cap & 1 ? ( // Left mouse button
     !ui_mouse_down ? ( // Start of click
       // Check all controls first to see if mouse is over any
@@ -43,7 +41,7 @@ function handle_ui_mouse_input() local(i, control_type, param_index, current_val
             slider(param_index) = current_value > 0.5 ? 0 : 1;
           ) : control_type == 2 ? (
             // Dropdown - cycle
-            max_options = param_index == 14 ? 5 : param_index == 25 ? 7 : param_index == 28 ? 3 : 2;
+            max_options = param_index == 14 ? 5 : param_index == 25 ? 7 : param_index == 28 ? 4 : 2;
             slider(param_index) = (current_value + 1) % max_options;
           );
         );

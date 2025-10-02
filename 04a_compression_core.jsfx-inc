@@ -25,7 +25,7 @@ function update_compression_history(current_gr, dt, intensity_factor) (
 // COMPRESSION CHARACTER APPLICATION
 //==============================================================================
 
-function apply_compressor_character(gain_reduction, type, input_level, dt, intensity_factor) local(scaled_intensity, saturation_rate, decay_rate, input_change, transient_sensitivity, transient_decay, target_charge, charge_rate, base_discharge_rate, discharge_rate, atk_coef, rel_coef, relF, relS, bl, prog, rel_ms, r1, r2, r3, det_delta, transient_boost, target, rf, rs, drive, sat, sat_effect_dB) (
+function apply_compressor_character(gain_reduction, type, input_level, dt, intensity_factor) (
   scaled_intensity = intensity_factor;
   update_compression_history(gain_reduction, dt, scaled_intensity);
 
@@ -140,7 +140,7 @@ function get_compressor_type() (
   compressor_type;
 );
 
-function get_over_the_top_factor() local(factor) (
+function get_over_the_top_factor() (
   factor = over_the_top * 0.01;
   factor;
 );
@@ -149,7 +149,7 @@ function get_over_the_top_factor() local(factor) (
 // COMPRESSION CURVE INTERPOLATION
 //==============================================================================
 
-function interpolate_compression_curve(input_db) local(i, x1, y1, x2, y2, t, curve_amount, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, bezier_t) (
+function interpolate_compression_curve(input_db) (
   // Bounds checking
   input_db <= graph_points[0] ? graph_points[1] : (
     input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (

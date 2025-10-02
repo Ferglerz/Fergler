@@ -5,19 +5,6 @@
 @init
 
 //==============================================================================
-// MEMORY LAYOUT CONFIGURATION
-//==============================================================================
-
-// Memory allocation addresses - these must be set in order
-GRAPH_POINTS_START = 10000;
-CONTROL_DEFS_START = 30000;
-AUDIO_BUFFERS_START = 40000;
-
-// Buffer sizes (calculated in memory allocation)
-max_lookahead_samples = 0;
-max_rms_samples = 0;
-
-//==============================================================================
 // MEMORY ALLOCATION FUNCTIONS
 //==============================================================================
 
@@ -44,12 +31,12 @@ function allocate_control_memory() (
   // No manual allocation needed
 );
 
-function get_memory_usage() local(total_memory) (
+function get_memory_usage() (
   total_memory = freemem - GRAPH_POINTS_START;
   total_memory;
 );
 
-function validate_memory_layout() local(is_valid) (
+function validate_memory_layout() (
   is_valid = 1;
   
   // Check that graph points memory is set

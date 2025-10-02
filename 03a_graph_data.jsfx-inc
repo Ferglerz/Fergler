@@ -88,8 +88,6 @@ function set_curve_mode(mode) (
   curve_mode = mode > 0.5 ? 1 : 0;
 );
 
-// Note: Graph coordinate functions moved to 02d_ui_utils.jsfx-inc
-
 //==============================================================================
 // GRAPH DATA MANAGEMENT
 //==============================================================================
@@ -104,7 +102,7 @@ function init_graph_points() (
   graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
 );
 
-function restore_graph_points_from_serialization() local(saved_version, saved_num_points, i, success, point_valid) (
+function restore_graph_points_from_serialization() (
   // Try to read serialized data
   success = 0;
   
@@ -160,7 +158,7 @@ function restore_graph_points_from_serialization() local(saved_version, saved_nu
   success
 );
 
-function sort_points() local(i, j, temp_in, temp_out) (
+function sort_points() (
   i = 1;
   while (i < num_points - 2) (
     j = i + 1;
@@ -181,7 +179,7 @@ function sort_points() local(i, j, temp_in, temp_out) (
   );
 );
 
-function add_point(input_db, output_db) local(insert_pos, i, new_point_index) (
+function add_point(input_db, output_db) (
   num_points >= MAX_POINTS ? -1 : (
     insert_pos = num_points - 1;
 
@@ -213,7 +211,7 @@ function add_point(input_db, output_db) local(insert_pos, i, new_point_index) (
   );
 );
 
-function delete_point(point_index) local(i) (
+function delete_point(point_index) (
   point_index <= 0 || point_index >= num_points - 1 || num_points <= MIN_POINTS ? 0 : (
     i = point_index;
     while (i < num_points - 1) (
@@ -226,7 +224,7 @@ function delete_point(point_index) local(i) (
   );
 );
 
-function remove_displaced_points(moved_input_db, moved_output_db) local(i, same_position_count, points_to_remove, removal_count) (
+function remove_displaced_points(moved_input_db, moved_output_db) (
   // Count how many points are at approximately the same position as the moved point
   same_position_count = 0;
   i = 1;
@@ -256,7 +254,7 @@ function remove_displaced_points(moved_input_db, moved_output_db) local(i, same_
   );
 );
 
-function find_point_at_mouse(x, y) local(i, point_x, point_y, dist_sq, found_point) (
+function find_point_at_mouse(x, y) (
   // Skip corner points (indices 0 and num_points-1) - they are invisible and non-interactive
   found_point = -1;
   i = 1;
@@ -300,11 +298,7 @@ function set_graph_initialized(initialized) (
 // BEZIER CURVE CALCULATIONS
 //==============================================================================
 
-function calculate_bezier_control_points(point_index, curve_amount) local(
-  prev_point_x, prev_point_y, curr_point_x, curr_point_y, next_point_x, next_point_y,
-  distance_prev, distance_next, control1_x, control1_y, control2_x, control2_y,
-  direction_prev_x, direction_prev_y, direction_next_x, direction_next_y
-) (
+function calculate_bezier_control_points(point_index, curve_amount) (
   // Get the three points involved
   prev_point_x = graph_points[(point_index-1)*2];
   prev_point_y = graph_points[(point_index-1)*2 + 1];
@@ -337,9 +331,7 @@ function calculate_bezier_control_points(point_index, curve_amount) local(
   bezier_control2_y = control2_y;
 );
 
-function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) local(
-  u, tt, uu, uuu, ttt, result_x, result_y
-) (
+function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) (
   u = 1 - t;
   tt = t * t;
   uu = u * u;

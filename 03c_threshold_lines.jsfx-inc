@@ -1,0 +1,207 @@
+// Threshold Lines Module
+// Manages interactive threshold lines for GR blend and transient detection
+// Depends on: 02a_math_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// THRESHOLD LINE CONFIGURATION
+//==============================================================================
+
+MIN_THRESHOLD_SPACING = 6; // Minimum 6dB spacing between lines
+THRESHOLD_LINE_GRAB_RADIUS = 8; // Pixels for mouse grab detection
+
+// Line types
+THRESHOLD_GR_BLEND = 0;      // GR blend threshold (on meter)
+THRESHOLD_INPUT_LEVEL = 1;   // Input level threshold (on graph)
+THRESHOLD_TRANSIENT = 2;     // Transient detection threshold (on graph)
+
+// Interaction state
+dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)
+hovered_threshold_line = -1;   // Which line is hovered (-1 = none)
+
+//==============================================================================
+// THRESHOLD LINE VALIDATION
+//==============================================================================
+
+function validate_threshold_spacing(value, other_value) (
+  // Ensure at least MIN_THRESHOLD_SPACING between values
+  value > other_value ?
+    max(value, other_value + MIN_THRESHOLD_SPACING) :
+    min(value, other_value - MIN_THRESHOLD_SPACING)
+);
+
+function clamp_gr_blend_threshold(new_value) (
+  // Clamp to valid GR range (1-24 dB)
+  clamped = clamp(new_value, 1, 24);
+  clamped
+);
+
+function clamp_input_level_threshold(new_value) (
+  // Clamp to graph range (-80 to -6 dB) and respect transient threshold
+  clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB - MIN_THRESHOLD_SPACING);
+  
+  // Ensure spacing from transient threshold if both are active
+  transient_detection > 0 ? (
+    clamped = validate_threshold_spacing(clamped, transient_threshold_db);
+  );
+  
+  clamped
+);
+
+function clamp_transient_threshold(new_value) (
+  // Clamp to graph range and respect input level threshold
+  clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB);
+  
+  // Ensure spacing from input level threshold if input-level mode active
+  prog_release_mode > 0.5 && prog_release_type == 3 ? (
+    clamped = validate_threshold_spacing(clamped, input_level_threshold_db);
+  );
+  
+  clamped
+);
+
+//==============================================================================
+// THRESHOLD LINE VISIBILITY
+//==============================================================================
+
+function is_gr_blend_line_visible() (
+  // Visible when program release is on and in level-dependent or hybrid mode
+  prog_release_mode > 0.5 && (prog_release_type == 0 || prog_release_type == 2)
+);
+
+function is_input_level_line_visible() (
+  // Visible when program release is on and in input-level mode
+  prog_release_mode > 0.5 && prog_release_type == 3
+);
+
+function is_transient_line_visible() (
+  // Visible when transient detection is enabled
+  transient_detection > 0
+);
+
+//==============================================================================
+// THRESHOLD LINE POSITION CONVERSION
+//==============================================================================
+
+// GR Blend Threshold (on GR meter)
+function gr_blend_db_to_meter_y(gr_db) (
+  // GR meter range: -40dB to +40dB
+  // GR blend threshold range: 1-24 dB (of GR amount)
+  meter_center_y = GRAPH_Y + GRAPH_SIZE / 2;
+  max_range_db = 40;
+  
+  // Position from top (negative GR is reduction from top)
+  y_pos = GRAPH_Y + (gr_db / max_range_db) * GRAPH_SIZE;
+  y_pos
+);
+
+function meter_y_to_gr_blend_db(y) (
+  // Convert meter Y position back to GR threshold dB
+  max_range_db = 40;
+  gr_db = (y - GRAPH_Y) / GRAPH_SIZE * max_range_db;
+  gr_db
+);
+
+// Input Level Threshold (on graph X axis)
+function input_level_db_to_graph_y(db) (
+  db_to_graph_y(db)
+);
+
+function graph_y_to_input_level_db(y) (
+  graph_y_to_db(y)
+);
+
+// Transient Threshold (on graph X axis)
+function transient_db_to_graph_y(db) (
+  db_to_graph_y(db)
+);
+
+function graph_y_to_transient_db(y) (
+  graph_y_to_db(y)
+);
+
+//==============================================================================
+// THRESHOLD LINE INTERACTION
+//==============================================================================
+
+function find_threshold_line_at_mouse(mouse_x, mouse_y) (
+  found_line = -1;
+  
+  // Check GR blend line (on meter)
+  is_gr_blend_line_visible() ? (
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
+    meter_x = GRAPH_X + GRAPH_SIZE + 20;
+    meter_w = 30;
+    
+    mouse_x >= meter_x && mouse_x <= meter_x + meter_w &&
+    abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS ? (
+      found_line = THRESHOLD_GR_BLEND;
+    );
+  );
+  
+  // Check input level line (on graph)
+  found_line < 0 && is_input_level_line_visible() ? (
+    line_y = input_level_db_to_graph_y(input_level_threshold_db);
+    
+    is_point_in_graph(mouse_x, mouse_y) &&
+    abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS ? (
+      found_line = THRESHOLD_INPUT_LEVEL;
+    );
+  );
+  
+  // Check transient line (on graph, different color)
+  found_line < 0 && is_transient_line_visible() ? (
+    line_y = transient_db_to_graph_y(transient_threshold_db);
+    
+    is_point_in_graph(mouse_x, mouse_y) &&
+    abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS ? (
+      found_line = THRESHOLD_TRANSIENT;
+    );
+  );
+  
+  found_line
+);
+
+function update_dragged_threshold_line(mouse_y) (
+  dragging_threshold_line == THRESHOLD_GR_BLEND ? (
+    // Update GR blend threshold
+    new_gr_db = meter_y_to_gr_blend_db(mouse_y);
+    gr_blend_threshold_db = clamp_gr_blend_threshold(new_gr_db);
+    sliderchange(1 << 36); // Update slider37
+  ) : dragging_threshold_line == THRESHOLD_INPUT_LEVEL ? (
+    // Update input level threshold
+    new_db = graph_y_to_input_level_db(mouse_y);
+    input_level_threshold_db = clamp_input_level_threshold(new_db);
+    sliderchange(1 << 37); // Update slider38
+  ) : dragging_threshold_line == THRESHOLD_TRANSIENT ? (
+    // Update transient threshold
+    new_db = graph_y_to_transient_db(mouse_y);
+    transient_threshold_db = clamp_transient_threshold(new_db);
+    sliderchange(1 << 39); // Update slider40
+  );
+);
+
+function handle_threshold_line_mouse() (
+  mouse_cap & 1 ? ( // Left mouse button
+    !ui_mouse_down ? ( // Start of click
+      // Check if clicking on a threshold line
+      found_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
+      found_line >= 0 ? (
+        dragging_threshold_line = found_line;
+        ui_mouse_down = 1;
+      );
+    ) : ( // Continue drag
+      dragging_threshold_line >= 0 ? (
+        update_dragged_threshold_line(mouse_y);
+      );
+    );
+  ) : (
+    // Mouse released
+    dragging_threshold_line = -1;
+  );
+  
+  // Update hover state
+  hovered_threshold_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
+);
+

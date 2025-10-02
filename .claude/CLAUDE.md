@@ -22,7 +22,7 @@ Advanced Multi-Model Compressor JSFX plugin with modular architecture. Features 
 ## File Structure
 
 ### Main Entry Point
-- **`Composure_Modular.jsfx`** - Main plugin file with slider definitions, includes, and audio processing pipeline
+- **`Composure.jsfx`** - Main plugin file with slider definitions, includes, and audio processing pipeline
 
 ### Phase 0: Configuration
 - **`00a_constants.jsfx-inc`** - All magic numbers, audio constants, performance constants, UI constants
@@ -163,6 +163,11 @@ Advanced Multi-Model Compressor JSFX plugin with modular architecture. Features 
 - **CPU optimization**: Cache expensive calculations
 - **Denormal protection**: Prevent CPU spikes
 - **Parameter smoothing**: Avoid audio artifacts from parameter changes
+
+### JSFX Language Rules
+- **Variable scope**: All variables are local by default - no explicit `local()` declarations needed in function signatures
+- **Variable initialization**: Initialize variables before using them in conditional expressions to prevent "undefined" errors
+- **Function declarations**: Use `function name() (` syntax - never use `local()` in function signatures
 
 ## Common Functions
 

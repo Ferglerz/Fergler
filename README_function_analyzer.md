@@ -71,6 +71,14 @@ The analyzer enforces the JSFX modular architecture:
 - Function declarations must precede function calls in dependency order
 - Each module has a single focused responsibility
 
+### Variable Scope Rules
+
+- **All variables are local by default** in JSFX - no explicit `local()` declarations needed in function signatures
+- Use `local()` declarations **only inside function bodies** when you need to explicitly declare local variables
+- **Never use `local()` in function signatures** - this causes compilation errors
+- **Initialize variables before conditional use** - variables must be assigned values before being used in conditional expressions (`var ? ... : ...`) to prevent "undefined" errors
+- Global variables are only memory buffers, slider variables, and special system variables
+
 ## Built-in Functions Filtered
 
 The analyzer automatically filters out JSFX built-in functions including:

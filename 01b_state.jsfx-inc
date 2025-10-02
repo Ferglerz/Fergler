@@ -4,14 +4,6 @@
 
 @init
 
-//==============================================================================
-// AUDIO PROCESSING CONFIGURATION
-//==============================================================================
-
-// Buffer allocation
-lookahead_buffer_l = 0;
-lookahead_buffer_r = 0;
-rms_buffer = 0;
 
 //==============================================================================
 // STATE VARIABLES INITIALIZATION
@@ -82,7 +74,21 @@ function init_state_variables() (
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
   
-  // graph_initialized should only be set in the global scope or by explicit user action
+  // Multi-stage release state (3 cascaded envelope followers)
+  release_stage_1_env = 0;
+  release_stage_2_env = 0;
+  release_stage_3_env = 0;
+  
+  // Transient detection state
+  transient_detector_prev_db = GRAPH_MIN_DB;
+  transient_detected = 0;
+  transient_gr_reduction = 0;
+  
+  // Threshold line interaction state (persistent across @init)
+  !threshold_lines_initialized ? (
+    threshold_lines_initialized = 1;
+    // Default positions already set by sliders
+  );
 );
 
 function reset_processing_state() (
@@ -119,6 +125,16 @@ function reset_processing_state() (
   // Reset display state
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
+  
+  // Reset multi-stage release state
+  release_stage_1_env = 0;
+  release_stage_2_env = 0;
+  release_stage_3_env = 0;
+  
+  // Reset transient detection state
+  transient_detector_prev_db = GRAPH_MIN_DB;
+  transient_detected = 0;
+  transient_gr_reduction = 0;
 );
 
 function reset_ui_state() (

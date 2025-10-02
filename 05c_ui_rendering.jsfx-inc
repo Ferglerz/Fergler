@@ -9,7 +9,7 @@
 // GENERIC CONTROL DRAWING FUNCTIONS
 //==============================================================================
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label) local(fill_w, handle_x) (
+function draw_generic_slider(x, y, w, h, value, min_val, max_val, label) (
   // Draw label
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
   gfx_x = x; gfx_y = y - LABEL_HEIGHT;
@@ -54,7 +54,7 @@ function draw_generic_button(x, y, w, h, is_on, label) (
   gfx_drawstr(label);
 );
 
-function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) local(current_index) (
+function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) (
   current_index = floor(current_value);
   
   // Draw label
@@ -96,7 +96,7 @@ function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) lo
 // GENERIC CONTROL RENDERING
 //==============================================================================
 
-function draw_control(index) local(type, x, y, w, h, param_index, min_val, max_val, current_value) (
+function draw_control(index) (
   type = get_control_type(index);
   x = get_control_x(index);
   y = get_control_y(index);
@@ -119,7 +119,7 @@ function draw_control(index) local(type, x, y, w, h, param_index, min_val, max_v
 // MAIN UI RENDERING ORCHESTRATION
 //==============================================================================
 
-function render_custom_ui_controls() local(i) (
+function render_custom_ui_controls() (
   draw_ui_panel_background();
 
   // Draw all controls

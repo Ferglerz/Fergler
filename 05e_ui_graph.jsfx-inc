@@ -8,7 +8,7 @@
 // GRAPHICS RENDERING
 //==============================================================================
 
-function draw_grid() local(i, x_pos, y_pos) (
+function draw_grid() (
   gfx_set(0.4, 0.4, 0.4, 1);
   i = 0;
   while (i <= 6) (
@@ -20,7 +20,7 @@ function draw_grid() local(i, x_pos, y_pos) (
   );
 );
 
-function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, actual_input_db, adjusted_input_db, raw_output_db, effective_output_db, step_size) (
+function draw_compression_curves() (
   // Main compression curve
   gfx_set(1, 0.8, 0.2, 1);
   step_size = 1.0;
@@ -60,7 +60,7 @@ function draw_compression_curves() local(i, input_db, output_db, graph_y_pos, ac
   );
 );
 
-function draw_bezier_curves() local(i, j, point_index, curve_amount, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, bezier_x, bezier_y, graph_x_pos, graph_y_pos, step_size) (
+function draw_bezier_curves() (
   // Draw bezier curves for points that have curves
   gfx_set(1, 0.8, 0.2, 1);
   step_size = 0.5; // Smaller steps for smoother curves
@@ -106,7 +106,7 @@ function draw_bezier_curves() local(i, j, point_index, curve_amount, p0_x, p0_y,
 );
 
 
-function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered, is_selected, input_db, output_db, text_x, text_y, curve_amount, is_curved) (
+function draw_graph_points() (
   // Skip corner points (indices 0 and num_points-1) - they are invisible
   i = 1;
   while (i < num_points - 1) (
@@ -172,7 +172,7 @@ function draw_graph_points() local(i, point_x, point_y, point_radius, is_hovered
   );
 );
 
-function draw_level_indicators() local(input_x, adjusted_input_for_display, input_x_adjusted, input_y_on_unity, input_y_on_curve, input_y_raw_curve) (
+function draw_level_indicators() (
   input_x = db_to_graph_x(current_input_db);
   adjusted_input_for_display = current_input_db - global_offset_db;
   input_x_adjusted = db_to_graph_x(adjusted_input_for_display);
@@ -193,7 +193,7 @@ function draw_level_indicators() local(input_x, adjusted_input_for_display, inpu
   );
 );
 
-function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, gr_height, meter_center_y, max_range_db, is_audio_active) (
+function draw_gain_reduction_meter() (
   gr_meter_x = GRAPH_X + GRAPH_SIZE + 20;
   gr_meter_y = GRAPH_Y;
   gr_meter_w = 30;
@@ -228,6 +228,74 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
       gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
     );
   );
+  
+  // Draw GR blend threshold line if visible
+  is_gr_blend_line_visible() ? (
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
+    is_hovered = (hovered_threshold_line == THRESHOLD_GR_BLEND);
+    is_dragging = (dragging_threshold_line == THRESHOLD_GR_BLEND);
+    
+    // Line color - brighter when hovered/dragging
+    is_hovered || is_dragging ? (
+      gfx_set(1, 1, 0.3, 1);
+    ) : (
+      gfx_set(0.9, 0.9, 0, 0.8);
+    );
+    
+    // Draw line across meter
+    gfx_line(gr_meter_x, line_y, gr_meter_x + gr_meter_w, line_y, 1);
+    
+    // Draw label
+    gfx_x = gr_meter_x + gr_meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("%.1f dB", gr_blend_threshold_db);
+  );
+);
+
+function draw_threshold_lines_on_graph() (
+  // Draw input level threshold line if visible
+  is_input_level_line_visible() ? (
+    line_y = input_level_db_to_graph_y(input_level_threshold_db);
+    is_hovered = (hovered_threshold_line == THRESHOLD_INPUT_LEVEL);
+    is_dragging = (dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
+    
+    // Line color - cyan/blue for input level
+    is_hovered || is_dragging ? (
+      gfx_set(0.3, 1, 1, 1);
+    ) : (
+      gfx_set(0.2, 0.8, 1, 0.8);
+    );
+    
+    // Draw line across graph
+    gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
+    
+    // Draw label
+    gfx_x = GRAPH_X + 5;
+    gfx_y = line_y - 15;
+    gfx_printf("Input: %.1f dB", input_level_threshold_db);
+  );
+  
+  // Draw transient threshold line if visible
+  is_transient_line_visible() ? (
+    line_y = transient_db_to_graph_y(transient_threshold_db);
+    is_hovered = (hovered_threshold_line == THRESHOLD_TRANSIENT);
+    is_dragging = (dragging_threshold_line == THRESHOLD_TRANSIENT);
+    
+    // Line color - red/orange for transient detection
+    is_hovered || is_dragging ? (
+      gfx_set(1, 0.3, 0.3, 1);
+    ) : (
+      gfx_set(1, 0.5, 0, 0.8);
+    );
+    
+    // Draw line across graph
+    gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
+    
+    // Draw label
+    gfx_x = GRAPH_X + GRAPH_SIZE - 110;
+    gfx_y = line_y - 15;
+    gfx_printf("Transient: %.1f dB", transient_threshold_db);
+  );
 );
 
 function draw_labels_and_info() (
@@ -261,7 +329,7 @@ function draw_graph_background() (
   gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
 );
 
-function render_complete_interface() local(has_any_curves, i) (
+function render_complete_interface() (
   // Set background color
   gfx_clear = 0x202020;
 
@@ -290,6 +358,7 @@ function render_complete_interface() local(has_any_curves, i) (
   
   draw_graph_points();
   draw_level_indicators();
+  draw_threshold_lines_on_graph();
   
   // Reset clipping
   gfx_set(0, 0, 0, 1, 0); // Mode 0 = normal drawing
@@ -301,5 +370,6 @@ function render_complete_interface() local(has_any_curves, i) (
   render_custom_ui_controls();
 
   // Handle user interaction
+  handle_threshold_line_mouse();
   process_mouse_input();
 );

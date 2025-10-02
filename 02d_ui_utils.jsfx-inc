@@ -21,7 +21,7 @@ function get_control_max(index) ( control_defs[index*10 + 7]; );
 // BASIC UI UTILITIES
 //==============================================================================
 
-function is_point_in_control(x, y, control_index) local(ctrl_x, ctrl_y, ctrl_w, ctrl_h) (
+function is_point_in_control(x, y, control_index) (
   ctrl_x = get_control_x(control_index);
   ctrl_y = get_control_y(control_index);
   ctrl_w = get_control_w(control_index);
@@ -29,7 +29,7 @@ function is_point_in_control(x, y, control_index) local(ctrl_x, ctrl_y, ctrl_w, 
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-function update_slider_value(control_index, mouse_x) local(ctrl_x, ctrl_w, min_val, max_val, normalized_pos) (
+function update_slider_value(control_index, mouse_x) (
   ctrl_x = get_control_x(control_index);
   ctrl_w = get_control_w(control_index);
   min_val = get_control_min(control_index);

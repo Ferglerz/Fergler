@@ -10,7 +10,7 @@
 
 // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
 // Type: 0=slider, 1=button, 2=dropdown
-num_controls = 29;  // All 29 parameters now have UI controls
+num_controls = 34;  // 34 controls (sliders 1-29 + new advanced envelope 36-40)
 
 // Allocate memory for control definitions (10 values per control)
 control_defs = CONTROL_DEFS_START;  // Start after graph points
@@ -33,13 +33,11 @@ function define_control(index, type, x, y, w, h, param_index, min_val, max_val, 
   control_defs[index*10 + 9] = 0;         // Reserved for options pointer
 );
 
-// Note: Control accessor functions moved to 02d_ui_utils.jsfx-inc
-
 //==============================================================================
 // CONTROL LAYOUT AND INITIALIZATION
 //==============================================================================
 
-function setup_control_layout() local(control_x, control_y, row) (
+function setup_control_layout() (
   // Initialize control positioning - moved down by 16 pixels
   control_x = UI_PANEL_X + 20;
   control_y = UI_PANEL_Y + 20;  // Start higher since we have more space now
@@ -109,12 +107,24 @@ function setup_control_layout() local(control_x, control_y, row) (
   define_control(26, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 27, 0, 1, "Listen SC");
   row += 1;
 
-  // Column 4: Remaining globals (28-29)
+  // Column 4: Remaining globals (28-29) + Advanced Envelope (36-40)
   control_x += CONTROL_SPACING_X;
   row = 0;
-  define_control(27, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 28, 0, 2, "Prog Release Type");
+  define_control(27, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 28, 0, 3, "Prog Release Type");
   row += 1;
   define_control(28, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 29, 0, 1, "Limiter");
+  row += 1;
+  
+  // Advanced Envelope Controls (36-40)
+  define_control(29, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 36, 0, 1, "Multi-Stage");
+  row += 1;
+  define_control(30, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 37, 1, 24, "GR Threshold");
+  row += 1;
+  define_control(31, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 38, -80, 0, "Input Level");
+  row += 1;
+  define_control(32, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 39, 0, 100, "Transient Amt");
+  row += 1;
+  define_control(33, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 40, -80, 0, "Transient Thr");
   row += 1;
 );
 

@@ -12,7 +12,7 @@ lp_freq_prev = -1;
 // FILTER APPLICATION
 //==============================================================================
 
-function apply_sidechain_filters(detect_l, detect_r) local(detect_l_filtered, detect_r_filtered) (
+function apply_sidechain_filters(detect_l, detect_r) (
   // Apply highpass filter
   detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;
   hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l_filtered;
@@ -46,7 +46,7 @@ function reset_filter_states() (
   lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
 );
 
-function get_filter_coefficients(filter_type) local(coeffs) (
+function get_filter_coefficients(filter_type) (
   filter_type == "hp" ? (
     coeffs = hp_b0; // Return b0 as representative
   ) : filter_type == "lp" ? (

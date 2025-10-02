@@ -1,6 +1,6 @@
 // Detection Processing Module
-// RMS detection, level processing, and gain reduction calculation
-// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc, 02_shared_utilities.jsfx-inc
+// RMS detection, level processing, gain reduction calculation, and transient detection
+// Depends on: 02a_math_utils.jsfx-inc, 02b_audio_utils.jsfx-inc, 02c_dsp_utils.jsfx-inc
 
 @init
 
@@ -8,7 +8,7 @@
 // RMS AND LEVEL DETECTION
 //==============================================================================
 
-function process_rms_detection(detect_l, detect_r) local(detect_squared, rms_level, peak_level, normalized_rms) (
+function process_rms_detection(detect_l, detect_r) (
   // RMS calculation with optional normalization
   detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
   rms_sum -= rms_buffer[rms_pos];
@@ -45,7 +45,53 @@ function process_rms_detection(detect_l, detect_r) local(detect_squared, rms_lev
 // LEVEL CALCULATION AND CURVE APPLICATION
 //==============================================================================
 
-function calculate_gain_reduction(input_level_db) local(adjusted_input_db, target_output_db, target_gr_db, gr_factor, curve_factor) (
+//==============================================================================
+// TRANSIENT DETECTION (1176-style)
+//==============================================================================
+// Detects rapid level increases and temporarily reduces gain reduction to let
+// transients punch through. This is fundamentally different from attack time -
+// it's dynamic attack that responds to transient content.
+//
+// How it works:
+// - Monitors rate of level increase (dB per sample)
+// - If level rises above threshold dB → transient detected
+// - Temporarily reduces GR by proportional amount
+// - Creates "aggressive" compression that lets fast transients through
+//==============================================================================
+
+function detect_transients(current_level_db) (
+  transient_detected = 0;
+  transient_gr_reduction = 0;
+  
+  // Check if transient detection is enabled (slider value > 0)
+  transient_detection > 0 ? (
+    // Calculate rate of level increase
+    level_delta = current_level_db - transient_detector_prev_db;
+    
+    // Check if level is rising above threshold
+    level_delta > 0 && current_level_db > transient_threshold_db ? (
+      // Transient detected! Calculate GR reduction
+      // Slider: 0-100 maps to 0-12dB of GR reduction
+      max_reduction = (transient_detection / 100.0) * 12.0;
+      
+      // Scale reduction by how far above threshold we are
+      threshold_excess = current_level_db - transient_threshold_db;
+      transient_gr_reduction = min(threshold_excess * 0.6, max_reduction);
+      
+      transient_detected = 1;
+    );
+    
+    // Update previous level for next sample
+    transient_detector_prev_db = current_level_db;
+  ) : (
+    // Transient detection off - just update tracker
+    transient_detector_prev_db = current_level_db;
+  );
+  
+  transient_gr_reduction
+);
+
+function calculate_gain_reduction(input_level_db) (
   // Apply compression curve with global offset
   adjusted_input_db = input_level_db - global_offset_db;
   target_output_db = interpolate_compression_curve(adjusted_input_db);
@@ -62,6 +108,10 @@ function calculate_gain_reduction(input_level_db) local(adjusted_input_db, targe
   );
 
   target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
+  
+  // Apply transient detection: reduce GR if transient detected
+  transient_reduction = detect_transients(input_level_db);
+  target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
 
   target_gr_db
 );
@@ -81,7 +131,7 @@ function get_detector_level() (
   detector_level;
 );
 
-function get_rms_level() local(rms_level) (
+function get_rms_level() (
   rms_samples > 0 ? (
     rms_level = sqrt(rms_sum / rms_samples);
     rms_level;

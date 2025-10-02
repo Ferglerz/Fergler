@@ -45,7 +45,7 @@ Examples:
 - `02a_math_utils.jsfx-inc`
 - `05c_ui_rendering.jsfx-inc`
 
-Main file: `Composure_Modular.jsfx`
+Main file: `Composure.jsfx`
 
 ## Module Design Principles
 - Each module has a **single focused responsibility**
@@ -102,7 +102,7 @@ Examples:
 - `02a_math_utils.jsfx-inc`
 - `05c_ui_rendering.jsfx-inc`
 
-Main file: `Composure_Modular.jsfx`
+Main file: `Composure.jsfx`
 
 ## Module Design Principles
 - Each module has a **single focused responsibility**

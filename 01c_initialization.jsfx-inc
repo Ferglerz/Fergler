@@ -18,7 +18,7 @@ function perform_complete_initialization() (
   
 );
 
-function validate_system_initialization() local(is_valid) (
+function validate_system_initialization() (
   is_valid = 1;
   
   // Check memory allocation
@@ -33,7 +33,7 @@ function validate_system_initialization() local(is_valid) (
   is_valid;
 );
 
-function get_initialization_status() local(status) (
+function get_initialization_status() (
   status = "Initialization Status:\n";
   
   validate_memory_layout() ? (

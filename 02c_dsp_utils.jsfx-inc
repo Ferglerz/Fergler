@@ -78,7 +78,7 @@ function calculate_rms_samples(rms_ms) (
 // SOFT CLIPPING AND LIMITING
 //==============================================================================
 
-function soft_clip_limiter(input, prev_sample) local(oversample1, oversample2, peak_detected, limited) (
+function soft_clip_limiter(input, prev_sample) (
   // 2x oversampling for inter-sample peak detection
   oversample1 = (input + prev_sample) * 0.5;
   oversample2 = input;

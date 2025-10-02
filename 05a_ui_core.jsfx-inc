@@ -10,8 +10,6 @@
 // PARAMETER VALUE MANAGEMENT
 //==============================================================================
 
-// Note: Parameter management functions moved to 02d_ui_utils.jsfx-inc
-
 //==============================================================================
 // UI PANEL RENDERING
 //==============================================================================
@@ -24,8 +22,5 @@ function draw_ui_panel_background() (
   gfx_set(0.5, 0.5, 0.5, 1);
   gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H, 0);
 );
-
-// Note: render_custom_ui_controls() moved to 09_ui_rendering.jsfx-inc
-// to avoid cross-module function definition order issues
 
 // Note: UI constants are now declared directly in 01e_ui_config.jsfx-inc
