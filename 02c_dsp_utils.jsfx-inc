@@ -9,7 +9,7 @@
 //==============================================================================
 
 function calc_biquad_hp(freq) (
-  w = 2 * $pi * freq * SAMPLE_RATE_INV;
+  w = 2 * $pi * freq / srate;
   cosw = cos(w);
   sinw = sin(w);
   alpha = sinw / sqrt(2);
@@ -25,7 +25,7 @@ function calc_biquad_hp(freq) (
 );
 
 function calc_biquad_lp(freq) (
-  w = 2 * $pi * freq * SAMPLE_RATE_INV;
+  w = 2 * $pi * freq / srate;
   cosw = cos(w);
   sinw = sin(w);
   alpha = sinw / sqrt(2);

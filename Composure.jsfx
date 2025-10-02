@@ -172,6 +172,10 @@ debug_log("Allocating memory...");
 perform_complete_initialization();
 debug_logf("Memory allocated: %d bytes", get_memory_usage());
 
+// Initialize filter coefficients
+debug_log("Initializing filter coefficients...");
+update_filter_coefficients();
+
 // 2. Initialize stage control variables
 debug_log("Initializing stage controls...");
 stage_input = 1;                    // Input stage (always needed)
@@ -243,11 +247,11 @@ debug_logf("Total debug messages: %d", debug_get_message_count());
 param_changed = 0;
 
 // --- Filter Parameters (11-12) ---
-(slider11 != hp_freq_prev || slider12 != lp_freq_prev) ? (
+(hp_freq != hp_freq_prev || lp_freq != lp_freq_prev) ? (
   update_filter_coefficients();
   param_changed = 1;
-  hp_freq_prev = slider11;
-  lp_freq_prev = slider12;
+  hp_freq_prev = hp_freq;
+  lp_freq_prev = lp_freq;
 );
 
 // --- Timing Parameters (1-6) ---

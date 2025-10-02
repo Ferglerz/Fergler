@@ -132,10 +132,8 @@ function process_envelope_following(target_gr_db, detector_level) (
 
 function reset_envelope_state() (
   global_smoothed_gain_db = 0;
-  modelGR_dB_prev = 0;
   prev_detector_db = 0;
   program_release_timer = 0;
-  average_input_level = 0;
 );
 
 function get_global_smoothed_gain_db() (

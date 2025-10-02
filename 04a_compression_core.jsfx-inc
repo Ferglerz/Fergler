@@ -109,10 +109,7 @@ function reset_compression_state() (
   tube_saturation = 0;
   fet_transient_detector = 0;
   program_release_timer = 0;
-  average_input_level = 0;
   varimu_release_factor = 1;
-  fet_attack_factor_stored = 1;
-  optical_program_factor = 1;
   
   // Reset character model states
   bridged_diode_env = 0;
@@ -120,7 +117,6 @@ function reset_compression_state() (
   pwm_env = 0;
   fet_env = 0;
   optical_env = 0;
-  tape_env = 0;
   prev_detector_db = 0;
 );
 

@@ -15,8 +15,10 @@ function process_input_stage() (
   input_l_orig = spl0;
   input_r_orig = spl1;
 
-  // Determine if we have stereo input (for mono compatibility)
-  has_stereo = spl1 != spl0;
+  // Pre-calculate channel availability flags
+  has_stereo = (num_ch >= 2);
+  has_sidechain_l = (use_sidechain && num_ch >= 3);
+  has_sidechain_r = (use_sidechain && num_ch >= 4);
 
   // Set detection signals based on mode (will be overridden by detection source selection)
   detect_l = spl0;
@@ -29,14 +31,14 @@ function process_input_stage() (
 
 function process_detection_source_selection() (
   stage_detection_source > 0.5 ? (
-    // Feedforward mode: use input signal directly
+    // Feedforward mode: use input signal directly (or sidechain if available)
     detection_mode > 0.5 ? (
-      detect_l = input_l_orig;
-      detect_r = input_r_orig;
+      detect_l = has_sidechain_l ? spl2 : spl0;
+      detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
     ) : (
-      // Feedback mode: use post-compression signal
-      detect_l = final_l;
-      detect_r = final_r;
+      // Feedback mode: use sidechain if available, otherwise post-compression signal
+      detect_l = has_sidechain_l ? spl2 : final_l;
+      detect_r = has_sidechain_r ? spl3 : final_r;
     );
   );
 );
@@ -49,6 +51,9 @@ function process_sidechain_filtering() (
   stage_sidechain_filtering > 0.5 ? (
     // Apply sidechain filters to detection signal
     apply_sidechain_filters(detect_l, detect_r);
+    // Update detection signals with filtered versions
+    detect_l = filtered_l;
+    detect_r = filtered_r;
   );
 );
 
@@ -58,8 +63,8 @@ function process_sidechain_filtering() (
 
 function process_detection_and_analysis() (
   stage_detection_analysis > 0.5 ? (
-    // Process RMS detection on filtered detection signal
-    process_rms_detection(detect_l_filtered, detect_r_filtered);
+    // Process RMS detection on detection signal (already filtered if filtering enabled)
+    process_rms_detection(detect_l, detect_r);
 
     // Calculate gain reduction based on current detector level
     calculate_gain_reduction(get_detector_level());

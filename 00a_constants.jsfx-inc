@@ -8,10 +8,6 @@
 
 EPS = 0.000000000000000000000000000001;
 
-lookahead_buffer_l = 0;
-lookahead_buffer_r = 0;
-rms_buffer = 0;
-
 // === COMPRESSION CONSTANTS ===
 
 MAX_GR_RANGE_DB = 30.0; // For normalization calculations
@@ -38,19 +34,3 @@ AUDIO_BUFFERS_START = 40000;
 // Buffer sizes (calculated in memory allocation)
 max_lookahead_samples = 0;
 max_rms_samples = 0;
-
-// === PROCESSING STAGE FLAGS ===
-
-// Enable/disable flags for each processing stage (1 = enabled, 0 = disabled)
-// These can be controlled via sliders or other parameters for easy stage management
-
-stage_input = 1;                    // Input stage (always needed)
-stage_detection_source = 1;         // Detection source selection
-stage_sidechain_filtering = 1;      // Sidechain filtering
-stage_detection_analysis = 1;       // RMS detection and gain reduction calculation
-stage_character = 1;                // Character application
-stage_envelope = 1;                 // Envelope following
-stage_lookahead = 1;                // Lookahead processing
-stage_gain_reduction = 1;           // Gain reduction application
-stage_harmonics = 1;                // Harmonic processing
-stage_final_mix = 1;                // Final mix

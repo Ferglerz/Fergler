@@ -11,8 +11,6 @@
 
 function init_state_variables() (
   // Audio processing state
-  envelope_out = 1;
-  hold_counter = 0;
   rms_sum = 0;
   rms_pos = 0;
   lookahead_pos = 0;
@@ -23,16 +21,16 @@ function init_state_variables() (
   lp_x1_l=lp_x2_l=lp_y1_l=lp_y2_l=0;
   lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
 
+  // Filter coefficients
+  hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
+  lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
+
   // Compressor character state
   compression_history = 0;
-  photocell_charge = 0;
   tube_saturation = 0;
   fet_transient_detector = 0;
   program_release_timer = 0;
-  average_input_level = 0;
   varimu_release_factor = 1;
-  fet_attack_factor_stored = 1;
-  optical_program_factor = 1;
 
   // New character model states
   bridged_diode_env = 0;
@@ -40,7 +38,6 @@ function init_state_variables() (
   pwm_env = 0;
   fet_env = 0;
   optical_env = 0;
-  tape_env = 0;
   prev_detector_db = 0;
 
   // RMS normalization state
@@ -51,24 +48,10 @@ function init_state_variables() (
   base_med_s = 0.3;    // 300ms
   base_slow_s = 1.0;   // 1000ms
   global_smoothed_gain_db = 0;
-  modelGR_dB_prev = 0;
-
-  // Out-of-bounds flags (internal)
-  oob_attack = 0;
-  oob_release = 0;
-  oob_depth = 0;
 
   // Limiter state variables
   limiter_prev_l = 0;
   limiter_prev_r = 0;
-  limiter_oversample_l1 = 0;
-  limiter_oversample_l2 = 0;
-  limiter_oversample_r1 = 0;
-  limiter_oversample_r2 = 0;
-
-  // Feedback detection state
-  feedback_l_prev = 0;
-  feedback_r_prev = 0;
 
   // Display state
   current_input_db = GRAPH_MIN_DB;
@@ -93,8 +76,6 @@ function init_state_variables() (
 
 function reset_processing_state() (
   // Reset all audio processing state variables
-  envelope_out = 1;
-  hold_counter = 0;
   rms_sum = 0;
   rms_pos = 0;
   lookahead_pos = 0;
@@ -105,12 +86,15 @@ function reset_processing_state() (
   lp_x1_l=lp_x2_l=lp_y1_l=lp_y2_l=0;
   lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
   
+  // Reset filter coefficients
+  hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
+  lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
+  
   // Reset character states
   compression_history = 0;
   tube_saturation = 0;
   fet_transient_detector = 0;
   program_release_timer = 0;
-  average_input_level = 0;
   varimu_release_factor = 1;
   
   // Reset character model states
@@ -119,7 +103,6 @@ function reset_processing_state() (
   pwm_env = 0;
   fet_env = 0;
   optical_env = 0;
-  tape_env = 0;
   prev_detector_db = 0;
   
   // Reset display state
