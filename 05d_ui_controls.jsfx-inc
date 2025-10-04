@@ -9,7 +9,7 @@
 //==============================================================================
 
 // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
-// Type: 0=slider, 1=button, 2=dropdown
+// Type: 0=slider, 1=button, 2=dropdown, 3=knob
 // NUM_CONTROLS is now defined in 00a_constants.jsfx-inc as 34
 
 // Control definitions memory is allocated in 01a_memory.jsfx-inc
@@ -20,7 +20,7 @@
 //==============================================================================
 
 function define_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
-  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown
+  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob
   control_defs[index*10 + 1] = x;         // X position
   control_defs[index*10 + 2] = y;         // Y position
   control_defs[index*10 + 3] = w;         // Width
@@ -28,8 +28,43 @@ function define_control(index, type, x, y, w, h, param_index, min_val, max_val, 
   control_defs[index*10 + 5] = param_index; // Parameter index (0-28 for sliders)
   control_defs[index*10 + 6] = min_val;   // Min value
   control_defs[index*10 + 7] = max_val;   // Max value
-  control_defs[index*10 + 8] = 0;         // Reserved for options count
+  control_defs[index*10 + 8] = 0;         // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
   control_defs[index*10 + 9] = 0;         // Reserved for options pointer
+);
+
+function define_slider(index, slider_type, x, y, w, h, param_index, min_val, max_val, label) (
+  control_defs[index*10 + 0] = 0;         // 0=slider
+  control_defs[index*10 + 1] = x;         // X position
+  control_defs[index*10 + 2] = y;         // Y position
+  control_defs[index*10 + 3] = w;         // Width
+  control_defs[index*10 + 4] = h;         // Height
+  control_defs[index*10 + 5] = param_index; // Parameter index
+  control_defs[index*10 + 6] = min_val;   // Min value
+  control_defs[index*10 + 7] = max_val;   // Max value
+  control_defs[index*10 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
+  control_defs[index*10 + 9] = 0;         // Reserved for options pointer
+);
+
+function define_knob(index, x, y, param_index, min_val, max_val, knob_type) (
+  knob_defs[index*8 + 0] = x;            // X position
+  knob_defs[index*8 + 1] = y;            // Y position
+  knob_defs[index*8 + 2] = param_index;  // Parameter index
+  knob_defs[index*8 + 3] = min_val;      // Min value
+  knob_defs[index*8 + 4] = max_val;      // Max value
+  knob_defs[index*8 + 5] = knob_type;    // Knob type: 0=angular, 1=rotary
+  knob_defs[index*8 + 6] = 1;            // Active (1=yes, 0=no)
+  knob_defs[index*8 + 7] = min_val;      // Current value (initialize to min)
+);
+
+function define_large_knob(index, x, y, param_index, min_val, max_val, knob_type) (
+  large_knob_defs[index*8 + 0] = x;            // X position
+  large_knob_defs[index*8 + 1] = y;            // Y position
+  large_knob_defs[index*8 + 2] = param_index;  // Parameter index
+  large_knob_defs[index*8 + 3] = min_val;      // Min value
+  large_knob_defs[index*8 + 4] = max_val;      // Max value
+  large_knob_defs[index*8 + 5] = knob_type;    // Knob type: 0=LTR, 1=RTL, 2=bidirectional
+  large_knob_defs[index*8 + 6] = 1;            // Active (1=yes, 0=no)
+  large_knob_defs[index*8 + 7] = min_val;      // Current value (initialize to min)
 );
 
 //==============================================================================
@@ -37,94 +72,103 @@ function define_control(index, type, x, y, w, h, param_index, min_val, max_val, 
 //==============================================================================
 
 function setup_control_layout() (
-  // Initialize control positioning - moved down by 16 pixels
+  // Initialize control positioning
   control_x = UI_PANEL_X + 20;
-  control_y = UI_PANEL_Y + 20;  // Start higher since we have more space now
+  control_y = UI_PANEL_Y + 20;
   row = 0;
 
-  // Column 1: Time-related parameters (0-5) + some globals (20-22)
-  define_control(0, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, get_slider_min(1), get_slider_max(1), "Attack (ms)");
+  // Column 1: Large knobs with extra spacing + time-related controls
+  // Large knobs need more space - use increased spacing
+  large_knob_spacing = 80; // More space for large knobs
+  
+  // Attack large knob
+  define_large_knob(0, control_x, control_y + row * large_knob_spacing, 1, get_slider_min(1), get_slider_max(1), LARGE_KNOB_TYPE_LTR);
   row += 1;
-  define_control(1, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve");
+  define_control(1, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve");
   row += 1;
-  define_control(2, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, get_slider_min(3), get_slider_max(3), "Release (ms)");
+  
+  // Release large knob  
+  define_large_knob(1, control_x, control_y + row * large_knob_spacing, 3, get_slider_min(3), get_slider_max(3), LARGE_KNOB_TYPE_LTR);
   row += 1;
-  define_control(3, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve");
+  define_control(3, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve");
   row += 1;
-  define_control(4, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead (ms)");
+  
+  // Other time controls moved down to make room
+  define_control(4, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead (ms)");
   row += 1;
-  define_control(5, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "Hold (ms)");
+  define_control(5, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "Hold (ms)");
   row += 1;
-  define_control(20, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 21, get_slider_min(21), get_slider_max(21), "Strength");
-  row += 1;
-  define_control(21, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 22, get_slider_min(22), get_slider_max(22), "Threshold (dB)");
-  row += 1;
-  define_control(22, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 23, get_slider_min(23), get_slider_max(23), "Strength Curve");
-  row += 1;
+  
+  // Strength and Global Offset moved to column 2 to make room
+  // (These will be defined in column 2)
 
-  // Column 2: RMS & Detection (6-9) + Filtering (10-11) + some globals (23-25)
+  // Column 2: RMS & Detection + Global controls redistributed
   control_x += CONTROL_SPACING_X;
   row = 0;
   define_control(6, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 7, get_slider_min(7), get_slider_max(7), "RMS Window (ms)");
   row += 1;
   define_control(7, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 8, get_slider_min(8), get_slider_max(8), "RMS Norm");
   row += 1;
-  define_control(8, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 9, get_slider_min(9), get_slider_max(9), "Detection Mode");
+  define_control(8, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 9, get_slider_min(9), get_slider_max(9), "Detection Mode");
   row += 1;
   define_control(9, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, get_slider_min(10), get_slider_max(10), "Max GR (dB)");
   row += 1;
-  define_control(10, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, get_slider_min(11), get_slider_max(11), "HP Filter (Hz)");
+  
+  // Strength and Global Offset moved here from column 1
+  define_control(20, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Strength");
   row += 1;
-  define_control(11, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 12, get_slider_min(12), get_slider_max(12), "LP Filter (Hz)");
-  row += 1;
-  define_control(23, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 24, get_slider_min(24), get_slider_max(24), "Makeup Gain (dB)");
-  row += 1;
-  define_control(24, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 25, get_slider_min(25), get_slider_max(25), "Compressor Type");
-  row += 1;
-
-  // Column 3: Character & Harmonics (12-19) + some globals (26-27)
-  control_x += CONTROL_SPACING_X;
-  row = 0;
-  define_control(12, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 13, get_slider_min(13), get_slider_max(13), "Character %");
-  row += 1;
-  define_control(13, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 14, get_slider_min(14), get_slider_max(14), "Harmonic Type");
-  row += 1;
-  define_control(14, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Harmonic Amount");
-  row += 1;
-  define_control(15, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Harmonic Drive");
-  row += 1;
-  define_control(16, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Harmonic Mix");
-  row += 1;
-  define_control(17, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Even Boost");
-  row += 1;
-  define_control(18, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Odd Boost");
-  row += 1;
-  define_control(19, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 20, get_slider_min(20), get_slider_max(20), "Prog Release");
-  row += 1;
-  define_control(25, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 26, get_slider_min(26), get_slider_max(26), "Sidechain");
-  row += 1;
-  define_control(26, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 27, get_slider_min(27), get_slider_max(27), "Listen SC");
-  row += 1;
-
-  // Column 4: Remaining globals (28-29) + Advanced Envelope (36-40)
-  control_x += CONTROL_SPACING_X;
-  row = 0;
-  define_control(27, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 28, get_slider_min(28), get_slider_max(28), "Prog Release Type");
-  row += 1;
-  define_control(28, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 29, get_slider_min(29), get_slider_max(29), "Limiter");
+  define_control(21, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, get_slider_min(20), get_slider_max(20), "Global Offset (dB)");
   row += 1;
   
-  // Advanced Envelope Controls (36-40)
-  define_control(29, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 36, get_slider_min(36), get_slider_max(36), "Multi-Stage");
+  // Output knob and Compressor Type
+  define_control(23, 3, control_x, control_y + row * CONTROL_SPACING_Y, SMALL_KNOB_SIZE, SMALL_KNOB_SIZE, 21, get_slider_min(21), get_slider_max(21), "Output");
   row += 1;
-  define_control(30, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 37, get_slider_min(37), get_slider_max(37), "GR Threshold");
+  define_control(24, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 22, get_slider_min(22), get_slider_max(22), "Compressor Type");
   row += 1;
-  define_control(31, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 38, get_slider_min(38), get_slider_max(38), "Input Level");
+
+  // Column 3: Harmonic Processing + Sidechain controls
+  control_x += CONTROL_SPACING_X;
+  row = 0;
+  define_control(12, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 13, get_slider_min(13), get_slider_max(13), "Harmonic Type");
   row += 1;
-  define_control(32, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 39, get_slider_min(39), get_slider_max(39), "Transient Amt");
+  define_control(13, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 14, get_slider_min(14), get_slider_max(14), "Harmonic Amount");
   row += 1;
-  define_control(33, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 40, get_slider_min(40), get_slider_max(40), "Transient Thr");
+  define_control(14, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Harmonic Drive");
   row += 1;
+  define_control(15, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Harmonic Mix");
+  row += 1;
+  define_control(16, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Even Boost");
+  row += 1;
+  define_control(17, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Odd Boost");
+  row += 1;
+
+
+  // Column 4: Stage Controls + Advanced Envelope Controls
+  control_x += CONTROL_SPACING_X;
+  row = 0;
+  
+  // Advanced Envelope Controls (32-36) - grouped together
+  define_control(27, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 32, get_slider_min(32), get_slider_max(32), "Multi-Stage");
+  row += 1;
+  define_control(29, 0, control_x, control_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 35, get_slider_min(35), get_slider_max(35), "Transient Amt");
+  row += 1;
+
+    // Sidechain controls
+  define_control(19, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
+  row += 1;
+  define_control(20, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen SC");
+  row += 1;
+  
+  // Progressive Release Type
+  define_control(18, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 25, get_slider_min(25), get_slider_max(25), "Prog Release Type");
+  row += 1;
+  
+  // HP and LP controls beneath the graph (unchanged)
+  beneath_graph_x = GRAPH_X + 20; // Start 20px from left edge of graph
+  beneath_graph_y = GRAPH_Y + GRAPH_SIZE + 20; // 20px below the graph
+  
+  define_control(10, 0, beneath_graph_x, beneath_graph_y, SLIDER_W, SLIDER_H, 11, get_slider_min(11), get_slider_max(11), "HP Filter (Hz)");
+  define_control(11, 0, beneath_graph_x + SLIDER_W + 20, beneath_graph_y, SLIDER_W, SLIDER_H, 12, get_slider_min(12), get_slider_max(12), "LP Filter (Hz)");
 );
 
 //==============================================================================
@@ -132,13 +176,10 @@ function setup_control_layout() (
 //==============================================================================
 
 function setup_header_controls() (
-  // Draw test knob in top right corner
-  // Position: 5px margin from right edge, centered vertically in header
-  test_knob_x = gfx_w - 5 - SMALL_KNOB_SIZE;
-  test_knob_y = (HEADER_HEIGHT - SMALL_KNOB_SIZE) / 2;
-  
-  // Draw test knob with a sample value (0.7 out of 0-1 range)
-  draw_small_knob(test_knob_x, test_knob_y, 0.7, 0, 1);
+  // Define output volume knob (knob index 0)
+  output_knob_x = gfx_w - 5 - KNOB_SIZE;
+  output_knob_y = (HEADER_HEIGHT - KNOB_SIZE) / 2;
+  define_knob(0, output_knob_x, output_knob_y, 21, -20, 20, KNOB_TYPE_ANGULAR);
 );
 
 function render_custom_ui_controls() (
@@ -146,6 +187,28 @@ function render_custom_ui_controls() (
   i = 0;
   while (i < num_controls) (
     draw_control(i);
+    i += 1;
+  );
+);
+
+function render_all_knobs() (
+  // Draw all active knobs
+  i = 0;
+  while (i < NUM_KNOBS) (
+    get_knob_active(i) ? (
+      draw_knob(i);
+    );
+    i += 1;
+  );
+);
+
+function render_all_large_knobs() (
+  // Draw all active large knobs
+  i = 0;
+  while (i < NUM_LARGE_KNOBS) (
+    get_large_knob_active(i) ? (
+      draw_large_knob(i);
+    );
     i += 1;
   );
 );

@@ -123,14 +123,8 @@ function calculate_gain_reduction(input_level_linear) (
   target_output_db = interpolate_compression_curve(input_level_db) + global_offset_db;
   target_gr_db = target_output_db - input_level_db;
 
-  // Apply strength and curves
+  // Apply strength
   target_gr_db *= strength;
-
-  strength_curve != 0 ? (
-    gr_factor = abs(target_gr_db) / abs(max_gr_db);
-    curve_factor = pow(gr_factor, pow(2, strength_curve));
-    target_gr_db *= curve_factor;
-  );
 
   target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
   
@@ -138,8 +132,8 @@ function calculate_gain_reduction(input_level_linear) (
   transient_reduction = detect_transients(input_level_db);
   target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
 
-  // Update display GR for visualization
-  current_gr_db = target_gr_db;
+  // Update display GR for visualization - use smoothed envelope if envelope stage is active
+  current_gr_db = stage_envelope > 0.5 ? global_smoothed_gain_db : target_gr_db;
 
   target_gr_db
 );

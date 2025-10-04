@@ -24,6 +24,14 @@ function allocate_memory() (
   !control_defs ? control_defs = freemem;
   freemem += NUM_CONTROLS * 10;
 
+  // Allocate knob definitions memory (8 values per knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
+  !knob_defs ? knob_defs = freemem;
+  freemem += NUM_KNOBS * 8;
+
+  // Allocate large knob definitions memory (8 values per large knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
+  !large_knob_defs ? large_knob_defs = freemem;
+  freemem += NUM_LARGE_KNOBS * 8;
+
   // Always allocate audio buffers (these can be reallocated safely)
   max_lookahead_samples = ceil(0.01 * srate);
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
@@ -31,13 +39,6 @@ function allocate_memory() (
 
   max_rms_samples = ceil(0.1 * srate);
   rms_buffer = freemem; freemem += max_rms_samples;
-);
-
-function allocate_control_memory() (
-  // Control definitions memory is now allocated in ui_controls module
-  // This function is kept for compatibility but does nothing
-  // since control_defs allocation happens in 05b_ui_controls.jsfx-inc
-  1; // No-op statement to ensure valid syntax
 );
 
 function get_memory_usage() (

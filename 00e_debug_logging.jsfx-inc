@@ -8,8 +8,8 @@
 // DEBUG CONFIGURATION
 //==============================================================================
 
-DEBUG_ENABLED = 1; // Set to 0 to disable all debug output
-DEBUG_MAX_MESSAGES = 100;
+DEBUG_ENABLED = 0; // Set to 0 to disable all debug output
+DEBUG_MAX_MESSAGES = STRING_SLOTS_DEBUG; // Use slots 0-49 for debug messages
 DEBUG_START_Y = 450; // Y position where debug output starts
 DEBUG_LINE_HEIGHT = 15;
 DEBUG_TEXT_COLOR_R = 1.0;
@@ -17,9 +17,9 @@ DEBUG_TEXT_COLOR_G = 1.0;
 DEBUG_TEXT_COLOR_B = 1.0;
 DEBUG_TEXT_ALPHA = 0.8;
 
-// Debug message storage (using string slots 50-149 - tested working range)
+// Debug message storage (using string slots 0-63 - correct JSFX limit)
 debug_message_count = 0;
-DEBUG_MESSAGES_BASE = 50;
+DEBUG_MESSAGES_BASE = 0;
 
 // Debug scrolling
 debug_scroll_offset = 0;

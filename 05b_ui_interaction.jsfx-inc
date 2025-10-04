@@ -11,6 +11,8 @@
 
 // Control States
 ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
+ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index
+ui_drag_large_knob = -1; // -1 = no large knob, >= 0 = dragging large knob index
 
 // Graph interaction states
 dragging_point = -1;
@@ -22,51 +24,190 @@ curve_drag_start_amount = 0;
 waiting_for_mouse_release = 0; // Flag to prevent interaction after CMD release during curve drag
 
 //==============================================================================
+// MENU BUTTON INTERACTION
+//==============================================================================
+
+function is_menu_button_clicked() (
+  mouse_x >= MENU_BUTTON_X && mouse_x <= MENU_BUTTON_X + MENU_BUTTON_SIZE &&
+  mouse_y >= MENU_BUTTON_Y && mouse_y <= MENU_BUTTON_Y + MENU_BUTTON_SIZE
+);
+
+function handle_menu_button_click() (
+  // Toggle menu visibility
+  menu_visible = menu_visible > 0.5 ? 0 : 1;
+  menu_hovered_item = -1; // Reset hover state
+);
+
+function is_menu_visible() (
+  menu_visible > 0.5
+);
+
+function get_menu_x() (
+  MENU_BUTTON_X
+);
+
+function get_menu_y() (
+  MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5
+);
+
+function get_menu_item_y(item_index) (
+  get_menu_y() + item_index * MENU_ITEM_HEIGHT
+);
+
+function is_mouse_in_menu() (
+  menu_x = get_menu_x();
+  menu_y = get_menu_y();
+  menu_visible > 0.5 && 
+  mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
+  mouse_y >= menu_y && mouse_y <= menu_y + (4 * MENU_ITEM_HEIGHT)
+);
+
+function get_hovered_menu_item() (
+  is_mouse_in_menu() ? (
+    menu_x = get_menu_x();
+    menu_y = get_menu_y();
+    item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
+    item_index >= 0 && item_index < 4 ? item_index : -1;
+  ) : (
+    -1
+  );
+);
+
+function handle_menu_item_click(item_index) (
+  item_index == 0 ? (
+    // Toggle debug
+    menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
+    DEBUG_ENABLED = menu_debug_enabled;
+  ) : item_index == 1 ? (
+    // Toggle histogram
+    menu_histogram_enabled = menu_histogram_enabled > 0.5 ? 0 : 1;
+  ) : item_index == 2 ? (
+    // Toggle GR meter
+    menu_gr_meter_enabled = menu_gr_meter_enabled > 0.5 ? 0 : 1;
+  ) : item_index == 3 ? (
+    // Toggle brickwall limiter
+    menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
+    brickwall_limiter = menu_brickwall_limiter_enabled;
+    sliderchange(1 << 25); // Update slider26 (bit 25 = 2^25)
+  );
+  
+  // Close menu after selection
+  menu_visible = 0;
+  menu_hovered_item = -1;
+);
+
+//==============================================================================
+// GENERIC KNOB INTERACTION
+//==============================================================================
+
+function find_clicked_knob() (
+  // Check all active knobs to see if mouse is over one
+  i = 0;
+  while (i < NUM_KNOBS) (
+    get_knob_active(i) && is_point_in_knob(mouse_x, mouse_y, i) ? (
+      i; // Return knob index
+    ) : (
+      i += 1;
+    );
+  );
+  -1; // No knob clicked
+);
+
+function find_clicked_large_knob() (
+  // Check all active large knobs to see if mouse is over one
+  i = 0;
+  while (i < NUM_LARGE_KNOBS) (
+    get_large_knob_active(i) && is_point_in_large_knob(mouse_x, mouse_y, i) ? (
+      i; // Return large knob index
+    ) : (
+      i += 1;
+    );
+  );
+  -1; // No large knob clicked
+);
+
+//==============================================================================
 // GENERIC UI CONTROL INTERACTION
 //==============================================================================
 
 function handle_ui_mouse_input() (
   MOUSE_LEFT_BUTTON ? (
     ui_drag_control == -1 ? ( // Start of click - no control selected yet
-      // Check controls until we find one under the mouse
-      i = 0;
-      while (i < NUM_CONTROLS && ui_drag_control == -1) (
-        is_point_in_control(mouse_x, mouse_y, i) ? (
-          control_type = get_control_type(i);
-          param_index = get_control_param(i);
-          current_value = slider(param_index);
-          
-          control_type == 0 ? (
-            // Slider - start drag
-            ui_drag_control = i;
-            slider(param_index) = update_slider_value(i, mouse_x);
-            sliderchange(1 << (param_index - 1));
-          ) : control_type == 1 ? (
-            // Button - toggle (don't start drag for buttons)
-            slider(param_index) = current_value > 0.5 ? 0 : 1;
-            sliderchange(1 << (param_index - 1));
+      // Check large knobs first (highest priority after menu)
+      clicked_large_knob = find_clicked_large_knob();
+      clicked_large_knob >= 0 ? (
+        ui_drag_large_knob = clicked_large_knob; // Store which large knob is being dragged
+        update_large_knob_value_from_mouse(clicked_large_knob, mouse_x, mouse_y);
+      ) : (
+        // Check regular knobs second
+        clicked_knob = find_clicked_knob();
+        clicked_knob >= 0 ? (
+          ui_drag_knob = clicked_knob; // Store which knob is being dragged
+          update_knob_value_from_mouse(clicked_knob, mouse_x, mouse_y);
+        ) : is_menu_button_clicked() ? (
+          handle_menu_button_click();
+          ui_drag_control = -2; // Special value to prevent further checks
+        ) : is_menu_visible() ? (
+          // Check menu items if menu is visible
+          hovered_item = get_hovered_menu_item();
+          hovered_item >= 0 ? (
+            handle_menu_item_click(hovered_item);
             ui_drag_control = -2; // Special value to prevent further checks
-          ) : control_type == 2 ? (
-            // Dropdown - cycle (don't start drag for dropdowns)
-            max_options = get_dropdown_option_count(param_index);
-            slider(param_index) = (current_value + 1) % max_options;
-            sliderchange(1 << (param_index - 1));
-            ui_drag_control = -2; // Special value to prevent further checks
+          ) : (
+            // Clicked outside menu - close it
+            menu_visible = 0;
+            menu_hovered_item = -1;
           );
+        ) : (
+        // Check controls until we find one under the mouse
+        i = 0;
+        while (i < NUM_CONTROLS && ui_drag_control == -1) (
+          is_point_in_control(mouse_x, mouse_y, i) ? (
+            control_type = get_control_type(i);
+            param_index = get_control_param(i);
+            current_value = slider(param_index);
+            
+            control_type == 0 ? (
+              // Slider - start drag
+              ui_drag_control = i;
+              slider(param_index) = update_slider_value(i, mouse_x, mouse_y);
+              sliderchange(1 << (param_index - 1));
+            ) : control_type == 1 ? (
+              // Button - toggle (don't start drag for buttons)
+              slider(param_index) = current_value > 0.5 ? 0 : 1;
+              sliderchange(1 << (param_index - 1));
+              ui_drag_control = -2; // Special value to prevent further checks
+            ) : control_type == 2 ? (
+              // Dropdown - cycle (don't start drag for dropdowns)
+              max_options = get_dropdown_option_count(param_index);
+              slider(param_index) = (current_value + 1) % max_options;
+              sliderchange(1 << (param_index - 1));
+              ui_drag_control = -2; // Special value to prevent further checks
+            );
+          );
+          i += 1;
         );
-        i += 1;
+      );
       );
     ) : ( // Continue drag
       ui_drag_control >= 0 ? (
         // Update dragged slider
         param_index = get_control_param(ui_drag_control);
-        slider(param_index) = update_slider_value(ui_drag_control, mouse_x);
+        slider(param_index) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
         sliderchange(1 << (param_index - 1));
+      ) : ui_drag_knob >= 0 ? (
+        // Update knob
+        update_knob_value_from_mouse(ui_drag_knob, mouse_x, mouse_y);
+      ) : ui_drag_large_knob >= 0 ? (
+        // Update large knob
+        update_large_knob_value_from_mouse(ui_drag_large_knob, mouse_x, mouse_y);
       );
     );
   ) : (
     // Mouse released - reset drag state
     ui_drag_control = -1;
+    ui_drag_knob = -1;
+    ui_drag_large_knob = -1;
   );
 );
 
@@ -99,6 +240,9 @@ function handle_point_movement() (
     abs(new_input_db - old_input_db) > 1.0 ? (
       remove_displaced_points(new_input_db, new_output_db);
     );
+    
+    // Invalidate curve cache since point movement affects curves
+    invalidate_curve_cache();
   );
 );
 
@@ -113,18 +257,19 @@ function handle_curve_adjustment() (
       curve_drag_start_amount = get_curve_amount(dragging_point);
     );
     
-    // Calculate total drag distance from start
+    // Calculate horizontal drag distance (right = increase, left = decrease)
     dx = mouse_x - curve_drag_start_x;
-    dy = mouse_y - curve_drag_start_y;
-    total_drag_distance = sqrt(dx * dx + dy * dy);
     max_drag_distance = 100; // Maximum drag distance for 100% curve
     
-    // Calculate new curve amount (starting amount + drag distance)
-    new_curve_amount = curve_drag_start_amount + (total_drag_distance / max_drag_distance * 100);
+    // Calculate new curve amount based on horizontal movement
+    // Right movement increases curve, left movement decreases curve
+    drag_factor = dx / max_drag_distance;
+    new_curve_amount = curve_drag_start_amount + (drag_factor * 100);
     new_curve_amount = clamp(new_curve_amount, 0, 100);
     
-    // Set the curve amount for this point
+    // Set the curve amount for this point and invalidate cache for real-time updates
     set_curve_amount(dragging_point, new_curve_amount);
+    invalidate_curve_cache();
   );
 );
 
@@ -147,6 +292,8 @@ function handle_point_addition() (
 
   !too_close ? (
     add_point(new_input_db, new_output_db);
+    // Invalidate curve cache since point addition affects curves
+    invalidate_curve_cache();
   ) : (
     -1; // Return -1 if too close to add
   );
@@ -158,6 +305,8 @@ function handle_point_deletion() (
   
   target_point >= 0 && num_points > 2 ? ( // Keep at least 2 points
     delete_point(target_point);
+    // Invalidate curve cache since point deletion affects curves
+    invalidate_curve_cache();
   );
 );
 
@@ -166,11 +315,19 @@ function handle_point_deletion() (
 //==============================================================================
 
 function process_mouse_input() (
+  // Update menu hover state
+  is_menu_visible() ? (
+    menu_hovered_item = get_hovered_menu_item();
+  );
+
   // Handle custom UI controls first (they have priority)
   handle_ui_mouse_input();
 
-  // Only process graph mouse input if not interacting with UI controls
-  ui_drag_control == -1 ? (
+  // Handle threshold line interactions second (before graph interactions)
+  handle_threshold_line_mouse();
+
+  // Only process graph mouse input if not interacting with UI controls, knobs, or threshold lines
+  ui_drag_control == -1 && ui_drag_knob == -1 && ui_drag_large_knob == -1 && dragging_threshold_line == -1 ? (
     // Always update hover state first
     hovered_point = find_point_at_mouse(mouse_x, mouse_y);
 
@@ -186,8 +343,8 @@ function process_mouse_input() (
           ) : (
             // Find point under mouse for selection
             dragging_point = find_point_at_mouse(mouse_x, mouse_y);
-            dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) ? (
-              // Click in empty space - add point
+            dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) && hovered_threshold_line == -1 ? (
+              // Click in empty space - add point (only if not hovering over threshold line)
               dragging_point = handle_point_addition();
             );
           );

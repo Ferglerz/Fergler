@@ -32,20 +32,9 @@ function init_state_variables() (
   hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
   lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
 
-  // Compressor character state
+  // Compressor character state (kept for potential future use)
   compression_history = 0;
-  tube_saturation = 0;
-  fet_transient_detector = 0;
   program_release_timer = 0;
-  varimu_release_factor = 1;
-
-  // New character model states
-  bridged_diode_env = 0;
-  vca_env = 0;
-  pwm_env = 0;
-  fet_env = 0;
-  optical_env = 0;
-  prev_detector_db = 0;
 
   // RMS normalization state
   rms_max = 0.0001;
@@ -76,10 +65,22 @@ function init_state_variables() (
   release_stage_2_env = 0;
   release_stage_3_env = 0;
   
-  // Transient detection state
+  // Transient detection state (used in audio processing)
   transient_detector_prev_db = GRAPH_MIN_DB;
-  transient_detected = 0;
   transient_gr_reduction = 0;
+
+  // Hold time state
+  hold_timer = 0;           // Current hold timer (in samples)
+  hold_active = 0;         // Whether hold is currently active
+  hold_peak_gr_db = 0;     // Peak GR value during hold period
+  
+  // Curve tracking variables
+  attack_curve_prev = -999;
+  release_curve_prev = -999;
+  
+  // Hold and RMS tracking variables
+  hold_ms_prev = -999;
+  rms_size_ms_prev = -999;
   
   // Threshold line interaction state (persistent across @init)
   !threshold_lines_initialized ? (
@@ -90,4 +91,87 @@ function init_state_variables() (
   // Initialize RMS samples calculation (must be done after srate is available)
   rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
   lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+
+  // Histogram state
+  histogram_buffer = 0; // Will be allocated in memory
+  histogram_max_samples = 0; // Calculated based on window seconds
+  histogram_pos = 0; // Current position in circular buffer
+  histogram_initialized = 0; // Flag to track initialization
+  histogram_frame_counter = 0; // Frame counter for update rate control
+  histogram_prev_gr = 0; // Previous GR value for smoothing
+
+  // Initialize histogram if enabled
+  HISTOGRAM_ENABLED ? (
+    histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate
+    histogram_buffer = freemem;
+    freemem += histogram_max_samples;
+    
+    // Clear histogram buffer
+    i = 0;
+    while (i < histogram_max_samples) (
+      histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pos = 0;
+    histogram_initialized = 1;
+    debug_logf("Histogram allocated: %d samples", histogram_max_samples);
+  );
+
+  // Menu toggle states (persistent across @init)
+  !menu_toggles_initialized ? (
+    menu_toggles_initialized = 1;
+    menu_debug_enabled = 0;
+    menu_histogram_enabled = 1;  // Default to enabled
+    menu_gr_meter_enabled = 1;   // Default to enabled
+    menu_brickwall_limiter_enabled = 1;  // Default to enabled
+  );
+
+  // Custom menu state
+  menu_visible = 0;
+  menu_hovered_item = -1;
+);
+
+//==============================================================================
+// HISTOGRAM FUNCTIONS
+//==============================================================================
+
+function update_histogram_state(gr_value) (
+  // Store current GR value in circular buffer with rate control and smoothing
+  histogram_initialized ? (
+    // Frame rate control - only update every N frames
+    histogram_frame_counter += 1;
+    (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_frame_counter = 0;
+      
+      // Apply smoothing if enabled
+      smoothed_gr = HISTOGRAM_SMOOTHING ? (
+        // Simple exponential smoothing: 70% new value, 30% previous
+        0.7 * gr_value + 0.3 * histogram_prev_gr
+      ) : (
+        gr_value
+      );
+      
+      histogram_buffer[histogram_pos] = smoothed_gr;
+      histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+      histogram_prev_gr = smoothed_gr;
+    );
+  );
+);
+
+//==============================================================================
+// LARGE KNOB ACCESSOR FUNCTIONS
+//==============================================================================
+
+function get_large_knob_x(index) (large_knob_defs[index*8 + 0]);
+function get_large_knob_y(index) (large_knob_defs[index*8 + 1]);
+function get_large_knob_param(index) (large_knob_defs[index*8 + 2]);
+function get_large_knob_min(index) (large_knob_defs[index*8 + 3]);
+function get_large_knob_max(index) (large_knob_defs[index*8 + 4]);
+function get_large_knob_type(index) (large_knob_defs[index*8 + 5]);
+function get_large_knob_active(index) (large_knob_defs[index*8 + 6]);
+function get_large_knob_value(index) (large_knob_defs[index*8 + 7]);
+
+function set_large_knob_value(index, value) (
+  large_knob_defs[index*8 + 7] = value;
 );

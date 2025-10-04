@@ -6,6 +6,101 @@
 @init
 
 //==============================================================================
+// MENU BUTTON RENDERING
+//==============================================================================
+
+function draw_menu_button() (
+  // Check if mouse is hovering over menu button
+  is_hovered = (mouse_x >= MENU_BUTTON_X && mouse_x <= MENU_BUTTON_X + MENU_BUTTON_SIZE &&
+                mouse_y >= MENU_BUTTON_Y && mouse_y <= MENU_BUTTON_Y + MENU_BUTTON_SIZE);
+  
+  // Draw button background
+  is_hovered ? (
+    gfx_set(MENU_BUTTON_HOVER_R, MENU_BUTTON_HOVER_G, MENU_BUTTON_HOVER_B, 1);
+  ) : (
+    gfx_set(MENU_BUTTON_BG_R, MENU_BUTTON_BG_G, MENU_BUTTON_BG_B, 1);
+  );
+  gfx_rect(MENU_BUTTON_X, MENU_BUTTON_Y, MENU_BUTTON_SIZE, MENU_BUTTON_SIZE);
+  
+  // Draw button border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(MENU_BUTTON_X, MENU_BUTTON_Y, MENU_BUTTON_SIZE, MENU_BUTTON_SIZE, 0);
+  
+  // Draw three horizontal lines
+  is_hovered ? (
+    gfx_set(MENU_BUTTON_HOVER_LINE_R, MENU_BUTTON_HOVER_LINE_G, MENU_BUTTON_HOVER_LINE_B, 1);
+  ) : (
+    gfx_set(MENU_BUTTON_LINE_R, MENU_BUTTON_LINE_G, MENU_BUTTON_LINE_B, 1);
+  );
+  
+  // Calculate line positions (centered in button)
+  line_start_x = MENU_BUTTON_X + 4;
+  line_end_x = MENU_BUTTON_X + MENU_BUTTON_SIZE - 4;
+  line_y1 = MENU_BUTTON_Y + 6;
+  line_y2 = line_y1 + MENU_BUTTON_LINE_SPACING;
+  line_y3 = line_y2 + MENU_BUTTON_LINE_SPACING;
+  
+  // Draw three lines
+  gfx_line(line_start_x, line_y1, line_end_x, line_y1, MENU_BUTTON_LINE_WIDTH);
+  gfx_line(line_start_x, line_y2, line_end_x, line_y2, MENU_BUTTON_LINE_WIDTH);
+  gfx_line(line_start_x, line_y3, line_end_x, line_y3, MENU_BUTTON_LINE_WIDTH);
+);
+
+function draw_custom_menu() (
+  is_menu_visible() ? (
+    menu_x = get_menu_x();
+    menu_y = get_menu_y();
+    menu_height = 4 * MENU_ITEM_HEIGHT;
+    
+    // Draw menu background
+    gfx_set(MENU_BG_R, MENU_BG_G, MENU_BG_B, 1);
+    gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height);
+    
+    // Draw menu border
+    gfx_set(MENU_BORDER_R, MENU_BORDER_G, MENU_BORDER_B, 1);
+    gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height, 0);
+    
+    // Draw menu items
+    i = 0;
+    while (i < 4) (
+      item_y = menu_y + i * MENU_ITEM_HEIGHT;
+      is_hovered = (menu_hovered_item == i);
+      
+      // Draw item background if hovered
+      is_hovered ? (
+        gfx_set(MENU_HOVER_R, MENU_HOVER_G, MENU_HOVER_B, 1);
+        gfx_rect(menu_x + 1, item_y + 1, MENU_WIDTH - 2, MENU_ITEM_HEIGHT - 2);
+      );
+      
+      // Draw item text
+      gfx_set(MENU_TEXT_R, MENU_TEXT_G, MENU_TEXT_B, 1);
+      gfx_x = menu_x + 8;
+      gfx_y = item_y + 8;
+      
+      i == 0 ? gfx_drawstr("Debug") :
+      i == 1 ? gfx_drawstr("Histogram") :
+      i == 2 ? gfx_drawstr("GR Meter") :
+      i == 3 ? gfx_drawstr("Brickwall Limiter") : 0;
+      
+      // Draw checkmark if option is enabled
+      is_enabled = (i == 0 && menu_debug_enabled > 0.5) ||
+                   (i == 1 && menu_histogram_enabled > 0.5) ||
+                   (i == 2 && menu_gr_meter_enabled > 0.5) ||
+                   (i == 3 && menu_brickwall_limiter_enabled > 0.5);
+      
+      is_enabled ? (
+        gfx_set(MENU_CHECKMARK_R, MENU_CHECKMARK_G, MENU_CHECKMARK_B, 1);
+        check_x = menu_x + MENU_WIDTH - 20;
+        check_y = item_y + 8;
+        gfx_drawstr("✓");
+      );
+      
+      i += 1;
+    );
+  );
+);
+
+//==============================================================================
 // UI PANEL RENDERING
 //==============================================================================
 
@@ -21,6 +116,9 @@ function draw_header() (
   // Draw cream border line below header
   gfx_set(HEADER_BORDER_R, HEADER_BORDER_G, HEADER_BORDER_B, 1);
   gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_BORDER_HEIGHT);
+  
+  // Draw menu button
+  draw_menu_button();
 );
 
 
@@ -34,36 +132,151 @@ function draw_ui_panel_background() (
 );
 
 //==============================================================================
-// SMALL KNOB DRAWING FUNCTIONS (moved here to be defined before use)
+// GENERIC KNOB DRAWING FUNCTIONS
 //==============================================================================
 
-function draw_small_knob(x, y, value, min_val, max_val) (
-  // Calculate center position
-  center_x = x + SMALL_KNOB_RADIUS;
-  center_y = y + SMALL_KNOB_RADIUS;
+function draw_knob_at_position(x, y, value, min_val, max_val, knob_type) (
+  // Helper function to draw a knob at a specific position with given parameters
+  center_x = x + KNOB_RADIUS;
+  center_y = y + KNOB_RADIUS;
   
   // Draw drop shadow first (offset down and right)
-  gfx_set(SMALL_KNOB_SHADOW_R, SMALL_KNOB_SHADOW_G, SMALL_KNOB_SHADOW_B, 0.3);
-  gfx_circle(center_x + SMALL_KNOB_SHADOW_OFFSET, center_y + SMALL_KNOB_SHADOW_OFFSET, SMALL_KNOB_RADIUS, 1);
+  gfx_set(KNOB_SHADOW_R, KNOB_SHADOW_G, KNOB_SHADOW_B, 0.3);
+  gfx_circle(center_x + KNOB_SHADOW_OFFSET, center_y + KNOB_SHADOW_OFFSET, KNOB_RADIUS, 1);
   
   // Draw knob background
-  gfx_set(SMALL_KNOB_BG_R, SMALL_KNOB_BG_G, SMALL_KNOB_BG_B, 1);
-  gfx_circle(center_x, center_y, SMALL_KNOB_RADIUS, 1);
+  gfx_set(KNOB_BG_R, KNOB_BG_G, KNOB_BG_B, 1);
+  gfx_circle(center_x, center_y, KNOB_RADIUS, 1);
   
-  // Calculate angle for indicator (0-1 normalized value to -135° to +135° range)
+  // Calculate normalized value
   normalized_value = (value - min_val) / (max_val - min_val);
-  angle_range = 270 * $pi / 180;  // 270 degrees in radians
-  start_angle = -135 * $pi / 180;  // Start at -135 degrees
-  current_angle = start_angle + normalized_value * angle_range;
+  normalized_value = max(0, min(1, normalized_value));
   
-  // Calculate indicator position (8 pixels from center)
-  indicator_distance = 8;
-  indicator_x = center_x + cos(current_angle) * indicator_distance;
-  indicator_y = center_y + sin(current_angle) * indicator_distance;
+  knob_type == KNOB_TYPE_ANGULAR ? (
+    // Angular knob - draw indicator based on angle
+    current_angle = KNOB_ANGLE_START + normalized_value * KNOB_ANGLE_RANGE;
+    
+    // Calculate indicator position (8 pixels from center)
+    indicator_distance = 8;
+    indicator_x = center_x + cos(current_angle) * indicator_distance;
+    indicator_y = center_y + sin(current_angle) * indicator_distance;
+    
+    // Draw indicator circle
+    gfx_set(KNOB_INDICATOR_R, KNOB_INDICATOR_G, KNOB_INDICATOR_B, 1);
+    gfx_circle(indicator_x, indicator_y, KNOB_INDICATOR_SIZE, 1);
+  ) : (
+    // Rotary knob - draw arc based on value
+    arc_angle = normalized_value * 2 * $pi;
+    gfx_set(KNOB_INDICATOR_R, KNOB_INDICATOR_G, KNOB_INDICATOR_B, 1);
+    gfx_arc(center_x, center_y, KNOB_RADIUS - 2, 0, arc_angle, 1);
+  );
+);
+
+function draw_knob(knob_index) (
+  knob_x = get_knob_x(knob_index);
+  knob_y = get_knob_y(knob_index);
+  min_val = get_knob_min(knob_index);
+  max_val = get_knob_max(knob_index);
+  knob_type = get_knob_type(knob_index);
+  current_value = get_knob_value(knob_index);
   
-  // Draw black indicator circle
-  gfx_set(SMALL_KNOB_INDICATOR_R, SMALL_KNOB_INDICATOR_G, SMALL_KNOB_INDICATOR_B, 1);
-  gfx_circle(indicator_x, indicator_y, SMALL_KNOB_INDICATOR_SIZE, 1);
+  // Use the helper function to eliminate code duplication
+  draw_knob_at_position(knob_x, knob_y, current_value, min_val, max_val, knob_type);
+);
+
+//==============================================================================
+// LARGE KNOB DRAWING FUNCTIONS
+//==============================================================================
+
+function draw_large_knob_at_position(x, y, value, min_val, max_val, knob_type) (
+  // Helper function to draw a large knob at a specific position with given parameters
+  center_x = x + LARGE_KNOB_RADIUS;
+  center_y = y + LARGE_KNOB_RADIUS;
+  
+  // Draw drop shadow first (offset down and right)
+  gfx_set(LARGE_KNOB_SHADOW_R, LARGE_KNOB_SHADOW_G, LARGE_KNOB_SHADOW_B, 0.3);
+  gfx_circle(center_x + 2, center_y + 2, LARGE_KNOB_RADIUS, 1);
+  
+  // Draw knob background (inner gray circle)
+  gfx_set(LARGE_KNOB_BG_R, LARGE_KNOB_BG_G, LARGE_KNOB_BG_B, 1);
+  gfx_circle(center_x, center_y, LARGE_KNOB_RADIUS, 1);
+  
+  // Calculate normalized value
+  normalized_value = (value - min_val) / (max_val - min_val);
+  normalized_value = max(0, min(1, normalized_value));
+  
+  // Calculate arc angles based on knob type
+  knob_type == LARGE_KNOB_TYPE_LTR ? (
+    start_angle = LARGE_KNOB_ANGLE_LTR_START;
+    end_angle = LARGE_KNOB_ANGLE_LTR_START + normalized_value * (LARGE_KNOB_ANGLE_LTR_END - LARGE_KNOB_ANGLE_LTR_START);
+    indicator_angle = end_angle;
+  ) : knob_type == LARGE_KNOB_TYPE_RTL ? (
+    start_angle = LARGE_KNOB_ANGLE_RTL_START;
+    end_angle = LARGE_KNOB_ANGLE_RTL_START + normalized_value * (LARGE_KNOB_ANGLE_RTL_END - LARGE_KNOB_ANGLE_RTL_START);
+    indicator_angle = end_angle;
+  ) : ( // LARGE_KNOB_TYPE_BIDIRECTIONAL
+    start_angle = LARGE_KNOB_ANGLE_BIDIR_START;
+    end_angle = LARGE_KNOB_ANGLE_BIDIR_START + normalized_value * (LARGE_KNOB_ANGLE_BIDIR_END - LARGE_KNOB_ANGLE_BIDIR_START);
+    indicator_angle = end_angle;
+  );
+  
+  // Draw yellow arc from start to current value using gfx_arc()
+  gfx_set(LARGE_KNOB_ARC_R, LARGE_KNOB_ARC_G, LARGE_KNOB_ARC_B, 1);
+  inner_radius = LARGE_KNOB_RADIUS - LARGE_KNOB_ARC_DEPTH;
+  outer_radius = LARGE_KNOB_RADIUS;
+  // Draw arc as a thick ring by drawing multiple arcs at different radii
+  i = 0;
+  while (i <= LARGE_KNOB_ARC_DEPTH) (
+    current_radius = inner_radius + i;
+    gfx_arc(center_x, center_y, current_radius, start_angle, end_angle, 1);
+    i += 1;
+  );
+  
+  // Draw white indicator bar
+  gfx_set(LARGE_KNOB_BAR_R, LARGE_KNOB_BAR_G, LARGE_KNOB_BAR_B, 1);
+  
+  // Calculate bar endpoints
+  bar_inner_x = center_x + cos(indicator_angle) * inner_radius;
+  bar_inner_y = center_y + sin(indicator_angle) * inner_radius;
+  bar_outer_x = center_x + cos(indicator_angle) * (outer_radius + LARGE_KNOB_BAR_OVERHANG);
+  bar_outer_y = center_y + sin(indicator_angle) * (outer_radius + LARGE_KNOB_BAR_OVERHANG);
+  
+  // Draw bar as a thick line (6 pixels wide, same as slider handle)
+  bar_width = 6;
+  angle_perp = indicator_angle + $pi/2; // Perpendicular angle
+  
+  // Calculate perpendicular offset for bar width
+  offset_x = cos(angle_perp) * bar_width/2;
+  offset_y = sin(angle_perp) * bar_width/2;
+  
+  // Draw bar as a rectangle (simplified approach)
+  bar_mid_x = (bar_inner_x + bar_outer_x) / 2;
+  bar_mid_y = (bar_inner_y + bar_outer_y) / 2;
+  bar_length = sqrt((bar_outer_x - bar_inner_x)^2 + (bar_outer_y - bar_inner_y)^2);
+  
+  // Draw thick line by drawing multiple parallel lines
+  i = -bar_width/2;
+  while (i <= bar_width/2) (
+    line_x1 = bar_inner_x + offset_x * i / (bar_width/2);
+    line_y1 = bar_inner_y + offset_y * i / (bar_width/2);
+    line_x2 = bar_outer_x + offset_x * i / (bar_width/2);
+    line_y2 = bar_outer_y + offset_y * i / (bar_width/2);
+    
+    gfx_line(line_x1, line_y1, line_x2, line_y2, 1);
+    i += 1;
+  );
+);
+
+function draw_large_knob(knob_index) (
+  knob_x = get_large_knob_x(knob_index);
+  knob_y = get_large_knob_y(knob_index);
+  min_val = get_large_knob_min(knob_index);
+  max_val = get_large_knob_max(knob_index);
+  knob_type = get_large_knob_type(knob_index);
+  current_value = get_large_knob_value(knob_index); // Get current knob value
+  
+  // Use the helper function to eliminate code duplication
+  draw_large_knob_at_position(knob_x, knob_y, current_value, min_val, max_val, knob_type);
 );
 
 //==============================================================================
@@ -142,30 +355,77 @@ function draw_threshold_line_with_label(line_y, start_x, end_x, threshold_type, 
 // GENERIC CONTROL DRAWING FUNCTIONS
 //==============================================================================
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label) (
+function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type) (
   // Draw label
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  slider_type == 1 ? ( // Vertical slider
+    gfx_x = x + w + 10; gfx_y = y;
+  ) : ( // Horizontal slider
+    gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  );
   gfx_drawstr(label);
 
-  // Draw slider background
-  gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
-  gfx_rect(x, y, w, h);
+  // Calculate normalized position
+  normalized_pos = (value - min_val) / (max_val - min_val);
 
-  // Draw slider fill
-  fill_w = (value - min_val) / (max_val - min_val) * w;
-  gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-  gfx_rect(x, y, fill_w, h);
+  slider_type == 1 ? ( // Vertical slider
+    // Draw slider background
+    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_rect(x, y, w, h);
 
-  // Draw handle
-  handle_x = x + fill_w - 3;
-  gfx_set(1, 1, 1, 1);
-  gfx_rect(handle_x, y - 2, 6, h + 4);
+    // Draw slider fill from bottom
+    fill_h = normalized_pos * h;
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(x, y + h - fill_h, w, fill_h);
 
-  // Draw value text
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_x = x + w + 10; gfx_y = y + 3;
-  gfx_printf("%.2f", value);
+    // Draw handle
+    handle_y = y + h - fill_h - 3;
+    gfx_set(1, 1, 1, 1);
+    gfx_rect(x - 2, handle_y, w + 4, 6);
+
+    // Draw value text
+    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+    gfx_x = x + w + 10; gfx_y = y + h/2;
+    gfx_printf("%.2f", value);
+  ) : slider_type == 2 ? ( // Reverse slider
+    // Draw slider background
+    gfx_set(SLIDER_BG_REVERSE_R, SLIDER_BG_REVERSE_G, SLIDER_BG_REVERSE_B, 1);
+    gfx_rect(x, y, w, h);
+
+    // Draw slider fill (yellow for higher values)
+    fill_w = normalized_pos * w;
+    gfx_set(SLIDER_FILL_REVERSE_R, SLIDER_FILL_REVERSE_G, SLIDER_FILL_REVERSE_B, 1);
+    gfx_rect(x, y, fill_w, h);
+
+    // Draw handle
+    handle_x = x + fill_w - 3;
+    gfx_set(1, 1, 1, 1);
+    gfx_rect(handle_x, y - 2, 6, h + 4);
+
+    // Draw value text
+    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+    gfx_x = x + w + 10; gfx_y = y + 3;
+    gfx_printf("%.2f", value);
+  ) : ( // Horizontal slider (default)
+    // Draw slider background
+    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_rect(x, y, w, h);
+
+    // Draw slider fill
+    fill_w = normalized_pos * w;
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(x, y, fill_w, h);
+
+    // Draw handle
+    handle_x = x + fill_w - 3;
+    gfx_set(1, 1, 1, 1);
+    gfx_rect(handle_x, y - 2, 6, h + 4);
+
+    // Draw value text
+    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+    gfx_x = x + w + 10; gfx_y = y + 3;
+    gfx_printf("%.2f", value);
+  );
 );
 
 function draw_generic_button(x, y, w, h, is_on, label) (
@@ -225,6 +485,22 @@ function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) (
   gfx_drawstr("v");
 );
 
+
+function draw_generic_knob(x, y, value, min_val, max_val, label) (
+  // Draw label
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_drawstr(label);
+
+  // Draw the knob using the helper function
+  draw_knob_at_position(x, y, value, min_val, max_val, KNOB_TYPE_ANGULAR);
+
+  // Draw value text
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x + KNOB_SIZE + 10; gfx_y = y + 3;
+  gfx_printf("%.1f", value);
+);
+
 //==============================================================================
 // GENERIC CONTROL RENDERING
 //==============================================================================
@@ -238,14 +514,25 @@ function draw_control(index) (
   param_index = get_control_param(index);
   min_val = get_control_min(index);
   max_val = get_control_max(index);
+  slider_type = get_control_slider_type(index);
   
   // Get current parameter value
   current_value = slider(param_index);
   
-  type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index)) :
-  type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
-  type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
-  0;
+  // Check if this is a stage enable button (param indices 27-31)
+  is_stage_enable_button = (param_index >= 27 && param_index <= 31);
+  
+  // Only render stage enable buttons when debug is disabled
+  is_stage_enable_button && !DEBUG_ENABLED ? (
+    // Skip rendering stage enable buttons when debug is enabled
+    0;
+  ) : (
+    type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type) :
+    type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
+    type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
+    type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
+    0;
+  );
 );
 
 //==============================================================================

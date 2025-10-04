@@ -175,7 +175,17 @@ function sort_points() (
 
 function add_point(input_db, output_db) (
   num_points >= MAX_POINTS ? -1 : (
-    insert_pos = num_points - 1;
+    // Find the correct insertion position based on input_db value
+    insert_pos = num_points - 1; // Default to before last corner point
+    i = 1;
+    while (i < num_points - 1) (
+      graph_points[i*2] > input_db ? (
+        insert_pos = i;
+        i = num_points; // break
+      ) : (
+        i += 1;
+      );
+    );
 
     i = num_points;
     while (i > insert_pos) (
@@ -192,20 +202,9 @@ function add_point(input_db, output_db) (
     curve_amounts[insert_pos] = 0;
 
     num_points += 1;
-    sort_points();
-
-    // Find the new index of the added point after sorting
-    new_point_index = 0;
-    i = 0;
-    while (i < num_points) (
-      abs(graph_points[i*2] - input_db) < 0.01 && abs(graph_points[i*2 + 1] - output_db) < 0.01 ? (
-        new_point_index = i;
-        i = num_points; // break
-      ) : (
-        i += 1;
-      );
-    );
-    new_point_index;
+    // No need to sort since we inserted in the correct position
+    // Return the insertion position as the new point index
+    insert_pos;
   );
 );
 
@@ -336,5 +335,14 @@ function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y
   // Return result via global variables
   bezier_result_x = result_x;
   bezier_result_y = result_y;
+);
+
+//==============================================================================
+// CURVE CACHE MANAGEMENT
+//==============================================================================
+
+// Function to mark curve cache as dirty (call when parameters change)
+function invalidate_curve_cache() (
+  curve_cache_dirty = 1;
 );
 

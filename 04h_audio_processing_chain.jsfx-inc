@@ -107,7 +107,7 @@ function process_lookahead_stage() (
 function process_gain_reduction_application() (
   stage_gain_reduction > 0.5 ? (
     // Apply gain reduction to input signal
-    gain_reduction_linear = db_to_linear(target_gr_db);
+    gain_reduction_linear = db_to_linear(stage_envelope > 0.5 ? global_smoothed_gain_db : target_gr_db);
 
     processed_l = input_l_orig * gain_reduction_linear;
     processed_r = input_r_orig * gain_reduction_linear;
@@ -204,50 +204,170 @@ function process_listen_mode() (
 );
 
 //==============================================================================
+// OPTIMIZED AUDIO PROCESSING CHAIN
+//==============================================================================
+
+// Optimized inline processing to reduce function call overhead
+function process_complete_audio_chain_optimized() (
+  // === INLINE AUDIO PROCESSING CHAIN ===
+  // This version reduces function call overhead by inlining critical paths
+
+  // === INPUT STAGE (inlined) ===
+  input_l_orig = spl0;
+  input_r_orig = spl1;
+
+  // Update display values 4x per second (every srate/4 samples)
+  display_update_counter += 1;
+  display_update_counter >= (srate * 0.25) ? (
+    display_update_counter = 0;
+    display_input_sample = max(abs(spl0), abs(spl1));
+  );
+
+  // Pre-calculate channel availability flags
+  has_stereo = (num_ch >= 2);
+  has_sidechain_l = (use_sidechain && num_ch >= 3);
+  has_sidechain_r = (use_sidechain && num_ch >= 4);
+
+  // Set detection signals based on mode
+  detect_l = spl0;
+  detect_r = spl1;
+
+  // === DETECTION SOURCE SELECTION (inlined) ===
+  stage_detection_source > 0.5 ? (
+    detection_mode > 0.5 ? (
+      detect_l = has_sidechain_l ? spl2 : spl0;
+      detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
+    ) : (
+      detect_l = has_sidechain_l ? spl2 : final_l;
+      detect_r = has_sidechain_r ? spl3 : final_r;
+    );
+  );
+
+  // === DETECTION FILTERING (inlined) ===
+  stage_filtering > 0.5 ? (
+    apply_detection_filters(detect_l, detect_r);
+    detect_l = filtered_l;
+    detect_r = filtered_r;
+  );
+
+  // === LISTEN MODE (early exit) ===
+  should_listen = listen_to_sidechain && stage_detection_source > 0.5;
+  should_listen ? (
+    spl0 = detect_l;
+    has_stereo ? spl1 = detect_r;
+  ) : (
+    // === DETECTION AND ANALYSIS (inlined) ===
+    stage_detection_analysis > 0.5 ? (
+      // RMS calculation (inlined from process_rms_detection)
+      detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
+      rms_sum -= rms_buffer[rms_pos];
+      rms_buffer[rms_pos] = detect_squared;
+      rms_sum += detect_squared;
+      rms_pos = (rms_pos + 1) % rms_samples;
+      rms_level = sqrt(rms_sum / rms_samples);
+      display_rms_level = rms_level;
+
+      // Apply RMS normalization if enabled
+      rms_normalization > 0.5 ? (
+        rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
+        normalized_rms = rms_level / (rms_max + eps);
+        peak_level = max(abs(detect_l), abs(detect_r));
+        detector_level = normalized_rms * peak_level;
+      ) : (
+        rms_size_ms > 0 ? (
+          detector_level = rms_level;
+        ) : (
+          detector_level = max(abs(detect_l), abs(detect_r));
+        );
+      );
+
+      // Gain reduction calculation (inlined from calculate_gain_reduction)
+      input_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+      current_input_db = input_level_db;
+      target_output_db = interpolate_compression_curve(input_level_db) + global_offset_db;
+      target_gr_db = target_output_db - input_level_db;
+      target_gr_db *= strength;
+      target_gr_db = max(max_gr_db, target_gr_db);
+
+      // Transient detection (inlined)
+      transient_detection > 0 ? (
+        level_delta = input_level_db - transient_detector_prev_db;
+        level_delta > 0 && input_level_db > transient_threshold_db ? (
+          max_reduction = (transient_detection / 100.0) * 12.0;
+          threshold_excess = input_level_db - transient_threshold_db;
+          transient_gr_reduction = min(threshold_excess * 0.6, max_reduction);
+        ) : (
+          transient_gr_reduction = 0;
+        );
+        transient_detector_prev_db = input_level_db;
+        target_gr_db += transient_gr_reduction;
+      );
+
+      current_gr_db = stage_envelope > 0.5 ? global_smoothed_gain_db : target_gr_db;
+    );
+
+    // === ENVELOPE FOLLOWING (inlined) ===
+    stage_envelope > 0.5 ? (
+      // Use existing process_envelope_following function (already optimized)
+      process_envelope_following(target_gr_db, detector_level);
+    );
+
+    // === LOOKAHEAD (inlined) ===
+    stage_lookahead > 0.5 ? (
+      process_lookahead(input_l_orig, input_r_orig);
+    );
+
+    // === GAIN REDUCTION APPLICATION (inlined) ===
+    stage_gain_reduction > 0.5 ? (
+      gain_reduction_linear = db_to_linear(stage_envelope > 0.5 ? global_smoothed_gain_db : target_gr_db);
+      processed_l = input_l_orig * gain_reduction_linear;
+      processed_r = input_r_orig * gain_reduction_linear;
+    ) : (
+      processed_l = input_l_orig;
+      processed_r = input_r_orig;
+    );
+    display_post_graph = max(abs(processed_l), abs(processed_r));
+
+    // === HARMONIC PROCESSING (inlined) ===
+    stage_harmonics > 0.5 ? (
+      envelope_amount = abs(global_smoothed_gain_db) / 30.0;
+      current_detector_level = detector_level;
+      processed_l = apply_harmonic_processing(processed_l, target_gr_db, envelope_amount, current_detector_level,
+                                             harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, 
+                                             harmonic_even_boost, harmonic_odd_boost);
+      processed_r = apply_harmonic_processing(processed_r, target_gr_db, envelope_amount, current_detector_level,
+                                             harmonic_type, harmonic_amount, harmonic_drive, harmonic_mix, 
+                                             harmonic_even_boost, harmonic_odd_boost);
+    );
+
+    // === FINAL MIX (inlined) ===
+    stage_final_mix > 0.5 ? (
+      final_l = processed_l * makeup_gain_linear;
+      final_r = processed_r * makeup_gain_linear;
+      display_post_makeup = max(abs(final_l), abs(final_r));
+      final_out_l = final_l;
+      final_out_r = final_r;
+    );
+
+    // === BRICKWALL LIMITER (inlined) ===
+    stage_limiter > 0.5 && brickwall_limiter > 0.5 ? (
+      final_l = soft_clip_limiter(final_l, limiter_prev_l);
+      final_r = soft_clip_limiter(final_r, limiter_prev_r);
+      limiter_prev_l = final_l;
+      limiter_prev_r = final_r;
+    );
+
+    // === OUTPUT STAGE (inlined) ===
+    spl0 = final_l;
+    spl1 = final_r;
+  );
+);
+
+//==============================================================================
 // COMPLETE AUDIO PROCESSING CHAIN
 //==============================================================================
 
 function process_complete_audio_chain() (
-  // === MAIN AUDIO PROCESSING CHAIN ===
-
-  // Always process input stage (essential for signal flow)
-  process_input_stage();
-
-  // Initialize processing continuation flag
-  continue_processing = 1;
-
-  // === DETECTION SOURCE SELECTION ===
-  process_detection_source_selection();
-
-  // === DETECTION FILTERING ===
-  process_detection_filtering();
-
-  // === LISTEN MODE (early exit) ===
-  continue_processing = process_listen_mode();
-
-  continue_processing ? (
-    // === DETECTION AND ANALYSIS ===
-    process_detection_and_analysis();
-
-    // === ENVELOPE FOLLOWING ===
-    process_envelope_following_stage();
-
-    // === LOOKAHEAD ===
-    process_lookahead_stage();
-
-    // === GAIN REDUCTION APPLICATION ===
-    process_gain_reduction_application();
-
-    // === HARMONIC PROCESSING ===
-    process_harmonic_processing_stage();
-
-    // === FINAL MIX ===
-    process_final_mix();
-
-    // === BRICKWALL LIMITER ===
-    process_brickwall_limiter();
-
-    // === OUTPUT STAGE ===
-    process_output_stage();
-  );
+  // Use optimized inline version for better performance
+  process_complete_audio_chain_optimized();
 );
