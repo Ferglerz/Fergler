@@ -1,0 +1,59 @@
+// DSP Utilities Module
+// Digital Signal Processing utility functions (lookahead, limiting)
+// Filter coefficient calculations moved to 04c_filters.jsfx-inc
+// Depends on: 00b_math_utils.jsfx-inc (for tanh)
+
+@init
+
+//==============================================================================
+// LOOKAHEAD PROCESSING  
+//==============================================================================
+
+// Delay audio through circular buffer (Cockos approach)
+// Returns delayed audio, caller applies CURRENT gain to delayed audio
+function process_lookahead_audio(input_l, input_r) (
+  // Debug counter: track lookahead processing
+  debug_counter_lookahead += 1;
+  
+  lookahead_samples > 0 ? (
+    // Store current audio samples
+    lookahead_buffer_l[lookahead_pos] = input_l;
+    lookahead_buffer_r[lookahead_pos] = input_r;
+    
+    // Read delayed audio
+    delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+    lookahead_out_l = lookahead_buffer_l[delayed_pos];
+    lookahead_out_r = lookahead_buffer_r[delayed_pos];
+    
+    lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+  ) : (
+    // No lookahead - pass through
+    lookahead_out_l = input_l;
+    lookahead_out_r = input_r;
+  );
+);
+
+//==============================================================================
+// SOFT CLIPPING AND LIMITING
+//==============================================================================
+
+function soft_clip_limiter(input, prev_sample) (
+  // Debug counter: track limiter processing
+  debug_counter_limiter += 1;
+  
+  // 2x oversampling for inter-sample peak detection
+  oversample1 = (input + prev_sample) * 0.5;
+  oversample2 = input;
+
+  // Detect peaks above threshold
+  peak_detected = max(abs(oversample1), abs(oversample2)) > 0.95;
+
+  peak_detected ? (
+    // Soft clipping using tanh
+    limited = tanh(input * 0.95) * (1.0 / tanh(0.95));
+  ) : (
+    limited = input;
+  );
+
+  limited
+);

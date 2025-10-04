@@ -127,21 +127,25 @@ class JSFXFunctionAnalyzer:
         }
         
     def load_modules(self):
-        """Load all JSFX module files from the base path"""
-        jsfx_files = list(self.base_path.glob("*.jsfx-inc")) + list(self.base_path.glob("*.jsfx"))
+        """Load all JSFX module files from the base path (including subdirectories)"""
+        # Search recursively for all .jsfx-inc and .jsfx files
+        jsfx_files = list(self.base_path.rglob("*.jsfx-inc")) + list(self.base_path.glob("*.jsfx"))
         
         for file_path in jsfx_files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    self.modules[file_path.name] = content
-                    print(f"Loaded: {file_path.name}")
+                    # Store with relative path from base_path
+                    relative_path = file_path.relative_to(self.base_path)
+                    self.modules[str(relative_path)] = content
+                    print(f"Loaded: {relative_path}")
             except Exception as e:
                 print(f"Error loading {file_path}: {e}")
     
     def parse_imports(self):
-        """Parse import statements from each module"""
-        import_pattern = r'import\s+([a-zA-Z0-9_\-\.]+\.jsfx-inc)'
+        """Parse import statements from each module (handles folder paths)"""
+        # Updated pattern to handle folder paths like 01_Utils/02_math_utils.jsfx-inc
+        import_pattern = r'import\s+([a-zA-Z0-9_\-/\.]+\.jsfx-inc)'
         
         for filename, content in self.modules.items():
             imports = re.findall(import_pattern, content, re.IGNORECASE)

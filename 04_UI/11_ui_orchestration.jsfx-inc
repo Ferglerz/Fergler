@@ -1,0 +1,59 @@
+// UI Orchestration Module
+// Main interface coordination and rendering orchestration
+// Coordinates all UI elements: header, controls, graph, interactions
+// Depends on: all other UI modules
+
+@init
+
+//==============================================================================
+// MAIN INTERFACE ORCHESTRATION
+//==============================================================================
+
+function render_complete_interface() (
+  // Set background color
+  gfx_clear = 0x202020;
+
+  // Draw header elements
+  draw_header();
+  setup_header_controls();
+
+  // Draw main UI panel background
+  draw_ui_panel_background();
+  
+  // Draw all knobs
+  render_all_knobs();
+  
+  // Draw all large knobs
+  render_all_large_knobs();
+
+  // Draw custom UI controls
+  render_custom_ui_controls();
+
+  // Draw graph elements with proper clipping
+  draw_graph_background();  // 05j
+  draw_input_histogram();   // 05i - Input signal histogram (drawn first, behind GR histogram)
+  draw_histogram();         // 05i - GR histogram
+  
+  draw_grid();                        // 05j
+  draw_mixed_curves();                // 05h
+  draw_graph_points();                // 05h
+  draw_level_indicators();            // 05h
+  draw_threshold_lines_on_graph();    // 05h
+  
+  // Draw mouse hints inside graph area
+  draw_mouse_hints();         // 05j
+  
+  // Draw meters and info outside graph area
+  draw_gain_reduction_meter();  // 05i
+  draw_labels_and_info();       // 05j
+  draw_signal_values();         // 05j
+
+  // Draw custom menu (after graph elements to appear on top)
+  draw_custom_menu();
+  
+  // Draw debug performance counters (always visible during development)
+  draw_debug_performance_counters();
+
+  // Handle all user interactions
+  process_mouse_input();
+);

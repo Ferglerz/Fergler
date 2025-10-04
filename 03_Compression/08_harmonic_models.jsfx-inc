@@ -1,0 +1,158 @@
+// Harmonic Processing Models Module
+// Harmonic generation algorithms, character-specific processing, and harmonic application
+// Depends on: 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc
+
+@init
+
+// Enhanced harmonic algorithms integrated into apply_harmonic_processing() function
+
+//==============================================================================
+// HARMONIC PROCESSING HELPERS (Declared first for proper function ordering)
+//==============================================================================
+
+// Enhanced tube processing with sophisticated harmonic generation
+function apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost) (
+  // combined_factor already scales by abs(gr_amount) from caller
+  scaled_saturation = amount * combined_factor;
+  x = driven * (1 + scaled_saturation * 0.3);
+  x2 = sqr(x);
+  x4 = sqr(x2);
+  
+  // Dynamic clipping with soft_clip utility
+  clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
+  x = soft_clip(x, clip_threshold);
+  
+  // Explicit harmonic generation with boost controls
+  even_boost_factor = 1 + even_boost;
+  odd_boost_factor = 1 + odd_boost;
+  
+  result = x + x2 * scaled_saturation * 0.1 * even_boost_factor + 
+           x4 * scaled_saturation * 0.02 * (1 + even_boost * 0.5);
+  
+  // Add odd harmonics if boost is used
+  odd_boost > 0 ? (
+    x3 = x2 * x;
+    result += x3 * scaled_saturation * 0.05 * odd_boost
+  );
+  
+  result;
+);
+
+// FET processing optimized for solid-state characteristics
+function apply_fet_processing(driven, amount, gr_amount, detector_level, even_boost, odd_boost) (
+  // Scale by abs(gr_amount) to ensure zero harmonics at zero GR
+  // Supports both positive and negative GR values
+  abs_gr = abs(gr_amount);
+  scaled_compression = amount * abs_gr * 0.4 * (1 + detector_level * 0.3);
+  x = driven;
+  x2 = sqr(x);
+  x3 = x2 * x;
+  x5 = x3 * x2;
+  
+  // Hard clipping characteristic of FET circuits (optimized)
+  scaled_compression > 0.3 ? (
+    clip_point = 0.8 / (1 + scaled_compression * 0.5);
+    x > clip_point ? x = clip_point + (x - clip_point) * 0.1 :
+    x < -clip_point ? x = -clip_point + (x + clip_point) * 0.1;
+  );
+  
+  // Odd harmonic generation with boost control
+  odd_boost_factor = 1 + odd_boost;
+  result = x + x3 * scaled_compression * 0.08 * odd_boost_factor + 
+           x5 * scaled_compression * 0.015 * (1 + odd_boost * 0.5);
+  
+  // Add even harmonics if boost is used
+  even_boost > 0 ? (
+    result += x2 * scaled_compression * 0.03 * even_boost
+  );
+  
+  result;
+);
+
+// Clean drive processing with minimal harmonic generation
+function apply_clean_drive_processing(driven, drive, envelope_amount) (
+  // Dynamic drive amount based on envelope
+  dynamic_drive = drive * (1 + envelope_amount * 0.1);
+  processed = driven * (dynamic_drive / drive);
+  
+  // Very subtle soft clipping at high levels
+  abs(processed) > 0.8 ? (
+    processed = soft_clip(processed, 0.8)
+  );
+  
+  processed;
+);
+
+//==============================================================================
+// HARMONIC PROCESSING APPLICATION
+//==============================================================================
+
+function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_level, type, drive, mix, even_boost, odd_boost) (
+  // Debug counter: track harmonic processing
+  debug_counter_harmonics += 1;
+  
+  // Note: amount is now hardcoded to 1.0 (max) - removed from UI
+  amount = 1.0;
+  
+  // Early exit optimization - no processing if harmonic type is off
+  type == 0 ? input : (
+    // Pre-calculate common values for efficiency
+    dry_signal = input;
+    driven = input * drive;
+    
+    // Dynamic scaling factors - scaled by abs(gr_amount) for zero harmonics at zero GR
+    // Supports both positive (expansion) and negative (compression) GR values
+    abs_gr = abs(gr_amount);
+    gr_factor = abs_gr * 0.3;  // Zero when gr_amount is zero
+    envelope_factor = 1 + envelope_amount * 0.2;
+    combined_factor = gr_factor * envelope_factor;
+    
+    // Boost factors for even/odd harmonics
+    even_factor = 1 + even_boost;
+    odd_factor = 1 + odd_boost;
+    
+    // Optimized harmonic processing based on type
+    processed = type == 1 ? (
+      // Tube Even (Simple) - optimized with sign function
+      tanh(abs(driven)) * sign(driven) * even_factor
+    ) : type == 2 ? (
+      // Tube Odd (Simple) - direct tanh with boost
+      tanh(driven) * odd_factor
+    ) : type == 3 ? (
+      // Tube Both (Simple) - combined even/odd processing
+      0.5 * (tanh(abs(driven)) * sign(driven) * even_factor + tanh(driven) * odd_factor)
+    ) : type == 4 ? (
+      // Tape Saturation - asymmetric processing with boost
+      atan(driven * (driven > 0 ? 1.02 : 0.98)) / ($pi/2) * (1 + 0.5 * (even_boost + odd_boost))
+    ) : type == 5 ? (
+      // Enhanced Tube (Sophisticated) - improved algorithm
+      apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost)
+    ) : type == 6 ? (
+      // FET (Solid State) - optimized solid-state processing
+      apply_fet_processing(driven, amount, gr_amount, detector_level, even_boost, odd_boost)
+    ) : (
+      // Clean Drive (type == 7) - minimal processing with dynamic drive
+      apply_clean_drive_processing(driven, drive, envelope_amount)
+    );
+
+    // Optimized level management with proper drive compensation
+    drive_compensation = max(drive, 1);
+    processed = processed / drive_compensation;
+
+    // Enhanced intensity calculation - scales directly with abs(gr_amount)
+    // Zero GR = zero harmonics, works for both positive and negative GR
+    base_intensity = amount * abs_gr * 0.15;  // Scaled by abs_gr for zero harmonics at zero GR
+    intensity = base_intensity * (1 + envelope_amount * 0.2);
+    
+    // Efficient wet/dry blend calculation
+    wet_signal = dry_signal + intensity * (processed - dry_signal);
+
+    // Final dry/wet mix - optimized calculation
+    mix * wet_signal + (1 - mix) * dry_signal
+  )
+);
+
+//==============================================================================
+// HARMONIC UTILITIES
+//==============================================================================
+

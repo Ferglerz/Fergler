@@ -1,0 +1,251 @@
+//==============================================================================
+// AUDIO PROCESSING CHAIN FUNCTIONS
+//==============================================================================
+// Modular audio processing functions for the compressor
+// Must be imported after utilities but before main processing
+
+@init
+
+//==============================================================================
+// COMPLETE AUDIO PROCESSING CHAIN (INLINE OPTIMIZED)
+//==============================================================================
+
+function process_complete_audio_chain() (
+  // === INLINE AUDIO PROCESSING CHAIN ===
+  // This version reduces function call overhead by inlining critical paths
+  
+  // Debug counter: track calls to audio chain
+  debug_counter_audio_chain += 1;
+
+  // === INPUT STAGE (inlined) ===
+  input_l_orig = spl0;
+  input_r_orig = spl1;
+
+  // Update display values 4x per second (every srate/4 samples)
+  display_update_counter += 1;
+  display_update_counter >= (srate * 0.25) ? (
+    display_update_counter = 0;
+    display_input_sample = max(abs(spl0), abs(spl1));
+  );
+
+  // Pre-calculate channel availability flags
+  has_stereo = (num_ch >= 2);
+  has_sidechain_l = (use_sidechain && num_ch >= 3);
+  has_sidechain_r = (use_sidechain && num_ch >= 4);
+
+  // Set detection signals based on mode
+  // Detect on CURRENT input (not delayed) for lookahead to work
+  detect_l = spl0;
+  detect_r = spl1;
+
+  // === DETECTION SOURCE SELECTION (inlined) ===
+  stage_detection_source == 1 ? (
+    detection_mode > 0.5 ? (
+      // FEEDFORWARD: Use input signal for detection
+      detect_l = has_sidechain_l ? spl2 : spl0;
+      detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
+    ) : (
+      // FEEDBACK: Use previous sample's output for detection (one-sample delay)
+      detect_l = has_sidechain_l ? spl2 : final_l_prev;
+      detect_r = has_sidechain_r ? spl3 : final_r_prev;
+    );
+  );
+
+  // === DETECTION FILTERING (inlined) ===
+  stage_filtering == 1 ? (
+    apply_detection_filters(detect_l, detect_r);
+    detect_l = filtered_l;
+    detect_r = filtered_r;
+  );
+
+  // === LISTEN MODE (early exit) ===
+  should_listen = listen_to_sidechain && stage_detection_source == 1;
+  should_listen ? (
+    spl0 = detect_l;
+    has_stereo ? spl1 = detect_r;
+  ) : (
+    // === DETECTION AND ANALYSIS (inlined) ===
+    stage_detection_analysis == 1 ? (
+      // RMS calculation - supports both True RMS (buffer) and Exponential Smoothing
+      detect_squared_l = detect_l * detect_l;
+      detect_squared_r = detect_r * detect_r;
+      
+      menu_true_rms_enabled > 0.5 ? (
+        // TRUE RMS MODE: Stereo circular buffer with per-channel detection
+        // Uses interleaved storage [L, R, L, R, ...] for cache efficiency
+        // Returns max(L_rms, R_rms) for better transient response (Cockos approach)
+        
+        // Calculate buffer index for stereo interleaved storage
+        buffer_idx = rms_pos * 2;
+        
+        // Remove old samples from running sums
+        rms_sum_l -= rms_buffer[buffer_idx];
+        rms_sum_r -= rms_buffer[buffer_idx + 1];
+        
+        // Store new squared samples
+        rms_buffer[buffer_idx] = detect_squared_l;
+        rms_buffer[buffer_idx + 1] = detect_squared_r;
+        
+        // Add new samples to running sums
+        rms_sum_l += detect_squared_l;
+        rms_sum_r += detect_squared_r;
+        
+        // Prevent negative sums from floating point errors
+        rms_sum_l < 0 ? rms_sum_l = 0;
+        rms_sum_r < 0 ? rms_sum_r = 0;
+        
+        // Advance circular buffer pointer
+        rms_pos = (rms_pos + 1) % rms_samples;
+        
+        // Use max of L/R channels for detection (not average)
+        // This provides better transient response and matches Cockos approach
+        rms_level = sqrt(max(rms_sum_l, rms_sum_r) / rms_samples);
+      ) : (
+        // EXPONENTIAL SMOOTHING MODE (default): No buffer, simple smoothing
+        rms_size_ms > 0 ? (
+          // Calculate smoothing coefficient from time constant
+          smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+          detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
+          rms_smoothed_squared = rms_smoothed_squared * smoothing_coeff + detect_squared * (1 - smoothing_coeff);
+          rms_level = sqrt(rms_smoothed_squared);
+        ) : (
+          // Peak mode when RMS window = 0
+          rms_level = max(abs(detect_l), abs(detect_r));
+        );
+      );
+      
+      display_rms_level = rms_level;
+
+      // Apply RMS normalization if enabled
+      rms_normalization > 0.5 ? (
+        rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
+        normalized_rms = rms_level / (rms_max + eps);
+        peak_level = max(abs(detect_l), abs(detect_r));
+        detector_level = normalized_rms * peak_level;
+      ) : (
+        rms_size_ms > 0 ? (
+          detector_level = rms_level;
+        ) : (
+          // Ensure detection is sign-agnostic - use absolute values
+          detector_level = max(abs(detect_l), abs(detect_r));
+        );
+      );
+
+      // Use the proper gain reduction calculation function
+      target_gr_db = calculate_gain_reduction(detector_level);
+      
+      // Track maximum input level for block-level histogram
+      // (current_input_db was set by calculate_gain_reduction)
+      current_input_db > input_db_block_max ? (
+        input_db_block_max = current_input_db;
+      );
+    );
+
+    // === ENVELOPE FOLLOWING (inlined) ===
+    stage_envelope == 1 ? (
+      // Use existing process_envelope_following function (already optimized)
+      process_envelope_following(target_gr_db, detector_level);
+    );
+    
+    // Get current GR to apply (BEFORE lookahead delay)
+    current_gr_db = stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db;
+    
+    // Track maximum absolute GR for block-level histogram
+    abs(current_gr_db) > abs(gr_db_block_max) ? (
+      gr_db_block_max = current_gr_db;  // Store with sign (not absolute)
+    );
+
+    // === LOOKAHEAD ===
+    // Cockos approach: Delay AUDIO, apply CURRENT gain to delayed audio
+    // This lets the envelope "see" transients before they arrive in delayed signal
+    // Optimization: Skip function call if lookahead is 0 or stage disabled
+    stage_lookahead == 1 && lookahead_ms > 0 ? (
+      process_lookahead_audio(input_l_orig, input_r_orig);
+      audio_to_compress_l = lookahead_out_l;
+      audio_to_compress_r = lookahead_out_r;
+    ) : (
+      audio_to_compress_l = input_l_orig;
+      audio_to_compress_r = input_r_orig;
+    );
+
+    // === GAIN REDUCTION APPLICATION (inlined) ===
+    // Apply CURRENT gain to (possibly delayed) audio
+    stage_gain_reduction == 1 ? (
+      gain_reduction_linear = db_to_linear(current_gr_db);
+      processed_l = audio_to_compress_l * gain_reduction_linear;
+      processed_r = audio_to_compress_r * gain_reduction_linear;
+    ) : (
+      processed_l = input_l_orig;
+      processed_r = input_r_orig;
+    );
+    display_post_graph = max(abs(processed_l), abs(processed_r));
+
+    // === HARMONIC PROCESSING (inlined) ===
+    // Optimization: Skip if stage disabled, harmonic type is Off, or no gain reduction
+    // This avoids function call overhead when no processing is needed
+    stage_harmonics == 1 && harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
+      envelope_amount = abs(global_smoothed_gain_db) / 30.0;
+      current_detector_level = detector_level;
+      // Note: harmonic_amount parameter removed (now hardcoded to 1.0 in function)
+      processed_l = apply_harmonic_processing(processed_l, target_gr_db, envelope_amount, current_detector_level,
+                                             harmonic_type, harmonic_drive, harmonic_mix, 
+                                             harmonic_even_boost, harmonic_odd_boost);
+      processed_r = apply_harmonic_processing(processed_r, target_gr_db, envelope_amount, current_detector_level,
+                                             harmonic_type, harmonic_drive, harmonic_mix, 
+                                             harmonic_even_boost, harmonic_odd_boost);
+    );
+
+    // === FINAL MIX (inlined) ===
+    stage_final_mix == 1 ? (
+      final_l = processed_l * makeup_gain_linear;
+      final_r = processed_r * makeup_gain_linear;
+      display_post_makeup = max(abs(final_l), abs(final_r));
+      final_out_l = final_l;
+      final_out_r = final_r;
+    );
+
+    // === BRICKWALL LIMITER (inlined) ===
+    stage_limiter == 1 && brickwall_limiter > 0.5 ? (
+      final_l = soft_clip_limiter(final_l, limiter_prev_l);
+      final_r = soft_clip_limiter(final_r, limiter_prev_r);
+      limiter_prev_l = final_l;
+      limiter_prev_r = final_r;
+    );
+
+    // === OUTPUT STAGE (inlined) ===
+    spl0 = final_l;
+    spl1 = final_r;
+
+    // Store output for next sample's feedback detection
+    final_l_prev = final_l;
+    final_r_prev = final_r;
+  );
+  
+  // === DEBUG COUNTER UPDATE (every sample) ===
+  // Increment sample counter and update display values every second
+  debug_counter_samples += 1;
+  debug_counter_samples >= debug_counter_reset_interval ? (
+    // Copy all counter values to display variables
+    debug_display_audio_chain = debug_counter_audio_chain;
+    debug_display_gain_reduction = debug_counter_gain_reduction;
+    debug_display_envelope = debug_counter_envelope;
+    debug_display_filters = debug_counter_filters;
+    debug_display_lookahead = debug_counter_lookahead;
+    debug_display_harmonics = debug_counter_harmonics;
+    debug_display_limiter = debug_counter_limiter;
+    debug_display_ui_curves = debug_counter_ui_curves;
+    debug_display_ui_histogram = debug_counter_ui_histogram;
+    
+    // Reset all counters for next second
+    debug_counter_audio_chain = 0;
+    debug_counter_gain_reduction = 0;
+    debug_counter_envelope = 0;
+    debug_counter_filters = 0;
+    debug_counter_lookahead = 0;
+    debug_counter_harmonics = 0;
+    debug_counter_limiter = 0;
+    debug_counter_ui_curves = 0;
+    debug_counter_ui_histogram = 0;
+    debug_counter_samples = 0;
+  );
+);

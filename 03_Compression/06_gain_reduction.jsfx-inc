@@ -1,0 +1,69 @@
+// Gain Reduction Calculation Module
+// Calculates gain reduction based on compression curve and input level
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 04a_compression_core.jsfx-inc, 04g_transient_detection.jsfx-inc
+
+@init
+
+//==============================================================================
+// GAIN REDUCTION CALCULATION
+//==============================================================================
+
+function calculate_gain_reduction(input_level_linear) (
+  // Debug counter: track gain reduction calculations
+  debug_counter_gain_reduction += 1;
+  
+  // Convert input level to dB for curve lookup
+  input_level_db = linear_to_db(max(input_level_linear, MIN_DETECTOR_LEVEL));
+  
+  // Debug: Log gain reduction calculation occasionally
+  DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+    debug_logf("GR Calc: input_linear=%.3f", input_level_linear);
+    debug_logf("GR Calc: input_db=%.1f", input_level_db);
+    debug_logf("GR Calc: global_offset=%.1f", global_offset_db);
+  );
+  
+  // Update display level for visualization
+  current_input_db = input_level_db;
+  
+  // If input is below LUT minimum, return 0 GR (no compression)
+  input_level_db <= COMP_LUT_MIN_DB ? (
+    target_gr_db = 0;
+  ) : (
+    // Apply global offset to INPUT (shifts what level the compressor "sees")
+    // This makes the compressor think the signal is louder/quieter than it actually is
+    offset_input_db = input_level_db + global_offset_db;
+    
+    // Debug: Log the offset calculation
+    DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+      debug_logf("GR Calc: offset_input=%.1f", offset_input_db);
+    );
+    
+    // Look up compression curve with offset input
+    target_output_db = interpolate_compression_curve(offset_input_db);
+    
+    // Calculate gain reduction based on offset input
+    // The output will be compensated later in the chain
+    target_gr_db = target_output_db - offset_input_db;
+    
+    // Debug: Log the final GR calculation
+    DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+      debug_logf("GR Calc: target_output=%.1f", target_output_db);
+      debug_logf("GR Calc: target_gr=%.1f", target_gr_db);
+    );
+  );
+
+  // Apply strength (using transformed logarithmic value)
+  target_gr_db *= strength_actual;
+
+  target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
+  
+  // Apply transient detection: reduce GR if transient detected
+  transient_reduction = detect_transients(input_level_db);
+  target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
+
+  // The compressor is unaware of the offset, so display shows the same GR values
+  // current_gr_db will be set AFTER envelope processing in audio_processing_chain
+
+  target_gr_db
+);
+

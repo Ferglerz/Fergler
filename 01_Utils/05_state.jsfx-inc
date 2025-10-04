@@ -1,0 +1,271 @@
+// State Management Module
+// State variable initialization and management
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc
+
+@init
+
+
+//==============================================================================
+// STATE VARIABLES INITIALIZATION
+//==============================================================================
+
+// Function to clear RMS buffer state when window size changes
+function clear_rms_state() (
+  // Stereo RMS sums (separate L/R tracking)
+  rms_sum_l = 0;
+  rms_sum_r = 0;
+  rms_pos = 0;
+  
+  // Clear stereo interleaved RMS buffer [L, R, L, R, ...] up to max size
+  i = 0;
+  while (i < max_rms_samples * 2) ( // *2 for stereo
+    rms_buffer[i] = 0;
+    i += 1;
+  );
+);
+
+function init_state_variables() (
+  debug_log("Initializing state variables...");
+  
+  // Audio processing state
+  clear_rms_state();
+  lookahead_pos = 0;
+
+  // Filter states
+  hp_x1_l=hp_x2_l=hp_y1_l=hp_y2_l=0;
+  hp_x1_r=hp_x2_r=hp_y1_r=hp_y2_r=0;
+  lp_x1_l=lp_x2_l=lp_y1_l=lp_y2_l=0;
+  lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
+
+  // Filter coefficients
+  hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
+  lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
+
+  // Compressor character state (kept for potential future use)
+  compression_history = 0;
+  program_release_timer = 0;
+
+  // RMS normalization state
+  rms_max = 0.5;  // Start at mid-level to avoid initial over-normalization
+  
+  // Exponential smoothing state (for non-buffer RMS mode)
+  rms_smoothed_squared = 0;
+
+  // Program release state
+  base_fast_s = 0.05;  // 50ms
+  base_med_s = 0.3;    // 300ms
+  base_slow_s = 1.0;   // 1000ms
+  global_smoothed_gain_db = 0;
+
+  // Limiter state variables
+  limiter_prev_l = 0;
+  limiter_prev_r = 0;
+
+  // Feedback detection state (stores previous sample output for feedback mode)
+  final_l_prev = 0;
+  final_r_prev = 0;
+
+  // Display state
+  current_input_db = GRAPH_MIN_DB;
+  current_gr_db = 0;
+  
+  // Block-level histogram max tracking
+  gr_db_block_max = 0;  // Track max absolute GR during block
+  
+  // Real-time signal display variables (updated 4x per second)
+  display_input_sample = 0;
+  display_rms_level = 0;
+  display_post_graph = 0;
+  display_post_makeup = 0;
+  display_update_counter = 0;
+  
+  // Multi-stage release state (3 cascaded envelope followers)
+  release_stage_1_env = 0;
+  release_stage_2_env = 0;
+  release_stage_3_env = 0;
+  
+  // Transient detection state (used in audio processing)
+  transient_detector_prev_db = GRAPH_MIN_DB;
+  transient_gr_reduction = 0;
+  
+  // Curve tracking variables
+  attack_curve_prev = -999;
+  release_curve_prev = -999;
+  
+  // RMS tracking variables
+  rms_size_ms_prev = -999;
+  
+  // Threshold line interaction state (persistent across @init)
+  !threshold_lines_initialized ? (
+    threshold_lines_initialized = 1;
+    // Default positions already set by sliders
+  );
+  
+  // Initialize RMS samples calculation (must be done after srate is available)
+  rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+
+  // Histogram state
+  histogram_buffer = 0; // Will be allocated in memory
+  histogram_max_samples = 0; // Calculated based on window seconds
+  histogram_pos = 0; // Current position in circular buffer
+  histogram_initialized = 0; // Flag to track initialization
+  histogram_frame_counter = 0; // Frame counter for update rate control
+
+  // Initialize histogram if enabled
+  HISTOGRAM_ENABLED ? (
+    histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate
+    histogram_buffer = freemem;
+    freemem += histogram_max_samples;
+    
+    // Clear histogram buffer
+    i = 0;
+    while (i < histogram_max_samples) (
+      histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pos = 0;
+    histogram_initialized = 1;
+    debug_logf("Histogram allocated: %d samples", histogram_max_samples);
+  );
+
+  // Input histogram state
+  input_histogram_buffer = 0; // Will be allocated in memory
+  input_histogram_max_samples = 0; // Calculated based on window seconds
+  input_histogram_pos = 0; // Current position in circular buffer
+  input_histogram_initialized = 0; // Flag to track initialization
+  input_histogram_frame_counter = 0; // Frame counter for update rate control
+  input_histogram_prev_level = 0; // Previous level value for smoothing
+
+  // Initialize input histogram if enabled
+  INPUT_HISTOGRAM_ENABLED ? (
+    input_histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate, same as GR histogram
+    input_histogram_buffer = freemem;
+    freemem += input_histogram_max_samples;
+    
+    // Clear input histogram buffer
+    i = 0;
+    while (i < input_histogram_max_samples) (
+      input_histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    input_histogram_pos = 0;
+    input_histogram_initialized = 1;
+    debug_logf("Input histogram allocated: %d samples", input_histogram_max_samples);
+  );
+
+  // Menu toggle states (persistent across @init)
+  !menu_toggles_initialized ? (
+    menu_toggles_initialized = 1;
+    menu_debug_enabled = 0;
+    menu_histogram_enabled = 1;  // Default to enabled
+    menu_gr_meter_enabled = 1;   // Default to enabled
+    menu_brickwall_limiter_enabled = 1;  // Default to enabled
+    menu_true_rms_enabled = 0;  // Default to exponential smoothing (off)
+  );
+
+  // Custom menu state
+  menu_visible = 0;
+  menu_hovered_item = -1;
+  
+  // Debug performance counters - individual functions (always active during development)
+  // Audio processing functions
+  debug_counter_audio_chain = 0;              // process_complete_audio_chain()
+  debug_counter_gain_reduction = 0;           // calculate_gain_reduction()
+  debug_counter_envelope = 0;                 // process_envelope_following()
+  debug_counter_filters = 0;                  // apply_detection_filters()
+  debug_counter_lookahead = 0;                // process_lookahead_audio()
+  debug_counter_harmonics = 0;                // apply_harmonic_processing()
+  debug_counter_limiter = 0;                  // soft_clip_limiter()
+  
+  // UI functions
+  debug_counter_ui_curves = 0;                // draw_mixed_curves()
+  debug_counter_ui_histogram = 0;             // update_histogram_state()
+  
+  // Display values (updated every second with call rates)
+  // Audio processing functions
+  debug_display_audio_chain = 0;
+  debug_display_gain_reduction = 0;
+  debug_display_envelope = 0;
+  debug_display_filters = 0;
+  debug_display_lookahead = 0;
+  debug_display_harmonics = 0;
+  debug_display_limiter = 0;
+  
+  // UI functions
+  debug_display_ui_curves = 0;
+  debug_display_ui_histogram = 0;
+  
+  // Reset time for counters (reset every second for readable rates)
+  debug_counter_reset_interval = srate;
+  debug_counter_samples = 0;
+);
+
+//==============================================================================
+// HISTOGRAM FUNCTIONS
+//==============================================================================
+
+function update_histogram_state(gr_value) (
+  // Store block-level max GR value in circular buffer with rate control
+  // Note: smoothing removed - block-level max already provides smooth values
+  histogram_initialized ? (
+    // Frame rate control - only update every N frames
+    histogram_frame_counter += 1;
+    (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_frame_counter = 0;
+      
+      // Optimization: only increment debug counter when actual GR occurs
+      abs(gr_value) > 0.0001 ? (
+        debug_counter_ui_histogram += 1;
+      );
+      
+      // Store block-level max directly (no smoothing needed)
+      histogram_buffer[histogram_pos] = gr_value;
+      
+      // Always advance buffer position to keep histogram rolling
+      histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+    );
+  );
+);
+
+function update_input_histogram_state(input_level_db) (
+  // Store current input level in dB (post-filter, post-RMS) in circular buffer with rate control and smoothing
+  input_histogram_initialized ? (
+    // Frame rate control - only update every N frames
+    input_histogram_frame_counter += 1;
+    (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      input_histogram_frame_counter = 0;
+      
+      // Apply smoothing if enabled
+      smoothed_level = HISTOGRAM_SMOOTHING ? (
+        // Simple exponential smoothing: 70% new value, 30% previous
+        0.7 * input_level_db + 0.3 * input_histogram_prev_level
+      ) : (
+        input_level_db
+      );
+      
+      input_histogram_buffer[input_histogram_pos] = smoothed_level;
+      input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
+      input_histogram_prev_level = smoothed_level;
+    );
+  );
+);
+
+//==============================================================================
+// LARGE KNOB ACCESSOR FUNCTIONS
+//==============================================================================
+
+function get_large_knob_x(index) (large_knob_defs[index*8 + 0]);
+function get_large_knob_y(index) (large_knob_defs[index*8 + 1]);
+function get_large_knob_param(index) (large_knob_defs[index*8 + 2]);
+function get_large_knob_min(index) (large_knob_defs[index*8 + 3]);
+function get_large_knob_max(index) (large_knob_defs[index*8 + 4]);
+function get_large_knob_type(index) (large_knob_defs[index*8 + 5]);
+function get_large_knob_active(index) (large_knob_defs[index*8 + 6]);
+function get_large_knob_value(index) (large_knob_defs[index*8 + 7]);
+
+function set_large_knob_value(index, value) (
+  large_knob_defs[index*8 + 7] = value;
+);

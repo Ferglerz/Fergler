@@ -1,0 +1,52 @@
+// Transient Detection Module
+// 1176-style transient detection for dynamic attack response
+// Depends on: 00b_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// TRANSIENT DETECTION (1176-style)
+//==============================================================================
+// Detects rapid level increases and temporarily reduces gain reduction to let
+// transients punch through. This is fundamentally different from attack time -
+// it's dynamic attack that responds to transient content.
+//
+// How it works:
+// - Monitors rate of level increase (dB per sample)
+// - If level rises above threshold dB → transient detected
+// - Temporarily reduces GR by proportional amount
+// - Creates "aggressive" compression that lets fast transients through
+//==============================================================================
+
+function detect_transients(current_level_db) (
+  transient_detected = 0;
+  transient_gr_reduction = 0;
+  
+  // Check if transient detection is enabled (slider value > 0)
+  transient_detection > 0 ? (
+    // Calculate rate of level increase
+    level_delta = current_level_db - transient_detector_prev_db;
+    
+    // Check if level is rising above threshold
+    level_delta > 0 && current_level_db > transient_threshold_db ? (
+      // Transient detected! Calculate GR reduction
+      // Slider: 0-100 maps to 0-12dB of GR reduction
+      max_reduction = (transient_detection / 100.0) * 12.0;
+      
+      // Scale reduction by how far above threshold we are
+      threshold_excess = current_level_db - transient_threshold_db;
+      transient_gr_reduction = min(threshold_excess * 0.6, max_reduction);
+      
+      transient_detected = 1;
+    );
+    
+    // Update previous level for next sample
+    transient_detector_prev_db = current_level_db;
+  ) : (
+    // Transient detection off - just update tracker
+    transient_detector_prev_db = current_level_db;
+  );
+  
+  transient_gr_reduction
+);
+

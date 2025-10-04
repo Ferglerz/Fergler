@@ -9,6 +9,8 @@
 //==============================================================================
 
 function allocate_memory() (
+  debug_log("Allocating memory...");
+  
   // Initialize automatic memory allocation
   freemem = 0;
   
@@ -20,24 +22,35 @@ function allocate_memory() (
   !curve_amounts ? curve_amounts = freemem;
   freemem += MAX_POINTS;
   
+  // Allocate compression lookup table (400 entries for -50dB to +50dB at 0.25dB granularity)
+  !comp_lut ? comp_lut = freemem;
+  freemem += COMP_LUT_SIZE;
+  
   // Allocate control definitions memory (10 values per control)
   !control_defs ? control_defs = freemem;
   freemem += NUM_CONTROLS * 10;
 
+  // Allocate knob definitions memory (8 values per knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
+  !knob_defs ? knob_defs = freemem;
+  freemem += NUM_KNOBS * 8;
+
+  // Allocate large knob definitions memory (8 values per large knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
+  !large_knob_defs ? large_knob_defs = freemem;
+  freemem += NUM_LARGE_KNOBS * 8;
+
   // Always allocate audio buffers (these can be reallocated safely)
-  max_lookahead_samples = ceil(0.01 * srate);
+  // Allocate based on lookahead slider's maximum value (slider5)
+  // Convert from milliseconds to samples: max_ms * 0.001 * srate
+  lookahead_max_ms = get_slider_max(5); // Get max from slider definition
+  max_lookahead_samples = ceil(lookahead_max_ms * 0.001 * srate);
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
 
+  // RMS buffers: Stereo interleaved storage [L, R, L, R, ...]
   max_rms_samples = ceil(0.1 * srate);
-  rms_buffer = freemem; freemem += max_rms_samples;
-);
-
-function allocate_control_memory() (
-  // Control definitions memory is now allocated in ui_controls module
-  // This function is kept for compatibility but does nothing
-  // since control_defs allocation happens in 05b_ui_controls.jsfx-inc
-  1; // No-op statement to ensure valid syntax
+  rms_buffer = freemem; freemem += max_rms_samples * 2; // *2 for stereo
+  
+  debug_logf("Memory allocated: %d bytes", freemem);
 );
 
 function get_memory_usage() (

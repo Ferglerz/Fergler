@@ -1,15 +1,43 @@
 // Filter Processing Module
 // Filter processing including biquad filters for detection signal filtering
 // Applies to whichever detection signal is active (regular or sidechain)
-// Depends on: 00b_math_utils.jsfx-inc, 00d_dsp_utils.jsfx-inc
+// Depends on: 00b_math_utils.jsfx-inc
 
 @init
+
+//==============================================================================
+// FILTER COEFFICIENT CALCULATIONS
+//==============================================================================
+
+// type: 0 = highpass, 1 = lowpass
+function calc_biquad(type, freq) (
+  w = 2 * $pi * freq / srate;
+  cosw = cos(w);
+  alpha = sin(w) / sqrt(2);
+  a0 = 1 + alpha;
+  type == 1 ? (
+    // Lowpass
+    b0 = (1 - cosw) / (2 * a0);
+    b1 = (1 - cosw) / a0;
+    b2 = b0;
+  ) : (
+    // Highpass (type == 0)
+    b0 = (1 + cosw) / (2 * a0);
+    b1 = -(1 + cosw) / a0;
+    b2 = b0;
+  );
+  a1 = -2 * cosw / a0;
+  a2 = (1 - alpha) / a0;
+);
 
 //==============================================================================
 // FILTER APPLICATION
 //==============================================================================
 
 function apply_detection_filters(detect_l, detect_r) (
+  // Debug counter: track filter processing
+  debug_counter_filters += 1;
+  
   // Apply highpass filter
   detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;
   hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l_filtered;
@@ -36,10 +64,10 @@ function apply_detection_filters(detect_l, detect_r) (
 
 function update_filter_coefficients() (
   // Update highpass filter coefficients
-  calc_biquad_hp(max(hp_freq, 20));
+  calc_biquad(0, max(hp_freq, 20));  // 0 = highpass
   hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
 
   // Update lowpass filter coefficients
-  calc_biquad_lp(min(lp_freq, 20000));
+  calc_biquad(1, min(lp_freq, 20000));  // 1 = lowpass
   lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
 );

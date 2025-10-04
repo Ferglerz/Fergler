@@ -8,14 +8,13 @@
 // FILE READING CONFIGURATION
 //==============================================================================
 
-// String slot allocation
-// Slots 0-99: Reserved for temporary #variables (JSFX system)
-// Slots 100-199: Slider names (100 slots for up to 100 sliders)
-// Slots 200-1999: Dropdown options (20 options × 100 sliders = 2000 slots)
-// Slots 50-149: Debug messages (see 00e_debug_logging.jsfx-inc)
+// String slot allocation (JSFX limit: slots 0-63)
+// Slots 0-49: Debug messages (see 00e_debug_logging.jsfx-inc)
+// Slots 50-63: Reserved for temporary #variables and system use
+// Note: Slider names and dropdown options must use non-string memory or be limited
 
-SLIDER_NAMES_BASE = 100;
-DROPDOWN_OPTIONS_BASE = 200;
+SLIDER_NAMES_BASE = 100; // This will need to be changed to use non-string memory
+DROPDOWN_OPTIONS_BASE = 200; // This will need to be changed to use non-string memory
 MAX_OPTIONS_PER_SLIDER = 20;
 
 // Non-string memory for option counts (array of integers)
@@ -321,6 +320,7 @@ function extract_dropdown_options(line, slider_index) (
 //==============================================================================
 
 function read_slider_definitions() (
+  debug_log("Reading slider definitions...");
   debug_log("");
   debug_log("=== SLIDER DEFINITION PARSING ===");
   debug_log("Opening Composure.jsfx...");

@@ -1,0 +1,68 @@
+// Envelope Processing Module
+// Envelope following and program-dependent release algorithms
+// Depends on: 00b_math_utils.jsfx-inc, 00d_dsp_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// ENVELOPE FOLLOWING AND PROGRAM RELEASE
+//==============================================================================
+
+//--- Program-Dependent Release Coefficient Selection ---
+function select_program_release_coef(target_gr_db, detector_level) (
+  rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+  rel_fast = exp(-1/(base_fast_s * rel_mult * srate));
+  rel_med  = exp(-1/(base_med_s  * rel_mult * srate));
+  rel_slow = exp(-1/(base_slow_s * rel_mult * srate));
+
+  gr_amount = abs(target_gr_db);
+  det_delta = prev_detector_db - linear_to_db(detector_level);
+  input_level_db = linear_to_db(detector_level);
+
+  rel_coef_use = rel_med;
+  prog_release_type == 0 ? (
+    rel_coef_use = rel_med;
+  ) : prog_release_type == 1 ? (
+    level_above_threshold = input_level_db - input_level_threshold_db;
+    blend_fast = clamp(1 - level_above_threshold / 20, 0, 1);
+    blend_slow = clamp(level_above_threshold / 20, 0, 1);
+    sum = blend_fast + blend_slow + eps;
+    rel_coef_use = (blend_fast * rel_fast + blend_slow * rel_slow) / sum;
+  ) : prog_release_type == 2 ? (
+    blend_fast = clamp(1 - gr_amount / gr_blend_threshold_db, 0, 1);
+    blend_slow = clamp(gr_amount / gr_blend_threshold_db, 0, 1);
+    sum = blend_fast + blend_slow + eps;
+    rel_coef_use = (blend_fast * rel_fast + blend_slow * rel_slow) / sum;
+  ) : (
+    rel_coef_use = det_delta > 3 ? rel_fast : rel_slow;
+  );
+  rel_coef_use;
+);
+
+//--- Single-Stage Envelope Following (modularized) ---
+function process_single_stage_envelope(target_gr_db, detector_level) (
+  global_attack_coef = attack_coeff;
+  // Attack when target is "more extreme" than current (closer to zero = less extreme)
+  abs(target_gr_db) > abs(global_smoothed_gain_db) ? (
+    global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
+  ) : (
+    prog_release_mode > 0.5 ? (
+      rel_coef_use = select_program_release_coef(target_gr_db, detector_level);
+      global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
+    ) : (
+      fixed_rel_coef = release_coeff;
+      global_smoothed_gain_db = fixed_rel_coef * global_smoothed_gain_db + (1 - fixed_rel_coef) * target_gr_db;
+    );
+  );
+  global_smoothed_gain_db;
+);
+
+//--- Main Envelope Following Function ---
+function process_envelope_following(target_gr_db, detector_level) (
+  // Debug counter: track envelope processing
+  debug_counter_envelope += 1;
+  
+  global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level);
+  global_smoothed_gain_db;
+);
+

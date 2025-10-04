@@ -1,0 +1,205 @@
+// UI Graph Cache Module
+// Curve caching system for maximum rendering efficiency
+// Depends on: 00a_constants.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data_core.jsfx-inc, 03b_graph_curves.jsfx-inc
+
+@init
+
+//==============================================================================
+// COMPLETE CURVE CACHING SYSTEM
+//==============================================================================
+// Caches the entire final curve result including Bezier segments for maximum efficiency
+
+// Cache state variables
+curve_cache_dirty = 1;                    // Flag to indicate curve needs recalculation
+grid_cache_dirty = 1;                     // Flag to indicate grid needs redraw
+curve_cache_points_allocated = 0;         // Memory allocation flag
+curve_cache_size = 0;                     // Number of cached line segments
+curve_cache_hash = 0;                     // Hash of parameters for cache validation
+
+// Cache the final curve as a series of line segments (x1,y1,x2,y2,x3,y3,...)
+curve_cache_points = 0;                   // Cached curve line segments array
+
+// Calculate hash of all parameters that affect the curve
+function calculate_curve_hash() (
+  hash = 0;
+  
+  // Hash graph points
+  i = 0;
+  while (i < num_points) (
+    hash = hash * 31 + graph_points[i*2] * 1000;     // input_db
+    hash = hash * 31 + graph_points[i*2 + 1] * 1000; // output_db
+    i += 1;
+  );
+  
+  // Hash curve amounts
+  i = 0;
+  while (i < num_points) (
+    hash = hash * 31 + curve_amounts[i] * 100;
+    i += 1;
+  );
+  
+  // Hash global parameters that affect the curve
+  // Note: global_offset_db is NOT included because it's applied at lookup time, not in the curve
+  hash = hash * 31 + strength_actual * 1000;
+  hash = hash * 31 + num_points;
+  
+  // Ensure positive hash
+  hash < 0 ? hash = -hash;
+  hash;
+);
+
+// Generate complete curve cache with all Bezier segments
+function generate_curve_cache() (
+  // Allocate cache memory if needed
+  !curve_cache_points_allocated ? (
+    curve_cache_points = freemem;
+    freemem += GRAPH_SIZE * 4; // Up to 4 values per segment (x1,y1,x2,y2)
+    curve_cache_points_allocated = 1;
+  );
+  
+  // Generate curve segments
+  segment_count = 0;
+
+  // Only process if we have at least 2 points
+  num_points >= 2 ? (
+    // Start from first point (clamp to ensure it's within graph bounds)
+    prev_x = clamp_x_to_graph(db_to_graph_x(graph_points[0]));
+    prev_y = clamp_y_to_graph(db_to_graph_y(graph_points[1]));
+
+    // Variable to store clamped junction point for consecutive curves
+    clamped_junction_x = 0;
+    clamped_junction_y = 0;
+    use_clamped_junction = 0;
+
+    i = 0;
+    while (i < num_points - 1) (
+      // Check if point i+1 has a curve
+      next_point_has_curve = 0;
+      (i + 1) > 0 && (i + 1) < (num_points - 1) ? (
+        curve_amount = get_curve_amount(i + 1);
+        next_point_has_curve = curve_amount > 0;
+      );
+      
+      next_point_has_curve ? (
+        // Generate Bezier curve segments
+        curve_amt = get_curve_amount(i + 1);
+        calculate_bezier_control_points(i + 1, curve_amt);
+        
+        // Convert Bezier control points to screen coordinates
+        p0_x = db_to_graph_x(bezier_p0_x);
+        p0_y = db_to_graph_y(bezier_p0_y);
+        p1_x = db_to_graph_x(bezier_control1_x);
+        p1_y = db_to_graph_y(bezier_control1_y);
+        p2_x = db_to_graph_x(bezier_control2_x);
+        p2_y = db_to_graph_y(bezier_control2_y);
+        p3_x = db_to_graph_x(bezier_p3_x);
+        p3_y = db_to_graph_y(bezier_p3_y);
+        
+        // Use clamped junction point if available (from previous curve)
+        use_clamped_junction ? (
+          p0_x = clamped_junction_x;
+          p0_y = clamped_junction_y;
+          use_clamped_junction = 0; // Reset flag
+        );
+        
+        // Check if the next point also has a curve (consecutive curved points)
+        next_next_point_has_curve = 0;
+        (i + 2) > 0 && (i + 2) < (num_points - 1) ? (
+          next_curve_amount = get_curve_amount(i + 2);
+          next_next_point_has_curve = next_curve_amount > 0;
+        );
+        
+        // If we have consecutive curved points, check for crossing invisible control points
+        next_next_point_has_curve ? (
+          // Calculate the invisible control points for the next curve
+          calculate_bezier_control_points(i + 2, next_curve_amount);
+          
+          // Get the invisible control points for the next curve
+          next_p0_x = db_to_graph_x(bezier_p0_x);
+          next_p0_y = db_to_graph_y(bezier_p0_y);
+          
+          // Check if p3 (end of current curve) and next_p0 (start of next curve) are crossing
+          // They cross when p3_x > next_p0_x
+          p3_x > next_p0_x ? (
+            // They're crossing - clamp them to meet at the junction
+            // Use the midpoint between the two invisible points
+            junction_x = (p3_x + next_p0_x) / 2;
+            junction_y = (p3_y + next_p0_y) / 2;
+            
+            // Clamp the current curve's end point (p3) to the junction
+            p3_x = junction_x;
+            p3_y = junction_y;
+            
+            // Store the clamped junction for the next curve to use
+            clamped_junction_x = junction_x;
+            clamped_junction_y = junction_y;
+            use_clamped_junction = 1;
+          );
+        );
+        
+        // Generate line segments along Bezier curve
+        steps = BEZIER_STEPS; // Number of line segments to approximate Bezier
+        t = 0;
+        while (t < 1 && segment_count < GRAPH_SIZE - 1) (
+          // Calculate Bezier point at t
+          u = 1 - t;
+          tt = t * t;
+          uu = u * u;
+          uuu = uu * u;
+          ttt = tt * t;
+          
+          current_x = uuu * p0_x + 3 * uu * t * p1_x + 3 * u * tt * p2_x + ttt * p3_x;
+          current_y = uuu * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + ttt * p3_y;
+          
+          // Clamp to graph boundaries
+          current_x = clamp_x_to_graph(current_x);
+          current_y = clamp_y_to_graph(current_y);
+          
+          // Store line segment (from prev to current)
+          curve_cache_points[segment_count*4 + 0] = prev_x;
+          curve_cache_points[segment_count*4 + 1] = prev_y;
+          curve_cache_points[segment_count*4 + 2] = current_x;
+          curve_cache_points[segment_count*4 + 3] = current_y;
+          
+          segment_count += 1;
+          prev_x = current_x;
+          prev_y = current_y;
+          t += 1.0 / steps;
+        );
+      ) : (
+        // Straight line segment
+        end_x = db_to_graph_x(graph_points[(i+1)*2]);
+        end_y = db_to_graph_y(graph_points[(i+1)*2 + 1]);
+        
+        // Clamp to graph boundaries
+        end_x = clamp_x_to_graph(end_x);
+        end_y = clamp_y_to_graph(end_y);
+        
+        // Store line segment
+        curve_cache_points[segment_count*4 + 0] = prev_x;
+        curve_cache_points[segment_count*4 + 1] = prev_y;
+        curve_cache_points[segment_count*4 + 2] = end_x;
+        curve_cache_points[segment_count*4 + 3] = end_y;
+        
+        segment_count += 1;
+        prev_x = end_x;  // end_x and end_y are already clamped above
+        prev_y = end_y;
+      );
+      
+      i += 1;
+    );
+  );
+  
+  // Update cache state
+  curve_cache_size = segment_count;
+  curve_cache_dirty = 0;
+  curve_cache_hash = calculate_curve_hash();
+);
+
+// Check if cache needs regeneration
+function cache_curve_if_needed() (
+  curve_cache_dirty || curve_cache_hash != calculate_curve_hash() ? (
+    generate_curve_cache();
+  );
+);
+
