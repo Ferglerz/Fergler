@@ -96,7 +96,6 @@ import 04c_filters.jsfx-inc
 import 04d_detection.jsfx-inc
 import 04e_envelope.jsfx-inc
 import 04f_harmonic_models.jsfx-inc
-// 04g_effects.jsfx-inc removed - lookahead moved to 00d_dsp_utils.jsfx-inc, final mix inlined
 import 04h_audio_processing_chain.jsfx-inc
 
 // UI modules (in dependency order - orchestration MUST be last)
@@ -251,6 +250,11 @@ param_changed = 0;
  slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
  slider4 != release_curve_prev || !slider_initialized) ? (
 
+  // Clear RMS buffer if window size changed
+  slider7 != rms_size_ms_prev ? (
+    clear_rms_state();
+  );
+
   // Calculate sample counts
   rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
   lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
@@ -312,8 +316,9 @@ slider5 != lookahead_ms_pdc_prev ? (
   strength_prev = slider19;
   global_offset_db_prev = slider20;
   param_changed = 1;
-  // Invalidate curve cache when parameters change
+  // Invalidate both caches when parameters change
   invalidate_curve_cache();
+  invalidate_compression_lut();
 );
 
 // Mark slider section as initialized (ensures all calculations run on first load)
@@ -373,7 +378,19 @@ release_curve != 0 ? (
 );
 
 // Update RMS and Hold parameters every block for real-time response
-rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+// Fix: Clear buffer when RMS window size changes to prevent stale data bug
+new_rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+new_rms_samples != rms_samples ? (
+  rms_samples = new_rms_samples;
+  // Clear RMS state when window size changes (fixes bug with stale buffer data)
+  menu_true_rms_enabled > 0.5 ? (
+    clear_rms_state();  // Clear circular buffer for True RMS mode
+  ) : (
+    rms_smoothed_squared = 0;  // Reset exponential smoothing state
+  );
+) : (
+  rms_samples = new_rms_samples;  // Update even if same (for safety)
+);
 hold_samples = floor(hold_ms * 0.001 * srate);
 
 

@@ -20,6 +20,10 @@ function allocate_memory() (
   !curve_amounts ? curve_amounts = freemem;
   freemem += MAX_POINTS;
   
+  // Allocate compression lookup table (400 entries for -50dB to +50dB at 0.25dB granularity)
+  !comp_lut ? comp_lut = freemem;
+  freemem += COMP_LUT_SIZE;
+  
   // Allocate control definitions memory (10 values per control)
   !control_defs ? control_defs = freemem;
   freemem += NUM_CONTROLS * 10;

@@ -89,6 +89,12 @@ function handle_menu_item_click(item_index) (
     menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
     brickwall_limiter = menu_brickwall_limiter_enabled;
     sliderchange(1 << 25); // Update slider26 (bit 25 = 2^25)
+  ) : item_index == 4 ? (
+    // Toggle True RMS mode
+    menu_true_rms_enabled = menu_true_rms_enabled > 0.5 ? 0 : 1;
+    // Clear both RMS states when switching modes
+    clear_rms_state();
+    rms_smoothed_squared = 0;
   );
   
   // Close menu after selection
@@ -241,8 +247,9 @@ function handle_point_movement() (
       remove_displaced_points(new_input_db, new_output_db);
     );
     
-    // Invalidate curve cache since point movement affects curves
+    // Invalidate both caches since point movement affects curves and compression
     invalidate_curve_cache();
+    invalidate_compression_lut();
   );
 );
 
@@ -267,9 +274,10 @@ function handle_curve_adjustment() (
     new_curve_amount = curve_drag_start_amount + (drag_factor * 100);
     new_curve_amount = clamp(new_curve_amount, 0, 100);
     
-    // Set the curve amount for this point and invalidate cache for real-time updates
+    // Set the curve amount for this point and invalidate both caches for real-time updates
     set_curve_amount(dragging_point, new_curve_amount);
     invalidate_curve_cache();
+    invalidate_compression_lut();
   );
 );
 
@@ -292,8 +300,9 @@ function handle_point_addition() (
 
   !too_close ? (
     add_point(new_input_db, new_output_db);
-    // Invalidate curve cache since point addition affects curves
+    // Invalidate both caches since point addition affects curves and compression
     invalidate_curve_cache();
+    invalidate_compression_lut();
   ) : (
     -1; // Return -1 if too close to add
   );
@@ -305,8 +314,9 @@ function handle_point_deletion() (
   
   target_point >= 0 && num_points > 2 ? ( // Keep at least 2 points
     delete_point(target_point);
-    // Invalidate curve cache since point deletion affects curves
+    // Invalidate both caches since point deletion affects curves and compression
     invalidate_curve_cache();
+    invalidate_compression_lut();
   );
 );
 

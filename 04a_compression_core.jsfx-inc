@@ -5,13 +5,6 @@
 @init
 
 //==============================================================================
-// CORE COMPRESSION FUNCTIONS
-//==============================================================================
-
-
-
-
-//==============================================================================
 // COMPRESSION CURVE INTERPOLATION
 //==============================================================================
 
@@ -61,4 +54,66 @@ function interpolate_compression_curve(input_db) (
       )
     )
   )
+);
+
+//==============================================================================
+// COMPRESSION LOOKUP TABLE
+//==============================================================================
+
+// Track whether LUT needs rebuilding
+comp_lut_dirty = 1;
+
+//==============================================================================
+// COMPRESSION LOOKUP TABLE FUNCTIONS
+//==============================================================================
+
+function build_compression_lut() (
+  // Build lookup table by sampling the compression curve at 0.25dB intervals
+  i = 0;
+  while (i < COMP_LUT_SIZE) (
+    // Calculate dB value for this index
+    input_db = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
+    
+    // Calculate output using the full interpolation curve
+    output_db = interpolate_compression_curve(input_db);
+    
+    // Store in lookup table
+    comp_lut[i] = output_db;
+    
+    i += 1;
+  );
+  
+  // Mark LUT as clean
+  comp_lut_dirty = 0;
+);
+
+function lookup_compression_lut(input_db) (
+  // Rebuild LUT if dirty
+  comp_lut_dirty ? build_compression_lut();
+  
+  // Clamp input to valid range
+  input_db < COMP_LUT_MIN_DB ? (
+    // Below minimum, use first entry
+    comp_lut[0]
+  ) : input_db > COMP_LUT_MAX_DB ? (
+    // Above maximum, use last entry
+    comp_lut[COMP_LUT_SIZE - 1]
+  ) : (
+    // Within range, lookup with optional linear interpolation between entries
+    index_float = (input_db - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY;
+    index_int = floor(index_float);
+    index_frac = index_float - index_int;
+    
+    // Ensure index is within bounds
+    index_int = max(0, min(COMP_LUT_SIZE - 2, index_int));
+    
+    // Linear interpolation between two closest entries for smoother result
+    value1 = comp_lut[index_int];
+    value2 = comp_lut[index_int + 1];
+    value1 + index_frac * (value2 - value1)
+  );
+);
+
+function invalidate_compression_lut() (
+  comp_lut_dirty = 1;
 );

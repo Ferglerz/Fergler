@@ -9,18 +9,23 @@
 // STATE VARIABLES INITIALIZATION
 //==============================================================================
 
-function init_state_variables() (
-  // Audio processing state
+// Function to clear RMS buffer state when window size changes
+function clear_rms_state() (
   rms_sum = 0;
   rms_pos = 0;
-  lookahead_pos = 0;
   
-  // Clear RMS buffer
+  // Clear RMS buffer up to max size
   i = 0;
   while (i < max_rms_samples) (
     rms_buffer[i] = 0;
     i += 1;
   );
+);
+
+function init_state_variables() (
+  // Audio processing state
+  clear_rms_state();
+  lookahead_pos = 0;
 
   // Filter states
   hp_x1_l=hp_x2_l=hp_y1_l=hp_y2_l=0;
@@ -38,6 +43,9 @@ function init_state_variables() (
 
   // RMS normalization state
   rms_max = 0.0001;
+  
+  // Exponential smoothing state (for non-buffer RMS mode)
+  rms_smoothed_squared = 0;
 
   // Program release state
   base_fast_s = 0.05;  // 50ms
@@ -125,6 +133,7 @@ function init_state_variables() (
     menu_histogram_enabled = 1;  // Default to enabled
     menu_gr_meter_enabled = 1;   // Default to enabled
     menu_brickwall_limiter_enabled = 1;  // Default to enabled
+    menu_true_rms_enabled = 0;  // Default to exponential smoothing (off)
   );
 
   // Custom menu state

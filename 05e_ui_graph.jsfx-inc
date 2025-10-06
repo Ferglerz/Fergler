@@ -486,14 +486,20 @@ function draw_graph_points() (
 );
 
 function draw_level_indicators() (
-  // Draw input level dot on unity line (green)
-  input_x = db_to_graph_x(current_input_db);
-  input_y_on_unity = db_to_graph_y(current_input_db);
-  draw_indicator_circle(input_x, input_y_on_unity, 4, 0, 1, 0, 0.8, 1);
+  // Check if audio is active (playback state 1 = playing, 5 = recording)
+  is_audio_active = (play_state == 1) || (play_state == 5);
 
-  // Draw output level dot on compression curve (red)
-  input_y_on_curve = db_to_graph_y(interpolate_compression_curve(current_input_db) + global_offset_db);
-  draw_indicator_circle(input_x, input_y_on_curve, 4, 1, 0, 0, 0.8, 1);
+  // Only show level indicators when audio is active
+  is_audio_active ? (
+    // Draw input level dot on unity line (green)
+    input_x = db_to_graph_x(current_input_db);
+    input_y_on_unity = db_to_graph_y(current_input_db);
+    draw_indicator_circle(input_x, input_y_on_unity, 4, 0, 1, 0, 0.8, 1);
+
+    // Draw output level dot on compression curve (red)
+    input_y_on_curve = db_to_graph_y(interpolate_compression_curve(current_input_db) + global_offset_db);
+    draw_indicator_circle(input_x, input_y_on_curve, 4, 1, 0, 0, 0.8, 1);
+  );
 );
 
 function draw_gain_reduction_meter() (

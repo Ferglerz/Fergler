@@ -34,7 +34,6 @@ MOUSE_CLICK_RADIUS = 10;
   curve_drag_start_y = 0;
   
   graph_initialized = 0;
-  graph_serialization_version = 2; // Version for serialization compatibility (increased for curve support)
   persistent_vars_initialized = 1;
   
   // Curve data - track which points have curves and their amounts (0-100%)
@@ -97,12 +96,10 @@ function restore_graph_points_from_serialization() (
   // Try to read serialized data
   success = 0;
   
-  // Read version and point count
-  saved_version = file_var(0, 0);
+  // Read point count
   saved_num_points = file_var(0, 0);
   
-  // Validate version and point count
-  saved_version >= 1 && saved_version <= graph_serialization_version &&
+  // Validate point count
   saved_num_points >= MIN_POINTS && 
   saved_num_points <= MAX_POINTS ? (
     // Read all points and validate each one
@@ -122,16 +119,11 @@ function restore_graph_points_from_serialization() (
       i += 1;
     );
     
-    // Read curve data if version 2 or higher
-    saved_version >= 2 ? (
-      i = 0;
-      while (i < saved_num_points) (
-        set_curve_amount(i, file_var(0, 0));
-        i += 1;
-      );
-    ) : (
-      // Clear all curves for older versions
-      clear_all_curves();
+    // Read curve data
+    i = 0;
+    while (i < saved_num_points) (
+      set_curve_amount(i, file_var(0, 0));
+      i += 1;
     );
     
     // Validate that corner points are still in place and all points are valid
