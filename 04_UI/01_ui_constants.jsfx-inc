@@ -1,0 +1,147 @@
+// UI Constants Module
+// All constants specific to user interface rendering and layout
+// Dependencies: None
+
+@init
+
+// === UI DISPLAY CONSTANTS ===
+
+MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
+
+// === HISTOGRAM CONFIGURATION ===
+HISTOGRAM_ENABLED = 1; // Set to 0 to disable histogram completely
+HISTOGRAM_WINDOW_SECONDS = 3; // 3-second window for history
+HISTOGRAM_MAX_HEIGHT = 20; // Maximum height in pixels for histogram bars
+HISTOGRAM_OPACITY = 0.6; // 60% opacity for histogram visualization
+HISTOGRAM_UPDATE_RATE = 1; // Update every N frames (1 = every frame, 2 = every other frame, etc.)
+HISTOGRAM_SMOOTHING = 1; // Enable smoothing to reduce flickering (1 = on, 0 = off)
+
+//==============================================================================
+// UI LAYOUT CONFIGURATION
+//==============================================================================
+
+// Header Configuration (defined early for use in calculations)
+HEADER_HEIGHT = 30;
+HEADER_BORDER_HEIGHT = 2;
+HEADER_SHADOW_HEIGHT = 3;
+HEADER_TOTAL_HEIGHT = HEADER_HEIGHT + HEADER_BORDER_HEIGHT + HEADER_SHADOW_HEIGHT;
+
+// Visual configuration
+GFX_WIDTH = 3500;  
+GFX_HEIGHT = 450 + HEADER_TOTAL_HEIGHT;  // Increase height to accommodate header
+
+// Graph layout constants (adjusted for header)
+GRAPH_X = 50;
+GRAPH_Y = 50 + HEADER_TOTAL_HEIGHT;  // Move down to account for header
+GRAPH_SIZE = 350;  // Increased to accommodate more controls
+
+// Note: Graph range constants (GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
+// are defined in graph_data_core.jsfx-inc
+
+// === GRAPH CURVE CONFIGURATION ===
+BEZIER_STEPS = 20; // Number of line segments to approximate Bezier curves
+
+// UI Panel Configuration
+UI_PANEL_X = GRAPH_X + GRAPH_SIZE + 60;  // Start after GR meter (30px) + gap (30px)
+UI_PANEL_Y = GRAPH_Y;  // Aligned with graph
+UI_PANEL_W = 800;  // Reduced panel width to match narrower columns
+UI_PANEL_H = GRAPH_SIZE;  // Same height as graph (now 350px)
+
+// Control Dimensions
+SLIDER_W = 135;  // 75% of 180
+SLIDER_H = 20;
+SLIDER_W_VERTICAL = 20;  // Vertical slider width
+SLIDER_H_VERTICAL = 135; // Vertical slider height
+BUTTON_W = 80;
+BUTTON_H = 25;
+DROPDOWN_W = 120;
+DROPDOWN_H = 25;
+
+// Spacing
+CONTROL_SPACING_Y = 50;  // Increased by 10 pixels for more comfortable spacing
+CONTROL_SPACING_X = 180;  // Reduced spacing to match narrower sliders
+LABEL_HEIGHT = 15;
+
+// Colors
+UI_BG_R = 0.15; UI_BG_G = 0.15; UI_BG_B = 0.15;
+SLIDER_BG_R = 0.3; SLIDER_BG_G = 0.3; SLIDER_BG_B = 0.3;
+SLIDER_FILL_R = 0.8; SLIDER_FILL_G = 0.6; SLIDER_FILL_B = 0.2;
+// Reverse slider colors (yellow fill for higher values)
+SLIDER_FILL_REVERSE_R = 1.0; SLIDER_FILL_REVERSE_G = 1.0; SLIDER_FILL_REVERSE_B = 0.0;
+SLIDER_BG_REVERSE_R = 0.8; SLIDER_BG_REVERSE_G = 0.8; SLIDER_BG_REVERSE_B = 0.2;
+BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
+BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
+TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
+
+// Header Colors
+HEADER_BG_R = 0.25; HEADER_BG_G = 0.25; HEADER_BG_B = 0.25;  // Dark gray
+HEADER_BORDER_R = 0.95; HEADER_BORDER_G = 0.93; HEADER_BORDER_B = 0.88;  // Off-white cream
+HEADER_SHADOW_R = 0.1; HEADER_SHADOW_G = 0.1; HEADER_SHADOW_B = 0.1;  // Dark shadow
+
+// Knob Configuration
+KNOB_SIZE = 22;  // 22 pixel diameter
+KNOB_RADIUS = 11;  // Half of size
+KNOB_INDICATOR_SIZE = 2;  // 2 pixel circle indicator
+KNOB_SHADOW_OFFSET = 2;  // Drop shadow offset
+
+// Knob Colors
+KNOB_BG_R = 0.3; KNOB_BG_G = 0.3; KNOB_BG_B = 0.3;  // Dark gray
+KNOB_INDICATOR_R = 0.0; KNOB_INDICATOR_G = 0.0; KNOB_INDICATOR_B = 0.0;  // Pure black
+KNOB_SHADOW_R = 0.0; KNOB_SHADOW_G = 0.0; KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Knob Types
+KNOB_TYPE_ANGULAR = 0;  // Angular knob (like volume knobs)
+KNOB_TYPE_ROTARY = 1;   // Rotary knob (like pan knobs)
+
+// Large Knob Types
+LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
+LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
+LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
+
+// Large Knob Configuration
+LARGE_KNOB_SIZE = 100;        // 100 pixel diameter
+LARGE_KNOB_RADIUS = 50;       // Half of size
+LARGE_KNOB_ARC_DEPTH = 4;     // 4 pixel deep arc
+LARGE_KNOB_BAR_OVERHANG = 5;  // 5 pixels past inner circle
+
+// Large Knob Colors
+LARGE_KNOB_BG_R = 0.3; LARGE_KNOB_BG_G = 0.3; LARGE_KNOB_BG_B = 0.3;  // Dark gray background
+LARGE_KNOB_ARC_R = 0.8; LARGE_KNOB_ARC_G = 0.6; LARGE_KNOB_ARC_B = 0.2;  // Yellow arc (same as slider fill)
+LARGE_KNOB_BAR_R = 1.0; LARGE_KNOB_BAR_G = 1.0; LARGE_KNOB_BAR_B = 1.0;  // White indicator bar
+LARGE_KNOB_SHADOW_R = 0.0; LARGE_KNOB_SHADOW_G = 0.0; LARGE_KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Large Knob Interaction Constants
+LARGE_KNOB_ANGLE_LTR_START = 0 * $pi / 180;        // 0°
+LARGE_KNOB_ANGLE_LTR_END = 270 * $pi / 180;        // 270°
+LARGE_KNOB_ANGLE_RTL_START = 90 * $pi / 180;       // 90°
+LARGE_KNOB_ANGLE_RTL_END = 360 * $pi / 180;        // 360° (0°)
+LARGE_KNOB_ANGLE_BIDIR_START = -135 * $pi / 180;   // -135°
+LARGE_KNOB_ANGLE_BIDIR_END = 135 * $pi / 180;      // 135°
+
+// Knob Interaction Constants
+KNOB_ANGLE_START = -135 * $pi / 180;  // Start angle in radians
+KNOB_ANGLE_END = 135 * $pi / 180;     // End angle in radians
+KNOB_ANGLE_RANGE = KNOB_ANGLE_END - KNOB_ANGLE_START;
+
+// Menu Button Configuration
+MENU_BUTTON_SIZE = 20;  // 20x20 pixel button
+MENU_BUTTON_X = 10;     // 10 pixels from left edge
+MENU_BUTTON_Y = 5;      // 5 pixels from top of header
+MENU_BUTTON_LINE_WIDTH = 2;  // 2 pixel line width
+MENU_BUTTON_LINE_SPACING = 3; // 3 pixel spacing between lines
+
+// Menu Button Colors
+MENU_BUTTON_BG_R = 0.4; MENU_BUTTON_BG_G = 0.4; MENU_BUTTON_BG_B = 0.4;  // Dark gray background
+MENU_BUTTON_LINE_R = 0.9; MENU_BUTTON_LINE_G = 0.9; MENU_BUTTON_LINE_B = 0.9;  // Light gray lines
+MENU_BUTTON_HOVER_R = 0.6; MENU_BUTTON_HOVER_G = 0.6; MENU_BUTTON_HOVER_B = 0.6;  // Lighter gray on hover
+MENU_BUTTON_HOVER_LINE_R = 1.0; MENU_BUTTON_HOVER_LINE_G = 1.0; MENU_BUTTON_HOVER_LINE_B = 1.0;  // White lines on hover
+
+// Custom Menu Configuration
+MENU_WIDTH = 120;
+MENU_ITEM_HEIGHT = 25;
+MENU_BG_R = 0.2; MENU_BG_G = 0.2; MENU_BG_B = 0.2;  // Dark background
+MENU_BORDER_R = 0.6; MENU_BORDER_G = 0.6; MENU_BORDER_B = 0.6;  // Gray border
+MENU_TEXT_R = 0.9; MENU_TEXT_G = 0.9; MENU_TEXT_B = 0.9;  // Light text
+MENU_HOVER_R = 0.4; MENU_HOVER_G = 0.4; MENU_HOVER_B = 0.4;  // Hover background
+MENU_CHECKMARK_R = 0.0; MENU_CHECKMARK_G = 1.0; MENU_CHECKMARK_B = 0.0;  // Green checkmark
+

@@ -27,15 +27,10 @@
 //==============================================================================
 
 function calculate_multi_stage_release(target_gr_db, base_release_ms) (
-  // Apply hold time logic for multi-stage release
-  hold_samples > 0 && hold_active ? (
-    // Hold is active - return peak GR value with correct sign
-    target_gr_db < 0 ? -hold_peak_gr_db : hold_peak_gr_db
-  ) : (
-    // Calculate time constants for 3 stages (hardcoded multipliers for now)
-    stage_1_coef = exp(-1/(max(0.0001, base_release_ms * 1.0 * 0.001) * srate));  // 1x
-    stage_2_coef = exp(-1/(max(0.0001, base_release_ms * 3.0 * 0.001) * srate));  // 3x
-    stage_3_coef = exp(-1/(max(0.0001, base_release_ms * 10.0 * 0.001) * srate)); // 10x
+  // Calculate time constants for 3 stages (hardcoded multipliers for now)
+  stage_1_coef = exp(-1/(max(0.0001, base_release_ms * 1.0 * 0.001) * srate));  // 1x
+  stage_2_coef = exp(-1/(max(0.0001, base_release_ms * 3.0 * 0.001) * srate));  // 3x
+  stage_3_coef = exp(-1/(max(0.0001, base_release_ms * 10.0 * 0.001) * srate)); // 10x
 
     // Apply release curve to all stages
     release_curve != 0 ? (
@@ -72,55 +67,17 @@ function calculate_multi_stage_release(target_gr_db, base_release_ms) (
       (release_stage_3_env = attack_coef * release_stage_3_env + (1 - attack_coef) * target_gr_db) :
       (release_stage_3_env = stage_3_coef * release_stage_3_env + (1 - stage_3_coef) * target_gr_db);
 
-    // Cascade the stages: stage3 follows stage2 follows stage1
-    // This creates a smooth, natural release curve
-    cascaded_result = stage_3_coef * (stage_2_coef * release_stage_1_env + (1 - stage_2_coef) * release_stage_2_env)
-                      + (1 - stage_3_coef) * release_stage_3_env;
+  // Cascade the stages: stage3 follows stage2 follows stage1
+  // This creates a smooth, natural release curve
+  cascaded_result = stage_3_coef * (stage_2_coef * release_stage_1_env + (1 - stage_2_coef) * release_stage_2_env)
+                    + (1 - stage_3_coef) * release_stage_3_env;
 
-    cascaded_result
-  );
+  cascaded_result
 );
 
 //==============================================================================
 // ENVELOPE FOLLOWING AND PROGRAM RELEASE
 //==============================================================================
-
-
-//--- Envelope Hold Logic (modularized) ---
-function apply_envelope_hold(gr_db) (
-  hold_samples > 0 ? (
-    // Check if current gain reduction is more severe (higher absolute value)
-    // than our current peak hold value
-    current_gr_abs = abs(gr_db);
-    current_gr_abs > hold_peak_gr_db ? (
-      // New peak detected - start hold period
-      hold_peak_gr_db = current_gr_abs;
-      hold_active = 1;
-      hold_timer = 0;
-    );
-    
-    hold_active ? (
-      hold_timer += 1;
-      hold_timer < hold_samples ? (
-        // Still in hold period - maintain the peak value
-        // Preserve the original sign of the gain reduction
-        gr_db < 0 ? -hold_peak_gr_db : hold_peak_gr_db
-      ) : (
-        // Hold period expired - reset hold state
-        hold_active = 0;
-        hold_peak_gr_db = 0;
-        hold_timer = 0;
-        gr_db
-      )
-    ) : (
-      // Hold not active - pass through original value
-      gr_db
-    )
-  ) : (
-    // Hold disabled - pass through original value
-    gr_db
-  );
-);
 
 //--- Program-Dependent Release Coefficient Selection ---
 function select_program_release_coef(target_gr_db, detector_level) (
@@ -177,8 +134,6 @@ function process_envelope_following(target_gr_db, detector_level) (
   ) : (
     global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level);
   );
-  // Apply hold logic
-  global_smoothed_gain_db = apply_envelope_hold(global_smoothed_gain_db);
   global_smoothed_gain_db;
 );
 

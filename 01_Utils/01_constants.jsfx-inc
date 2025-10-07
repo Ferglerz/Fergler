@@ -1,0 +1,29 @@
+// Generic Constants Module
+// Common constants used across the entire codebase
+// No dependencies
+
+@init
+
+// === AUDIO CONSTANTS ===
+
+EPS = 0.000000000000000000000000000001;
+MIN_DETECTOR_LEVEL = 0.000001; // Prevent log(0)
+DEFAULT_ENVELOPE = 1.0;
+
+// === PERFORMANCE CONSTANTS ===
+
+DENORMAL_THRESHOLD = pow(10, -15); // Faster than eps for denormal checks
+HISTORY_DECAY = 0.999;
+HISTORY_UPDATE = 0.001;
+
+// === MEMORY LAYOUT CONFIGURATION ===
+
+// UI Controls
+NUM_CONTROLS = 32;  // Total number of UI controls (0-31)
+NUM_KNOBS = 4;      // Total number of knobs (0-3)
+NUM_LARGE_KNOBS = 4; // Total number of large knobs (0-3)
+
+// Audio buffer sizes (calculated in memory allocation)
+max_lookahead_samples = 0;
+max_rms_samples = 0;
+

@@ -59,7 +59,7 @@ function is_mouse_in_menu() (
   menu_y = get_menu_y();
   menu_visible > 0.5 && 
   mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
-  mouse_y >= menu_y && mouse_y <= menu_y + (4 * MENU_ITEM_HEIGHT)
+  mouse_y >= menu_y && mouse_y <= menu_y + (6 * MENU_ITEM_HEIGHT)
 );
 
 function get_hovered_menu_item() (
@@ -67,7 +67,7 @@ function get_hovered_menu_item() (
     menu_x = get_menu_x();
     menu_y = get_menu_y();
     item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
-    item_index >= 0 && item_index < 4 ? item_index : -1;
+    item_index >= 0 && item_index < 6 ? item_index : -1;
   ) : (
     -1
   );
@@ -95,6 +95,9 @@ function handle_menu_item_click(item_index) (
     // Clear both RMS states when switching modes
     clear_rms_state();
     rms_smoothed_squared = 0;
+  ) : item_index == 5 ? (
+    // Toggle Compression LUT visualization
+    show_compression_lut_curve = show_compression_lut_curve > 0.5 ? 0 : 1;
   );
   
   // Close menu after selection

@@ -1,0 +1,139 @@
+// UI Graph Meters Module
+// Gain reduction meter and histogram visualization
+// Depends on: 00a_constants.jsfx-inc, 05a_ui_threshold_lines.jsfx-inc, 05c_ui_rendering.jsfx-inc
+
+@init
+
+//==============================================================================
+// GAIN REDUCTION METER
+//==============================================================================
+
+function draw_gain_reduction_meter() (
+  menu_gr_meter_enabled ? (
+    gr_meter_x = GRAPH_X + GRAPH_SIZE + 20;
+    gr_meter_y = GRAPH_Y;
+    gr_meter_w = 30;
+    gr_meter_h = GRAPH_SIZE;
+    meter_center_y = gr_meter_y + gr_meter_h / 2;
+    max_range_db = 40; // -40dB to +40dB range for gain reduction display
+
+    // Draw meter background
+    gfx_set(0.2, 0.2, 0.2, 1);
+    gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+
+  // Draw center line (0dB)
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1); // Antialiased
+
+  // Check if audio is active (playback state 1 = playing, 5 = recording)
+  is_audio_active = (play_state == 1) || (play_state == 5);
+
+  // Only show meter when audio is active
+  is_audio_active ? (
+    current_gr_db < 0 ? (
+      // Gain reduction (negative) - render from top down in orange/red
+      gr_height = abs(current_gr_db) / max_range_db * gr_meter_h;
+      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
+      gfx_set(1, 0.5, 0, 1); // Orange color for reduction
+      gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
+    ) : current_gr_db > 0 ? (
+      // Gain boost (positive) - render from bottom up in blue
+      gr_height = current_gr_db / max_range_db * gr_meter_h;
+      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
+      gfx_set(0.2, 0.5, 1, 1); // Blue color for boost
+      gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+    );
+  );
+  
+  // Draw GR blend threshold line if visible
+  is_gr_blend_line_visible() ? (
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
+    set_threshold_line_color(THRESHOLD_GR_BLEND, 
+      hovered_threshold_line == THRESHOLD_GR_BLEND, 
+      dragging_threshold_line == THRESHOLD_GR_BLEND);
+    
+    // Draw line across meter
+    gfx_line(gr_meter_x, line_y, gr_meter_x + gr_meter_w, line_y, 1);
+    
+    // Draw label
+    gfx_x = gr_meter_x + gr_meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("%.1f dB", gr_blend_threshold_db);
+  );
+  );
+);
+
+//==============================================================================
+// HISTOGRAM
+//==============================================================================
+
+function draw_histogram() (
+  HISTOGRAM_ENABLED && histogram_initialized && menu_histogram_enabled ? (
+    meter_range_db = 40;
+    pixels_per_db = GRAPH_SIZE / meter_range_db;
+    samples_span = histogram_max_samples;
+    width_pixels = GRAPH_SIZE;
+    step_size = max(1, floor(width_pixels / 200));
+
+    // Draw negative (reduction) and positive (addition) GR as lines in one pass
+    // Negative: orange, from top; Positive: blue, from bottom
+    // Discontinuities handled by resetting first_point
+
+    // Draw negative (reduction) line (orange, from top)
+    gfx_set(1, 0.5, 0, HISTOGRAM_OPACITY);
+    first_point_neg = 1;
+    i = 0;
+    while (i < width_pixels) (
+      age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
+      sample_idx = (histogram_pos - 1 - age + samples_span) % samples_span;
+      gr_value = histogram_buffer[sample_idx];
+
+      gr_value < 0 ? (
+        x_pos = GRAPH_X + i;
+        gr_height = abs(gr_value) * pixels_per_db;
+        y_pos = GRAPH_Y + gr_height;
+
+        first_point_neg ? (
+          gfx_x = x_pos;
+          gfx_y = y_pos;
+          first_point_neg = 0;
+        ) : (
+          gfx_lineto(x_pos, y_pos, 1);
+        );
+      ) : (
+        first_point_neg = 1;
+      );
+
+      i += step_size;
+    );
+
+    // Draw positive (addition) line (blue, from bottom)
+    gfx_set(0.2, 0.5, 1, HISTOGRAM_OPACITY);
+    first_point_pos = 1;
+    i = 0;
+    while (i < width_pixels) (
+      age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
+      sample_idx = (histogram_pos - 1 - age + samples_span) % samples_span;
+      gr_value = histogram_buffer[sample_idx];
+
+      gr_value > 0 ? (
+        x_pos = GRAPH_X + i;
+        gr_height = abs(gr_value) * pixels_per_db;
+        y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
+
+        first_point_pos ? (
+          gfx_x = x_pos;
+          gfx_y = y_pos;
+          first_point_pos = 0;
+        ) : (
+          gfx_lineto(x_pos, y_pos, 1);
+        );
+      ) : (
+        first_point_pos = 1;
+      );
+
+      i += step_size;
+    );
+  );
+);
+

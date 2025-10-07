@@ -1,0 +1,137 @@
+// UI Graph Display Module
+// Grid, labels, hints, debug display, and graph background
+// Depends on: 00a_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// GRAPH BACKGROUND AND GRID
+//==============================================================================
+
+function draw_graph_background() (
+  // Draw graph background
+  gfx_set(0.3, 0.3, 0.3, 1);
+  gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
+
+  // Draw unity line
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
+);
+
+function draw_grid() (
+  gfx_set(0.4, 0.4, 0.4, 1);
+  i = 0;
+  while (i <= 6) (
+    x_pos = GRAPH_X + i * GRAPH_SIZE / 6;
+    y_pos = GRAPH_Y + i * GRAPH_SIZE / 6;
+    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1); // Antialiased
+    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1); // Antialiased
+    i += 1;
+  );
+);
+
+//==============================================================================
+// LABELS AND INFO
+//==============================================================================
+
+function draw_labels_and_info() (
+  gfx_x = GRAPH_X + GRAPH_SIZE + 20; gfx_y = GRAPH_Y - 20;
+  gfx_set(1, 1, 1, 1);
+  gfx_drawstr("GR");
+
+  // Points text in top left of graph area in light grey
+  gfx_set(0.7, 0.7, 0.7, 1);
+  gfx_x = GRAPH_X + 10; gfx_y = GRAPH_Y + 12;
+  gfx_printf("%d/%d", num_points, MAX_POINTS);
+
+);
+
+//==============================================================================
+// MOUSE HINTS
+//==============================================================================
+
+function draw_mouse_hints() (
+  // Draw mouse hints in bottom right corner of graph area
+  // Position text area within graph boundaries with proper margins
+  hint_margin = 15; // Margin from graph edges
+  hint_y = GRAPH_Y + GRAPH_SIZE - hint_margin; // Bottom edge with margin
+  line_height = 12; // Smaller font size (reduced by 2 from default 14)
+  
+  // Set smaller font size
+  gfx_setfont(1, "Arial", 12); // Reduced from default 14
+  
+  // Set hint text color (light grey with slight transparency)
+  gfx_set(0.7, 0.7, 0.7, 0.8);
+  
+  // Approximate character width for 12pt Arial (roughly 7 pixels per character)
+  char_width = 7;
+  
+  // Calculate right-aligned positions for each line
+  // "Cmd+drag point: Curve" = ~22 characters = ~154 pixels
+  // "Right-click/Alt+click point: Delete" = ~35 characters = ~245 pixels  
+  // "Click empty: Add" = ~17 characters = ~119 pixels
+  
+  // Position from bottom up to ensure all text fits within graph
+  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (22 * char_width);
+  gfx_y = hint_y - line_height * 2;
+  gfx_drawstr("Cmd+drag point: Curve");
+  
+  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (35 * char_width);
+  gfx_y = hint_y - line_height;
+  gfx_drawstr("Right-click/Alt+click point: Delete");
+  
+  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (17 * char_width);
+  gfx_y = hint_y;
+  gfx_drawstr("Click empty: Add");
+  
+  // Reset font to default
+  gfx_setfont(1, "Arial", 14);
+);
+
+//==============================================================================
+// DEBUG SIGNAL VALUES
+//==============================================================================
+
+function draw_signal_values() (
+  DEBUG_ENABLED && menu_debug_enabled ? (
+    // Draw real-time signal values in bottom right corner of graph
+    text_x = GRAPH_X + GRAPH_SIZE - 180; // Right-justified position (wider for debug)
+    text_y = GRAPH_Y + GRAPH_SIZE - 120;  // Bottom of graph area (taller for debug)
+    line_height = 15;
+    
+    // Background for readability
+    gfx_set(0, 0, 0, 0.7);
+    gfx_rect(text_x - 5, text_y - 5, 175, 115);
+    
+    // Input sample value (green)
+    gfx_set(0, 1, 0, 1);
+    gfx_x = text_x; gfx_y = text_y;
+    gfx_printf("Input: %.3f", display_input_sample);
+    
+    // Detection signals (cyan)
+    gfx_set(0, 1, 1, 1);
+    gfx_x = text_x; gfx_y = text_y + line_height;
+    gfx_printf("Detect L/R: %.3f/%.3f", debug_detect_l, debug_detect_r);
+    
+    // RMS level (yellow) - show debug info
+    gfx_set(1, 1, 0, 1);
+    gfx_x = text_x; gfx_y = text_y + line_height * 2;
+    gfx_printf("RMS: %.3f (sum:%.3f)", display_rms_level, debug_rms_sum);
+    
+    // RMS samples info (white)
+    gfx_set(1, 1, 1, 1);
+    gfx_x = text_x; gfx_y = text_y + line_height * 3;
+    gfx_printf("RMS samples: %d", rms_samples);
+    
+    // Post-graph level (orange)
+    gfx_set(1, 0.6, 0, 1);
+    gfx_x = text_x; gfx_y = text_y + line_height * 4;
+    gfx_printf("Post-GR: %.3f", display_post_graph);
+    
+    // Post-makeup level (red)
+    gfx_set(1, 0, 0, 1);
+    gfx_x = text_x; gfx_y = text_y + line_height * 5;
+    gfx_printf("Output: %.3f", display_post_makeup);
+  );
+);
+

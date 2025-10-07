@@ -102,8 +102,11 @@ function process_complete_audio_chain() (
       // Gain reduction calculation (inlined from calculate_gain_reduction)
       input_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
       current_input_db = input_level_db;
-      target_output_db = lookup_compression_lut(input_level_db) + global_offset_db;
-      target_gr_db = target_output_db - input_level_db;
+      
+      // Apply global offset to INPUT (shifts what level the compressor "sees")
+      offset_input_db = input_level_db + global_offset_db;
+      target_output_db = lookup_compression_lut(offset_input_db);
+      target_gr_db = target_output_db - offset_input_db;
       target_gr_db *= strength;
       target_gr_db = max(max_gr_db, target_gr_db);
 
@@ -140,6 +143,13 @@ function process_complete_audio_chain() (
       gain_reduction_linear = db_to_linear(stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db);
       processed_l = input_l_orig * gain_reduction_linear;
       processed_r = input_r_orig * gain_reduction_linear;
+      
+      // Apply inverse global offset compensation
+      // Since we offset the input to shift what the compressor "sees",
+      // we now compensate the output so the final level is correct
+      global_offset_compensation = db_to_linear(global_offset_db);
+      processed_l *= global_offset_compensation;
+      processed_r *= global_offset_compensation;
     ) : (
       processed_l = input_l_orig;
       processed_r = input_r_orig;

@@ -1,0 +1,66 @@
+// RMS Detection Module
+// RMS and level detection processing
+// Depends on: 00b_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// RMS AND LEVEL DETECTION
+//==============================================================================
+
+function process_rms_detection(detect_l, detect_r) (
+  // Debug: Log detection inputs occasionally
+  DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+    debug_logf("RMS Detection: L=%.3f", detect_l);
+    debug_logf("RMS Detection: R=%.3f", detect_r);
+    debug_logf("RMS samples=%d", rms_samples);
+  );
+  
+  // RMS calculation with optional normalization
+  detect_squared = (detect_l * detect_l + detect_r * detect_r) * 0.5;
+  rms_sum -= rms_buffer[rms_pos];
+  rms_buffer[rms_pos] = detect_squared;
+  rms_sum += detect_squared;
+  rms_pos = (rms_pos + 1) % rms_samples;
+
+  rms_level = sqrt(rms_sum / rms_samples);
+  
+  // Update display RMS level
+  display_rms_level = rms_level;
+  
+  // Debug: Also store some debug values for display
+  debug_detect_l = detect_l;
+  debug_detect_r = detect_r;
+  debug_rms_sum = rms_sum;
+
+  // Apply RMS normalization if enabled
+  rms_normalization > 0.5 ? (
+    // Track running maximum for normalization
+    rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999); // slow decay
+
+    // Normalize RMS to 0..1 relative to running max
+    normalized_rms = rms_level / (rms_max + eps);
+
+    // Use peak detection for final level but shape with normalized RMS
+    peak_level = max(abs(detect_l), abs(detect_r));
+    detector_level = normalized_rms * peak_level;
+  ) : (
+    // Standard RMS or peak detection
+    rms_size_ms > 0 ? (
+      detector_level = rms_level;
+    ) : (
+      detector_level = max(abs(detect_l), abs(detect_r)); // peak mode when RMS window = 0
+    );
+  );
+
+  detector_level
+);
+
+//==============================================================================
+// DETECTION UTILITIES
+//==============================================================================
+
+function get_detector_level() (
+  detector_level;
+);
+

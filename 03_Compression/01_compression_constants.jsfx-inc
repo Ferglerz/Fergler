@@ -1,0 +1,17 @@
+// Compression Constants Module
+// All constants specific to compression processing
+// Dependencies: None
+
+@init
+
+// === COMPRESSION CONSTANTS ===
+
+MAX_GR_RANGE_DB = 30.0; // For normalization calculations
+
+// Compression Lookup Table Configuration
+COMP_LUT_MIN_DB = -80;        // Minimum dB value in lookup table (matches graph range)
+COMP_LUT_MAX_DB = 20;         // Maximum dB value in lookup table (allows headroom for makeup)
+COMP_LUT_RANGE_DB = 100;      // Total range (20 - (-80) = 100dB)
+COMP_LUT_GRANULARITY = 0.25;  // 0.25dB steps
+COMP_LUT_SIZE = 400;          // 100dB / 0.25dB = 400 entries
+

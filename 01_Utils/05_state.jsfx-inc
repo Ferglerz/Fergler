@@ -76,18 +76,12 @@ function init_state_variables() (
   // Transient detection state (used in audio processing)
   transient_detector_prev_db = GRAPH_MIN_DB;
   transient_gr_reduction = 0;
-
-  // Hold time state
-  hold_timer = 0;           // Current hold timer (in samples)
-  hold_active = 0;         // Whether hold is currently active
-  hold_peak_gr_db = 0;     // Peak GR value during hold period
   
   // Curve tracking variables
   attack_curve_prev = -999;
   release_curve_prev = -999;
   
-  // Hold and RMS tracking variables
-  hold_ms_prev = -999;
+  // RMS tracking variables
   rms_size_ms_prev = -999;
   
   // Threshold line interaction state (persistent across @init)

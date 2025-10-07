@@ -13,13 +13,12 @@ desc:Advanced Multi-Model Compressor (Modular)
 //==============================================================================
 
 
-// Time-related parameters (1-6)
+// Time-related parameters (1-5)
 slider1:attack_ms=10<0.05,100,0.1>Attack (ms)
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 slider3:release_ms=100<10,1000,1>-Release (ms)
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,10,0.1>-Lookahead (ms)
-slider6:hold_ms=0<0,50,0.1>-Hold Time (ms)
 
 // RMS & Detection parameters (7-10)
 slider7:rms_size_ms=10<1,100,0.1>-RMS Window (ms)
@@ -71,40 +70,43 @@ slider36:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
 // For Claude: These are import, not @import or include or @include
 
-// Phase 00: Constants and utilities (no dependencies)
-import 00a_constants.jsfx-inc
-import 00b_math_utils.jsfx-inc
-import 00d_dsp_utils.jsfx-inc
-import 00e_debug_logging.jsfx-inc
+// 01_Utils: Foundation utilities (no dependencies)
+import 01_Utils/01_constants.jsfx-inc
+import 01_Utils/02_math_utils.jsfx-inc
+import 01_Utils/03_debug_logging.jsfx-inc
+import 01_Utils/04_memory.jsfx-inc
+import 01_Utils/05_state.jsfx-inc
+import 01_Utils/06_file_reading.jsfx-inc
 
-// Phase 01: Foundation modules (depend on phase 00)
-import 01a_memory.jsfx-inc
-import 01b_state.jsfx-inc
-// UI config now included in 00a_constants.jsfx-inc
-import 01g_file_reading.jsfx-inc
+// 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
+import 02_InputProcessing/01_dsp_utils.jsfx-inc
+import 02_InputProcessing/02_filters.jsfx-inc
+import 02_InputProcessing/03_rms_detection.jsfx-inc
+import 02_InputProcessing/04_transient_detection.jsfx-inc
 
-// Phase 02: UI utilities (depend on phase 00-01)
-import 02d_ui_utils.jsfx-inc
+// 03_Compression: Core compression engine (depends on 01_Utils, 02_InputProcessing)
+import 03_Compression/01_compression_constants.jsfx-inc
+import 03_Compression/02_graph_data_core.jsfx-inc
+import 03_Compression/03_graph_curves.jsfx-inc
+import 03_Compression/04_graph_cache.jsfx-inc
+import 03_Compression/05_compression_core.jsfx-inc
+import 03_Compression/06_gain_reduction.jsfx-inc
+import 03_Compression/07_envelope.jsfx-inc
+import 03_Compression/08_harmonic_models.jsfx-inc
+import 03_Compression/09_audio_processing_chain.jsfx-inc
 
-
-// Graph data modules
-import 03a_graph_data.jsfx-inc
-
-// Audio processing modules
-import 04a_compression_core.jsfx-inc
-import 04c_filters.jsfx-inc
-import 04d_detection.jsfx-inc
-import 04e_envelope.jsfx-inc
-import 04f_harmonic_models.jsfx-inc
-import 04h_audio_processing_chain.jsfx-inc
-
-// UI modules (in dependency order - orchestration MUST be last)
-import 05a_ui_threshold_lines.jsfx-inc
-import 05b_ui_interaction.jsfx-inc
-import 05c_ui_rendering.jsfx-inc
-import 05d_ui_controls.jsfx-inc
-import 05e_ui_graph.jsfx-inc
-import 05f_ui_orchestration.jsfx-inc
+// 04_UI: All UI components (depends on 01_Utils, 03_Compression)
+import 04_UI/01_ui_constants.jsfx-inc
+import 04_UI/02_ui_utils.jsfx-inc
+import 04_UI/03_ui_threshold_lines.jsfx-inc
+import 04_UI/04_ui_interaction.jsfx-inc
+import 04_UI/05_ui_rendering.jsfx-inc
+import 04_UI/06_ui_controls.jsfx-inc
+import 04_UI/07_ui_graph_cache.jsfx-inc
+import 04_UI/08_ui_graph_curves.jsfx-inc
+import 04_UI/09_ui_graph_meters.jsfx-inc
+import 04_UI/10_ui_graph_display.jsfx-inc
+import 04_UI/11_ui_orchestration.jsfx-inc
 
 
 //==============================================================================
@@ -227,7 +229,10 @@ debug_log("Initializing graph...");
 );
 debug_logf("Graph ready with %d points", num_points);
 
-// 6. Initialization complete
+// 6. Mark compression system as ready (prevents LUT race condition)
+compression_init_complete = 1;
+
+// 7. Initialization complete
 debug_separator();
 debug_log("INITIALIZATION COMPLETE");
 debug_logf("Total debug messages: %d", debug_get_message_count());
@@ -244,9 +249,9 @@ param_changed = 0;
 // --- Filter Parameters (11-12) ---
 // Filter coefficients are updated in @block for real-time response
 
-// --- Timing Parameters (1-6) ---
+// --- Timing Parameters (1-5) ---
 (slider1 != attack_ms_prev || slider3 != release_ms_prev ||
- slider5 != lookahead_ms_prev || slider6 != hold_ms_prev ||
+ slider5 != lookahead_ms_prev ||
  slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
  slider4 != release_curve_prev || !slider_initialized) ? (
 
@@ -258,7 +263,6 @@ param_changed = 0;
   // Calculate sample counts
   rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
   lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
-  hold_samples = floor(hold_ms * 0.001 * srate);
 
   param_changed = 1;
 
@@ -266,7 +270,6 @@ param_changed = 0;
   attack_ms_prev = slider1;
   release_ms_prev = slider3;
   lookahead_ms_prev = slider5;
-  hold_ms_prev = slider6;
   rms_size_ms_prev = slider7;
   attack_curve_prev = slider2;
   release_curve_prev = slider4;
@@ -316,9 +319,12 @@ slider5 != lookahead_ms_pdc_prev ? (
   strength_prev = slider19;
   global_offset_db_prev = slider20;
   param_changed = 1;
-  // Invalidate both caches when parameters change
-  invalidate_curve_cache();
-  invalidate_compression_lut();
+  
+  // Only strength affects the curve, not global_offset (which is applied at lookup time)
+  slider19 != strength_prev ? (
+    invalidate_curve_cache();
+    invalidate_compression_lut();
+  );
 );
 
 // Mark slider section as initialized (ensures all calculations run on first load)
@@ -377,7 +383,7 @@ release_curve != 0 ? (
   );
 );
 
-// Update RMS and Hold parameters every block for real-time response
+// Update RMS parameters every block for real-time response
 // Fix: Clear buffer when RMS window size changes to prevent stale data bug
 new_rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
 new_rms_samples != rms_samples ? (
@@ -391,7 +397,6 @@ new_rms_samples != rms_samples ? (
 ) : (
   rms_samples = new_rms_samples;  // Update even if same (for safety)
 );
-hold_samples = floor(hold_ms * 0.001 * srate);
 
 
 //==============================================================================

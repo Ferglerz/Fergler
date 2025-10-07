@@ -1,8 +1,12 @@
 // Compression Core Module
 // Basic gain reduction calculation, core compression logic, and compression curve interpolation
-// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 00c_audio_utils.jsfx-inc, 03a_graph_data.jsfx-inc
+// Location: Compression/compression_core.jsfx-inc
+// Dependencies: Utils/constants.jsfx-inc, Utils/math_utils.jsfx-inc, Compression/compression_constants.jsfx-inc, Compression/graph_data_core.jsfx-inc
 
 @init
+
+// Flag to prevent LUT building before initialization is complete
+compression_init_complete = 0;
 
 //==============================================================================
 // COMPRESSION CURVE INTERPOLATION
@@ -68,23 +72,33 @@ comp_lut_dirty = 1;
 //==============================================================================
 
 function build_compression_lut() (
-  // Build lookup table by sampling the compression curve at 0.25dB intervals
-  i = 0;
-  while (i < COMP_LUT_SIZE) (
-    // Calculate dB value for this index
-    input_db = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
+  // GUARD: Don't build until initialization is complete
+  !compression_init_complete ? (
+    0; // Return without building
+  ) : (
+    // Build lookup table by sampling the dB curve segments
+    // Uses the single source of truth from 03_graph_curves.jsfx-inc
     
-    // Calculate output using the full interpolation curve
-    output_db = interpolate_compression_curve(input_db);
-    
-    // Store in lookup table
-    comp_lut[i] = output_db;
+    // CRITICAL: Ensure curve segments are generated first!
+    curve_segments_db_dirty ? generate_curve_segments_db();
+  
+    i = 0;
+    while (i < COMP_LUT_SIZE) (
+      // Calculate dB value for this LUT index
+      input_db = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
+      
+      // Sample the curve at this input dB
+      output_db = sample_curve_at_db(input_db);
+      
+      // Store in lookup table
+      comp_lut[i] = output_db;
     
     i += 1;
   );
   
-  // Mark LUT as clean
-  comp_lut_dirty = 0;
+    // Mark LUT as clean
+    comp_lut_dirty = 0;
+  );
 );
 
 function lookup_compression_lut(input_db) (

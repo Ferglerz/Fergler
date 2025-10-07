@@ -96,8 +96,6 @@ function setup_control_layout() (
   // Other time controls moved down to make room
   define_control(4, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead (ms)");
   row += 1;
-  define_control(5, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "Hold (ms)");
-  row += 1;
   
   // Strength and Global Offset moved to column 2 to make room
   // (These will be defined in column 2)
