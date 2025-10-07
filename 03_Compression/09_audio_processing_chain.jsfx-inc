@@ -37,11 +37,13 @@ function process_complete_audio_chain() (
   // === DETECTION SOURCE SELECTION (inlined) ===
   stage_detection_source == 1 ? (
     detection_mode > 0.5 ? (
+      // FEEDFORWARD: Use input signal for detection
       detect_l = has_sidechain_l ? spl2 : spl0;
       detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
     ) : (
-      detect_l = has_sidechain_l ? spl2 : final_l;
-      detect_r = has_sidechain_r ? spl3 : final_r;
+      // FEEDBACK: Use previous sample's output for detection (one-sample delay)
+      detect_l = has_sidechain_l ? spl2 : final_l_prev;
+      detect_r = has_sidechain_r ? spl3 : final_r_prev;
     );
   );
 
@@ -95,6 +97,7 @@ function process_complete_audio_chain() (
         rms_size_ms > 0 ? (
           detector_level = rms_level;
         ) : (
+          // Ensure detection is sign-agnostic - use absolute values
           detector_level = max(abs(detect_l), abs(detect_r));
         );
       );
@@ -167,5 +170,9 @@ function process_complete_audio_chain() (
     // === OUTPUT STAGE (inlined) ===
     spl0 = final_l;
     spl1 = final_r;
+
+    // Store output for next sample's feedback detection
+    final_l_prev = final_l;
+    final_r_prev = final_r;
   );
 );

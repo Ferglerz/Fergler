@@ -31,7 +31,8 @@ function render_complete_interface() (
 
   // Draw graph elements with proper clipping
   draw_graph_background();  // 05j
-  draw_histogram();         // 05i
+  draw_input_histogram();   // 05i - Input signal histogram (drawn first, behind GR histogram)
+  draw_histogram();         // 05i - GR histogram
   
   draw_grid();                        // 05j
   draw_mixed_curves();                // 05h

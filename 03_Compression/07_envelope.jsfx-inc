@@ -113,7 +113,8 @@ function select_program_release_coef(target_gr_db, detector_level) (
 //--- Single-Stage Envelope Following (modularized) ---
 function process_single_stage_envelope(target_gr_db, detector_level) (
   global_attack_coef = attack_coeff;
-  target_gr_db < global_smoothed_gain_db ? (
+  // Attack when target is "more extreme" than current (closer to zero = less extreme)
+  abs(target_gr_db) > abs(global_smoothed_gain_db) ? (
     global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
   ) : (
     prog_release_mode > 0.5 ? (

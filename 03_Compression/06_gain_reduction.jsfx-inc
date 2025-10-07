@@ -16,6 +16,7 @@ function calculate_gain_reduction(input_level_linear) (
   DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
     debug_logf("GR Calc: input_linear=%.3f", input_level_linear);
     debug_logf("GR Calc: input_db=%.1f", input_level_db);
+    debug_logf("GR Calc: global_offset=%.1f", global_offset_db);
   );
   
   // Update display level for visualization
@@ -29,12 +30,23 @@ function calculate_gain_reduction(input_level_linear) (
     // This makes the compressor think the signal is louder/quieter than it actually is
     offset_input_db = input_level_db + global_offset_db;
     
+    // Debug: Log the offset calculation
+    DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+      debug_logf("GR Calc: offset_input=%.1f", offset_input_db);
+    );
+    
     // Look up compression curve with offset input
     target_output_db = interpolate_compression_curve(offset_input_db);
     
     // Calculate gain reduction based on offset input
     // The output will be compensated later in the chain
     target_gr_db = target_output_db - offset_input_db;
+    
+    // Debug: Log the final GR calculation
+    DEBUG_ENABLED && (rms_pos % 4800 == 0) ? (
+      debug_logf("GR Calc: target_output=%.1f", target_output_db);
+      debug_logf("GR Calc: target_gr=%.1f", target_gr_db);
+    );
   );
 
   // Apply strength

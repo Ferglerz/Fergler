@@ -64,6 +64,48 @@ function draw_gain_reduction_meter() (
 );
 
 //==============================================================================
+// INPUT HISTOGRAM
+//==============================================================================
+
+function draw_input_histogram() (
+  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && menu_histogram_enabled ? (
+    samples_span = input_histogram_max_samples;
+    width_pixels = GRAPH_SIZE;
+    step_size = max(1, floor(width_pixels / 200));
+
+    // Draw input level as a continuous line using dB to graph coordinate conversion
+    // Color: Green, using same coordinate system as the red dot indicator
+    gfx_set(INPUT_HISTOGRAM_COLOR_R, INPUT_HISTOGRAM_COLOR_G, INPUT_HISTOGRAM_COLOR_B, INPUT_HISTOGRAM_OPACITY);
+    first_point = 1;
+    i = 0;
+    while (i < width_pixels) (
+      age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
+      sample_idx = (input_histogram_pos - 1 - age + samples_span) % samples_span;
+      level_db = input_histogram_buffer[sample_idx];
+
+      // Only draw if level is within graph range
+      level_db > GRAPH_MIN_DB ? (
+        x_pos = GRAPH_X + i;
+        // Convert dB to graph Y coordinate (same as red dot)
+        y_pos = GRAPH_Y + GRAPH_SIZE - (level_db - GRAPH_MIN_DB) / GRAPH_RANGE_DB * GRAPH_SIZE;
+
+        first_point ? (
+          gfx_x = x_pos;
+          gfx_y = y_pos;
+          first_point = 0;
+        ) : (
+          gfx_lineto(x_pos, y_pos, 1);
+        );
+      ) : (
+        first_point = 1;
+      );
+
+      i += step_size;
+    );
+  );
+);
+
+//==============================================================================
 // HISTOGRAM
 //==============================================================================
 

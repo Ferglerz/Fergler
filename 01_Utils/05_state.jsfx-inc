@@ -57,6 +57,10 @@ function init_state_variables() (
   limiter_prev_l = 0;
   limiter_prev_r = 0;
 
+  // Feedback detection state (stores previous sample output for feedback mode)
+  final_l_prev = 0;
+  final_r_prev = 0;
+
   // Display state
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
@@ -120,6 +124,32 @@ function init_state_variables() (
     debug_logf("Histogram allocated: %d samples", histogram_max_samples);
   );
 
+  // Input histogram state
+  input_histogram_buffer = 0; // Will be allocated in memory
+  input_histogram_max_samples = 0; // Calculated based on window seconds
+  input_histogram_pos = 0; // Current position in circular buffer
+  input_histogram_initialized = 0; // Flag to track initialization
+  input_histogram_frame_counter = 0; // Frame counter for update rate control
+  input_histogram_prev_level = 0; // Previous level value for smoothing
+
+  // Initialize input histogram if enabled
+  INPUT_HISTOGRAM_ENABLED ? (
+    input_histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate, same as GR histogram
+    input_histogram_buffer = freemem;
+    freemem += input_histogram_max_samples;
+    
+    // Clear input histogram buffer
+    i = 0;
+    while (i < input_histogram_max_samples) (
+      input_histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    input_histogram_pos = 0;
+    input_histogram_initialized = 1;
+    debug_logf("Input histogram allocated: %d samples", input_histogram_max_samples);
+  );
+
   // Menu toggle states (persistent across @init)
   !menu_toggles_initialized ? (
     menu_toggles_initialized = 1;
@@ -158,6 +188,29 @@ function update_histogram_state(gr_value) (
       histogram_buffer[histogram_pos] = smoothed_gr;
       histogram_pos = (histogram_pos + 1) % histogram_max_samples;
       histogram_prev_gr = smoothed_gr;
+    );
+  );
+);
+
+function update_input_histogram_state(input_level_db) (
+  // Store current input level in dB (post-filter, post-RMS) in circular buffer with rate control and smoothing
+  input_histogram_initialized ? (
+    // Frame rate control - only update every N frames
+    input_histogram_frame_counter += 1;
+    (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      input_histogram_frame_counter = 0;
+      
+      // Apply smoothing if enabled
+      smoothed_level = HISTOGRAM_SMOOTHING ? (
+        // Simple exponential smoothing: 70% new value, 30% previous
+        0.7 * input_level_db + 0.3 * input_histogram_prev_level
+      ) : (
+        input_level_db
+      );
+      
+      input_histogram_buffer[input_histogram_pos] = smoothed_level;
+      input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
+      input_histogram_prev_level = smoothed_level;
     );
   );
 );

@@ -302,10 +302,11 @@ function handle_point_addition() (
   );
 
   !too_close ? (
-    add_point(new_input_db, new_output_db);
+    new_point_index = add_point(new_input_db, new_output_db);
     // Invalidate both caches since point addition affects curves and compression
     invalidate_curve_cache();
     invalidate_compression_lut();
+    new_point_index; // Return the index of the newly added point
   ) : (
     -1; // Return -1 if too close to add
   );

@@ -416,6 +416,9 @@ MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 // Update histogram at display rate (most efficient)
 HISTOGRAM_ENABLED ? update_histogram_state(current_gr_db);
 
+// Update input histogram with current input level in dB
+INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(current_input_db);
+
 // Render main interface
 render_complete_interface();
 
