@@ -129,14 +129,6 @@ function process_complete_audio_chain() (
       gain_reduction_linear = db_to_linear(stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db);
       processed_l = audio_to_process_l * gain_reduction_linear;
       processed_r = audio_to_process_r * gain_reduction_linear;
-      
-      // Apply inverse global offset compensation
-      // Since we offset the input to shift what the compressor "sees",
-      // we now compensate the output so the final level is correct
-      // We need to DIVIDE by the offset (subtract dB, then convert to linear)
-      global_offset_compensation = db_to_linear(-global_offset_db);
-      processed_l *= global_offset_compensation;
-      processed_r *= global_offset_compensation;
     ) : (
       processed_l = input_l_orig;
       processed_r = input_r_orig;
