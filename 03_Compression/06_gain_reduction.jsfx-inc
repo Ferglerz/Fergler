@@ -21,16 +21,21 @@ function calculate_gain_reduction(input_level_linear) (
   // Update display level for visualization
   current_input_db = input_level_db;
   
-  // Apply global offset to INPUT (shifts what level the compressor "sees")
-  // This makes the compressor think the signal is louder/quieter than it actually is
-  offset_input_db = input_level_db + global_offset_db;
-  
-  // Look up compression curve with offset input
-  target_output_db = interpolate_compression_curve(offset_input_db);
-  
-  // Calculate gain reduction based on offset input
-  // The output will be compensated later in the chain
-  target_gr_db = target_output_db - offset_input_db;
+  // If input is below LUT minimum, return 0 GR (no compression)
+  input_level_db <= COMP_LUT_MIN_DB ? (
+    target_gr_db = 0;
+  ) : (
+    // Apply global offset to INPUT (shifts what level the compressor "sees")
+    // This makes the compressor think the signal is louder/quieter than it actually is
+    offset_input_db = input_level_db + global_offset_db;
+    
+    // Look up compression curve with offset input
+    target_output_db = interpolate_compression_curve(offset_input_db);
+    
+    // Calculate gain reduction based on offset input
+    // The output will be compensated later in the chain
+    target_gr_db = target_output_db - offset_input_db;
+  );
 
   // Apply strength
   target_gr_db *= strength;
@@ -41,8 +46,8 @@ function calculate_gain_reduction(input_level_linear) (
   transient_reduction = detect_transients(input_level_db);
   target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
 
-  // Update display GR for visualization - use smoothed envelope if envelope stage is active
-  current_gr_db = stage_envelope > 0.5 ? global_smoothed_gain_db : target_gr_db;
+  // The compressor is unaware of the offset, so display shows the same GR values
+  // current_gr_db will be set AFTER envelope processing in audio_processing_chain
 
   target_gr_db
 );

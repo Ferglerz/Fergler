@@ -99,32 +99,8 @@ function process_complete_audio_chain() (
         );
       );
 
-      // Gain reduction calculation (inlined from calculate_gain_reduction)
-      input_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
-      current_input_db = input_level_db;
-      
-      // Apply global offset to INPUT (shifts what level the compressor "sees")
-      offset_input_db = input_level_db + global_offset_db;
-      target_output_db = lookup_compression_lut(offset_input_db);
-      target_gr_db = target_output_db - offset_input_db;
-      target_gr_db *= strength;
-      target_gr_db = max(max_gr_db, target_gr_db);
-
-      // Transient detection (inlined)
-      transient_detection > 0 ? (
-        level_delta = input_level_db - transient_detector_prev_db;
-        level_delta > 0 && input_level_db > transient_threshold_db ? (
-          max_reduction = (transient_detection / 100.0) * 12.0;
-          threshold_excess = input_level_db - transient_threshold_db;
-          transient_gr_reduction = min(threshold_excess * 0.6, max_reduction);
-        ) : (
-          transient_gr_reduction = 0;
-        );
-        transient_detector_prev_db = input_level_db;
-        target_gr_db += transient_gr_reduction;
-      );
-
-      current_gr_db = stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db;
+      // Use the proper gain reduction calculation function
+      target_gr_db = calculate_gain_reduction(detector_level);
     );
 
     // === ENVELOPE FOLLOWING (inlined) ===
@@ -132,22 +108,33 @@ function process_complete_audio_chain() (
       // Use existing process_envelope_following function (already optimized)
       process_envelope_following(target_gr_db, detector_level);
     );
+    
+    // Set current_gr_db AFTER envelope processing - same values for display and audio
+    current_gr_db = stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db;
 
     // === LOOKAHEAD (inlined) ===
     stage_lookahead == 1 ? (
       process_lookahead(input_l_orig, input_r_orig);
+      // Use the delayed audio from lookahead buffer
+      audio_to_process_l = lookahead_out_l;
+      audio_to_process_r = lookahead_out_r;
+    ) : (
+      // No lookahead - use original input
+      audio_to_process_l = input_l_orig;
+      audio_to_process_r = input_r_orig;
     );
 
     // === GAIN REDUCTION APPLICATION (inlined) ===
     stage_gain_reduction == 1 ? (
       gain_reduction_linear = db_to_linear(stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db);
-      processed_l = input_l_orig * gain_reduction_linear;
-      processed_r = input_r_orig * gain_reduction_linear;
+      processed_l = audio_to_process_l * gain_reduction_linear;
+      processed_r = audio_to_process_r * gain_reduction_linear;
       
       // Apply inverse global offset compensation
       // Since we offset the input to shift what the compressor "sees",
       // we now compensate the output so the final level is correct
-      global_offset_compensation = db_to_linear(global_offset_db);
+      // We need to DIVIDE by the offset (subtract dB, then convert to linear)
+      global_offset_compensation = db_to_linear(-global_offset_db);
       processed_l *= global_offset_compensation;
       processed_r *= global_offset_compensation;
     ) : (

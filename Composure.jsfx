@@ -288,7 +288,7 @@ slider5 != lookahead_ms_pdc_prev ? (
   lookahead_samples > 0 ? (
     pdc_delay = lookahead_samples;
     pdc_bot_ch = 0;
-    pdc_top_ch = num_ch;
+    pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
   ) : (
     pdc_delay = 0;
   );
