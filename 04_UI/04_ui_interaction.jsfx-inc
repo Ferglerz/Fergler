@@ -11,8 +11,7 @@
 
 // Control States
 ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
-ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index
-ui_drag_large_knob = -1; // -1 = no large knob, >= 0 = dragging large knob index
+ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index (unified system handles both small and large)
 
 // Mouse position tracking for delta calculations
 ui_prev_mouse_x = 0;
@@ -114,24 +113,11 @@ function handle_menu_item_click(item_index) (
 //==============================================================================
 
 function find_clicked_knob() (
-  // Check all active knobs to see if mouse is over one
+  // Check all active knobs to see if mouse is over one (unified system handles both small and large)
   found_knob = -1;
   i = 0;
   while (i < NUM_KNOBS && found_knob == -1) (
     get_knob_active(i) && is_point_in_knob(mouse_x, mouse_y, i) ? (
-      found_knob = i; // Found it!
-    );
-    i += 1;
-  );
-  found_knob; // Return found knob index or -1
-);
-
-function find_clicked_large_knob() (
-  // Check all active large knobs to see if mouse is over one
-  found_knob = -1;
-  i = 0;
-  while (i < NUM_LARGE_KNOBS && found_knob == -1) (
-    get_large_knob_active(i) && is_point_in_large_knob(mouse_x, mouse_y, i) ? (
       found_knob = i; // Found it!
     );
     i += 1;
@@ -150,20 +136,13 @@ function handle_ui_mouse_input() (
       ui_prev_mouse_x = mouse_x;
       ui_prev_mouse_y = mouse_y;
       
-      // Check large knobs first (highest priority after menu)
-      clicked_large_knob = find_clicked_large_knob();
-      clicked_large_knob >= 0 ? (
-        ui_drag_large_knob = clicked_large_knob; // Store which large knob is being dragged
+      // Check knobs first (unified system handles both small and large)
+      clicked_knob = find_clicked_knob();
+      clicked_knob >= 0 ? (
+        ui_drag_knob = clicked_knob; // Store which knob is being dragged
         ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
         // Don't update on first click - just lock the knob
-      ) : (
-        // Check regular knobs second
-        clicked_knob = find_clicked_knob();
-        clicked_knob >= 0 ? (
-          ui_drag_knob = clicked_knob; // Store which knob is being dragged
-          ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
-          // Don't update on first click - just lock the knob
-        ) : is_menu_button_clicked() ? (
+      ) : is_menu_button_clicked() ? (
           handle_menu_button_click();
           ui_drag_control = -2; // Special value to prevent further checks
         ) : is_menu_visible() ? (
@@ -265,18 +244,16 @@ function handle_ui_mouse_input() (
           );
         );
       ) : ui_drag_knob >= 0 ? (
-        // Update knob
+        // Update knob (unified system handles both small and large)
         update_knob_value_from_mouse(ui_drag_knob, mouse_x, mouse_y);
-      ) : ui_drag_large_knob >= 0 ? (
-        // Update large knob
-        update_large_knob_value_from_mouse(ui_drag_large_knob, mouse_x, mouse_y);
+      ) : (
+        // No drag operation in progress
       );
     );
   ) : (
     // Mouse released - reset drag state
     ui_drag_control = -1;
     ui_drag_knob = -1;
-    ui_drag_large_knob = -1;
   );
 );
 
@@ -405,7 +382,7 @@ function process_mouse_input() (
   handle_threshold_line_mouse();
 
   // Only process graph mouse input if not interacting with UI controls, knobs, or threshold lines
-  ui_drag_control == -1 && ui_drag_knob == -1 && ui_drag_large_knob == -1 && dragging_threshold_line == -1 ? (
+  ui_drag_control == -1 && ui_drag_knob == -1 && dragging_threshold_line == -1 ? (
     // Always update hover state first
     hovered_point = find_point_at_mouse(mouse_x, mouse_y);
 

@@ -20,8 +20,7 @@ HISTORY_UPDATE = 0.001;
 
 // UI Controls
 NUM_CONTROLS = 30;  // Total number of UI controls (highest index is 29, so need at least 30)
-NUM_KNOBS = 4;      // Total number of knobs (0-3)
-NUM_LARGE_KNOBS = 4; // Total number of large knobs (0-3)
+NUM_KNOBS = 3;      // Total number of knobs: 2 large (Attack, Release) + 1 small (Output in header)
 
 // Audio buffer sizes (calculated in memory allocation)
 max_lookahead_samples = 0;

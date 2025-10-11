@@ -27,10 +27,11 @@ slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider10:max_gr_db=-100<-100,0,1>-Max GR (dB)
 
 // Filtering parameters (11-12)
-// HP: Left=0 (Off), Right=6000 Hz
-// LP: Left=80 Hz, Right=20000 (Off) - uses reverse slider visual
-slider11:hp_freq=0<0,6000,1>-HP Filter (Hz)
-slider12:lp_freq=20000<80,20000,1>-LP Filter (Hz)
+// Sliders store actual frequency values - discrete steps
+// HP: 0=Off (displayed as "Off" in UI), then 20Hz to 6kHz
+// LP: 20Hz to 14kHz, then 0=Off (displayed as "Off" in UI, default)
+slider11:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
+slider12:lp_freq=0<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
 
 // Character & Harmonics parameters (13-20)
 slider13:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Harmonic Type
@@ -189,6 +190,9 @@ stage_limiter_prev = -1;
 
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
+
+// Initialize makeup gain to unity (will be recalculated in @slider)
+makeup_gain_linear = 1.0;
 
 // Initialize strength multiplier (will be recalculated in @slider)
 strength_actual = strength * strength;

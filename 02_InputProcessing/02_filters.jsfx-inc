@@ -76,7 +76,7 @@ function apply_detection_filters(detect_l, detect_r) (
 
 function update_filter_coefficients() (
   // Update highpass filter coefficients (skip if Off)
-  // hp_freq: 0 = Off, > 0 = enabled
+  // slider11: 0 = Off, > 0 = enabled
   slider11 > 0 ? (
     calc_biquad(0, max(slider11, 20));  // 0 = highpass
     hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
@@ -86,9 +86,9 @@ function update_filter_coefficients() (
   );
 
   // Update lowpass filter coefficients (skip if Off)
-  // lp_freq: >= 20000 = Off, < 20000 = enabled
-  slider12 < 20000 ? (
-    calc_biquad(1, min(slider12, 19999));  // 1 = lowpass
+  // slider12: 0 = Off, > 0 = enabled
+  slider12 > 0 ? (
+    calc_biquad(1, min(slider12, 20000));  // 1 = lowpass
     lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
     lp_filter_enabled = 1;
   ) : (

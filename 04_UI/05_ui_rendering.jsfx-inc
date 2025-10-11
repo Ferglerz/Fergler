@@ -596,9 +596,8 @@ function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param
   freq = floor(value);
   
   // Format frequency for display
-  // HP filter: 0 = Off
-  // LP filter: >= 20000 = Off
-  (param_index == 11 && freq == 0) || (param_index == 12 && freq >= 20000) ? (
+  // Both HP and LP: 0 = Off
+  freq == 0 ? (
     sprintf(#freq_display_str, "Off");
   ) : freq >= 1000 ? (
     // Display as kHz

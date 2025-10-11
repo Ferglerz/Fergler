@@ -24,25 +24,25 @@ function get_control_max(index) ( control_defs[index*10 + 7]; );
 function get_control_slider_type(index) ( control_defs[index*10 + 8]; );
 function get_control_display_mode(index) ( control_defs[index*10 + 9]; ); // 0=right (default), 1=left, 2=hide
 
-// Knob accessor functions
-function get_knob_x(index) ( knob_defs[index*8 + 0]; );
-function get_knob_y(index) ( knob_defs[index*8 + 1]; );
-function get_knob_param(index) ( knob_defs[index*8 + 2]; );
-function get_knob_min(index) ( knob_defs[index*8 + 3]; );
-function get_knob_max(index) ( knob_defs[index*8 + 4]; );
-function get_knob_type(index) ( knob_defs[index*8 + 5]; );
-function get_knob_active(index) ( knob_defs[index*8 + 6]; );
-function get_knob_value(index) ( knob_defs[index*8 + 7]; );
+// Unified knob accessor functions (works for both small and large knobs)
+function get_knob_x(index) ( knob_defs[index*9 + 0]; );
+function get_knob_y(index) ( knob_defs[index*9 + 1]; );
+function get_knob_param(index) ( knob_defs[index*9 + 2]; );
+function get_knob_min(index) ( knob_defs[index*9 + 3]; );
+function get_knob_max(index) ( knob_defs[index*9 + 4]; );
+function get_knob_type(index) ( knob_defs[index*9 + 5]; );
+function get_knob_size(index) ( knob_defs[index*9 + 6]; ); // 0=small, 1=large
+function get_knob_active(index) ( knob_defs[index*9 + 7]; );
+function get_knob_value(index) ( knob_defs[index*9 + 8]; );
 
-// Large knob accessor functions
-function get_large_knob_x(index) ( large_knob_defs[index*8 + 0]; );
-function get_large_knob_y(index) ( large_knob_defs[index*8 + 1]; );
-function get_large_knob_param(index) ( large_knob_defs[index*8 + 2]; );
-function get_large_knob_min(index) ( large_knob_defs[index*8 + 3]; );
-function get_large_knob_max(index) ( large_knob_defs[index*8 + 4]; );
-function get_large_knob_type(index) ( large_knob_defs[index*8 + 5]; );
-function get_large_knob_active(index) ( large_knob_defs[index*8 + 6]; );
-function get_large_knob_value(index) ( large_knob_defs[index*8 + 7]; );
+// Helper functions to get size-specific properties
+function get_knob_radius(index) (
+  get_knob_size(index) == 1 ? LARGE_KNOB_RADIUS : KNOB_RADIUS;
+);
+
+function get_knob_pixel_size(index) (
+  get_knob_size(index) == 1 ? LARGE_KNOB_SIZE : KNOB_SIZE;
+);
 
 //==============================================================================
 // BASIC UI UTILITIES
@@ -59,13 +59,8 @@ function is_point_in_control(x, y, control_index) (
 function is_point_in_knob(x, y, knob_index) (
   knob_x = get_knob_x(knob_index);
   knob_y = get_knob_y(knob_index);
-  x >= knob_x && x <= knob_x + KNOB_SIZE && y >= knob_y && y <= knob_y + KNOB_SIZE;
-);
-
-function is_point_in_large_knob(x, y, knob_index) (
-  knob_x = get_large_knob_x(knob_index);
-  knob_y = get_large_knob_y(knob_index);
-  x >= knob_x && x <= knob_x + LARGE_KNOB_SIZE && y >= knob_y && y <= knob_y + LARGE_KNOB_SIZE;
+  knob_size = get_knob_pixel_size(knob_index);
+  x >= knob_x && x <= knob_x + knob_size && y >= knob_y && y <= knob_y + knob_size;
 );
 
 function update_slider_value(control_index, mouse_x, mouse_y) (
@@ -105,6 +100,7 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
   param_index = get_knob_param(knob_index);
   min_val = get_knob_min(knob_index);
   max_val = get_knob_max(knob_index);
+  knob_size = get_knob_size(knob_index);
   
   // Get current value
   current_value = slider(param_index);
@@ -112,33 +108,14 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
   // Calculate mouse delta from previous position
   mouse_dy = mouse_y - ui_prev_mouse_y;
   
-  // Update value based on mouse movement (higher sensitivity for knobs)
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY);
+  // Get sensitivity based on knob size (large knobs = finer control)
+  sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
+  
+  // Update value based on mouse movement
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity);
   
   // Update knob value and slider
-  knob_defs[knob_index*8 + 7] = new_value;
-  slider(param_index) = new_value;
-  sliderchange(1 << (param_index - 1));
-  
-  new_value;
-);
-
-function update_large_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
-  param_index = get_large_knob_param(knob_index);
-  min_val = get_large_knob_min(knob_index);
-  max_val = get_large_knob_max(knob_index);
-  
-  // Get current value
-  current_value = slider(param_index);
-  
-  // Calculate mouse delta from previous position
-  mouse_dy = mouse_y - ui_prev_mouse_y;
-  
-  // Update value based on mouse movement (medium sensitivity for large knobs)
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, LARGE_KNOB_SENSITIVITY);
-  
-  // Update knob value and slider
-  large_knob_defs[knob_index*8 + 7] = new_value;
+  knob_defs[knob_index*9 + 8] = new_value;
   slider(param_index) = new_value;
   sliderchange(1 << (param_index - 1));
   

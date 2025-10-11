@@ -30,13 +30,10 @@ function allocate_memory() (
   !control_defs ? control_defs = freemem;
   freemem += NUM_CONTROLS * 10;
 
-  // Allocate knob definitions memory (8 values per knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
+  // Allocate unified knob definitions memory (9 values per knob: x, y, param_index, min_val, max_val, type, size, is_active, current_value)
+  // size: 0=small (KNOB_SIZE), 1=large (LARGE_KNOB_SIZE)
   !knob_defs ? knob_defs = freemem;
-  freemem += NUM_KNOBS * 8;
-
-  // Allocate large knob definitions memory (8 values per large knob: x, y, param_index, min_val, max_val, type, is_active, current_value)
-  !large_knob_defs ? large_knob_defs = freemem;
-  freemem += NUM_LARGE_KNOBS * 8;
+  freemem += NUM_KNOBS * 9;
 
   // Always allocate audio buffers (these can be reallocated safely)
   // Allocate based on lookahead slider's maximum value (slider5)
