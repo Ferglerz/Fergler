@@ -8,7 +8,7 @@
 // DEBUG CONFIGURATION
 //==============================================================================
 
-DEBUG_ENABLED = 0; // Set to 0 to disable all debug output
+DEBUG_ENABLED = 1; // Set to 0 to disable all debug output (currently enabled for troubleshooting)
 DEBUG_MAX_MESSAGES = STRING_SLOTS_DEBUG; // Use slots 0-49 for debug messages
 DEBUG_START_Y = 450; // Y position where debug output starts
 DEBUG_LINE_HEIGHT = 15;

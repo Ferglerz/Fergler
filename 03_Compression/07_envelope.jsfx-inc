@@ -9,22 +9,27 @@
 //==============================================================================
 
 //--- Program-Dependent Release Coefficient Selection ---
-function select_program_release_coef(target_gr_db, detector_level) (
+function select_program_release_coef(target_gr_db, detector_level_db) (
   debug_counter_prog_release += 1;
   
-  rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
-  rel_fast = exp(-1/(base_fast_s * rel_mult * srate));
-  rel_med  = exp(-1/(base_med_s  * rel_mult * srate));
-  rel_slow = exp(-1/(base_slow_s * rel_mult * srate));
+  // Cache release coefficients when timing or sample rate changes
+  (cached_release_ms != release_ms || cached_srate_env != srate) ? (
+    cached_release_ms = release_ms;
+    cached_srate_env = srate;
+    rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+    rel_fast_cached = exp(-1/(base_fast_s * rel_mult * srate));
+    rel_med_cached  = exp(-1/(base_med_s  * rel_mult * srate));
+    rel_slow_cached = exp(-1/(base_slow_s * rel_mult * srate));
+  );
 
   gr_amount = abs(target_gr_db);
-  det_delta = prev_detector_db - linear_to_db(detector_level);
-  input_level_db = linear_to_db(detector_level);
+  det_delta = prev_detector_db - detector_level_db;
+  input_level_db = detector_level_db;
 
-  rel_coef_use = rel_med;
+  rel_coef_use = rel_med_cached;
   prog_release_type == 0 ? (
     // Fixed Release: Use medium release coefficient
-    rel_coef_use = rel_med;
+    rel_coef_use = rel_med_cached;
   ) : prog_release_type == 1 ? (
     // Input-Dependent: Single threshold blend
     level_above_threshold = input_level_db - input_level_threshold_db;
@@ -54,26 +59,26 @@ function select_program_release_coef(target_gr_db, detector_level) (
     
     input_level_db < threshold_lower ? (
       // Below lower threshold: Fast release
-      rel_coef_use = rel_fast;
+      rel_coef_use = rel_fast_cached;
     ) : input_level_db < threshold_upper ? (
       // Between thresholds: Blend from fast to medium
       blend_factor = (input_level_db - threshold_lower) / (threshold_range + eps);
-      rel_coef_use = rel_fast * (1 - blend_factor) + rel_med * blend_factor;
+      rel_coef_use = rel_fast_cached * (1 - blend_factor) + rel_med_cached * blend_factor;
     ) : (
       // Above upper threshold: Blend from medium to slow based on distance above
       distance_above = input_level_db - threshold_upper;
       blend_factor = clamp(distance_above / 20, 0, 1);
-      rel_coef_use = rel_med * (1 - blend_factor) + rel_slow * blend_factor;
+      rel_coef_use = rel_med_cached * (1 - blend_factor) + rel_slow_cached * blend_factor;
     );
   ) : (
     // Default fallback: Use medium release
-    rel_coef_use = rel_med;
+    rel_coef_use = rel_med_cached;
   );
   rel_coef_use;
 );
 
 //--- Single-Stage Envelope Following (modularized) ---
-function process_single_stage_envelope(target_gr_db, detector_level) (
+function process_single_stage_envelope(target_gr_db, detector_level_db) (
   debug_counter_single_envelope += 1;
   
   global_attack_coef = attack_coeff;
@@ -82,7 +87,7 @@ function process_single_stage_envelope(target_gr_db, detector_level) (
     global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
   ) : (
     prog_release_type > 0 ? (
-      rel_coef_use = select_program_release_coef(target_gr_db, detector_level);
+      rel_coef_use = select_program_release_coef(target_gr_db, detector_level_db);
       global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
     ) : (
       fixed_rel_coef = release_coeff;
@@ -93,11 +98,11 @@ function process_single_stage_envelope(target_gr_db, detector_level) (
 );
 
 //--- Main Envelope Following Function ---
-function process_envelope_following(target_gr_db, detector_level) (
+function process_envelope_following(target_gr_db, detector_level_db) (
   // Debug counter: track envelope processing
   debug_counter_envelope += 1;
   
-  global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level);
+  global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);
   global_smoothed_gain_db;
 );
 

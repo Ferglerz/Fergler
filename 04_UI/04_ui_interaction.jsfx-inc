@@ -14,6 +14,10 @@ ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 
 ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index
 ui_drag_large_knob = -1; // -1 = no large knob, >= 0 = dragging large knob index
 
+// Mouse position tracking for delta calculations
+ui_prev_mouse_x = 0;
+ui_prev_mouse_y = 0;
+
 // Graph interaction states
 dragging_point = -1;
 hovered_point = -1;
@@ -142,17 +146,23 @@ function find_clicked_large_knob() (
 function handle_ui_mouse_input() (
   MOUSE_LEFT_BUTTON ? (
     ui_drag_control == -1 ? ( // Start of click - no control selected yet
+      // Initialize previous mouse position on first click
+      ui_prev_mouse_x = mouse_x;
+      ui_prev_mouse_y = mouse_y;
+      
       // Check large knobs first (highest priority after menu)
       clicked_large_knob = find_clicked_large_knob();
       clicked_large_knob >= 0 ? (
         ui_drag_large_knob = clicked_large_knob; // Store which large knob is being dragged
-        update_large_knob_value_from_mouse(clicked_large_knob, mouse_x, mouse_y);
+        ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
+        // Don't update on first click - just lock the knob
       ) : (
         // Check regular knobs second
         clicked_knob = find_clicked_knob();
         clicked_knob >= 0 ? (
           ui_drag_knob = clicked_knob; // Store which knob is being dragged
-          update_knob_value_from_mouse(clicked_knob, mouse_x, mouse_y);
+          ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
+          // Don't update on first click - just lock the knob
         ) : is_menu_button_clicked() ? (
           handle_menu_button_click();
           ui_drag_control = -2; // Special value to prevent further checks
@@ -190,6 +200,17 @@ function handle_ui_mouse_input() (
                   pdc_top_ch = 2;
                 );
               );
+            ) : control_type == 4 ? (
+              // Freq list slider - discrete value slider (snaps to integer steps)
+              ui_drag_control = i;
+              new_value = update_slider_value(i, mouse_x, mouse_y);
+              // Round to nearest integer for discrete steps
+              slider(param_index) = floor(new_value + 0.5);
+              sliderchange(1 << (param_index - 1));
+            ) : control_type == 3 ? (
+              // Small knob (control type 3) - start drag
+              ui_drag_control = i;
+              // Don't update on first click - just lock the control
             ) : control_type == 1 ? (
               // Button - toggle (don't start drag for buttons)
               slider(param_index) = current_value > 0.5 ? 0 : 1;
@@ -209,17 +230,38 @@ function handle_ui_mouse_input() (
       );
     ) : ( // Continue drag
       ui_drag_control >= 0 ? (
-        // Update dragged slider
+        // Update dragged control
         param_index = get_control_param(ui_drag_control);
-        slider(param_index) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
-        sliderchange(1 << (param_index - 1));
+        control_type = get_control_type(ui_drag_control);
         
-        // Immediate PDC update for lookahead slider (slider5)
-        param_index == 5 ? (
-          pdc_delay = min(slider(5) * 0.001 * srate, max_lookahead_samples) | 0;
-          pdc_delay > 0 ? (
-            pdc_bot_ch = 0;
-            pdc_top_ch = 2;
+        control_type == 3 ? (
+          // Small knob (control type 3) - use delta tracking
+          min_val = get_control_min(ui_drag_control);
+          max_val = get_control_max(ui_drag_control);
+          current_value = slider(param_index);
+          mouse_dy = mouse_y - ui_prev_mouse_y;
+          new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY);
+          slider(param_index) = new_value;
+          sliderchange(1 << (param_index - 1));
+        ) : (
+          // Sliders (types 0 and 4) - use position tracking
+          new_value = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+          
+          // Round to integer for freq_list_slider (type 4)
+          control_type == 4 ? (
+            slider(param_index) = floor(new_value + 0.5);
+          ) : (
+            slider(param_index) = new_value;
+          );
+          sliderchange(1 << (param_index - 1));
+          
+          // Immediate PDC update for lookahead slider (slider5)
+          param_index == 5 ? (
+            pdc_delay = min(slider(5) * 0.001 * srate, max_lookahead_samples) | 0;
+            pdc_delay > 0 ? (
+              pdc_bot_ch = 0;
+              pdc_top_ch = 2;
+            );
           );
         );
       ) : ui_drag_knob >= 0 ? (
@@ -425,4 +467,8 @@ function process_mouse_input() (
       waiting_for_mouse_release = 0; // Clear the waiting flag
     );
   );
+  
+  // Update previous mouse position for next frame's delta calculation
+  ui_prev_mouse_x = mouse_x;
+  ui_prev_mouse_y = mouse_y;
 );

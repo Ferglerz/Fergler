@@ -383,7 +383,7 @@ function draw_threshold_line_with_label(line_y, start_x, end_x, threshold_type, 
 // GENERIC CONTROL DRAWING FUNCTIONS
 //==============================================================================
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type) (
+function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode) (
   // Draw label
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
   slider_type == 1 ? ( // Vertical slider (75% scaled)
@@ -411,10 +411,12 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     gfx_set(1, 1, 1, 1);
     gfx_rect(x - 2, handle_y, w + 4, 6);
 
-    // Draw value text
-    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-    gfx_x = x + w + 8; gfx_y = y + h/2;  // 10 * 0.75 = 7.5 rounded up
-    gfx_printf("%.2f", value);
+    // Draw value text (if not hidden)
+    display_mode != 2 ? (
+      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+      gfx_x = x + w + 8; gfx_y = y + h/2;  // 10 * 0.75 = 7.5 rounded up
+      gfx_printf("%.2f", value);
+    );
   ) : slider_type == 2 ? ( // Reverse slider
     // Draw slider background
     gfx_set(SLIDER_BG_REVERSE_R, SLIDER_BG_REVERSE_G, SLIDER_BG_REVERSE_B, 1);
@@ -430,10 +432,18 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     gfx_set(1, 1, 1, 1);
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
-    // Draw value text
-    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-    gfx_x = x + w + 10; gfx_y = y + 3;
-    gfx_printf("%.2f", value);
+    // Draw value text (if not hidden)
+    display_mode != 2 ? (
+      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+      display_mode == 1 ? (
+        // Display to left
+        gfx_x = x - 50; gfx_y = y + 3;
+      ) : (
+        // Display to right (default)
+        gfx_x = x + w + 10; gfx_y = y + 3;
+      );
+      gfx_printf("%.2f", value);
+    );
   ) : ( // Horizontal slider (default)
     // Draw slider background
     gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
@@ -449,10 +459,18 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     gfx_set(1, 1, 1, 1);
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
-    // Draw value text (75% scaled)
-    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-    gfx_x = x + w + 8; gfx_y = y + 2;  // 10 * 0.75 = 7.5 rounded up, 3 * 0.75 = 2.25 rounded down
-    gfx_printf("%.2f", value);
+    // Draw value text (if not hidden) (75% scaled)
+    display_mode != 2 ? (
+      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+      display_mode == 1 ? (
+        // Display to left
+        gfx_x = x - 50; gfx_y = y + 2;
+      ) : (
+        // Display to right (default)
+        gfx_x = x + w + 8; gfx_y = y + 2;
+      );
+      gfx_printf("%.2f", value);
+    );
   );
 );
 
@@ -529,6 +547,86 @@ function draw_generic_knob(x, y, value, min_val, max_val, label) (
   gfx_printf("%.1f", value);
 );
 
+function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param_index, slider_type, display_mode) (
+  // Frequency list slider - looks like a slider but snaps to discrete frequency values
+  // Supports both left-to-right (normal) and right-to-left (reverse) rendering
+  
+  // Draw label
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_drawstr(label);
+
+  // Calculate normalized position based on index
+  normalized_pos = (value - min_val) / (max_val - min_val);
+
+  // Check if this is a reverse slider (slider_type == 2)
+  slider_type == 2 ? (
+    // REVERSE SLIDER - grey background with yellow/ochre fill from RIGHT to fader
+    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_rect(x, y, w, h);
+
+    // Draw slider fill from RIGHT to fader position
+    fill_w = normalized_pos * w;
+    fill_start_x = x + fill_w;
+    fill_width = w - fill_w;
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(fill_start_x, y, fill_width, h);
+
+    // Draw handle
+    handle_x = x + fill_w - 3;
+    gfx_set(1, 1, 1, 1);
+    gfx_rect(handle_x, y - 2, 6, h + 4);
+  ) : (
+    // NORMAL SLIDER - fills from left, gray background
+    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_rect(x, y, w, h);
+
+    // Draw slider fill
+    fill_w = normalized_pos * w;
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(x, y, fill_w, h);
+
+    // Draw handle
+    handle_x = x + fill_w - 3;
+    gfx_set(1, 1, 1, 1);
+    gfx_rect(handle_x, y - 2, 6, h + 4);
+  );
+
+  // Value is the actual frequency in Hz
+  freq = floor(value);
+  
+  // Format frequency for display
+  // HP filter: 0 = Off
+  // LP filter: >= 20000 = Off
+  (param_index == 11 && freq == 0) || (param_index == 12 && freq >= 20000) ? (
+    sprintf(#freq_display_str, "Off");
+  ) : freq >= 1000 ? (
+    // Display as kHz
+    freq_khz = freq / 1000;
+    freq_khz == floor(freq_khz) ? (
+      sprintf(#freq_display_str, "%.0fk", freq_khz);
+    ) : (
+      sprintf(#freq_display_str, "%.1fk", freq_khz);
+    );
+  ) : (
+    // Display as Hz
+    sprintf(#freq_display_str, "%.0f", freq);
+  );
+  
+  // Draw formatted frequency text (if not hidden)
+  display_mode != 2 ? (
+    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+    display_mode == 1 ? (
+      // Display to left
+      gfx_x = x - 50; gfx_y = y + 2;
+    ) : (
+      // Display to right (default)
+      gfx_x = x + w + 8; gfx_y = y + 2;
+    );
+    gfx_drawstr(#freq_display_str);
+  );
+);
+
 //==============================================================================
 // GENERIC CONTROL RENDERING
 //==============================================================================
@@ -543,6 +641,7 @@ function draw_control(index) (
   min_val = get_control_min(index);
   max_val = get_control_max(index);
   slider_type = get_control_slider_type(index);
+  display_mode = get_control_display_mode(index);
   
   // Get current parameter value
   current_value = slider(param_index);
@@ -555,10 +654,11 @@ function draw_control(index) (
     // Skip rendering stage enable buttons when debug is enabled
     0;
   ) : (
-    type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type) :
+    type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode) :
     type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
     type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
     type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
+    type == 4 ? draw_freq_list_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_type, display_mode) :
     0;
   );
 );

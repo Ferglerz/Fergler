@@ -9,7 +9,7 @@
 //==============================================================================
 
 // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
-// Type: 0=slider, 1=button, 2=dropdown, 3=knob
+// Type: 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider (discrete value slider)
 // NUM_CONTROLS is now defined in 00a_constants.jsfx-inc as 34
 
 // Control definitions memory is allocated in 01a_memory.jsfx-inc
@@ -20,7 +20,7 @@
 //==============================================================================
 
 function define_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
-  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob
+  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
   control_defs[index*10 + 1] = x;         // X position
   control_defs[index*10 + 2] = y;         // Y position
   control_defs[index*10 + 3] = w;         // Width
@@ -29,7 +29,33 @@ function define_control(index, type, x, y, w, h, param_index, min_val, max_val, 
   control_defs[index*10 + 6] = min_val;   // Min value
   control_defs[index*10 + 7] = max_val;   // Max value
   control_defs[index*10 + 8] = 0;         // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*10 + 9] = 0;         // Reserved for options pointer
+  control_defs[index*10 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
+);
+
+function define_control_with_slider_type(index, type, x, y, w, h, param_index, min_val, max_val, label, slider_type) (
+  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
+  control_defs[index*10 + 1] = x;         // X position
+  control_defs[index*10 + 2] = y;         // Y position
+  control_defs[index*10 + 3] = w;         // Width
+  control_defs[index*10 + 4] = h;         // Height
+  control_defs[index*10 + 5] = param_index; // Parameter index
+  control_defs[index*10 + 6] = min_val;   // Min value
+  control_defs[index*10 + 7] = max_val;   // Max value
+  control_defs[index*10 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
+  control_defs[index*10 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
+);
+
+function define_control_full(index, type, x, y, w, h, param_index, min_val, max_val, label, slider_type, display_mode) (
+  control_defs[index*10 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
+  control_defs[index*10 + 1] = x;         // X position
+  control_defs[index*10 + 2] = y;         // Y position
+  control_defs[index*10 + 3] = w;         // Width
+  control_defs[index*10 + 4] = h;         // Height
+  control_defs[index*10 + 5] = param_index; // Parameter index
+  control_defs[index*10 + 6] = min_val;   // Min value
+  control_defs[index*10 + 7] = max_val;   // Max value
+  control_defs[index*10 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
+  control_defs[index*10 + 9] = display_mode; // Display mode: 0=right (default), 1=left, 2=hide
 );
 
 function define_slider(index, slider_type, x, y, w, h, param_index, min_val, max_val, label) (
@@ -42,7 +68,7 @@ function define_slider(index, slider_type, x, y, w, h, param_index, min_val, max
   control_defs[index*10 + 6] = min_val;   // Min value
   control_defs[index*10 + 7] = max_val;   // Max value
   control_defs[index*10 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*10 + 9] = 0;         // Reserved for options pointer
+  control_defs[index*10 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
 );
 
 function define_knob(index, x, y, param_index, min_val, max_val, knob_type) (
@@ -86,7 +112,8 @@ function setup_control_layout() (
   // Attack large knob
   define_large_knob(0, control_x, control_y + row * large_knob_spacing, 1, get_slider_min(1), get_slider_max(1), LARGE_KNOB_TYPE_LTR);
   row += 1;
-  define_control(1, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve");
+  // Attack Curve: hide value display (display_mode = 2)
+  define_control_full(1, 0, control_x, control_y + row * large_knob_spacing, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve", 0, 2);
   row += 1;
   
   // Release large knob  
@@ -151,21 +178,26 @@ function setup_control_layout() (
   row += 1;
 
     // Sidechain controls
-  define_control(19, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
+  define_control(25, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
   row += 1;
-  define_control(20, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen SC");
+  define_control(26, 1, control_x, control_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen SC");
   row += 1;
   
   // Progressive Release Type
   define_control(18, 2, control_x, control_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 25, get_slider_min(25), get_slider_max(25), "Prog Release Type");
   row += 1;
   
-  // HP and LP controls beneath the graph (unchanged)
+  // HP and LP controls beneath the graph - using custom freq_list_slider (type 4)
   beneath_graph_x = GRAPH_X + 20; // Start 20px from left edge of graph
   beneath_graph_y = GRAPH_Y + GRAPH_SIZE + 20; // 20px below the graph
   
-  define_control(10, 0, beneath_graph_x, beneath_graph_y, SLIDER_W, SLIDER_H, 11, get_slider_min(11), get_slider_max(11), "HP Filter (Hz)");
-  define_control(11, 0, beneath_graph_x + SLIDER_W + 20, beneath_graph_y, SLIDER_W, SLIDER_H, 12, get_slider_min(12), get_slider_max(12), "LP Filter (Hz)");
+  // HP Filter: normal slider (slider_type=0, fills from left), display to left (display_mode=1)
+  // Range: 0 (Off) to 6000 Hz
+  define_control_full(10, 4, beneath_graph_x, beneath_graph_y, SLIDER_W, SLIDER_H, 11, 0, 6000, "HP Filter", 0, 1);
+  
+  // LP Filter: reverse slider (slider_type=2, fills from right), display to right (display_mode=0, default)
+  // Range: 80 to 20000 Hz (20000 = Off)
+  define_control_full(11, 4, beneath_graph_x + SLIDER_W + 20, beneath_graph_y, SLIDER_W, SLIDER_H, 12, 80, 20000, "LP Filter", 2, 0);
   
   debug_logf("Configured %d controls", NUM_CONTROLS);
 );
@@ -187,7 +219,7 @@ function setup_header_controls() (
 function render_custom_ui_controls() (
   // Draw all controls
   i = 0;
-  while (i < num_controls) (
+  while (i < NUM_CONTROLS) (
     draw_control(i);
     i += 1;
   );

@@ -38,19 +38,31 @@ function apply_detection_filters(detect_l, detect_r) (
   // Debug counter: track filter processing
   debug_counter_filters += 1;
   
-  // Apply highpass filter
-  detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;
-  hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l_filtered;
+  // Apply highpass filter (only if enabled)
+  hp_filter_enabled ? (
+    detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;
+    hp_x2_l = hp_x1_l; hp_x1_l = detect_l; hp_y2_l = hp_y1_l; hp_y1_l = detect_l_filtered;
 
-  detect_r_filtered = hp_b0 * detect_r + hp_b1 * hp_x1_r + hp_b2 * hp_x2_r - hp_a1 * hp_y1_r - hp_a2 * hp_y2_r;
-  hp_x2_r = hp_x1_r; hp_x1_r = detect_r; hp_y2_r = hp_y1_r; hp_y1_r = detect_r_filtered;
+    detect_r_filtered = hp_b0 * detect_r + hp_b1 * hp_x1_r + hp_b2 * hp_x2_r - hp_a1 * hp_y1_r - hp_a2 * hp_y2_r;
+    hp_x2_r = hp_x1_r; hp_x1_r = detect_r; hp_y2_r = hp_y1_r; hp_y1_r = detect_r_filtered;
+  ) : (
+    // HP filter off - pass through unfiltered
+    detect_l_filtered = detect_l;
+    detect_r_filtered = detect_r;
+  );
 
-  // Apply lowpass filter
-  detect_l = lp_b0 * detect_l_filtered + lp_b1 * lp_x1_l + lp_b2 * lp_x2_l - lp_a1 * lp_y1_l - lp_a2 * lp_y2_l;
-  lp_x2_l = lp_x1_l; lp_x1_l = detect_l_filtered; lp_y2_l = lp_y1_l; lp_y1_l = detect_l;
+  // Apply lowpass filter (only if enabled)
+  lp_filter_enabled ? (
+    detect_l = lp_b0 * detect_l_filtered + lp_b1 * lp_x1_l + lp_b2 * lp_x2_l - lp_a1 * lp_y1_l - lp_a2 * lp_y2_l;
+    lp_x2_l = lp_x1_l; lp_x1_l = detect_l_filtered; lp_y2_l = lp_y1_l; lp_y1_l = detect_l;
 
-  detect_r = lp_b0 * detect_r_filtered + lp_b1 * lp_x1_r + lp_b2 * lp_x2_r - lp_a1 * lp_y1_r - lp_a2 * lp_y2_r;
-  lp_x2_r = lp_x1_r; lp_x1_r = detect_r_filtered; lp_y2_r = lp_y1_r; lp_y1_r = detect_r;
+    detect_r = lp_b0 * detect_r_filtered + lp_b1 * lp_x1_r + lp_b2 * lp_x2_r - lp_a1 * lp_y1_r - lp_a2 * lp_y2_r;
+    lp_x2_r = lp_x1_r; lp_x1_r = detect_r_filtered; lp_y2_r = lp_y1_r; lp_y1_r = detect_r;
+  ) : (
+    // LP filter off - pass through HP-filtered signal
+    detect_l = detect_l_filtered;
+    detect_r = detect_r_filtered;
+  );
 
   // Return filtered signals via global variables
   filtered_l = detect_l;
@@ -63,11 +75,23 @@ function apply_detection_filters(detect_l, detect_r) (
 //==============================================================================
 
 function update_filter_coefficients() (
-  // Update highpass filter coefficients
-  calc_biquad(0, max(hp_freq, 20));  // 0 = highpass
-  hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
+  // Update highpass filter coefficients (skip if Off)
+  // hp_freq: 0 = Off, > 0 = enabled
+  slider11 > 0 ? (
+    calc_biquad(0, max(slider11, 20));  // 0 = highpass
+    hp_b0 = b0; hp_b1 = b1; hp_b2 = b2; hp_a1 = a1; hp_a2 = a2;
+    hp_filter_enabled = 1;
+  ) : (
+    hp_filter_enabled = 0;
+  );
 
-  // Update lowpass filter coefficients
-  calc_biquad(1, min(lp_freq, 20000));  // 1 = lowpass
-  lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
+  // Update lowpass filter coefficients (skip if Off)
+  // lp_freq: >= 20000 = Off, < 20000 = enabled
+  slider12 < 20000 ? (
+    calc_biquad(1, min(slider12, 19999));  // 1 = lowpass
+    lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
+    lp_filter_enabled = 1;
+  ) : (
+    lp_filter_enabled = 0;
+  );
 );

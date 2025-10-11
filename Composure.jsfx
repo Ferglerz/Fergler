@@ -27,8 +27,10 @@ slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider10:max_gr_db=-100<-100,0,1>-Max GR (dB)
 
 // Filtering parameters (11-12)
-slider11:hp_freq=20<20,1000,1>-HP Filter (Hz)
-slider12:lp_freq=20000<100,20000,10>-LP Filter (Hz)
+// HP: Left=0 (Off), Right=6000 Hz
+// LP: Left=80 Hz, Right=20000 (Off) - uses reverse slider visual
+slider11:hp_freq=0<0,6000,1>-HP Filter (Hz)
+slider12:lp_freq=20000<80,20000,1>-LP Filter (Hz)
 
 // Character & Harmonics parameters (13-20)
 slider13:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Harmonic Type
@@ -188,6 +190,9 @@ stage_limiter_prev = -1;
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
 
+// Initialize strength multiplier (will be recalculated in @slider)
+strength_actual = strength * strength;
+
 // 4. Initialize curve data
 init_curve_data();
 
@@ -224,6 +229,19 @@ debug_logf("Total debug messages: %d", debug_get_message_count());
 param_changed = 0;
 
 // --- Filter Parameters (11-12) ---
+// Sliders store actual frequency values directly in Hz
+// hp_freq: 0 = Off, 1-6000 = filter frequency
+// lp_freq: 20000 = Off, 80-19999 = filter frequency
+(slider11 != hp_freq_prev || !slider_initialized) ? (
+  hp_freq_prev = slider11;
+  param_changed = 1;
+);
+
+(slider12 != lp_freq_prev || !slider_initialized) ? (
+  lp_freq_prev = slider12;
+  param_changed = 1;
+);
+
 // Filter coefficients are updated in @block for real-time response
 
 // --- Timing Parameters (1-5) ---
@@ -288,7 +306,7 @@ pdc_delay > 0 ? (
   param_changed = 1;
 );
 
-// --- Curve-affecting parameters ---
+// --- Strength and Global Offset parameters ---
 (slider19 != strength_prev || slider20 != global_offset_db_prev || !slider_initialized) ? (
   strength_prev = slider19;
   global_offset_db_prev = slider20;
@@ -297,13 +315,17 @@ pdc_delay > 0 ? (
   // Using power of 2: strength=1 -> actual=1, strength=3 -> actual=9, strength=10 -> actual=100
   strength_actual = strength * strength;
   
+  // Debug: ALWAYS log strength changes (unconditional)
+  debug_log("=== STRENGTH UPDATED ===");
+  debug_logf("Strength slider value: %.2f", strength);
+  debug_logf("Strength actual (squared): %.2f", strength_actual);
+  debug_logf("slider19 raw value: %.2f", slider19);
+  
   param_changed = 1;
   
-  // Only strength affects the curve, not global_offset (which is applied at lookup time)
-  slider19 != strength_prev ? (
-    invalidate_curve_cache();
-    invalidate_compression_lut();
-  );
+  // Note: Strength is applied AFTER curve lookup in calculate_gain_reduction(),
+  // so it doesn't affect the curve shape itself. No need to invalidate curve cache.
+  // Global offset is applied at lookup time (shifts input level before curve lookup).
 );
 
 // Mark slider section as initialized (ensures all calculations run on first load)
@@ -391,7 +413,7 @@ new_rms_samples != rms_samples ? (
 // GFX RUNTIME
 //==============================================================================
 
-@gfx 2625 373 // These MUST be numbers, not variables (75% of original: 3500*0.75=2625, 450*0.75=338, +35 for header)
+@gfx 2625 800 // Width: 2625 (75% of 3500), Height: 800 (increased to show debug panel at bottom)
 
 // Update mouse state constants dynamically (evaluated every frame)
 MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button

@@ -90,6 +90,7 @@ KNOB_SIZE = 17;  // 22 * 0.75 = 16.5 rounded up
 KNOB_RADIUS = 8;  // Half of size (17/2 = 8.5 rounded down)
 KNOB_INDICATOR_SIZE = 2;  // 2 pixel circle indicator (keep at 2 for visibility)
 KNOB_SHADOW_OFFSET = 2;  // Drop shadow offset (keep at 2 for visibility)
+SMALL_KNOB_SIZE = 17;  // Same as KNOB_SIZE (for control type 3 knobs)
 
 // Knob Colors
 KNOB_BG_R = 0.3; KNOB_BG_G = 0.3; KNOB_BG_B = 0.3;  // Dark gray
@@ -129,6 +130,10 @@ LARGE_KNOB_ANGLE_BIDIR_END = 135 * $pi / 180;      // 135°
 KNOB_ANGLE_START = -135 * $pi / 180;  // Start angle in radians
 KNOB_ANGLE_END = 135 * $pi / 180;     // End angle in radians
 KNOB_ANGLE_RANGE = KNOB_ANGLE_END - KNOB_ANGLE_START;
+
+// Mouse sensitivity for controls (affects how much mouse movement changes value)
+KNOB_SENSITIVITY = 0.5;        // Regular knobs (higher = more sensitive)
+LARGE_KNOB_SENSITIVITY = 0.3;  // Large knobs (lower = finer control)
 
 // Menu Button Configuration (75% of original)
 MENU_BUTTON_SIZE = 15;  // 20 * 0.75

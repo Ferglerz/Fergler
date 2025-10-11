@@ -52,7 +52,8 @@ function process_complete_audio_chain() (
   );
 
   // === DETECTION FILTERING (inlined) ===
-  stage_filtering == 1 ? (
+  // Skip if stage disabled OR both filters are Off (saves CPU)
+  stage_filtering == 1 && (hp_filter_enabled || lp_filter_enabled) ? (
     apply_detection_filters(detect_l, detect_r);
     detect_l = filtered_l;
     detect_r = filtered_r;
@@ -107,10 +108,15 @@ function process_complete_audio_chain() (
       ) : (
         // EXPONENTIAL SMOOTHING MODE (default): No buffer, simple smoothing
         rms_size_ms > 0 ? (
-          // Calculate smoothing coefficient from time constant
-          smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+          // Cache smoothing coefficients to avoid per-sample exp() calls
+          (cached_rms_size_ms != rms_size_ms || cached_rms_srate != srate) ? (
+            cached_rms_size_ms = rms_size_ms;
+            cached_rms_srate = srate;
+            rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+            rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
+          );
           detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
-          rms_smoothed_squared = rms_smoothed_squared * smoothing_coeff + detect_squared * (1 - smoothing_coeff);
+          rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
           rms_level = sqrt(rms_smoothed_squared);
         ) : (
           // Peak mode when RMS window = 0
@@ -155,8 +161,8 @@ function process_complete_audio_chain() (
         // Set current_input_db for display (bypass calculate_gain_reduction)
         current_input_db = detector_level_db;
       ) : (
-        // Use the proper gain reduction calculation function
-        target_gr_db = calculate_gain_reduction(detector_level);
+        // Use the proper gain reduction calculation function (passing pre-calculated dB)
+        target_gr_db = calculate_gain_reduction(detector_level_db);
         // current_input_db is set by calculate_gain_reduction
       );
       
@@ -179,8 +185,8 @@ function process_complete_audio_chain() (
         // Both target and envelope are near zero - explicitly zero to prevent denormals
         global_smoothed_gain_db = 0;
       ) : (
-        // Normal envelope processing needed
-        process_envelope_following(target_gr_db, detector_level);
+        // Normal envelope processing needed (passing pre-calculated dB)
+        process_envelope_following(target_gr_db, detector_level_db);
       );
     );
     
@@ -208,9 +214,15 @@ function process_complete_audio_chain() (
     // === GAIN REDUCTION APPLICATION (inlined) ===
     // Apply CURRENT gain to (possibly delayed) audio
     stage_gain_reduction == 1 ? (
-      gain_reduction_linear = db_to_linear(current_gr_db);
-      processed_l = audio_to_compress_l * gain_reduction_linear;
-      processed_r = audio_to_compress_r * gain_reduction_linear;
+      // Skip conversion and multiplication when GR is effectively 0 dB
+      abs(current_gr_db) < 0.000001 ? (
+        processed_l = audio_to_compress_l;
+        processed_r = audio_to_compress_r;
+      ) : (
+        gain_reduction_linear = db_to_linear(current_gr_db);
+        processed_l = audio_to_compress_l * gain_reduction_linear;
+        processed_r = audio_to_compress_r * gain_reduction_linear;
+      );
     ) : (
       processed_l = input_l_orig;
       processed_r = input_r_orig;
@@ -243,8 +255,11 @@ function process_complete_audio_chain() (
 
     // === BRICKWALL LIMITER (inlined) ===
     stage_limiter == 1 && brickwall_limiter > 0.5 ? (
-      final_l = soft_clip_limiter(final_l, limiter_prev_l);
-      final_r = soft_clip_limiter(final_r, limiter_prev_r);
+      // Only process limiter when output is -0.5dB or higher (0.944)
+      max(abs(final_l), abs(final_r)) > 0.944 ? (
+        final_l = soft_clip_limiter(final_l, limiter_prev_l);
+        final_r = soft_clip_limiter(final_r, limiter_prev_r);
+      );
       limiter_prev_l = final_l;
       limiter_prev_r = final_r;
     );

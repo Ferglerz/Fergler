@@ -22,6 +22,7 @@ function get_control_param(index) ( control_defs[index*10 + 5]; );
 function get_control_min(index) ( control_defs[index*10 + 6]; );
 function get_control_max(index) ( control_defs[index*10 + 7]; );
 function get_control_slider_type(index) ( control_defs[index*10 + 8]; );
+function get_control_display_mode(index) ( control_defs[index*10 + 9]; ); // 0=right (default), 1=left, 2=hide
 
 // Knob accessor functions
 function get_knob_x(index) ( knob_defs[index*8 + 0]; );
@@ -89,45 +90,33 @@ function update_slider_value(control_index, mouse_x, mouse_y) (
   min_val + normalized_pos * (max_val - min_val);
 );
 
+// Shared function to update value from mouse delta
+function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity) (
+  // Vertical mouse movement controls value (down = increase, up = decrease)
+  value_range = max_val - min_val;
+  delta = -mouse_dy * sensitivity * value_range / 100; // Negative because down = increase
+  
+  new_value = current_value + delta;
+  new_value = max(min_val, min(max_val, new_value));
+  new_value;
+);
+
 function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
-  knob_x = get_knob_x(knob_index);
-  knob_y = get_knob_y(knob_index);
+  param_index = get_knob_param(knob_index);
   min_val = get_knob_min(knob_index);
   max_val = get_knob_max(knob_index);
-  knob_type = get_knob_type(knob_index);
   
-  center_x = knob_x + KNOB_RADIUS;
-  center_y = knob_y + KNOB_RADIUS;
+  // Get current value
+  current_value = slider(param_index);
   
-  // Calculate mouse movement from center
-  dx = mouse_x - center_x;
-  dy = mouse_y - center_y;
+  // Calculate mouse delta from previous position
+  mouse_dy = mouse_y - ui_prev_mouse_y;
   
-  knob_type == KNOB_TYPE_ANGULAR ? (
-    // Angular knob - calculate angle from center
-    angle = atan2(dy, dx);
-    angle < 0 ? angle = angle + 2 * $pi;
-    
-    // Convert angle to normalized value (0-1)
-    adjusted_angle = angle - KNOB_ANGLE_START;
-    adjusted_angle < 0 ? adjusted_angle = adjusted_angle + 2 * $pi;
-    
-    normalized_value = adjusted_angle / KNOB_ANGLE_RANGE;
-    normalized_value = max(0, min(1, normalized_value));
-  ) : (
-    // Rotary knob - calculate distance from center
-    distance = sqrt(dx * dx + dy * dy);
-    max_distance = KNOB_RADIUS;
-    normalized_value = min(1, distance / max_distance);
-  );
-  
-  // Convert to parameter range
-  new_value = min_val + normalized_value * (max_val - min_val);
-  new_value = max(min_val, min(max_val, new_value));
+  // Update value based on mouse movement (higher sensitivity for knobs)
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY);
   
   // Update knob value and slider
   knob_defs[knob_index*8 + 7] = new_value;
-  param_index = get_knob_param(knob_index);
   slider(param_index) = new_value;
   sliderchange(1 << (param_index - 1));
   
@@ -135,73 +124,21 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
 );
 
 function update_large_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
-  knob_x = get_large_knob_x(knob_index);
-  knob_y = get_large_knob_y(knob_index);
+  param_index = get_large_knob_param(knob_index);
   min_val = get_large_knob_min(knob_index);
   max_val = get_large_knob_max(knob_index);
-  knob_type = get_large_knob_type(knob_index);
   
-  center_x = knob_x + LARGE_KNOB_RADIUS;
-  center_y = knob_y + LARGE_KNOB_RADIUS;
+  // Get current value
+  current_value = slider(param_index);
   
-  // Calculate mouse movement from center
-  dx = mouse_x - center_x;
-  dy = mouse_y - center_y;
+  // Calculate mouse delta from previous position
+  mouse_dy = mouse_y - ui_prev_mouse_y;
   
-  // Calculate angle from center
-  angle = atan2(dy, dx);
-  
-  // Convert angle to normalized value based on knob type
-  knob_type == LARGE_KNOB_TYPE_LTR ? (
-    // Left-to-right: 0° to 270°
-    start_angle = LARGE_KNOB_ANGLE_LTR_START;
-    end_angle = LARGE_KNOB_ANGLE_LTR_END;
-    range = end_angle - start_angle;
-    
-    // Normalize angle to 0-2π range
-    angle < 0 ? angle = angle + 2 * $pi;
-    
-    // Adjust for start angle
-    adjusted_angle = angle - start_angle;
-    adjusted_angle < 0 ? adjusted_angle = adjusted_angle + 2 * $pi;
-    
-    normalized_value = adjusted_angle / range;
-    normalized_value = max(0, min(1, normalized_value));
-  ) : knob_type == LARGE_KNOB_TYPE_RTL ? (
-    // Right-to-left: 90° to 360° (0°)
-    start_angle = LARGE_KNOB_ANGLE_RTL_START;
-    end_angle = LARGE_KNOB_ANGLE_RTL_END;
-    range = end_angle - start_angle;
-    
-    // Normalize angle to 0-2π range
-    angle < 0 ? angle = angle + 2 * $pi;
-    
-    // Adjust for start angle
-    adjusted_angle = angle - start_angle;
-    adjusted_angle < 0 ? adjusted_angle = adjusted_angle + 2 * $pi;
-    
-    normalized_value = adjusted_angle / range;
-    normalized_value = max(0, min(1, normalized_value));
-  ) : ( // LARGE_KNOB_TYPE_BIDIRECTIONAL
-    // Bidirectional: -135° to 135°
-    start_angle = LARGE_KNOB_ANGLE_BIDIR_START;
-    end_angle = LARGE_KNOB_ANGLE_BIDIR_END;
-    range = end_angle - start_angle;
-    
-    // Adjust for start angle
-    adjusted_angle = angle - start_angle;
-    
-    normalized_value = adjusted_angle / range;
-    normalized_value = max(0, min(1, normalized_value));
-  );
-  
-  // Convert to parameter range
-  new_value = min_val + normalized_value * (max_val - min_val);
-  new_value = max(min_val, min(max_val, new_value));
+  // Update value based on mouse movement (medium sensitivity for large knobs)
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, LARGE_KNOB_SENSITIVITY);
   
   // Update knob value and slider
   large_knob_defs[knob_index*8 + 7] = new_value;
-  param_index = get_large_knob_param(knob_index);
   slider(param_index) = new_value;
   sliderchange(1 << (param_index - 1));
   
