@@ -270,6 +270,10 @@ function process_complete_audio_chain() (
     debug_display_lookahead = debug_counter_lookahead;
     debug_display_harmonics = debug_counter_harmonics;
     debug_display_limiter = debug_counter_limiter;
+    debug_display_db_to_linear = debug_counter_db_to_linear;
+    debug_display_linear_to_db = debug_counter_linear_to_db;
+    debug_display_prog_release = debug_counter_prog_release;
+    debug_display_single_envelope = debug_counter_single_envelope;
     debug_display_ui_curves = debug_counter_ui_curves;
     debug_display_ui_histogram = debug_counter_ui_histogram;
     
@@ -281,6 +285,10 @@ function process_complete_audio_chain() (
     debug_counter_lookahead = 0;
     debug_counter_harmonics = 0;
     debug_counter_limiter = 0;
+    debug_counter_db_to_linear = 0;
+    debug_counter_linear_to_db = 0;
+    debug_counter_prog_release = 0;
+    debug_counter_single_envelope = 0;
     debug_counter_ui_curves = 0;
     debug_counter_ui_histogram = 0;
     debug_counter_samples = 0;

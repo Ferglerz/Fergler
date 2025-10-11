@@ -338,6 +338,12 @@ function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
     ) : (
       gfx_set(0.2, 0.8, 1, 0.8);
     );
+  ) : threshold_type == THRESHOLD_INPUT_LEVEL_2 ? (
+    is_hovered || is_dragging ? (
+      gfx_set(1, 0.3, 1, 1);
+    ) : (
+      gfx_set(0.8, 0.2, 1, 0.8);
+    );
   ) : threshold_type == THRESHOLD_TRANSIENT ? (
     is_hovered || is_dragging ? (
       gfx_set(1, 0.3, 0.3, 1);
@@ -562,117 +568,208 @@ function draw_control(index) (
 //==============================================================================
 
 function draw_debug_performance_counters() (
-  // Position below controls panel on right side
-  counter_x = UI_PANEL_X + UI_PANEL_W - 290;
-  counter_y = UI_PANEL_Y + UI_PANEL_H + 15;
-  counter_width = 270;
-  counter_height = 205;
+  // Spread horizontally across bottom, moved down 30px to avoid controls
+  line_height = 16;
+  panel_height = 155;
+  gap = 15;
   
-  // Draw semi-transparent background
+  // === PANEL 1: AUDIO PROCESSING ===
+  audio_panel_x = 50;  // Hardcoded for testing
+  audio_panel_y = 390; // Hardcoded for testing  
+  audio_panel_w = 240;
+  
+  // Draw background
   gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(counter_x, counter_y, counter_width, counter_height);
+  gfx_rect(audio_panel_x, audio_panel_y, audio_panel_w, panel_height, 1);
   
   // Draw border
   gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(counter_x, counter_y, counter_width, counter_height, 0);
+  gfx_rect(audio_panel_x, audio_panel_y, audio_panel_w, panel_height, 0);
   
   // Draw title
-  gfx_set(1, 1, 0.3, 1);
-  gfx_x = counter_x + 10;
-  gfx_y = counter_y + 8;
-  gfx_drawstr("Function Calls/sec");
+  gfx_set(0.5, 0.8, 1.0, 1); // Light blue
+  gfx_x = audio_panel_x + 10;
+  gfx_y = audio_panel_y + 8;
+  gfx_drawstr("Audio Processing");
   
-  // Set text color for counters
-  line_height = 17;
-  text_x = counter_x + 10;
-  text_y = counter_y + 30;
+  // Draw audio processing functions
+  gfx_set(0.9, 0.9, 0.9, 1);
+  text_x = audio_panel_x + 8;
+  text_y = audio_panel_y + 28;
   
-  // Audio processing functions section
-  gfx_set(0.5, 0.8, 1.0, 1); // Light blue for section header
   gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("Audio Processing:");
-  text_y += line_height + 2;
-  
-  // Individual audio processing functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  gfx_x = text_x + 5;
-  gfx_y = text_y;
-  gfx_drawstr("process_audio_chain()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("audio_chain()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_audio_chain);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("calculate_gain_reduction()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("gain_reduction()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_gain_reduction);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("process_envelope()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("envelope()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_envelope);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("apply_filters()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("filters()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_filters);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("process_lookahead()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("lookahead()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_lookahead);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("apply_harmonics()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("harmonics()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_harmonics);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("soft_clip_limiter()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("limiter()");
+  gfx_x = audio_panel_x + audio_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_limiter);
   
-  // UI functions section
-  text_y += line_height + 5;
-  gfx_set(1.0, 0.8, 0.5, 1); // Light orange for UI section header
+  // === PANEL 2: UI FUNCTIONS ===
+  ui_panel_x = 305;  // Hardcoded for testing (50 + 240 + 15)
+  ui_panel_y = 390;  // Hardcoded for testing
+  ui_panel_w = 210;
+  ui_panel_h = 72; // Smaller - only 2 functions
+  
+  // Draw background
+  gfx_set(0.1, 0.1, 0.1, 0.85);
+  gfx_rect(ui_panel_x, ui_panel_y, ui_panel_w, ui_panel_h, 1);
+  
+  // Draw border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(ui_panel_x, ui_panel_y, ui_panel_w, ui_panel_h, 0);
+  
+  // Draw title
+  gfx_set(1.0, 0.8, 0.5, 1); // Light orange
+  gfx_x = ui_panel_x + 10;
+  gfx_y = ui_panel_y + 8;
+  gfx_drawstr("UI Functions");
+  
+  // Draw UI functions
+  gfx_set(0.9, 0.9, 0.9, 1);
+  text_x = ui_panel_x + 8;
+  text_y = ui_panel_y + 28;
+  
   gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("UI Functions:");
-  text_y += line_height + 2;
-  
-  gfx_set(0.9, 0.9, 0.9, 1);
-  gfx_x = text_x + 5;
-  gfx_y = text_y;
-  gfx_drawstr("draw_mixed_curves()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("curves()");
+  gfx_x = ui_panel_x + ui_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_ui_curves);
   
   text_y += line_height;
-  gfx_x = text_x + 5;
+  gfx_x = text_x;
   gfx_y = text_y;
-  gfx_drawstr("update_histogram()");
-  gfx_x = counter_x + counter_width - 70;
+  gfx_drawstr("histogram()");
+  gfx_x = ui_panel_x + ui_panel_w - 70;
   gfx_y = text_y;
   gfx_printf("%d", debug_display_ui_histogram);
+  
+  // === PANEL 3: MATH CONVERSIONS ===
+  math_panel_x = ui_panel_x + ui_panel_w + gap;
+  math_panel_y = 390;  // Same Y as others
+  math_panel_w = 200;
+  math_panel_h = 56; // Small - only 2 functions
+  
+  // Draw background
+  gfx_set(0.1, 0.1, 0.1, 0.85);
+  gfx_rect(math_panel_x, math_panel_y, math_panel_w, math_panel_h, 1);
+  
+  // Draw border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(math_panel_x, math_panel_y, math_panel_w, math_panel_h, 0);
+  
+  // Draw title
+  gfx_set(0.5, 1.0, 0.5, 1); // Light green
+  gfx_x = math_panel_x + 10;
+  gfx_y = math_panel_y + 8;
+  gfx_drawstr("Math Conversions");
+  
+  // Draw math functions
+  gfx_set(0.9, 0.9, 0.9, 1);
+  text_x = math_panel_x + 8;
+  text_y = math_panel_y + 28;
+  
+  gfx_x = text_x;
+  gfx_y = text_y;
+  gfx_drawstr("db_to_linear()");
+  gfx_x = math_panel_x + math_panel_w - 70;
+  gfx_y = text_y;
+  gfx_printf("%d", debug_display_db_to_linear);
+  
+  text_y += line_height;
+  gfx_x = text_x;
+  gfx_y = text_y;
+  gfx_drawstr("linear_to_db()");
+  gfx_x = math_panel_x + math_panel_w - 70;
+  gfx_y = text_y;
+  gfx_printf("%d", debug_display_linear_to_db);
+  
+  // === PANEL 4: PROGRAM RELEASE ===
+  prog_panel_x = math_panel_x + math_panel_w + gap;
+  prog_panel_y = 390;  // Same Y as others
+  prog_panel_w = 220;
+  prog_panel_h = 56; // Small - only 2 functions
+  
+  // Draw background
+  gfx_set(0.1, 0.1, 0.1, 0.85);
+  gfx_rect(prog_panel_x, prog_panel_y, prog_panel_w, prog_panel_h, 1);
+  
+  // Draw border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(prog_panel_x, prog_panel_y, prog_panel_w, prog_panel_h, 0);
+  
+  // Draw title
+  gfx_set(1.0, 0.5, 1.0, 1); // Light purple/magenta
+  gfx_x = prog_panel_x + 10;
+  gfx_y = prog_panel_y + 8;
+  gfx_drawstr("Program Release");
+  
+  // Draw program release functions
+  gfx_set(0.9, 0.9, 0.9, 1);
+  text_x = prog_panel_x + 8;
+  text_y = prog_panel_y + 28;
+  
+  gfx_x = text_x;
+  gfx_y = text_y;
+  gfx_drawstr("prog_release()");
+  gfx_x = prog_panel_x + prog_panel_w - 70;
+  gfx_y = text_y;
+  gfx_printf("%d", debug_display_prog_release);
+  
+  text_y += line_height;
+  gfx_x = text_x;
+  gfx_y = text_y;
+  gfx_drawstr("single_envelope()");
+  gfx_x = prog_panel_x + prog_panel_w - 70;
+  gfx_y = text_y;
+  gfx_printf("%d", debug_display_single_envelope);
 );
 

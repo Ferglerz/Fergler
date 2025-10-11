@@ -180,6 +180,14 @@ function init_state_variables() (
   debug_counter_harmonics = 0;                // apply_harmonic_processing()
   debug_counter_limiter = 0;                  // soft_clip_limiter()
   
+  // Math conversion functions
+  debug_counter_db_to_linear = 0;             // db_to_linear()
+  debug_counter_linear_to_db = 0;             // linear_to_db()
+  
+  // Program-dependent release functions
+  debug_counter_prog_release = 0;             // select_program_release_coef()
+  debug_counter_single_envelope = 0;          // process_single_stage_envelope()
+  
   // UI functions
   debug_counter_ui_curves = 0;                // draw_mixed_curves()
   debug_counter_ui_histogram = 0;             // update_histogram_state()
@@ -193,6 +201,14 @@ function init_state_variables() (
   debug_display_lookahead = 0;
   debug_display_harmonics = 0;
   debug_display_limiter = 0;
+  
+  // Math conversion functions
+  debug_display_db_to_linear = 0;
+  debug_display_linear_to_db = 0;
+  
+  // Program-dependent release functions
+  debug_display_prog_release = 0;
+  debug_display_single_envelope = 0;
   
   // UI functions
   debug_display_ui_curves = 0;

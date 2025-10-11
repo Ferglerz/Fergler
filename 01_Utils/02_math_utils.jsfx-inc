@@ -28,10 +28,12 @@ function tanh(x) (
 );
 
 function db_to_linear(db) (
+  debug_counter_db_to_linear += 1;
   exp(db * LOG_10_20)
 );
 
 function linear_to_db(linear) (
+  debug_counter_linear_to_db += 1;
   linear > 0 ? log(linear) * LOG10_20 : -150
 );
 

@@ -10,6 +10,8 @@
 
 //--- Program-Dependent Release Coefficient Selection ---
 function select_program_release_coef(target_gr_db, detector_level) (
+  debug_counter_prog_release += 1;
+  
   rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
   rel_fast = exp(-1/(base_fast_s * rel_mult * srate));
   rel_med  = exp(-1/(base_med_s  * rel_mult * srate));
@@ -21,32 +23,65 @@ function select_program_release_coef(target_gr_db, detector_level) (
 
   rel_coef_use = rel_med;
   prog_release_type == 0 ? (
+    // Fixed Release: Use medium release coefficient
     rel_coef_use = rel_med;
   ) : prog_release_type == 1 ? (
+    // Input-Dependent: Single threshold blend
     level_above_threshold = input_level_db - input_level_threshold_db;
     blend_fast = clamp(1 - level_above_threshold / 20, 0, 1);
     blend_slow = clamp(level_above_threshold / 20, 0, 1);
     sum = blend_fast + blend_slow + eps;
     rel_coef_use = (blend_fast * rel_fast + blend_slow * rel_slow) / sum;
   ) : prog_release_type == 2 ? (
+    // GR Dependent: Based on gain reduction amount
     blend_fast = clamp(1 - gr_amount / gr_blend_threshold_db, 0, 1);
     blend_slow = clamp(gr_amount / gr_blend_threshold_db, 0, 1);
     sum = blend_fast + blend_slow + eps;
     rel_coef_use = (blend_fast * rel_fast + blend_slow * rel_slow) / sum;
-  ) : (
+  ) : prog_release_type == 3 ? (
+    // Rate-of-Change: Based on detector level change
     rel_coef_use = det_delta > 3 ? rel_fast : rel_slow;
+  ) : prog_release_type == 4 ? (
+    // Input-Dependent 2: Dual threshold blend
+    // Three zones: below threshold_2, between threshold_2 and threshold_1, above threshold_1
+    threshold_1 = input_level_threshold_db;
+    threshold_2 = input_level_threshold_2_db;
+    
+    // Ensure threshold_2 is lower than threshold_1 for proper blending
+    threshold_lower = min(threshold_1, threshold_2);
+    threshold_upper = max(threshold_1, threshold_2);
+    threshold_range = threshold_upper - threshold_lower;
+    
+    input_level_db < threshold_lower ? (
+      // Below lower threshold: Fast release
+      rel_coef_use = rel_fast;
+    ) : input_level_db < threshold_upper ? (
+      // Between thresholds: Blend from fast to medium
+      blend_factor = (input_level_db - threshold_lower) / (threshold_range + eps);
+      rel_coef_use = rel_fast * (1 - blend_factor) + rel_med * blend_factor;
+    ) : (
+      // Above upper threshold: Blend from medium to slow based on distance above
+      distance_above = input_level_db - threshold_upper;
+      blend_factor = clamp(distance_above / 20, 0, 1);
+      rel_coef_use = rel_med * (1 - blend_factor) + rel_slow * blend_factor;
+    );
+  ) : (
+    // Default fallback: Use medium release
+    rel_coef_use = rel_med;
   );
   rel_coef_use;
 );
 
 //--- Single-Stage Envelope Following (modularized) ---
 function process_single_stage_envelope(target_gr_db, detector_level) (
+  debug_counter_single_envelope += 1;
+  
   global_attack_coef = attack_coeff;
   // Attack when target is "more extreme" than current (closer to zero = less extreme)
   abs(target_gr_db) > abs(global_smoothed_gain_db) ? (
     global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
   ) : (
-    prog_release_mode > 0.5 ? (
+    prog_release_type > 0 ? (
       rel_coef_use = select_program_release_coef(target_gr_db, detector_level);
       global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
     ) : (

@@ -15,11 +15,13 @@ THRESHOLD_LINE_GRAB_RADIUS = 8; // Pixels for mouse grab detection
 THRESHOLD_GR_BLEND = 0;      // GR blend threshold (on meter)
 THRESHOLD_INPUT_LEVEL = 1;   // Input level threshold (on graph)
 THRESHOLD_TRANSIENT = 2;     // Transient detection threshold (on graph)
+THRESHOLD_INPUT_LEVEL_2 = 3; // Second input level threshold (on graph)
 
 // Slider mappings for each threshold line (for programmatic sliderchange calls)
-THRESHOLD_SLIDER_GR_BLEND = 33;      // slider33: gr_blend_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 34;   // slider34: input_level_threshold_db
-THRESHOLD_SLIDER_TRANSIENT = 36;     // slider36: transient_threshold_db
+THRESHOLD_SLIDER_GR_BLEND = 32;      // slider32: gr_blend_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL = 33;   // slider33: input_level_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 36; // slider36: input_level_threshold_2_db
+THRESHOLD_SLIDER_TRANSIENT = 34;     // slider34: transient_threshold_db
 
 // Interaction state
 dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)
@@ -51,6 +53,27 @@ function clamp_input_level_threshold(new_value) (
     clamped = validate_threshold_spacing(clamped, transient_threshold_db);
   );
   
+  // Ensure threshold 1 stays ABOVE threshold 2 (Input-Dependent 2 mode)
+  // Threshold 1 must be at least MIN_THRESHOLD_SPACING dB higher than threshold 2
+  prog_release_type == 4 ? (
+    min_allowed = input_level_threshold_2_db + MIN_THRESHOLD_SPACING;
+    clamped = max(clamped, min_allowed);
+  );
+  
+  clamped
+);
+
+function clamp_input_level_threshold_2(new_value) (
+  // Clamp to graph range and respect first input level threshold
+  clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB);
+  
+  // Ensure threshold 2 stays BELOW threshold 1 (Input-Dependent 2 mode)
+  // Threshold 2 must be at least MIN_THRESHOLD_SPACING dB lower than threshold 1
+  prog_release_type == 4 ? (
+    max_allowed = input_level_threshold_db - MIN_THRESHOLD_SPACING;
+    clamped = min(clamped, max_allowed);
+  );
+  
   clamped
 );
 
@@ -76,8 +99,13 @@ function is_gr_blend_line_visible() (
 );
 
 function is_input_level_line_visible() (
-  // Visible when in input-dependent mode (type 1)
-  prog_release_type == 1
+  // Visible when in input-dependent mode (type 1) or Input-Dependent 2 (type 4)
+  prog_release_type == 1 || prog_release_type == 4
+);
+
+function is_input_level_2_line_visible() (
+  // Visible when in Input-Dependent 2 mode (type 4)
+  prog_release_type == 4
 );
 
 function is_transient_line_visible() (
@@ -126,6 +154,15 @@ function graph_y_to_transient_db(y) (
   graph_y_to_db(y)
 );
 
+// Second Input Level Threshold (on graph X axis)
+function input_level_2_db_to_graph_y(db) (
+  db_to_graph_y(db)
+);
+
+function graph_y_to_input_level_2_db(y) (
+  graph_y_to_db(y)
+);
+
 //==============================================================================
 // THRESHOLD LINE INTERACTION
 //==============================================================================
@@ -155,6 +192,16 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) (
     );
   );
   
+  // Check second input level line (on graph, before transient for priority)
+  found_line < 0 && is_input_level_2_line_visible() ? (
+    line_y = input_level_2_db_to_graph_y(input_level_threshold_2_db);
+    
+    is_point_in_graph(mouse_x, mouse_y) &&
+    abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS ? (
+      found_line = THRESHOLD_INPUT_LEVEL_2;
+    );
+  );
+  
   // Check transient line (on graph, different color)
   found_line < 0 && is_transient_line_visible() ? (
     line_y = transient_db_to_graph_y(transient_threshold_db);
@@ -179,6 +226,11 @@ function update_dragged_threshold_line(mouse_y) (
     new_db = graph_y_to_input_level_db(mouse_y);
     input_level_threshold_db = clamp_input_level_threshold(new_db);
     sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL - 1));
+  ) : dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2 ? (
+    // Update second input level threshold
+    new_db = graph_y_to_input_level_2_db(mouse_y);
+    input_level_threshold_2_db = clamp_input_level_threshold_2(new_db);
+    sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL_2 - 1));
   ) : dragging_threshold_line == THRESHOLD_TRANSIENT ? (
     // Update transient threshold
     new_db = graph_y_to_transient_db(mouse_y);

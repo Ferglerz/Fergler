@@ -45,7 +45,7 @@ slider21:makeup_gain_db=0<-20,20,0.1>-Makeup Gain (dB)
 slider22:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
 slider23:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
 slider24:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
-slider25:prog_release_type=0<0,3,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change}>-Program Release Type
+slider25:prog_release_type=0<0,4,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,Input-Dependent 2}>-Program Release Type
 slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 
 // Stage Control parameters (27-31) - Control which processing stages are active
@@ -58,6 +58,7 @@ slider31:stage_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 // Advanced Envelope parameters (32-35)
 slider32:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
 slider33:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider36:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
 slider34:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
 slider35:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
