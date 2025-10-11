@@ -18,6 +18,10 @@ MIN_POINTS = 4;
 MAX_POINTS = 12;
 MOUSE_CLICK_RADIUS = 10;
 
+// Optimization: Cache leftmost non-1:1 point for early exit
+comp_curve_min_threshold_db = GRAPH_MIN_DB;  // Threshold below which no compression occurs
+comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
+
 // Graph state - these need to persist across @init calls
 // Use a special flag to track if these have been initialized
 !persistent_vars_initialized ? (
@@ -245,5 +249,43 @@ function find_point_at_mouse(x, y) (
     );
   );
   found_point;
+);
+
+//==============================================================================
+// COMPRESSION THRESHOLD OPTIMIZATION
+//==============================================================================
+
+function calculate_compression_threshold() (
+  // Find the leftmost point where compression actually occurs (input != output)
+  // This lets us skip compression calculations when input is below this threshold
+  
+  comp_curve_min_threshold_db = GRAPH_MIN_DB;  // Default to minimum (no optimization)
+  
+  // Scan from left to right to find first non-1:1 point
+  i = 1;  // Skip first corner point
+  while (i < num_points - 1) (
+    input_db = graph_points[i*2];
+    output_db = graph_points[i*2 + 1];
+    
+    // Check if this point deviates from 1:1 (with small tolerance for floating point)
+    abs(input_db - output_db) > 0.01 ? (
+      // Found the leftmost compression point
+      comp_curve_min_threshold_db = input_db;
+      i = num_points;  // Break out of loop
+    ) : (
+      i += 1;
+    );
+  );
+  
+  comp_curve_threshold_dirty = 0;
+  
+  // Debug logging
+  DEBUG_ENABLED ? (
+    debug_logf("Compression threshold: %.1f dB", comp_curve_min_threshold_db);
+  );
+);
+
+function invalidate_compression_threshold() (
+  comp_curve_threshold_dirty = 1;
 );
 

@@ -271,6 +271,7 @@ function handle_point_movement() (
     // Invalidate both caches since point movement affects curves and compression
     invalidate_curve_cache();
     invalidate_compression_lut();
+    invalidate_compression_threshold();
   );
 );
 
@@ -299,6 +300,7 @@ function handle_curve_adjustment() (
     set_curve_amount(dragging_point, new_curve_amount);
     invalidate_curve_cache();
     invalidate_compression_lut();
+    invalidate_compression_threshold();
   );
 );
 
@@ -324,6 +326,7 @@ function handle_point_addition() (
     // Invalidate both caches since point addition affects curves and compression
     invalidate_curve_cache();
     invalidate_compression_lut();
+    invalidate_compression_threshold();
     new_point_index; // Return the index of the newly added point
   ) : (
     -1; // Return -1 if too close to add
@@ -339,6 +342,7 @@ function handle_point_deletion() (
     // Invalidate both caches since point deletion affects curves and compression
     invalidate_curve_cache();
     invalidate_compression_lut();
+    invalidate_compression_threshold();
   );
 );
 

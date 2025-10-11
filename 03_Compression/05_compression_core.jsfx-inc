@@ -96,6 +96,9 @@ function build_compression_lut() (
     i += 1;
   );
   
+    // Calculate compression threshold for optimization
+    comp_curve_threshold_dirty ? calculate_compression_threshold();
+  
     // Mark LUT as clean
     comp_lut_dirty = 0;
   );

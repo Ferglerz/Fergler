@@ -199,6 +199,7 @@ debug_log("Initializing graph...");
   // Initialize with defaults (ext_noinit preserves values across reloads)
   num_points = 6;
   init_graph_points();
+  invalidate_compression_threshold(); // Mark threshold for recalculation
   graph_initialized = 1;
   debug_log("Initialized default graph points");
 );

@@ -66,6 +66,10 @@ function process_complete_audio_chain() (
   ) : (
     // === DETECTION AND ANALYSIS (inlined) ===
     stage_detection_analysis == 1 ? (
+      // Early exit optimization: Skip compression calculation if input is below threshold
+      // and we're not in an active release state (global_smoothed_gain_db near zero)
+      // Note: We still need to process if global_offset is non-zero as it shifts the curve
+      
       // RMS calculation - supports both True RMS (buffer) and Exponential Smoothing
       detect_squared_l = detect_l * detect_l;
       detect_squared_r = detect_r * detect_r;
@@ -131,11 +135,32 @@ function process_complete_audio_chain() (
         );
       );
 
-      // Use the proper gain reduction calculation function
-      target_gr_db = calculate_gain_reduction(detector_level);
+      // Optimization: Early exit if input is below compression threshold
+      // Convert detector level to dB for comparison
+      detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+      
+      // Check if we can skip compression calculation:
+      // 1. Input must be below the minimum compression threshold
+      // 2. No global offset (which shifts the curve horizontally)
+      // 3. No active release state (envelope is near zero)
+      can_skip_compression = (
+        detector_level_db < comp_curve_min_threshold_db &&
+        abs(global_offset_db) < 0.01 &&
+        abs(global_smoothed_gain_db) < 0.01
+      );
+      
+      can_skip_compression ? (
+        // No compression needed - set target GR to 0
+        target_gr_db = 0;
+        // Set current_input_db for display (bypass calculate_gain_reduction)
+        current_input_db = detector_level_db;
+      ) : (
+        // Use the proper gain reduction calculation function
+        target_gr_db = calculate_gain_reduction(detector_level);
+        // current_input_db is set by calculate_gain_reduction
+      );
       
       // Track maximum input level for block-level histogram
-      // (current_input_db was set by calculate_gain_reduction)
       current_input_db > input_db_block_max ? (
         input_db_block_max = current_input_db;
       );
@@ -143,8 +168,20 @@ function process_complete_audio_chain() (
 
     // === ENVELOPE FOLLOWING (inlined) ===
     stage_envelope == 1 ? (
-      // Use existing process_envelope_following function (already optimized)
-      process_envelope_following(target_gr_db, detector_level);
+      // Optimization: Skip envelope processing if both target and current are near zero
+      // This avoids expensive exponential smoothing when no compression is happening
+      can_skip_envelope = (
+        abs(target_gr_db) < 0.01 &&
+        abs(global_smoothed_gain_db) < 0.01
+      );
+      
+      can_skip_envelope ? (
+        // Both target and envelope are near zero - explicitly zero to prevent denormals
+        global_smoothed_gain_db = 0;
+      ) : (
+        // Normal envelope processing needed
+        process_envelope_following(target_gr_db, detector_level);
+      );
     );
     
     // Get current GR to apply (BEFORE lookahead delay)
