@@ -30,20 +30,17 @@ function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_o
 //==============================================================================
 
 // Optimized version that accepts dB directly (avoids redundant conversion)
-function calculate_gain_reduction_from_db(input_level_db) local(offset_input_db) (
+function calculate_gain_reduction_from_db(input_level_db) (
   // Debug counter: track gain reduction calculations
   debug_counter_gain_reduction += 1;
   
   // Update display level for visualization
   current_input_db = input_level_db;
   
-  // Early exit optimization: Check if input + global offset is below compression threshold
-  // This accounts for global offset shifting the curve horizontally
-  offset_input_db = input_level_db + global_offset_db;
-  
-  // Early exit optimization: If offset input is below the processing threshold, no processing needed
-  // This is more accurate than just checking COMP_LUT_MIN_DB and handles global offset intelligently
-  offset_input_db < comp_curve_min_threshold_db ? (
+  // Early exit optimization: Check if actual input is below compression threshold
+  // Note: Global offset is NOT used here - it only affects curve lookup, not where compression starts
+  // The threshold is based on the curve shape, which doesn't change with global offset
+  input_level_db < comp_curve_min_threshold_db ? (
     // Below threshold - no compression possible, return 0 immediately
     gr_processing_skipped = 1;  // Flag that we skipped processing
     0

@@ -16,7 +16,7 @@ desc:Advanced Multi-Model Compressor (Modular)
 // Time-related parameters (1-5)
 slider1:attack_ms=10<0.05,100,0.1>-Attack (ms)
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-slider3:release_ms=100<10,1000,1>-Release (ms)
+slider3:release_ms=100<10,1000,1>Release (ms)
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,0.1>-Lookahead (ms)
 
@@ -31,7 +31,7 @@ slider10:max_gr_db=-100<-100,0,1>-Max GR (dB)
 // HP: 0=Off (displayed as "Off" in UI), then 20Hz to 6kHz
 // LP: 20Hz to 14kHz, then 0=Off (displayed as "Off" in UI, default)
 slider11:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
-slider12:lp_freq=0<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
+slider12:lp_freq=16000<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
 
 // Character & Harmonics parameters (13-20)
 slider13:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Harmonic Type

@@ -5,6 +5,32 @@
 @init
 
 //==============================================================================
+// PROCESSING STATE INDICATOR
+//==============================================================================
+
+function draw_processing_state_indicator() (
+  // Position to the right of the GR meter
+  indicator_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8;  // meter_x + meter_w + spacing
+  indicator_y = GRAPH_Y + GRAPH_SIZE / 2;  // Centered vertically with meter
+  indicator_radius = 5;
+  
+  // Draw background circle (dark gray)
+  gfx_set(0.15, 0.15, 0.15, 1);
+  gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);  // Filled with 1px border
+  
+  // Draw state indicator
+  // Red when processing is skipped (early exit), Green when actively processing
+  gr_processing_skipped ? (
+    // Red - early exit (no compression happening)
+    gfx_set(0.8, 0.2, 0.2, 1);
+  ) : (
+    // Green - actively compressing
+    gfx_set(0.2, 0.8, 0.3, 1);
+  );
+  gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);  // Filled circle
+);
+
+//==============================================================================
 // GAIN REDUCTION METER
 //==============================================================================
 

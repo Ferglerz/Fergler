@@ -19,7 +19,7 @@ MAX_POINTS = 12;
 MOUSE_CLICK_RADIUS = 10;
 
 // Optimization: Cache leftmost non-1:1 point for early exit
-comp_curve_min_threshold_db = GRAPH_MIN_DB;  // Threshold below which no compression occurs
+comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;  // Threshold below which no compression occurs (default: no compression)
 comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
 
 // Graph state - these need to persist across @init calls
@@ -79,8 +79,6 @@ function is_point_in_graph(x, y) (
 //==============================================================================
 
 function init_curve_data() (
-  debug_log("Initializing curve data...");
-  
   // Memory allocation now handled in 01a_memory.jsfx-inc
   // Just initialize all curves to 0 (no curves)
   i = 0;
@@ -258,19 +256,28 @@ function find_point_at_mouse(x, y) (
 function calculate_compression_threshold() (
   // Find the leftmost point where compression actually occurs (input != output)
   // This lets us skip compression calculations when input is below this threshold
+  // Note: Global offset is NOT factored in here - it's applied when checking the threshold
   
-  comp_curve_min_threshold_db = GRAPH_MIN_DB;  // Default to minimum (no optimization)
+  // Default: assume no compression anywhere (set threshold very high)
+  comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;  // Higher than any possible input
   
   // Scan from left to right to find first non-1:1 point
-  i = 1;  // Skip first corner point
+  i = 1;  // Skip first corner point (index 0)
   while (i < num_points - 1) (
     input_db = graph_points[i*2];
     output_db = graph_points[i*2 + 1];
     
     // Check if this point deviates from 1:1 (with small tolerance for floating point)
     abs(input_db - output_db) > 0.01 ? (
-      // Found the leftmost compression point
-      comp_curve_min_threshold_db = input_db;
+      // Found the first compression point!
+      // The threshold should be the PREVIOUS point (last 1:1 point before compression starts)
+      i > 1 ? (
+        // Use the previous point's input value
+        comp_curve_min_threshold_db = graph_points[(i-1)*2];
+      ) : (
+        // First movable point is already compressing, use the corner point
+        comp_curve_min_threshold_db = graph_points[0];  // GRAPH_MIN_DB (-80)
+      );
       i = num_points;  // Break out of loop
     ) : (
       i += 1;
@@ -278,11 +285,6 @@ function calculate_compression_threshold() (
   );
   
   comp_curve_threshold_dirty = 0;
-  
-  // Debug logging
-  menu_debug_enabled ? (
-    debug_logf("Compression threshold: %.1f dB", comp_curve_min_threshold_db);
-  );
 );
 
 function invalidate_compression_threshold() (

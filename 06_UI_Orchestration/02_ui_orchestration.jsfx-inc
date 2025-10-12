@@ -45,6 +45,7 @@ function render_complete_interface() (
   
   // Draw meters and info outside graph area
   draw_gain_reduction_meter();  // 05i
+  draw_processing_state_indicator();  // 05i - Red/green indicator showing early exit state
   draw_labels_and_info();       // 05j
   draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
   

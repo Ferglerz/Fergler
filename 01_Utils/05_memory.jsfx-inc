@@ -9,8 +9,6 @@
 //==============================================================================
 
 function allocate_memory() (
-  debug_log("Allocating memory...");
-  
   // Initialize automatic memory allocation
   freemem = 0;
   
@@ -68,8 +66,6 @@ function allocate_memory() (
   // Slider properties buffer (4 properties per control)
   slider_properties_base = freemem;
   freemem += NUM_CONTROLS * 4;
-  
-  debug_logf("Memory allocated: %d bytes", freemem);
 );
 
 function get_memory_usage() (

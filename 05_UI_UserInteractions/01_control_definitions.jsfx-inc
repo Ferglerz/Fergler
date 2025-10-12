@@ -132,8 +132,6 @@ function define_knob(index, x, y, param_index, min_val, max_val, knob_type, knob
 //==============================================================================
 
 function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group_w, group_h, group_spacing) (
-  debug_log("Setting up control layout...");
-  
   // Initialize group positioning
   group_x = UI_PANEL_X + 15;
   group_y = UI_PANEL_Y + 15;
@@ -276,8 +274,6 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   set_slider_format_as_frequency(11, 1);
   
   // Compressor Type moved to header (will be defined in setup_header_controls)
-  
-  debug_log2f("Configured %d controls in %d groups", NUM_CONTROLS, NUM_GROUPS);
 );
 
 //==============================================================================
