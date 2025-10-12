@@ -83,8 +83,8 @@ function update_filter_coefficients() (
   );
 
   // Update lowpass filter coefficients (skip if Off)
-  // slider12: 0 = Off, > 0 = enabled
-  slider12 > 0 ? (
+  // slider12: 16000 = Off, < 16000 = enabled
+  slider12 < 16000 ? (
     calc_biquad(1, min(slider12, 20000));  // 1 = lowpass
     lp_b0 = b0; lp_b1 = b1; lp_b2 = b2; lp_a1 = a1; lp_a2 = a2;
     lp_filter_enabled = 1;

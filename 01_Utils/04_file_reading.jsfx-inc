@@ -1,6 +1,5 @@
 // File Reading Module  
 // Simplified slider definition parsing with robust string handling
-// Depends on: 00e_debug_logging.jsfx-inc
 
 @init
 
@@ -235,7 +234,8 @@ function extract_inc_value(line, comma2_pos, pos_greater) (
 
 // Helper: Store parsed parameters in memory
 function store_slider_params(slider_index, default_val, min_val, max_val, inc_val) (
-  base_offset = slider_index * 4;
+  // Use slider_index - 1 to match the retrieval functions
+  base_offset = (slider_index - 1) * 4;
   slider_params_base[base_offset + 0] = default_val;
   slider_params_base[base_offset + 1] = min_val;
   slider_params_base[base_offset + 2] = max_val;
