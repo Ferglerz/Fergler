@@ -41,7 +41,6 @@ function draw_gain_reduction_meter() (
     gr_meter_w = 23;  // 30 * 0.75 = 22.5 rounded up
     gr_meter_h = GRAPH_SIZE;
     meter_center_y = gr_meter_y + gr_meter_h / 2;
-    max_range_db = 40; // -40dB to +40dB range for gain reduction display
 
     // Draw meter background
     gfx_set(0.2, 0.2, 0.2, 1);
@@ -58,13 +57,15 @@ function draw_gain_reduction_meter() (
   is_audio_active ? (
     current_gr_db < 0 ? (
       // Gain reduction (negative) - render from top down in orange/red
-      gr_height = abs(current_gr_db) / max_range_db * gr_meter_h;
+      // Optimized: use pre-calculated GR_PIXELS_PER_DB constant
+      gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
       gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
       gfx_set(1, 0.5, 0, 1); // Orange color for reduction
       gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
     ) : current_gr_db > 0 ? (
       // Gain boost (positive) - render from bottom up in blue
-      gr_height = current_gr_db / max_range_db * gr_meter_h;
+      // Optimized: use pre-calculated GR_PIXELS_PER_DB constant
+      gr_height = current_gr_db * GR_PIXELS_PER_DB;
       gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
       gfx_set(0.2, 0.5, 1, 1); // Blue color for boost
       gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
@@ -94,6 +95,7 @@ function draw_gain_reduction_meter() (
 //==============================================================================
 
 // Draw input histogram line (specialized version)
+// Optimized to use pre-calculated constants for dB-to-pixel conversion
 function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -111,8 +113,8 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
     // Only draw if above minimum
     level_db > GRAPH_MIN_DB ? (
       x_pos = GRAPH_X + i;
-      // Convert dB to graph Y coordinate
-      y_pos = GRAPH_Y + GRAPH_SIZE - (level_db - GRAPH_MIN_DB) / GRAPH_RANGE_DB * GRAPH_SIZE;
+      // Convert dB to graph Y coordinate (optimized: eliminates division)
+      y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
       
       first_point ? (
         gfx_x = x_pos;
@@ -130,9 +132,8 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
 );
 
 // Draw GR histogram line for negative values (reduction) - per-pixel buffer mode
+// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
-  pixels_per_db = GRAPH_SIZE / 40;
-  
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
@@ -144,7 +145,7 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
       // Convert GR to graph Y coordinate (from top)
-      gr_height = abs(gr_value) * pixels_per_db;
+      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + gr_height;
       
       first_point ? (
@@ -163,11 +164,11 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
 );
 
 // Draw GR histogram line for negative values (reduction) - original mode
+// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
   step_size = max(1, floor(width_pixels / 200));
-  pixels_per_db = GRAPH_SIZE / 40;
   
   gfx_set(r, g, b, a);
   first_point = 1;
@@ -182,7 +183,7 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
       // Convert GR to graph Y coordinate (from top)
-      gr_height = abs(gr_value) * pixels_per_db;
+      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + gr_height;
       
       first_point ? (
@@ -201,9 +202,8 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
 );
 
 // Draw GR histogram line for positive values (boost) - per-pixel buffer mode
+// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
-  pixels_per_db = GRAPH_SIZE / 40;
-  
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
@@ -215,7 +215,7 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
       // Convert GR to graph Y coordinate (from bottom)
-      gr_height = abs(gr_value) * pixels_per_db;
+      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
       
       first_point ? (
@@ -234,11 +234,11 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
 );
 
 // Draw GR histogram line for positive values (boost) - original mode
+// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
   step_size = max(1, floor(width_pixels / 200));
-  pixels_per_db = GRAPH_SIZE / 40;
   
   gfx_set(r, g, b, a);
   first_point = 1;
@@ -253,7 +253,7 @@ function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a)
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
       // Convert GR to graph Y coordinate (from bottom)
-      gr_height = abs(gr_value) * pixels_per_db;
+      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
       
       first_point ? (
