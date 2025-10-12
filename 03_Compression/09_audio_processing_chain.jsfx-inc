@@ -21,13 +21,6 @@ function process_complete_audio_chain() (
   input_l_orig = spl0;
   input_r_orig = spl1;
 
-  // Update display values 4x per second (every srate/4 samples)
-  display_update_counter += 1;
-  display_update_counter >= (srate * 0.25) ? (
-    display_update_counter = 0;
-    display_input_sample = max(abs(spl0), abs(spl1));
-  );
-
   // Pre-calculate channel availability flags
   has_stereo = (num_ch >= 2);
   has_sidechain_l = (use_sidechain && num_ch >= 3);
@@ -52,8 +45,8 @@ function process_complete_audio_chain() (
   );
 
   // === DETECTION FILTERING (inlined) ===
-  // Skip if stage disabled OR both filters are Off (saves CPU)
-  stage_filtering == 1 && (hp_filter_enabled || lp_filter_enabled) ? (
+  // Skip if both filters are Off (saves CPU)
+  (hp_filter_enabled || lp_filter_enabled) ? (
     apply_detection_filters(detect_l, detect_r);
     detect_l = filtered_l;
     detect_r = filtered_r;
@@ -123,8 +116,6 @@ function process_complete_audio_chain() (
           rms_level = max(abs(detect_l), abs(detect_r));
         );
       );
-      
-      display_rms_level = rms_level;
 
       // Apply RMS normalization if enabled
       rms_normalization > 0.5 ? (
@@ -202,8 +193,8 @@ function process_complete_audio_chain() (
     // === LOOKAHEAD ===
     // Cockos approach: Delay AUDIO, apply CURRENT gain to delayed audio
     // This lets the envelope "see" transients before they arrive in delayed signal
-    // Optimization: Skip function call if lookahead is 0 or stage disabled
-    stage_lookahead == 1 && lookahead_ms > 0 ? (
+    // Optimization: Skip function call if lookahead is 0
+    lookahead_ms > 0 ? (
       process_lookahead_audio(input_l_orig, input_r_orig);
       audio_to_compress_l = lookahead_out_l;
       audio_to_compress_r = lookahead_out_r;
@@ -228,12 +219,11 @@ function process_complete_audio_chain() (
       processed_l = input_l_orig;
       processed_r = input_r_orig;
     );
-    display_post_graph = max(abs(processed_l), abs(processed_r));
 
     // === HARMONIC PROCESSING (inlined) ===
-    // Optimization: Skip if stage disabled, harmonic type is Off, or no gain reduction
+    // Optimization: Skip if harmonic type is Off or no gain reduction
     // This avoids function call overhead when no processing is needed
-    stage_harmonics == 1 && harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
+    harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
       envelope_amount = abs(global_smoothed_gain_db) / 30.0;
       current_detector_level = detector_level;
       // Note: harmonic_amount parameter removed (now hardcoded to 1.0 in function)
@@ -249,13 +239,12 @@ function process_complete_audio_chain() (
     stage_final_mix == 1 ? (
       final_l = processed_l * makeup_gain_linear;
       final_r = processed_r * makeup_gain_linear;
-      display_post_makeup = max(abs(final_l), abs(final_r));
       final_out_l = final_l;
       final_out_r = final_r;
     );
 
     // === BRICKWALL LIMITER (inlined) ===
-    stage_limiter == 1 && brickwall_limiter > 0.5 ? (
+    brickwall_limiter > 0.5 ? (
       // Only process limiter when output is -0.5dB or higher (0.944)
       max(abs(final_l), abs(final_r)) > 0.944 ? (
         final_l = soft_clip_limiter(final_l, limiter_prev_l);
@@ -282,31 +271,41 @@ function process_complete_audio_chain() (
     debug_display_audio_chain = debug_counter_audio_chain;
     debug_display_gain_reduction = debug_counter_gain_reduction;
     debug_display_envelope = debug_counter_envelope;
-    debug_display_filters = debug_counter_filters;
+    debug_display_min_envelope = debug_counter_min_envelope;
     debug_display_lookahead = debug_counter_lookahead;
     debug_display_harmonics = debug_counter_harmonics;
     debug_display_limiter = debug_counter_limiter;
+    debug_display_curve_interp = debug_counter_curve_interp;
+    debug_display_lut_lookup = debug_counter_lut_lookup;
     debug_display_db_to_linear = debug_counter_db_to_linear;
     debug_display_linear_to_db = debug_counter_linear_to_db;
+    debug_display_clamp = debug_counter_clamp;
     debug_display_prog_release = debug_counter_prog_release;
     debug_display_single_envelope = debug_counter_single_envelope;
     debug_display_ui_curves = debug_counter_ui_curves;
     debug_display_ui_histogram = debug_counter_ui_histogram;
+    debug_display_graph_bg = debug_counter_graph_bg;
+    debug_display_grid = debug_counter_grid;
     
     // Reset all counters for next second
     debug_counter_audio_chain = 0;
     debug_counter_gain_reduction = 0;
     debug_counter_envelope = 0;
-    debug_counter_filters = 0;
+    debug_counter_min_envelope = 0;
     debug_counter_lookahead = 0;
     debug_counter_harmonics = 0;
     debug_counter_limiter = 0;
+    debug_counter_curve_interp = 0;
+    debug_counter_lut_lookup = 0;
     debug_counter_db_to_linear = 0;
     debug_counter_linear_to_db = 0;
+    debug_counter_clamp = 0;
     debug_counter_prog_release = 0;
     debug_counter_single_envelope = 0;
     debug_counter_ui_curves = 0;
     debug_counter_ui_histogram = 0;
+    debug_counter_graph_bg = 0;
+    debug_counter_grid = 0;
     debug_counter_samples = 0;
   );
 );

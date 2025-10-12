@@ -77,13 +77,6 @@ function init_state_variables() (
   input_db_block_max = GRAPH_MIN_DB;
   gr_db_block_max = 0;  // Track max absolute GR during block
   
-  // Real-time signal display variables (updated 4x per second)
-  display_input_sample = 0;
-  display_rms_level = 0;
-  display_post_graph = 0;
-  display_post_makeup = 0;
-  display_update_counter = 0;
-  
   // Transient detection state (used in audio processing)
   transient_detector_prev_db = GRAPH_MIN_DB;
   transient_gr_reduction = 0;
@@ -206,14 +199,17 @@ function init_state_variables() (
   debug_counter_audio_chain = 0;              // process_complete_audio_chain()
   debug_counter_gain_reduction = 0;           // calculate_gain_reduction()
   debug_counter_envelope = 0;                 // process_envelope_following()
-  debug_counter_filters = 0;                  // apply_detection_filters()
+  debug_counter_min_envelope = 0;             // process_min_envelope()
   debug_counter_lookahead = 0;                // process_lookahead_audio()
   debug_counter_harmonics = 0;                // apply_harmonic_processing()
   debug_counter_limiter = 0;                  // soft_clip_limiter()
+  debug_counter_curve_interp = 0;             // interpolate_compression_curve()
+  debug_counter_lut_lookup = 0;               // lookup_compression_lut()
   
   // Math conversion functions
   debug_counter_db_to_linear = 0;             // db_to_linear()
   debug_counter_linear_to_db = 0;             // linear_to_db()
+  debug_counter_clamp = 0;                    // clamp()
   
   // Program-dependent release functions
   debug_counter_prog_release = 0;             // select_program_release_coef()
@@ -222,20 +218,25 @@ function init_state_variables() (
   // UI functions
   debug_counter_ui_curves = 0;                // draw_mixed_curves()
   debug_counter_ui_histogram = 0;             // update_histogram_state()
+  debug_counter_graph_bg = 0;                 // draw_graph_background()
+  debug_counter_grid = 0;                     // draw_grid()
   
   // Display values (updated every second with call rates)
   // Audio processing functions
   debug_display_audio_chain = 0;
   debug_display_gain_reduction = 0;
   debug_display_envelope = 0;
-  debug_display_filters = 0;
+  debug_display_min_envelope = 0;
   debug_display_lookahead = 0;
   debug_display_harmonics = 0;
   debug_display_limiter = 0;
+  debug_display_curve_interp = 0;
+  debug_display_lut_lookup = 0;
   
   // Math conversion functions
   debug_display_db_to_linear = 0;
   debug_display_linear_to_db = 0;
+  debug_display_clamp = 0;
   
   // Program-dependent release functions
   debug_display_prog_release = 0;
@@ -244,6 +245,8 @@ function init_state_variables() (
   // UI functions
   debug_display_ui_curves = 0;
   debug_display_ui_histogram = 0;
+  debug_display_graph_bg = 0;
+  debug_display_grid = 0;
   
   // Reset time for counters (reset every second for readable rates)
   debug_counter_reset_interval = srate;

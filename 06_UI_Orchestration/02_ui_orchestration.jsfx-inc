@@ -46,7 +46,6 @@ function render_complete_interface() (
   // Draw meters and info outside graph area
   draw_gain_reduction_meter();  // 05i
   draw_labels_and_info();       // 05j
-  draw_signal_values();         // 05j
 
   // Draw custom menu (after graph elements to appear on top)
   draw_custom_menu();

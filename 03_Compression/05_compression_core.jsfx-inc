@@ -13,6 +13,8 @@ compression_init_complete = 0;
 //==============================================================================
 
 function interpolate_compression_curve(input_db) (
+  debug_counter_curve_interp += 1;
+  
   // Bounds checking
   input_db <= graph_points[0] ? graph_points[1] : (
     input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
@@ -46,14 +48,16 @@ function interpolate_compression_curve(input_db) (
         p3_y = bezier_p3_y;
         
         // Calculate bezier t parameter (0-1 across the curve between invisible points)
-        bezier_t = clamp((input_db - p0_x) / max(p3_x - p0_x, eps), 0, 1);
+        // Optimized: inline clamp to avoid function call overhead
+        bezier_t = max(0, min(1, (input_db - p0_x) / max(p3_x - p0_x, eps)));
         
         // Evaluate bezier curve
         evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
         bezier_result_y
       ) : (
         // Use linear interpolation for straight segments
-        t = clamp((input_db - x1) / (x2 - x1), 0, 1);
+        // Optimized: inline clamp to avoid function call overhead
+        t = max(0, min(1, (input_db - x1) / (x2 - x1)));
         y1 + t * (y2 - y1)
       )
     )
@@ -105,6 +109,8 @@ function build_compression_lut() (
 );
 
 function lookup_compression_lut(input_db) (
+  debug_counter_lut_lookup += 1;
+  
   // Rebuild LUT if dirty
   comp_lut_dirty ? build_compression_lut();
   

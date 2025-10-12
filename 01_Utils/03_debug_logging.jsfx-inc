@@ -1,6 +1,7 @@
 // Debug Logging Module
 // Centralized debug message collection and rendering
 // No dependencies - foundation level
+// Note: Messages are always collected, but only rendered when menu_debug_enabled is true
 
 @init
 
@@ -8,7 +9,8 @@
 // DEBUG CONFIGURATION
 //==============================================================================
 
-// Debug is controlled by menu_debug_enabled (toggled via right-click menu)
+// Debug rendering is controlled by menu_debug_enabled (toggled via right-click menu)
+// Debug messages are always collected regardless of this setting
 DEBUG_MAX_MESSAGES = STRING_SLOTS_DEBUG; // Use slots 0-49 for debug messages
 DEBUG_START_Y = 450; // Y position where debug output starts
 DEBUG_LINE_HEIGHT = 15;
@@ -35,7 +37,7 @@ function debug_clear() (
 );
 
 function debug_log(message) (
-  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  debug_message_count < DEBUG_MAX_MESSAGES ? (
     strcpy(DEBUG_MESSAGES_BASE + debug_message_count, message);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -47,7 +49,7 @@ function debug_log(message) (
 // For multiple values, use debug_log2f() or debug_log3f() instead
 // Common error: debug_logf(format, val1, val2) will cause "needs 2 parms" error
 function debug_logf(format, value) (
-  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -57,7 +59,7 @@ function debug_logf(format, value) (
 
 // For 2 values: debug_log2f(format, value1, value2)
 function debug_log2f(format, value1, value2) (
-  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -67,7 +69,7 @@ function debug_log2f(format, value1, value2) (
 
 // For 3 values: debug_log3f(format, value1, value2, value3)
 function debug_log3f(format, value1, value2, value3) (
-  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2, value3);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -78,9 +80,7 @@ function debug_log3f(format, value1, value2, value3) (
 // Note: debug_section removed - use debug_log() directly with formatted strings
 
 function debug_separator() (
-  menu_debug_enabled ? (
-    debug_log("----------------------------------------");
-  );
+  debug_log("----------------------------------------");
 );
 
 function debug_handle_scroll() (

@@ -242,13 +242,6 @@ function store_slider_params(slider_index, default_val, min_val, max_val, inc_va
   slider_params_base[base_offset + 3] = inc_val;
 );
 
-// Helper: Log parsed parameters
-function log_parsed_params(slider_index, default_val, min_val, max_val, inc_val) (
-  debug_log2f("Slider %d default: %.3f", slider_index + 1, default_val);
-  debug_log2f("Slider %d min: %.3f", slider_index + 1, min_val);
-  debug_log2f("Slider %d max: %.3f", slider_index + 1, max_val);
-  debug_log2f("Slider %d inc: %.3f", slider_index + 1, inc_val);
-);
 
 //==============================================================================
 // MAIN PARAMETER EXTRACTION
@@ -270,17 +263,12 @@ function extract_slider_params(line, slider_index) (
       // Store in memory
       store_slider_params(slider_index, default_val, min_val, max_val, inc_val);
       
-      // Log for debugging
-      log_parsed_params(slider_index, default_val, min_val, max_val, inc_val);
-      
       1; // Success
     ) : (
-      debug_logf("WARNING: Malformed parameter list for slider %d", slider_index + 1);
-      0;
+      0; // Malformed parameter list
     );
   ) : (
-    debug_logf("WARNING: Missing delimiters in slider %d definition", slider_index + 1);
-    0;
+    0; // Missing delimiters
   );
 );
 
@@ -305,7 +293,6 @@ function extract_name_to_slot(line, name_start, target_slot) (
   
   name_len > 0 ? (
     strcpy_substr(target_slot, line, name_start, name_len);
-    debug_log3f("Slider %d -> slot %d: %s", target_slot - SLIDER_NAMES_BASE + 1, target_slot, target_slot);
     1; // Success
   ) : (
     0; // Empty name
@@ -326,15 +313,9 @@ function extract_slider_name(line, index) (
     
     // Extract name to dedicated string slot
     target_slot = SLIDER_NAMES_BASE + index;
-    extract_name_to_slot(line, name_start, target_slot) ? (
-      1; // Success
-    ) : (
-      debug_logf("WARNING: Empty slider name for index %d", index);
-      0;
-    );
+    extract_name_to_slot(line, name_start, target_slot);
   ) : (
-    debug_logf("WARNING: No '>' found in slider line %d", index + 1);
-    0;
+    0; // No '>' found
   );
 );
 
@@ -363,18 +344,15 @@ function extract_single_option(temp_str, option_start, option_end, target_slot, 
   
   option_len > 0 ? (
     strcpy_substr(target_slot, temp_str, option_start, option_len);
-    debug_log3f("  Option %d (slot %d): %s", option_index, target_slot, target_slot);
     
     // Parse and store numeric value for fast lookup
     numeric_value = string_to_number(target_slot);
     dropdown_option_values_base[slider_index * MAX_OPTIONS_PER_SLIDER + option_index] = numeric_value;
-    debug_logf("    Parsed numeric value: %.0f", numeric_value);
     
     // Build reverse lookup table: frequency → index (for O(1) rendering)
     freq_hz = floor(numeric_value);
     freq_hz >= 0 && freq_hz < MAX_FREQ_RANGE ? (
       freq_to_index_base[slider_index * MAX_FREQ_RANGE + freq_hz] = option_index;
-      debug_log2f("    Reverse lookup: freq[%d] = index %d", freq_hz, option_index);
     );
     
     1; // Success
@@ -409,7 +387,6 @@ function parse_comma_separated_options(options_str, options_len, slider_index) (
 // Helper: Store dropdown option count
 function store_dropdown_count(slider_index, opt_count) (
   dropdown_option_counts_base[slider_index] = opt_count;
-  debug_log2f("  Total %d options for slider %d", opt_count, slider_index + 1);
 );
 
 //==============================================================================
@@ -459,7 +436,6 @@ function process_slider_line(line, slider_num) (
 // Helper: Process a single line from file
 function process_file_line(line, line_count) (
   is_stop_line(line) ? (
-    debug_logf("Found stop marker at line %d", line_count);
     -1; // Return -1 to signal stop
   ) : is_slider_line(line) ? (
     // Extract and process slider
@@ -467,8 +443,7 @@ function process_file_line(line, line_count) (
     process_slider_line(line, slider_num) ? (
       slider_num; // Return slider number if successful
     ) : (
-      debug_log2f("WARNING: Invalid slider number %d at line %d", slider_num, line_count);
-      0;
+      0; // Invalid slider number
     );
   ) : (
     0; // Not a slider line
@@ -477,15 +452,7 @@ function process_file_line(line, line_count) (
 
 // Helper: Open and validate file
 function open_slider_file() (
-  handle = file_open("Composure.jsfx");
-  handle != -1 ? (
-    debug_log("File opened successfully");
-    handle;
-  ) : (
-    debug_log("ERROR: Could not open Composure.jsfx");
-    debug_log("Check that file exists in same directory as plugin");
-    -1;
-  );
+  file_open("Composure.jsfx");
 );
 
 // Helper: Finalize reading and set state
@@ -493,8 +460,6 @@ function finalize_slider_reading(max_slider_num, success) (
   success ? (
     slider_names_count = max_slider_num;
     slider_names_loaded = 1;
-    debug_separator();
-    debug_logf("SUCCESS: Loaded slider definitions (highest: slider%d)", max_slider_num);
   ) : (
     slider_names_count = 0;
     slider_names_loaded = 0;
@@ -507,11 +472,6 @@ function finalize_slider_reading(max_slider_num, success) (
 //==============================================================================
 
 function read_slider_definitions() (
-  debug_log("Reading slider definitions...");
-  debug_log("");
-  debug_log("=== SLIDER DEFINITION PARSING ===");
-  debug_log("Opening Composure.jsfx...");
-  
   // Open file
   handle = open_slider_file();
   
@@ -554,7 +514,6 @@ function get_slider_name(slider_num) (
     array_index = slider_num - 1;
     SLIDER_NAMES_BASE + array_index; // Return string slot number
   ) : (
-    debug_logf("WARNING: Invalid slider number %d requested", slider_num);
     #empty_str = "";
     #empty_str;
   );

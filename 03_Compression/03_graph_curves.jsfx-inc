@@ -251,7 +251,8 @@ function sample_curve_at_db(input_db) (
             // Interpolate
             seg_width = seg_x2_db - seg_x1_db;
             abs(seg_width) > 0.0001 ? (
-              t = clamp((input_db - seg_x1_db) / seg_width, 0, 1);
+              // Optimized: inline clamp to avoid function call overhead
+              t = max(0, min(1, (input_db - seg_x1_db) / seg_width));
               output_db = seg_y1_db + t * (seg_y2_db - seg_y1_db);
             ) : (
               output_db = seg_y1_db;

@@ -21,7 +21,7 @@ slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,0.1>-Lookahead (ms)
 
 // RMS & Detection parameters (7-10)
-slider7:rms_size_ms=10<1,100,0.1>-RMS Window (ms)
+slider7:rms_size_ms=0<1,100,0.1>-RMS Window (ms)
 slider8:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
 slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider10:max_gr_db=-100<-100,0,1>-Max GR (dB)
@@ -38,8 +38,8 @@ slider13:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,
 slider14:harmonic_amount=0<0,1,0.01>-Harmonic Amount
 slider15:harmonic_drive=1<0.5,10,0.1>-Harmonic Drive
 slider16:harmonic_mix=0<0,1,0.01>-Harmonic Mix
-slider17:harmonic_even_boost=0<0,2,0.01>-Even Harmonic Boost
-slider18:harmonic_odd_boost=0<0,2,0.01>-Odd Harmonic Boost
+slider17:harmonic_even_boost=0<0,2,0.01>-Even
+slider18:harmonic_odd_boost=0<0,2,0.01>-Odd
 
 // Global parameters (19-25)
 slider19:strength=1<0.25,10,0.1>Strength
@@ -51,19 +51,12 @@ slider24:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
 slider25:prog_release_type=0<0,4,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,Input-Dependent 2}>-Program Release Type
 slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 
-// Stage Control parameters (27-31) - Control which processing stages are active
-slider27:stage_filtering=1<0,1,1{Off,On}>-Detection Filtering
-slider28:stage_harmonics=1<0,1,1{Off,On}>-Harmonic Processing
-slider29:stage_lookahead=1<0,1,1{Off,On}>-Lookahead Processing
-slider30:stage_character=1<0,1,1{Off,On}>-Character Processing
-slider31:stage_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
-
-// Advanced Envelope parameters (32-35)
-slider32:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
-slider33:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
-slider36:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider34:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
-slider35:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
+// Advanced Envelope parameters (27-30)
+slider27:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
+slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
+slider30:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
+slider31:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
 // SEARCH STOP
 
@@ -97,26 +90,29 @@ import 03_Compression/07_envelope.jsfx-inc
 import 03_Compression/08_harmonic_models.jsfx-inc
 import 03_Compression/09_audio_processing_chain.jsfx-inc
 
-// UI Components: Reorganized into clear functional modules
-// Import order: constants -> rendering -> user interactions -> orchestration
+// 04_UI_Rendering: UI rendering components (depends on 01_Utils)
 import 01_Utils/07_ui_constants.jsfx-inc
 import 01_Utils/08_ui_utils.jsfx-inc
-import 05_UI_Rendering/01_helpers.jsfx-inc
-import 05_UI_Rendering/02_knobs.jsfx-inc
-import 05_UI_Rendering/03_controls.jsfx-inc
-import 05_UI_Rendering/04_debug.jsfx-inc
-import 05_UI_Rendering/10_menu.jsfx-inc
-import 05_UI_Rendering/05_header.jsfx-inc
-import 05_UI_Rendering/11_threshold_lines.jsfx-inc
-import 05_UI_Rendering/06_graph_cache.jsfx-inc
-import 05_UI_Rendering/07_graph_curves.jsfx-inc
-import 05_UI_Rendering/08_graph_meters.jsfx-inc
-import 05_UI_Rendering/09_graph_display.jsfx-inc
-import 06_UI_UserInteractions/01_control_definitions.jsfx-inc
-import 06_UI_UserInteractions/02_control_interactions.jsfx-inc
-import 06_UI_UserInteractions/03_graph.jsfx-inc
-import 07_UI_Orchestration/01_ui_interaction.jsfx-inc
-import 07_UI_Orchestration/02_ui_orchestration.jsfx-inc
+import 04_UI_Rendering/01_helpers.jsfx-inc
+import 04_UI_Rendering/02_knobs.jsfx-inc
+import 04_UI_Rendering/03_controls.jsfx-inc
+import 04_UI_Rendering/04_debug.jsfx-inc
+import 04_UI_Rendering/10_menu.jsfx-inc
+import 04_UI_Rendering/05_header.jsfx-inc
+import 04_UI_Rendering/11_threshold_lines.jsfx-inc
+import 04_UI_Rendering/06_graph_cache.jsfx-inc
+import 04_UI_Rendering/07_graph_curves.jsfx-inc
+import 04_UI_Rendering/08_graph_meters.jsfx-inc
+import 04_UI_Rendering/09_graph_display.jsfx-inc
+
+// 05_UI_UserInteractions: User interaction handling (depends on 01_Utils, 04_UI_Rendering)
+import 05_UI_UserInteractions/01_control_definitions.jsfx-inc
+import 05_UI_UserInteractions/02_control_interactions.jsfx-inc
+import 05_UI_UserInteractions/03_graph.jsfx-inc
+
+// 06_UI_Orchestration: UI orchestration (depends on 01_Utils, 04_UI_Rendering, 05_UI_UserInteractions)
+import 06_UI_Orchestration/01_ui_interaction.jsfx-inc
+import 06_UI_Orchestration/02_ui_orchestration.jsfx-inc
 
 
 //==============================================================================
@@ -157,29 +153,17 @@ while (i < num_points) (
 // INITIALIZATION SEQUENCE
 //==============================================================================
 
-// Clear and start debug logging
-debug_clear();
-debug_log("");
-debug_log("=== PLUGIN INITIALIZATION ===");
-
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
 read_slider_definitions();
-
-slider_names_loaded ? (
-  debug_logf("Loaded %d slider definitions", slider_names_count);
-) : (
-  debug_log("ERROR: Failed to load slider definitions");
-);
 
 // 2. Initialize all constants, memory, and state variables
 allocate_memory();
 init_state_variables();
 
 // 3. Initialize stage control variables
-debug_log("Initializing stage controls...");
 stage_input = 1;                    // Input stage (always needed)
 stage_detection_source = 1;         // Detection source selection
-stage_filtering = 1;      // Detection signal filtering (applies to active detection signal)
+stage_filtering = 1;                // Detection signal filtering (applies to active detection signal)
 stage_detection_analysis = 1;       // RMS detection and gain reduction calculation
 stage_character = 1;                // Character application
 stage_envelope = 1;                 // Envelope following
@@ -189,12 +173,6 @@ stage_harmonics = 1;                // Harmonic processing
 stage_final_mix = 1;                // Final mix
 stage_limiter = 1;                  // Brickwall limiter
 stage_output = 1;                   // Output stage (always needed)
-
-stage_filtering_prev = -1;
-stage_harmonics_prev = -1;
-stage_lookahead_prev = -1;
-stage_character_prev = -1;
-stage_limiter_prev = -1;
 
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
@@ -212,24 +190,16 @@ init_curve_data();
 setup_control_layout();
 
 // 6. Initialize graph points (only on first load)
-debug_log("Initializing graph...");
 !graph_initialized ? (
   // Initialize with defaults (ext_noinit preserves values across reloads)
   num_points = 6;
   init_graph_points();
   invalidate_compression_threshold(); // Mark threshold for recalculation
   graph_initialized = 1;
-  debug_log("Initialized default graph points");
 );
-debug_logf("Graph ready with %d points", num_points);
 
 // 7. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
-
-// 8. Initialization complete
-debug_separator();
-debug_log("INITIALIZATION COMPLETE");
-debug_logf("Total debug messages: %d", debug_get_message_count());
 
 //==============================================================================
 // ON SLIDER UPDATES
@@ -299,25 +269,6 @@ pdc_delay > 0 ? (
   pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
 );
 
-// --- Stage Control Parameters (27-31) ---
-(stage_filtering != stage_filtering_prev || slider28 != stage_harmonics_prev ||
- slider29 != stage_lookahead_prev || slider30 != stage_character_prev ||
- slider31 != stage_limiter_prev || !slider_initialized) ? (
-  // stage_filtering is automatically set by slider27
-  stage_harmonics = slider28;
-  stage_lookahead = slider29;
-  stage_character = slider30;
-  stage_limiter = slider31;
-
-  stage_filtering_prev = stage_filtering;
-  stage_harmonics_prev = slider28;
-  stage_lookahead_prev = slider29;
-  stage_character_prev = slider30;
-  stage_limiter_prev = slider31;
-
-  param_changed = 1;
-);
-
 // --- Strength and Global Offset parameters ---
 (slider19 != strength_prev || slider20 != global_offset_db_prev || !slider_initialized) ? (
   strength_prev = slider19;
@@ -326,12 +277,6 @@ pdc_delay > 0 ? (
   // Apply logarithmic/exponential transformation to strength for more pronounced effect
   // Using power of 2: strength=1 -> actual=1, strength=3 -> actual=9, strength=10 -> actual=100
   strength_actual = strength * strength;
-  
-  // Debug: ALWAYS log strength changes (unconditional)
-  debug_log("=== STRENGTH UPDATED ===");
-  debug_logf("Strength slider value: %.2f", strength);
-  debug_logf("Strength actual (squared): %.2f", strength_actual);
-  debug_logf("slider19 raw value: %.2f", slider19);
   
   param_changed = 1;
   
@@ -342,11 +287,6 @@ pdc_delay > 0 ? (
 
 // Mark slider section as initialized (ensures all calculations run on first load)
 slider_initialized = 1;
-
-// Debug parameter changes
-param_changed ? (
-  debug_logf("Parameters updated (count: %d)", param_changed);
-);
 
 //==============================================================================
 // ON BLOCK

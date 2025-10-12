@@ -35,9 +35,6 @@ function calc_biquad(type, freq) (
 //==============================================================================
 
 function apply_detection_filters(detect_l, detect_r) (
-  // Debug counter: track filter processing
-  debug_counter_filters += 1;
-  
   // Apply highpass filter (only if enabled)
   hp_filter_enabled ? (
     detect_l_filtered = hp_b0 * detect_l + hp_b1 * hp_x1_l + hp_b2 * hp_x2_l - hp_a1 * hp_y1_l - hp_a2 * hp_y2_l;

@@ -12,9 +12,6 @@
 // Delay audio through circular buffer (Cockos approach)
 // Returns delayed audio, caller applies CURRENT gain to delayed audio
 function process_lookahead_audio(input_l, input_r) (
-  // Debug counter: track lookahead processing
-  debug_counter_lookahead += 1;
-  
   lookahead_samples > 0 ? (
     // Store current audio samples
     lookahead_buffer_l[lookahead_pos] = input_l;
@@ -38,9 +35,6 @@ function process_lookahead_audio(input_l, input_r) (
 //==============================================================================
 
 function soft_clip_limiter(input, prev_sample) (
-  // Debug counter: track limiter processing
-  debug_counter_limiter += 1;
-  
   abs_input = abs(input);
   abs_prev = abs(prev_sample);
   

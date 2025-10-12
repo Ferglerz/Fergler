@@ -9,6 +9,8 @@
 //==============================================================================
 
 function draw_graph_background() (
+  debug_counter_graph_bg += 1;
+  
   // Draw graph background
   gfx_set(0.3, 0.3, 0.3, 1);
   gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
@@ -19,6 +21,8 @@ function draw_graph_background() (
 );
 
 function draw_grid() (
+  debug_counter_grid += 1;
+  
   gfx_set(0.4, 0.4, 0.4, 1);
   i = 0;
   while (i <= 6) (
@@ -86,52 +90,5 @@ function draw_mouse_hints() (
   
   // Reset font to default (75% of original)
   gfx_setfont(1, "Arial", 11); // 14 * 0.75 = 10.5 rounded up
-);
-
-//==============================================================================
-// DEBUG SIGNAL VALUES
-//==============================================================================
-
-function draw_signal_values() (
-  menu_debug_enabled ? (
-    // Draw real-time signal values in bottom right corner of graph
-    text_x = GRAPH_X + GRAPH_SIZE - 135; // 180 * 0.75 = 135 (right-justified position)
-    text_y = GRAPH_Y + GRAPH_SIZE - 90;  // 120 * 0.75 = 90 (bottom of graph area)
-    line_height = 11; // 15 * 0.75 = 11.25 rounded down
-    
-    // Background for readability (75% of original)
-    gfx_set(0, 0, 0, 0.7);
-    gfx_rect(text_x - 4, text_y - 4, 131, 86); // 175 * 0.75 = 131.25, 115 * 0.75 = 86.25
-    
-    // Input sample value (green)
-    gfx_set(0, 1, 0, 1);
-    gfx_x = text_x; gfx_y = text_y;
-    gfx_printf("Input: %.3f", display_input_sample);
-    
-    // Detection signals (cyan)
-    gfx_set(0, 1, 1, 1);
-    gfx_x = text_x; gfx_y = text_y + line_height;
-    gfx_printf("Detect L/R: %.3f/%.3f", debug_detect_l, debug_detect_r);
-    
-    // RMS level (yellow) - show debug info
-    gfx_set(1, 1, 0, 1);
-    gfx_x = text_x; gfx_y = text_y + line_height * 2;
-    gfx_printf("RMS: %.3f (sum:%.3f)", display_rms_level, debug_rms_sum);
-    
-    // RMS samples info (white)
-    gfx_set(1, 1, 1, 1);
-    gfx_x = text_x; gfx_y = text_y + line_height * 3;
-    gfx_printf("RMS samples: %d", rms_samples);
-    
-    // Post-graph level (orange)
-    gfx_set(1, 0.6, 0, 1);
-    gfx_x = text_x; gfx_y = text_y + line_height * 4;
-    gfx_printf("Post-GR: %.3f", display_post_graph);
-    
-    // Post-makeup level (red)
-    gfx_set(1, 0, 0, 1);
-    gfx_x = text_x; gfx_y = text_y + line_height * 5;
-    gfx_printf("Output: %.3f", display_post_makeup);
-  );
 );
 

@@ -10,6 +10,8 @@
 
 //--- Min() Trick Smooth Average (from Tukan Blue Compressor) ---
 function process_min_envelope(target_gr_db, attack_coeff, release_coeff) (
+  debug_counter_min_envelope += 1;
+  
   // To ensure attack can't exceed input
   // during the attack phase, creating smooth asymmetric behavior without branching
   eps = 0.0000000001;
@@ -45,15 +47,17 @@ function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(su
 //--- Type 1: Input-Dependent (single threshold) ---
 function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_slow) (
   level_above_threshold = input_level_db - input_level_threshold_db;
-  blend_fast = clamp(1 - level_above_threshold / 20, 0, 1);
-  blend_slow = clamp(level_above_threshold / 20, 0, 1);
+  // Optimized: inline clamp to avoid function call overhead
+  blend_fast = max(0, min(1, 1 - level_above_threshold / 20));
+  blend_slow = max(0, min(1, level_above_threshold / 20));
   normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
 );
 
 //--- Type 2: GR-Dependent ---
 function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
-  blend_fast = clamp(1 - gr_amount / gr_blend_threshold_db, 0, 1);
-  blend_slow = clamp(gr_amount / gr_blend_threshold_db, 0, 1);
+  // Optimized: inline clamp to avoid function call overhead
+  blend_fast = max(0, min(1, 1 - gr_amount / gr_blend_threshold_db));
+  blend_slow = max(0, min(1, gr_amount / gr_blend_threshold_db));
   normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
 );
 
@@ -80,7 +84,8 @@ function release_dual_threshold(input_level_db) local(
   ) : (
     // Zone 3: Blend medium to slow
     distance_above = input_level_db - threshold_upper;
-    blend_factor = clamp(distance_above / 20, 0, 1);
+    // Optimized: inline clamp to avoid function call overhead
+    blend_factor = max(0, min(1, distance_above / 20));
     blend_two_coefficients(rel_med_cached, rel_slow_cached, blend_factor)
   )
 );

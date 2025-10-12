@@ -19,8 +19,9 @@ function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_o
     debug_logf("GR Calc: offset_input=%.1f", offset_input_db);
   );
   
-  // Look up compression curve with offset input
-  target_output_db = interpolate_compression_curve(offset_input_db);
+  // OPTIMIZED: Use lookup table instead of direct curve interpolation
+  // This replaces expensive bezier calculations with fast array lookup + linear interpolation
+  target_output_db = lookup_compression_lut(offset_input_db);
   
   // Calculate gain reduction based on offset input
   // The output will be compensated later in the chain

@@ -15,6 +15,7 @@ eps = 0.000000000000000000000000000001; // MUST be a decimal, not scientific not
 // ===MATHEMATICAL UTILITY FUNCTIONS
 
 function clamp(value, min_val, max_val) (
+  debug_counter_clamp += 1;
   max(min_val, min(max_val, value))
 );
 
