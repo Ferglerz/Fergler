@@ -132,29 +132,26 @@ function process_complete_audio_chain() (
         );
       );
 
-      // Optimization: Early exit if input is below compression threshold
-      // Convert detector level to dB for comparison
-      detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
-      
+      // OPTIMIZATION: Early exit check using linear comparison (avoids expensive log())
       // Check if we can skip compression calculation:
-      // 1. Actual input must be below the minimum compression threshold
+      // 1. Actual input must be below the minimum compression threshold (in linear domain)
       //    (threshold is based on curve shape, not affected by global offset)
       // 2. No active release state (envelope is near zero)
       can_skip_compression = (
-        detector_level_db < comp_curve_min_threshold_db &&
+        detector_level < comp_curve_min_threshold_linear &&
         abs(global_smoothed_gain_db) < 0.01
       );
       
       can_skip_compression ? (
         // No compression needed - set target GR to 0
         target_gr_db = 0;
-        // Set current_input_db for display (bypass calculate_gain_reduction)
-        current_input_db = detector_level_db;
+        // Convert to dB only for display (still cheaper than processing)
+        current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
         // Set flag for UI indicator
         gr_processing_skipped = 1;
       ) : (
-        // Use the optimized gain reduction calculation function (passing pre-calculated dB)
-        // This avoids redundant linear_to_db conversion since detector_level_db is already calculated
+        // Above threshold - convert to dB and calculate compression
+        detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
         target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
         // current_input_db is set by calculate_gain_reduction_from_db
         // gr_processing_skipped is set by calculate_gain_reduction_from_db
