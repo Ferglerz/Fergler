@@ -51,7 +51,7 @@ class JSFXFunctionAnalyzer:
             # JSFX built-in mathematical functions
             'abs', 'min', 'max', 'floor', 'ceil', 'round', 'exp', 'log', 'log10', 'sqrt', 'sin', 'cos', 'tan',
             'pow', 'atan', 'tanh', 'atan2', 'sinh', 'cosh', 'asinh', 'acosh', 'atanh', 'asin', 'acos',
-            'spline', 'loop', 'while', 'if', 'else', 'for', 'function', 'sign', 'rand', 'convolve_c',
+            'spline', 'loop', 'while', 'if', 'else', 'for', 'function', 'sign', 'rand', 'convolve_c', 'sqr',
             
             # JSFX memory functions
             'memcpy', 'memset', 'freemem', 'freembuf', 'mem', 'mem_size', 'mem_multiply_sum', 
@@ -280,8 +280,8 @@ class JSFXFunctionAnalyzer:
                             continue
                     
                     # Skip if it's part of a conditional or logical expression
-                    # Check for operators before the function call
-                    if re.search(r'[=+\-*/<>!&|]\s*$', before_context):
+                    # Check for standalone operators before the function call (not compound operators like +=)
+                    if re.search(r'[+\-*/<>!&|]\s*$', before_context):
                         continue
                     
                     # Skip if it's in a variable declaration context

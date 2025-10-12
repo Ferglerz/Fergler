@@ -1,0 +1,179 @@
+// User Interactions - Controls Module
+// UI controls and knobs interaction handling
+// Dependencies: 01_Utils/02_math_utils.jsfx-inc, 01_Utils/08_ui_utils.jsfx-inc, 06_UI_UserInteractions/01_control_definitions.jsfx-inc
+
+@init
+
+//==============================================================================
+// INTERACTION STATE
+//==============================================================================
+
+// Control States
+ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
+ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index (unified system handles both small and large)
+
+// Mouse position tracking for delta calculations
+ui_prev_mouse_x = 0;
+ui_prev_mouse_y = 0;
+
+//==============================================================================
+// KNOB INTERACTION
+//==============================================================================
+
+function find_clicked_knob() (
+  // Check all active knobs to see if mouse is over one (unified system handles both small and large)
+  found_knob = -1;
+  i = 0;
+  while (i < NUM_KNOBS && found_knob == -1) (
+    get_knob_active(i) && is_point_in_knob(mouse_x, mouse_y, i) ? (
+      found_knob = i; // Found it!
+    );
+    i += 1;
+  );
+  found_knob; // Return found knob index or -1
+);
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Update PDC delay for lookahead slider (slider5)
+function update_pdc_delay_if_needed(param_index) (
+  param_index == 5 ? (
+    pdc_delay = min(slider(5) * 0.001 * srate, max_lookahead_samples) | 0;
+    pdc_delay > 0 ? (
+      pdc_bot_ch = 0;
+      pdc_top_ch = 2;
+    );
+  );
+);
+
+// Handle control click based on control type
+function handle_control_click(control_index) (
+  control_type = get_control_type(control_index);
+  param_index = get_control_param(control_index);
+  current_value = slider(param_index);
+  
+  control_type == 0 ? (
+    // Slider - start drag
+    ui_drag_control = control_index;
+    slider(param_index) = update_slider_value(control_index, mouse_x, mouse_y);
+    sliderchange(1 << (param_index - 1));
+    update_pdc_delay_if_needed(param_index);
+  ) : control_type == 4 ? (
+    // Freq list slider - discrete value slider (snaps to integer steps)
+    ui_drag_control = control_index;
+    new_value = update_slider_value(control_index, mouse_x, mouse_y);
+    slider(param_index) = floor(new_value + 0.5);
+    sliderchange(1 << (param_index - 1));
+  ) : control_type == 3 ? (
+    // Small knob (control type 3) - start drag
+    ui_drag_control = control_index;
+    // Don't update on first click - just lock the control
+  ) : control_type == 1 ? (
+    // Button - toggle (don't start drag for buttons)
+    slider(param_index) = current_value > 0.5 ? 0 : 1;
+    sliderchange(1 << (param_index - 1));
+    ui_drag_control = -2; // Special value to prevent further checks
+  ) : control_type == 2 ? (
+    // Dropdown - cycle (don't start drag for dropdowns)
+    max_options = get_dropdown_option_count(param_index);
+    slider(param_index) = (current_value + 1) % max_options;
+    sliderchange(1 << (param_index - 1));
+    ui_drag_control = -2; // Special value to prevent further checks
+  );
+);
+
+// Handle drag continuation for different control types
+function handle_drag_continuation() (
+  ui_drag_control >= 0 ? (
+    // Update dragged control
+    param_index = get_control_param(ui_drag_control);
+    control_type = get_control_type(ui_drag_control);
+    
+    control_type == 3 ? (
+      // Small knob (control type 3) - use delta tracking
+      min_val = get_control_min(ui_drag_control);
+      max_val = get_control_max(ui_drag_control);
+      current_value = slider(param_index);
+      mouse_dy = mouse_y - ui_prev_mouse_y;
+      new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY);
+      slider(param_index) = new_value;
+      sliderchange(1 << (param_index - 1));
+    ) : (
+      // Sliders (types 0 and 4) - use position tracking
+      new_value = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+      
+      // Round to integer for freq_list_slider (type 4)
+      control_type == 4 ? (
+        slider(param_index) = floor(new_value + 0.5);
+      ) : (
+        slider(param_index) = new_value;
+      );
+      sliderchange(1 << (param_index - 1));
+      update_pdc_delay_if_needed(param_index);
+    );
+  ) : ui_drag_knob >= 0 ? (
+    // Update knob (unified system handles both small and large)
+    update_knob_value_from_mouse(ui_drag_knob, mouse_x, mouse_y);
+  ) : (
+    // No drag operation in progress - no action needed
+    0; // Empty statement to satisfy JSFX syntax
+  );
+);
+
+//==============================================================================
+// UI CONTROL MOUSE INPUT
+//==============================================================================
+
+function handle_ui_mouse_input() (
+  MOUSE_LEFT_BUTTON ? (
+    ui_drag_control == -1 ? ( // Start of click - no control selected yet
+      // Initialize previous mouse position on first click
+      ui_prev_mouse_x = mouse_x;
+      ui_prev_mouse_y = mouse_y;
+      
+      // Check knobs first (unified system handles both small and large)
+      clicked_knob = find_clicked_knob();
+      clicked_knob >= 0 ? (
+        ui_drag_knob = clicked_knob; // Store which knob is being dragged
+        ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
+        // Don't update on first click - just lock the knob
+      ) : is_menu_button_clicked() ? (
+          handle_menu_button_click();
+          ui_drag_control = -2; // Special value to prevent further checks
+        ) : is_menu_visible() ? (
+          // Check menu items if menu is visible
+          hovered_item = get_hovered_menu_item();
+          hovered_item >= 0 ? (
+            handle_menu_item_click(hovered_item);
+            ui_drag_control = -2; // Special value to prevent further checks
+          ) : (
+            // Clicked outside menu - close it
+            menu_visible = 0;
+            menu_hovered_item = -1;
+          );
+        ) : (
+        // Check controls until we find one under the mouse
+        i = 0;
+        while (i < NUM_CONTROLS && ui_drag_control == -1) (
+          is_point_in_control(mouse_x, mouse_y, i) ? (
+            handle_control_click(i);
+          );
+          i += 1;
+        );
+      );
+    ) : ( // Continue drag
+      handle_drag_continuation();
+    );
+  ) : (
+    // Mouse released - reset drag state
+    ui_drag_control = -1;
+    ui_drag_knob = -1;
+  );
+  
+  // Update previous mouse position for next frame's delta calculation
+  ui_prev_mouse_x = mouse_x;
+  ui_prev_mouse_y = mouse_y;
+);
+

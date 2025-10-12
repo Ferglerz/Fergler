@@ -161,9 +161,10 @@ function process_complete_audio_chain() (
         // Set current_input_db for display (bypass calculate_gain_reduction)
         current_input_db = detector_level_db;
       ) : (
-        // Use the proper gain reduction calculation function (passing pre-calculated dB)
-        target_gr_db = calculate_gain_reduction(detector_level_db);
-        // current_input_db is set by calculate_gain_reduction
+        // Use the optimized gain reduction calculation function (passing pre-calculated dB)
+        // This avoids redundant linear_to_db conversion since detector_level_db is already calculated
+        target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
+        // current_input_db is set by calculate_gain_reduction_from_db
       );
       
       // Track maximum input level for block-level histogram

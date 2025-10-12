@@ -14,6 +14,32 @@ lut_viz_cache_points = 0;
 lut_viz_cache_size = 0;
 
 //==============================================================================
+// COORDINATE CONVERSION FUNCTIONS
+//==============================================================================
+
+// Specific threshold line conversion functions
+function input_level_db_to_graph_y(db) (
+  db_to_graph_y(db);
+);
+
+function input_level_2_db_to_graph_y(db) (
+  db_to_graph_y(db);
+);
+
+function transient_db_to_graph_y(db) (
+  db_to_graph_y(db);
+);
+
+// Optimized functions that can work with linear values to avoid redundant dB conversions
+function input_level_linear_to_graph_y(linear) (
+  db_to_graph_y(linear_to_db(max(linear, MIN_DETECTOR_LEVEL)));
+);
+
+function input_level_linear_to_graph_x(linear) (
+  db_to_graph_x(linear_to_db(max(linear, MIN_DETECTOR_LEVEL)));
+);
+
+//==============================================================================
 // CURVE RENDERING
 //==============================================================================
 
@@ -99,7 +125,7 @@ function draw_cached_mixed_curves() (
 
 // Helper function: Draw debug visualization circles at invisible control points
 function draw_debug_invisible_points(point_index, curve_factor) (
-  DEBUG_ENABLED ? (
+  menu_debug_enabled ? (
     gfx_set(1, 0, 0, 0.8); // Red debug circles
     
     // Invisible point toward previous neighbor
@@ -132,7 +158,7 @@ function draw_mixed_curves() (
   );
   
   // Draw debug visualization if enabled
-  DEBUG_ENABLED ? (
+  menu_debug_enabled ? (
     // Draw debug circles for curved points
     i = 1;
     while (i < num_points - 1) (

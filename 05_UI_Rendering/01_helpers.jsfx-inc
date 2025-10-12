@@ -1,0 +1,215 @@
+// UI Rendering - Helpers Module
+// Rounded rectangles, groups, color helpers, and threshold line drawing
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 04_UI/01_ui_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// ROUNDED RECTANGLE DRAWING
+//==============================================================================
+
+function draw_rounded_rect(x, y, w, h, radius) local(i) (
+  // Draw rounded rectangle using gfx_rect and gfx_circle
+  // Main rectangle body (excluding corners)
+  gfx_rect(x + radius, y, w - radius * 2, h);  // Top and bottom horizontal segments
+  gfx_rect(x, y + radius, w, h - radius * 2);  // Left and right vertical segments
+  
+  // Four corner circles
+  gfx_circle(x + radius, y + radius, radius, 1, 1);  // Top-left
+  gfx_circle(x + w - radius, y + radius, radius, 1, 1);  // Top-right
+  gfx_circle(x + radius, y + h - radius, radius, 1, 1);  // Bottom-left
+  gfx_circle(x + w - radius, y + h - radius, radius, 1, 1);  // Bottom-right
+);
+
+function draw_rounded_rect_outline(x, y, w, h, radius) local(i, segments, angle, step, px, py, npx, npy) (
+  // Draw rounded rectangle outline
+  // Top line
+  gfx_line(x + radius, y, x + w - radius, y, 1);
+  // Bottom line
+  gfx_line(x + radius, y + h, x + w - radius, y + h, 1);
+  // Left line
+  gfx_line(x, y + radius, x, y + h - radius, 1);
+  // Right line
+  gfx_line(x + w, y + radius, x + w, y + h - radius, 1);
+  
+  // Four corner arcs (simplified - draw as circles)
+  segments = 8;  // Number of line segments per arc
+  step = ($pi / 2) / segments;
+  
+  // Top-left corner
+  angle = $pi;
+  i = 0;
+  loop(segments + 1,
+    px = x + radius + cos(angle) * radius;
+    py = y + radius + sin(angle) * radius;
+    i > 0 ? gfx_line(npx, npy, px, py, 1);
+    npx = px; npy = py;
+    angle += step;
+    i += 1;
+  );
+  
+  // Top-right corner
+  angle = $pi * 1.5;
+  i = 0;
+  loop(segments + 1,
+    px = x + w - radius + cos(angle) * radius;
+    py = y + radius + sin(angle) * radius;
+    i > 0 ? gfx_line(npx, npy, px, py, 1);
+    npx = px; npy = py;
+    angle += step;
+    i += 1;
+  );
+  
+  // Bottom-right corner
+  angle = 0;
+  i = 0;
+  loop(segments + 1,
+    px = x + w - radius + cos(angle) * radius;
+    py = y + h - radius + sin(angle) * radius;
+    i > 0 ? gfx_line(npx, npy, px, py, 1);
+    npx = px; npy = py;
+    angle += step;
+    i += 1;
+  );
+  
+  // Bottom-left corner
+  angle = $pi * 0.5;
+  i = 0;
+  loop(segments + 1,
+    px = x + radius + cos(angle) * radius;
+    py = y + h - radius + sin(angle) * radius;
+    i > 0 ? gfx_line(npx, npy, px, py, 1);
+    npx = px; npy = py;
+    angle += step;
+    i += 1;
+  );
+);
+
+//==============================================================================
+// GROUP RENDERING
+//==============================================================================
+
+function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x) (
+  gx = get_group_x(group_index);
+  gy = get_group_y(group_index);
+  gw = get_group_w(group_index);
+  gh = get_group_h(group_index);
+  show_title = get_group_show_title(group_index);
+  title_ptr = get_group_title_ptr(group_index);
+  
+  // Draw main group background
+  gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
+  draw_rounded_rect(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
+  
+  // Draw group border
+  gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
+  draw_rounded_rect_outline(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
+  
+  // Draw title if enabled
+  show_title > 0.5 ? (
+    // Measure title text width (use monospace font, uppercase)
+    gfx_setfont(1, "Courier", 11);  // System monospace font
+    gfx_measurestr(title_ptr, title_w, title_h);
+    
+    // Calculate title area dimensions (text width + padding)
+    title_area_w = title_w + GROUP_TITLE_PADDING * 2;
+    title_area_x = gx + (gw - title_area_w) / 2;  // Center horizontally
+    
+    // Draw title background (rounded rectangle at top)
+    gfx_set(GROUP_TITLE_BG_R, GROUP_TITLE_BG_G, GROUP_TITLE_BG_B, 1);
+    draw_rounded_rect(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
+    
+    // Draw title border
+    gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
+    draw_rounded_rect_outline(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
+    
+    // Draw title text (centered)
+    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, 1);
+    title_x = title_area_x + GROUP_TITLE_PADDING;
+    title_y = gy + (GROUP_TITLE_HEIGHT - title_h) / 2;
+    gfx_x = title_x;
+    gfx_y = title_y;
+    gfx_drawstr(title_ptr);
+    
+    // Reset to default font
+    gfx_setfont(0);
+  );
+);
+
+//==============================================================================
+// INTERACTIVE COLOR HELPERS
+//==============================================================================
+
+function set_interactive_color(is_hovered, is_active, normal_r, normal_g, normal_b, highlight_r, highlight_g, highlight_b, alpha) (
+  is_hovered || is_active ? (
+    gfx_set(highlight_r, highlight_g, highlight_b, alpha);
+  ) : (
+    gfx_set(normal_r, normal_g, normal_b, alpha);
+  );
+);
+
+function set_point_color(is_hovered, is_curved) (
+  is_hovered ? (
+    // Hovered point - larger and brighter
+    is_curved ? (
+      gfx_set(1, 0.8, 0.2, 1); // Orange for curved points
+    ) : (
+      gfx_set(1, 1, 0.5, 1); // Yellowish highlight for normal points
+    );
+  ) : (
+    // Normal point - smaller
+    is_curved ? (
+      gfx_set(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
+    ) : (
+      gfx_set(1, 1, 1, 0.8); // Slightly transparent white for normal points
+    );
+  );
+);
+
+function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
+  threshold_type == THRESHOLD_INPUT_LEVEL ? (
+    is_hovered || is_dragging ? (
+      gfx_set(0.3, 1, 1, 1);
+    ) : (
+      gfx_set(0.2, 0.8, 1, 0.8);
+    );
+  ) : threshold_type == THRESHOLD_INPUT_LEVEL_2 ? (
+    is_hovered || is_dragging ? (
+      gfx_set(1, 0.3, 1, 1);
+    ) : (
+      gfx_set(0.8, 0.2, 1, 0.8);
+    );
+  ) : threshold_type == THRESHOLD_TRANSIENT ? (
+    is_hovered || is_dragging ? (
+      gfx_set(1, 0.3, 0.3, 1);
+    ) : (
+      gfx_set(1, 0.5, 0, 0.8);
+    );
+  ) : threshold_type == THRESHOLD_GR_BLEND ? (
+    is_hovered || is_dragging ? (
+      gfx_set(1, 1, 0.3, 1);
+    ) : (
+      gfx_set(0.9, 0.9, 0, 0.8);
+    );
+  );
+);
+
+//==============================================================================
+// THRESHOLD LINE DRAWING HELPERS
+//==============================================================================
+
+function draw_threshold_line_with_label(line_y, start_x, end_x, threshold_type, threshold_value, label_text, label_x, label_y) (
+  // Set color based on threshold type and state
+  set_threshold_line_color(threshold_type, 
+    hovered_threshold_line == threshold_type, 
+    dragging_threshold_line == threshold_type);
+  
+  // Draw line
+  gfx_line(start_x, line_y, end_x, line_y, 1);
+  
+  // Draw label
+  gfx_x = label_x;
+  gfx_y = label_y;
+  gfx_drawstr(label_text);
+);
+

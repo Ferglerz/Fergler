@@ -14,11 +14,11 @@ desc:Advanced Multi-Model Compressor (Modular)
 
 
 // Time-related parameters (1-5)
-slider1:attack_ms=10<0.05,100,0.1>Attack (ms)
+slider1:attack_ms=10<0.05,100,0.1>-Attack (ms)
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 slider3:release_ms=100<10,1000,1>-Release (ms)
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
-slider5:lookahead_ms=0<0,2000,0.1>Lookahead (ms)
+slider5:lookahead_ms=0<0,2000,0.1>-Lookahead (ms)
 
 // RMS & Detection parameters (7-10)
 slider7:rms_size_ms=10<1,100,0.1>-RMS Window (ms)
@@ -97,18 +97,26 @@ import 03_Compression/07_envelope.jsfx-inc
 import 03_Compression/08_harmonic_models.jsfx-inc
 import 03_Compression/09_audio_processing_chain.jsfx-inc
 
-// 04_UI: All UI components (depends on 01_Utils, 03_Compression)
-import 04_UI/01_ui_constants.jsfx-inc
-import 04_UI/02_ui_utils.jsfx-inc
-import 04_UI/03_ui_threshold_lines.jsfx-inc
-import 04_UI/04_ui_interaction.jsfx-inc
-import 04_UI/05_ui_rendering.jsfx-inc
-import 04_UI/06_ui_controls.jsfx-inc
-import 04_UI/07_ui_graph_cache.jsfx-inc
-import 04_UI/08_ui_graph_curves.jsfx-inc
-import 04_UI/09_ui_graph_meters.jsfx-inc
-import 04_UI/10_ui_graph_display.jsfx-inc
-import 04_UI/11_ui_orchestration.jsfx-inc
+// UI Components: Reorganized into clear functional modules
+// Import order: constants -> rendering -> user interactions -> orchestration
+import 01_Utils/07_ui_constants.jsfx-inc
+import 01_Utils/08_ui_utils.jsfx-inc
+import 05_UI_Rendering/01_helpers.jsfx-inc
+import 05_UI_Rendering/02_knobs.jsfx-inc
+import 05_UI_Rendering/03_controls.jsfx-inc
+import 05_UI_Rendering/04_debug.jsfx-inc
+import 05_UI_Rendering/10_menu.jsfx-inc
+import 05_UI_Rendering/05_header.jsfx-inc
+import 05_UI_Rendering/11_threshold_lines.jsfx-inc
+import 05_UI_Rendering/06_graph_cache.jsfx-inc
+import 05_UI_Rendering/07_graph_curves.jsfx-inc
+import 05_UI_Rendering/08_graph_meters.jsfx-inc
+import 05_UI_Rendering/09_graph_display.jsfx-inc
+import 06_UI_UserInteractions/01_control_definitions.jsfx-inc
+import 06_UI_UserInteractions/02_control_interactions.jsfx-inc
+import 06_UI_UserInteractions/03_graph.jsfx-inc
+import 07_UI_Orchestration/01_ui_interaction.jsfx-inc
+import 07_UI_Orchestration/02_ui_orchestration.jsfx-inc
 
 
 //==============================================================================
@@ -434,7 +442,7 @@ INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
 // Render main interface
 render_complete_interface();
 
-// Render debug information (controlled by DEBUG_ENABLED in 03_debug_logging.jsfx-inc)
+// Render debug information (controlled by menu_debug_enabled toggle in right-click menu)
 debug_render();
 
 

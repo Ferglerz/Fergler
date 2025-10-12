@@ -1,0 +1,139 @@
+// UI Rendering - Header and Menu Module
+// Header, menu button, and custom menu rendering
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 04_UI/01_ui_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// MENU BUTTON RENDERING
+//==============================================================================
+
+function draw_menu_button() (
+  // Check if mouse is hovering over menu button
+  is_hovered = (mouse_x >= MENU_BUTTON_X && mouse_x <= MENU_BUTTON_X + MENU_BUTTON_SIZE &&
+                mouse_y >= MENU_BUTTON_Y && mouse_y <= MENU_BUTTON_Y + MENU_BUTTON_SIZE);
+  
+  // Draw button background
+  is_hovered ? (
+    gfx_set(MENU_BUTTON_HOVER_R, MENU_BUTTON_HOVER_G, MENU_BUTTON_HOVER_B, 1);
+  ) : (
+    gfx_set(MENU_BUTTON_BG_R, MENU_BUTTON_BG_G, MENU_BUTTON_BG_B, 1);
+  );
+  gfx_rect(MENU_BUTTON_X, MENU_BUTTON_Y, MENU_BUTTON_SIZE, MENU_BUTTON_SIZE);
+  
+  // Draw button border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(MENU_BUTTON_X, MENU_BUTTON_Y, MENU_BUTTON_SIZE, MENU_BUTTON_SIZE, 0);
+  
+  // Draw three horizontal lines
+  is_hovered ? (
+    gfx_set(MENU_BUTTON_HOVER_LINE_R, MENU_BUTTON_HOVER_LINE_G, MENU_BUTTON_HOVER_LINE_B, 1);
+  ) : (
+    gfx_set(MENU_BUTTON_LINE_R, MENU_BUTTON_LINE_G, MENU_BUTTON_LINE_B, 1);
+  );
+  
+  // Calculate line positions (centered in button, 75% scaled)
+  line_start_x = MENU_BUTTON_X + 3;  // 4 * 0.75 = 3
+  line_end_x = MENU_BUTTON_X + MENU_BUTTON_SIZE - 3;  // 4 * 0.75 = 3
+  line_y1 = MENU_BUTTON_Y + 5;  // 6 * 0.75 = 4.5 rounded up
+  line_y2 = line_y1 + MENU_BUTTON_LINE_SPACING;
+  line_y3 = line_y2 + MENU_BUTTON_LINE_SPACING;
+  
+  // Draw three lines
+  gfx_line(line_start_x, line_y1, line_end_x, line_y1, MENU_BUTTON_LINE_WIDTH);
+  gfx_line(line_start_x, line_y2, line_end_x, line_y2, MENU_BUTTON_LINE_WIDTH);
+  gfx_line(line_start_x, line_y3, line_end_x, line_y3, MENU_BUTTON_LINE_WIDTH);
+);
+
+function draw_custom_menu() (
+  is_menu_visible() ? (
+    menu_x = get_menu_x();
+    menu_y = get_menu_y();
+    menu_height = 8 * MENU_ITEM_HEIGHT;  // Increased from 6 to 8 items
+    
+    // Draw menu background
+    gfx_set(MENU_BG_R, MENU_BG_G, MENU_BG_B, 1);
+    gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height);
+    
+    // Draw menu border
+    gfx_set(MENU_BORDER_R, MENU_BORDER_G, MENU_BORDER_B, 1);
+    gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height, 0);
+    
+    // Draw menu items
+    i = 0;
+    while (i < 8) (  // Increased from 6 to 8 items
+      item_y = menu_y + i * MENU_ITEM_HEIGHT;
+      is_hovered = (menu_hovered_item == i);
+      
+      // Draw item background if hovered
+      is_hovered ? (
+        gfx_set(MENU_HOVER_R, MENU_HOVER_G, MENU_HOVER_B, 1);
+        gfx_rect(menu_x + 1, item_y + 1, MENU_WIDTH - 2, MENU_ITEM_HEIGHT - 2);
+      );
+      
+      // Draw item text (75% scaled)
+      gfx_set(MENU_TEXT_R, MENU_TEXT_G, MENU_TEXT_B, 1);
+      gfx_x = menu_x + 6;  // 8 * 0.75 = 6
+      gfx_y = item_y + 6;  // 8 * 0.75 = 6
+      
+      i == 0 ? gfx_drawstr("Debug") :
+      i == 1 ? gfx_drawstr("Histogram") :
+      i == 2 ? gfx_drawstr("GR Meter") :
+      i == 3 ? gfx_drawstr("Brickwall Limiter") :
+      i == 4 ? gfx_drawstr("True RMS") :
+      i == 5 ? gfx_drawstr("Show Compression LUT") :
+      i == 6 ? gfx_drawstr("Min() Envelope Mode") :
+      i == 7 ? gfx_drawstr("History Buffer Histogram") : 0;
+      
+      // Draw checkmark if option is enabled
+      is_enabled = (i == 0 && menu_debug_enabled > 0.5) ||
+                   (i == 1 && menu_histogram_enabled > 0.5) ||
+                   (i == 2 && menu_gr_meter_enabled > 0.5) ||
+                   (i == 3 && menu_brickwall_limiter_enabled > 0.5) ||
+                   (i == 4 && menu_true_rms_enabled > 0.5) ||
+                   (i == 5 && show_compression_lut_curve > 0.5) ||
+                   (i == 6 && menu_min_envelope_enabled > 0.5) ||
+                   (i == 7 && menu_histogram_buffer_mode > 0.5);
+      
+      is_enabled ? (
+        gfx_set(MENU_CHECKMARK_R, MENU_CHECKMARK_G, MENU_CHECKMARK_B, 1);
+        check_x = menu_x + MENU_WIDTH - 15;  // 20 * 0.75 = 15
+        check_y = item_y + 6;  // 8 * 0.75 = 6
+        gfx_drawstr("✓");
+      );
+      
+      i += 1;
+    );
+  );
+);
+
+//==============================================================================
+// HEADER RENDERING
+//==============================================================================
+
+function draw_header() (
+  // Draw drop shadow first (behind header)
+  gfx_set(HEADER_SHADOW_R, HEADER_SHADOW_G, HEADER_SHADOW_B, 0.5);
+  gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_SHADOW_HEIGHT);
+  
+  // Draw header background
+  gfx_set(HEADER_BG_R, HEADER_BG_G, HEADER_BG_B, 1);
+  gfx_rect(0, 0, gfx_w, HEADER_HEIGHT);
+  
+  // Draw cream border line below header
+  gfx_set(HEADER_BORDER_R, HEADER_BORDER_G, HEADER_BORDER_B, 1);
+  gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_BORDER_HEIGHT);
+  
+  // Draw menu button
+  draw_menu_button();
+);
+
+function draw_ui_panel_background() (
+  gfx_set(UI_BG_R, UI_BG_G, UI_BG_B, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H);
+
+  // Draw panel border
+  gfx_set(0.5, 0.5, 0.5, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H, 0);
+);
+

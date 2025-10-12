@@ -103,7 +103,40 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
   );
 );
 
-// Draw GR histogram line for negative values (reduction)
+// Draw GR histogram line for negative values (reduction) - per-pixel buffer mode
+function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
+  pixels_per_db = GRAPH_SIZE / 40;
+  
+  gfx_set(r, g, b, a);
+  first_point = 1;
+  i = 0;
+  
+  while (i < GRAPH_SIZE) (
+    gr_value = buffer[i];
+    
+    // Only draw negative values (reduction)
+    gr_value < 0 ? (
+      x_pos = GRAPH_X + i;
+      // Convert GR to graph Y coordinate (from top)
+      gr_height = abs(gr_value) * pixels_per_db;
+      y_pos = GRAPH_Y + gr_height;
+      
+      first_point ? (
+        gfx_x = x_pos;
+        gfx_y = y_pos;
+        first_point = 0;
+      ) : (
+        gfx_lineto(x_pos, y_pos, 1);
+      );
+    ) : (
+      first_point = 1;
+    );
+    
+    i += 1;
+  );
+);
+
+// Draw GR histogram line for negative values (reduction) - original mode
 function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -141,7 +174,40 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
   );
 );
 
-// Draw GR histogram line for positive values (boost)
+// Draw GR histogram line for positive values (boost) - per-pixel buffer mode
+function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
+  pixels_per_db = GRAPH_SIZE / 40;
+  
+  gfx_set(r, g, b, a);
+  first_point = 1;
+  i = 0;
+  
+  while (i < GRAPH_SIZE) (
+    gr_value = buffer[i];
+    
+    // Only draw positive values (boost)
+    gr_value > 0 ? (
+      x_pos = GRAPH_X + i;
+      // Convert GR to graph Y coordinate (from bottom)
+      gr_height = abs(gr_value) * pixels_per_db;
+      y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
+      
+      first_point ? (
+        gfx_x = x_pos;
+        gfx_y = y_pos;
+        first_point = 0;
+      ) : (
+        gfx_lineto(x_pos, y_pos, 1);
+      );
+    ) : (
+      first_point = 1;
+    );
+    
+    i += 1;
+  );
+);
+
+// Draw GR histogram line for positive values (boost) - original mode
 function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -204,26 +270,45 @@ function draw_input_histogram() (
 //==============================================================================
 
 function draw_histogram() (
-  HISTOGRAM_ENABLED && histogram_initialized && menu_histogram_enabled ? (
-    // Draw negative (reduction) and positive (addition) GR as separate lines
-    // Negative: orange, from top; Positive: blue, from bottom
-    
-    // Draw negative (reduction) line (orange, from top)
-    draw_gr_histogram_neg_line(
-      histogram_buffer,
-      histogram_pos,
-      histogram_max_samples,
-      1, 0.5, 0, // Orange
-      HISTOGRAM_OPACITY
-    );
-    
-    // Draw positive (addition) line (blue, from bottom)
-    draw_gr_histogram_pos_line(
-      histogram_buffer,
-      histogram_pos,
-      histogram_max_samples,
-      0.2, 0.5, 1, // Blue
-      HISTOGRAM_OPACITY
+  HISTOGRAM_ENABLED && menu_histogram_enabled ? (
+    menu_histogram_buffer_mode > 0.5 ? (
+      // PER-PIXEL BUFFER MODE: Draw directly from pixel buffer
+      histogram_pixel_initialized ? (
+        // Draw negative (reduction) line (orange, from top)
+        draw_gr_histogram_neg_line_pixel(
+          histogram_pixel_buffer,
+          1, 0.5, 0, // Orange
+          HISTOGRAM_OPACITY
+        );
+        
+        // Draw positive (addition) line (blue, from bottom)
+        draw_gr_histogram_pos_line_pixel(
+          histogram_pixel_buffer,
+          0.2, 0.5, 1, // Blue
+          HISTOGRAM_OPACITY
+        );
+      );
+    ) : (
+      // ORIGINAL MODE: Draw negative (reduction) and positive (addition) GR as separate lines
+      histogram_initialized ? (
+        // Draw negative (reduction) line (orange, from top)
+        draw_gr_histogram_neg_line(
+          histogram_buffer,
+          histogram_pos,
+          histogram_max_samples,
+          1, 0.5, 0, // Orange
+          HISTOGRAM_OPACITY
+        );
+        
+        // Draw positive (addition) line (blue, from bottom)
+        draw_gr_histogram_pos_line(
+          histogram_buffer,
+          histogram_pos,
+          histogram_max_samples,
+          0.2, 0.5, 1, // Blue
+          HISTOGRAM_OPACITY
+        );
+      );
     );
   );
 );

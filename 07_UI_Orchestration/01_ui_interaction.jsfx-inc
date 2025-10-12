@@ -1,0 +1,31 @@
+// UI Interaction Module - Main Orchestrator
+// Coordinates all user interaction across the interface
+// Dependencies:
+//   - 05_UI_Rendering/10_menu.jsfx-inc
+//   - 06_UI_UserInteractions/02_control_interactions.jsfx-inc
+//   - 06_UI_UserInteractions/03_graph.jsfx-inc
+//   - 05_UI_Rendering/11_threshold_lines.jsfx-inc
+
+@init
+
+//==============================================================================
+// MAIN MOUSE INPUT PROCESSING
+//==============================================================================
+
+function process_mouse_input() (
+  // Update menu hover state
+  is_menu_visible() ? (
+    menu_hovered_item = get_hovered_menu_item();
+  );
+
+  // Handle custom UI controls first (they have priority)
+  handle_ui_mouse_input();
+
+  // Handle threshold line interactions second (before graph interactions)
+  handle_threshold_line_mouse();
+
+  // Only process graph mouse input if not interacting with UI controls, knobs, or threshold lines
+  ui_drag_control == -1 && ui_drag_knob == -1 && dragging_threshold_line == -1 ? (
+    handle_graph_mouse_input();
+  );
+);

@@ -1,0 +1,233 @@
+// UI Utilities Module
+// Pure UI utility functions and coordinate conversions
+// Contains control accessor functions and basic UI utilities
+//
+// Dependencies:
+// - 01_Utils/01_constants.jsfx-inc (for GRAPH_* and UI constants)
+// - 01_Utils/04_file_reading.jsfx-inc (for get_slider_name function)
+// - 01_Utils/05_memory.jsfx-inc (for control_defs array)
+
+@init
+
+//==============================================================================
+// CONTROL ACCESSOR FUNCTIONS
+//==============================================================================
+
+function get_control_type(index) ( control_defs[index*11 + 0]; );
+function get_control_x(index) ( control_defs[index*11 + 1]; );
+function get_control_y(index) ( control_defs[index*11 + 2]; );
+function get_control_w(index) ( control_defs[index*11 + 3]; );
+function get_control_h(index) ( control_defs[index*11 + 4]; );
+function get_control_param(index) ( control_defs[index*11 + 5]; );
+function get_control_min(index) ( control_defs[index*11 + 6]; );
+function get_control_max(index) ( control_defs[index*11 + 7]; );
+function get_control_slider_type(index) ( control_defs[index*11 + 8]; );
+function get_control_display_mode(index) ( control_defs[index*11 + 9]; ); // 0=right (default), 1=left, 2=hide
+function get_control_group(index) ( control_defs[index*11 + 10]; ); // Group index (-1 = no group)
+
+// Unified knob accessor functions (works for both small and large knobs)
+function get_knob_x(index) ( knob_defs[index*10 + 0]; );
+function get_knob_y(index) ( knob_defs[index*10 + 1]; );
+function get_knob_param(index) ( knob_defs[index*10 + 2]; );
+function get_knob_min(index) ( knob_defs[index*10 + 3]; );
+function get_knob_max(index) ( knob_defs[index*10 + 4]; );
+function get_knob_type(index) ( knob_defs[index*10 + 5]; );
+function get_knob_size(index) ( knob_defs[index*10 + 6]; ); // 0=small, 1=large
+function get_knob_active(index) ( knob_defs[index*10 + 7]; );
+function get_knob_value(index) ( knob_defs[index*10 + 8]; );
+function get_knob_group(index) ( knob_defs[index*10 + 9]; ); // Group index (-1 = no group)
+
+// Helper functions to get size-specific properties
+function get_knob_radius(index) (
+  get_knob_size(index) == 1 ? LARGE_KNOB_RADIUS : KNOB_RADIUS;
+);
+
+function get_knob_pixel_size(index) (
+  get_knob_size(index) == 1 ? LARGE_KNOB_SIZE : KNOB_SIZE;
+);
+
+//==============================================================================
+// GROUP ACCESSOR FUNCTIONS
+//==============================================================================
+
+// Group accessor functions (moved from ui_controls to resolve circular dependency)
+function get_group_x(index) ( group_defs[index*6 + 0]; );
+function get_group_y(index) ( group_defs[index*6 + 1]; );
+function get_group_w(index) ( group_defs[index*6 + 2]; );
+function get_group_h(index) ( group_defs[index*6 + 3]; );
+function get_group_show_title(index) ( group_defs[index*6 + 4]; );
+function get_group_title_ptr(index) ( group_defs[index*6 + 5]; );
+
+//==============================================================================
+// BASIC UI UTILITIES
+//==============================================================================
+
+function is_point_in_control(x, y, control_index) local(group_idx) (
+  ctrl_x = get_control_x(control_index);
+  ctrl_y = get_control_y(control_index);
+  ctrl_w = get_control_w(control_index);
+  ctrl_h = get_control_h(control_index);
+  group_idx = get_control_group(control_index);
+  
+  // Add group offset if control is in a group
+  group_idx >= 0 ? (
+    ctrl_x += get_group_x(group_idx);
+    ctrl_y += get_group_y(group_idx);
+  );
+  
+  x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
+);
+
+function is_point_in_knob(x, y, knob_index) local(group_idx) (
+  knob_x = get_knob_x(knob_index);
+  knob_y = get_knob_y(knob_index);
+  knob_size = get_knob_pixel_size(knob_index);
+  group_idx = get_knob_group(knob_index);
+  
+  // Add group offset if knob is in a group
+  group_idx >= 0 ? (
+    knob_x += get_group_x(group_idx);
+    knob_y += get_group_y(group_idx);
+  );
+  
+  x >= knob_x && x <= knob_x + knob_size && y >= knob_y && y <= knob_y + knob_size;
+);
+
+function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode) (
+  slider_type = get_control_slider_type(control_index);
+  min_val = get_control_min(control_index);
+  max_val = get_control_max(control_index);
+  group_idx = get_control_group(control_index);
+  control_type = get_control_type(control_index);
+  param_index = get_control_param(control_index);
+  
+  slider_type == 1 ? ( // Vertical slider
+    ctrl_y = get_control_y(control_index);
+    ctrl_h = get_control_h(control_index);
+    
+    // Add group offset if control is in a group
+    group_idx >= 0 ? (
+      ctrl_y += get_group_y(group_idx);
+    );
+    
+    normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
+    normalized_pos = max(0, min(1, normalized_pos));
+    // Invert for vertical slider (0 at top, 1 at bottom)
+    normalized_pos = 1 - normalized_pos;
+  ) : ( // Horizontal slider (default)
+    ctrl_x = get_control_x(control_index);
+    ctrl_w = get_control_w(control_index);
+    
+    // Add group offset if control is in a group
+    group_idx >= 0 ? (
+      ctrl_x += get_group_x(group_idx);
+    );
+    
+    normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
+    normalized_pos = max(0, min(1, normalized_pos));
+  );
+  
+  // For freq_list_slider (type 4), map position to enumerated values
+  control_type == 4 ? (
+    // Get the number of enumerated options
+    option_count = get_dropdown_option_count(param_index);
+    
+    option_count > 0 ? (
+      // Check if this is a reverse slider (type 2)
+      reverse_mode = (slider_type == 2);
+      
+      // Map normalized position to option index
+      reverse_mode ? (
+        // For reverse sliders, left = last option, right = first option
+        option_index = floor((1 - normalized_pos) * option_count + 0.5);
+      ) : (
+        // For normal sliders, left = first option, right = last option
+        option_index = floor(normalized_pos * option_count + 0.5);
+      );
+      
+      option_index = max(0, min(option_count - 1, option_index));
+      
+      // Get the pre-parsed numeric value at this index (fast, no string conversion)
+      get_dropdown_option_value(param_index, option_index);
+    ) : (
+      // Fallback: no enumerated options, use continuous range
+      min_val + normalized_pos * (max_val - min_val);
+    );
+  ) : (
+    // For normal sliders, use continuous range
+    min_val + normalized_pos * (max_val - min_val);
+  );
+);
+
+// Shared function to update value from mouse delta
+function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity) (
+  // Vertical mouse movement controls value (down = increase, up = decrease)
+  value_range = max_val - min_val;
+  delta = -mouse_dy * sensitivity * value_range / 100; // Negative because down = increase
+  
+  new_value = current_value + delta;
+  new_value = max(min_val, min(max_val, new_value));
+  new_value;
+);
+
+function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
+  param_index = get_knob_param(knob_index);
+  min_val = get_knob_min(knob_index);
+  max_val = get_knob_max(knob_index);
+  knob_size = get_knob_size(knob_index);
+  
+  // Get current value
+  current_value = slider(param_index);
+  
+  // Calculate mouse delta from previous position
+  mouse_dy = mouse_y - ui_prev_mouse_y;
+  
+  // Get sensitivity based on knob size (large knobs = finer control)
+  sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
+  
+  // Update value based on mouse movement
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity);
+  
+  // Update knob value and slider
+  knob_defs[knob_index*9 + 8] = new_value;
+  slider(param_index) = new_value;
+  sliderchange(1 << (param_index - 1));
+  
+  new_value;
+);
+
+
+//==============================================================================
+// COORDINATE CLAMPING HELPERS
+//==============================================================================
+
+// Note: Graph coordinate conversion functions (db_to_graph_x, db_to_graph_y, etc.)
+// are now defined in 03_Compression/02_graph_data_core.jsfx-inc where they belong
+
+
+function clamp_x_to_graph(x) (
+  max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, x))
+);
+
+function clamp_y_to_graph(y) (
+  max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, y))
+);
+
+//==============================================================================
+// DRAWING HELPERS
+//==============================================================================
+
+function draw_indicator_circle(x, y, radius, r, g, b, alpha, filled) (
+  gfx_set(r, g, b, alpha);
+  gfx_circle(x, y, radius, filled, 1); 
+);
+
+
+function draw_curve_segment(end_x, end_y, is_first_point) (
+  is_first_point ? (
+    gfx_x = end_x;
+    gfx_y = end_y;
+  ) : (
+    gfx_lineto(end_x, end_y, 1); 
+  );
+);

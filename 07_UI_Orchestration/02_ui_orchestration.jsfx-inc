@@ -20,6 +20,9 @@ function render_complete_interface() (
   // Draw main UI panel background
   draw_ui_panel_background();
   
+  // Draw all group backgrounds and titles
+  render_all_groups();
+  
   // Draw all knobs (unified system handles both small and large)
   render_all_knobs();
 

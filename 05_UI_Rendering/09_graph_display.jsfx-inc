@@ -93,7 +93,7 @@ function draw_mouse_hints() (
 //==============================================================================
 
 function draw_signal_values() (
-  DEBUG_ENABLED && menu_debug_enabled ? (
+  menu_debug_enabled ? (
     // Draw real-time signal values in bottom right corner of graph
     text_x = GRAPH_X + GRAPH_SIZE - 135; // 180 * 0.75 = 135 (right-justified position)
     text_y = GRAPH_Y + GRAPH_SIZE - 90;  // 120 * 0.75 = 90 (bottom of graph area)

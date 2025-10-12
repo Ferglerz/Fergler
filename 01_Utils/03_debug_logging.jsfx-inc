@@ -8,7 +8,7 @@
 // DEBUG CONFIGURATION
 //==============================================================================
 
-DEBUG_ENABLED = 1; // Set to 0 to disable all debug output (currently enabled for troubleshooting)
+// Debug is controlled by menu_debug_enabled (toggled via right-click menu)
 DEBUG_MAX_MESSAGES = STRING_SLOTS_DEBUG; // Use slots 0-49 for debug messages
 DEBUG_START_Y = 450; // Y position where debug output starts
 DEBUG_LINE_HEIGHT = 15;
@@ -35,7 +35,7 @@ function debug_clear() (
 );
 
 function debug_log(message) (
-  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
     strcpy(DEBUG_MESSAGES_BASE + debug_message_count, message);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -43,8 +43,11 @@ function debug_log(message) (
   );
 );
 
+// CRITICAL: This function takes EXACTLY 2 parameters (format + 1 value)
+// For multiple values, use debug_log2f() or debug_log3f() instead
+// Common error: debug_logf(format, val1, val2) will cause "needs 2 parms" error
 function debug_logf(format, value) (
-  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -52,8 +55,9 @@ function debug_logf(format, value) (
   );
 );
 
+// For 2 values: debug_log2f(format, value1, value2)
 function debug_log2f(format, value1, value2) (
-  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -61,8 +65,9 @@ function debug_log2f(format, value1, value2) (
   );
 );
 
+// For 3 values: debug_log3f(format, value1, value2, value3)
 function debug_log3f(format, value1, value2, value3) (
-  DEBUG_ENABLED && debug_message_count < DEBUG_MAX_MESSAGES ? (
+  menu_debug_enabled && debug_message_count < DEBUG_MAX_MESSAGES ? (
     sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2, value3);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
@@ -73,13 +78,13 @@ function debug_log3f(format, value1, value2, value3) (
 // Note: debug_section removed - use debug_log() directly with formatted strings
 
 function debug_separator() (
-  DEBUG_ENABLED ? (
+  menu_debug_enabled ? (
     debug_log("----------------------------------------");
   );
 );
 
 function debug_handle_scroll() (
-  DEBUG_ENABLED ? (
+  menu_debug_enabled ? (
     // Check if mouse is in debug area (simple bounds check)
     mouse_in_debug_area = (mouse_x >= 10 && mouse_x <= 400 && 
                           mouse_y >= DEBUG_START_Y && mouse_y <= DEBUG_START_Y + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT)) ? 1 : 0;
@@ -110,7 +115,7 @@ function debug_handle_scroll() (
 );
 
 function debug_render() (
-  DEBUG_ENABLED && debug_message_count > 0 ? (
+  menu_debug_enabled && debug_message_count > 0 ? (
     // Handle scrolling first
     debug_handle_scroll();
     

@@ -1,0 +1,116 @@
+---
+alwaysApply: true
+---
+
+# JSFX Language Syntax and Execution Model
+
+## Language Fundamentals
+- All variables are **case-insensitive floating point numbers** - no declaration needed
+- Power operator is `^` (not `**`)
+- Modulo operator is `%`
+- Conditionals use ternary syntax: `condition ? true_expr : false_expr`
+- Multi-statement blocks use parentheses: `(stmt1; stmt2; result)`
+- Loop syntax: `loop(count, ...)` and `while(...)`
+- Memory access via arrays: `buffer[index]`
+- Comments: `//` for single line, `/* */` for multi-line
+- Assignment returns value: `x = y = 5` sets both to 5
+
+## Special Variables
+- `spl0` through `spl63` - audio samples in @sample section (range -1 to 1)
+- `srate` - current sample rate
+- `samplesblock` - block size in @block section (typically 128-2048 samples)
+- `slider1` through `slider64` - effect parameters (up to 256 with REAPER extensions)
+- `mouse_x`, `mouse_y`, `mouse_cap` - mouse interaction in @gfx
+- `mouse_wheel`, `mouse_hwheel` - mouse wheel deltas
+- `gfx_w`, `gfx_h` - current graphics dimensions
+- `gfx_x`, `gfx_y` - current graphics draw position
+- `gfx_r`, `gfx_g`, `gfx_b`, `gfx_a` - current graphics color (0-1 range)
+- `$pi` - built-in pi constant (**always use this, never define your own PI**)
+- `ext_noinit` - set to 1.0 to prevent @init from running on playback start
+- `pdc_delay`, `pdc_bot_ch`, `pdc_top_ch` - plugin delay compensation
+- `num_ch` - number of active audio channels
+
+## Execution Sections (in order)
+1. **@init** - Executes once on plugin load, samplerate change, and playback start (unless `ext_noinit=1`)
+2. **@slider** - Executes after @init and whenever slider parameters change
+3. **@block** - Executes before each audio block (use instead of @sample when possible for performance)
+4. **@sample** - Executes for every single sample (most CPU intensive)
+5. **@serialize** - Handles preset save/load operations (prevents memory clearing in @init)
+6. **@gfx** [width] [height] - Graphics rendering, runs ~30 times/second when UI is open
+
+## Slider Definitions
+- Basic: `slider1:variable_name<min,max,inc>Description`
+- Enumerated: `slider1:0<0,2,1{off,on,value}>name`
+- File selector: `slider1:/path:default.wav:Description`
+- Hidden: `slider1:0<0,127,1>-Hidden Parameter` (prefix with `-`)
+- Logarithmic: `slider1:5<0,10,0.1:log>Description` or `:log=2` for custom midpoint
+- Polynomial: `slider1:5<0,10,0.1:sqr>Description` or `:sqr=3` for custom exponent
+- Automation-safe: Use `:log!` or `:sqr!` to not affect existing automation
+- The variable name after the colon becomes the actual variable to use in code
+- Example: `slider1:attack_ms<0.1,100,0.1>Attack Time (ms)` creates `attack_ms` variable
+
+## Memory Management
+- Each effect has up to 1,048,576 slots of local memory (configurable via `options:maxmem=XYZ`)
+- Default available is ~8 million slots, max is 32 million
+- Check available memory with `__memtop()`
+- FFT/DSP operations must NOT cross 16,384 item boundaries
+- Use `freembuf(top)` to manage memory efficiently
+- `memcpy(dest, source, length)` - efficient copying
+- `memset(dest, value, length)` - initialization
+
+## Import System
+- Use `import filename.jsfx-inc` to include modules
+- Files designed for import should be named `*.jsfx-inc`
+- Imported files can define functions in @init that become available to importing file
+- If importing file doesn't define a section (e.g., @sample), imported version is used
+
+## Options Directive
+- `options:gmem=uniqueName` - allocate shared global buffer
+- `options:want_all_kb` - receive all keyboard input
+- `options:maxmem=XYZ` - limit memory slots
+- `options:no_meter` - disable meters
+- `options:gfx_idle` - call @gfx periodically even when UI closed
+- `options:gfx_idle_only` - call @gfx periodically but don't display UI
+- `options:gfx_hz=60` - request specific @gfx update rate
+
+## File Definitions
+- `filename:0,file.wav` - define file by index for later use
+- PNG files: loaded from same directory as effect, used with `gfx_blit()`
+- Data files: loaded from REAPER/Data directory, opened with `file_open(index)`
+
+## Pin Definitions
+- `in_pin:name` - name input channels for display
+- `out_pin:name` - name output channels for display
+- `in_pin:none` and `out_pin:none` - mark MIDI-only FX for optimization
+
+## Graphics Functions (partial list)
+- `gfx_set(r, g, b, [a])` - set draw color
+- `gfx_line(x, y, x2, y2, [aa])` - draw line
+- `gfx_rect(x, y, w, h)` - draw filled rectangle
+- `gfx_circle(x, y, r, fill, [aa])` - draw circle
+- `gfx_arc(x, y, r, ang1, ang2, [aa])` - draw arc
+- `gfx_drawstr("text", [flags, right, bottom])` - draw text
+- `gfx_measurestr("text", &w, &h)` - measure text dimensions
+- `gfx_blit(source, scale, rotation)` - blit image from source
+- `gfx_getchar([char])` - get keyboard input
+
+## Common Functions
+- `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2()`
+- `exp()`, `log()`, `log10()`, `pow()`, `sqrt()`, `abs()`
+- `min()`, `max()`, `sign()`, `floor()`, `ceil()`, `rand()`
+- `time_precise()` - high-precision time in seconds
+- `sliderchange(mask)` - notify UI of slider changes (bitmask: 1=slider1, 2=slider2, etc.)
+
+## MIDI Support
+- `midisend(offset, msg1, [msg2, msg3])` - send MIDI message
+- `midirecv(offset, msg1, [msg2, msg3])` - receive MIDI message
+- MIDI channels are 0-15 (not 1-16)
+- See official documentation for full MIDI bus support
+
+## Best Practices
+- Calculate coefficients in @slider or @block, apply in @sample
+- Use @block instead of @sample whenever possible for better performance
+- Avoid redundant calculations - cache values that don't change per-sample
+- Use `ext_noinit=1` if you don't want @init to run on playback start
+- Always define @serialize if you want variables/memory preserved across reloads
+- Remember: all variables are global unless scoped to function namespaces

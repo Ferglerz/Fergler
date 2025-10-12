@@ -1,0 +1,204 @@
+// User Interactions - Graph Module
+// Graph point interaction handling (dragging, adding, deleting, curve adjustment)
+// Dependencies: 01_Utils/02_math_utils.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc
+
+@init
+
+//==============================================================================
+// GRAPH INTERACTION STATE
+//==============================================================================
+
+// Graph interaction states
+dragging_point = -1;
+hovered_point = -1;
+curve_drag_started = 0;
+curve_drag_start_x = 0;
+curve_drag_start_y = 0;
+curve_drag_start_amount = 0;
+waiting_for_mouse_release = 0; // Flag to prevent interaction after CMD release during curve drag
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Invalidate all graph-related caches (used by multiple functions)
+function invalidate_all_graph_caches() (
+  invalidate_curve_cache();
+  invalidate_compression_lut();
+  invalidate_compression_threshold();
+);
+
+// Convert mouse coordinates to constrained graph coordinates
+function mouse_to_constrained_graph_coords() (
+  new_input_db = clamp(graph_x_to_db(mouse_x), GRAPH_MIN_DB, GRAPH_MAX_DB);
+  new_output_db = clamp(graph_y_to_db(mouse_y), GRAPH_MIN_DB, GRAPH_MAX_DB);
+  new_input_db; // Return input dB
+  new_output_db; // Return output dB
+);
+
+// Check if mouse position is too close to existing points
+function is_too_close_to_existing_points(mouse_x, mouse_y) (
+  too_close = 0;
+  i = 1;
+  while (i < num_points - 1 && !too_close) (
+    point_x = db_to_graph_x(graph_points[i*2]);
+    point_y = db_to_graph_y(graph_points[i*2 + 1]);
+    dist_sq = (mouse_x - point_x) * (mouse_x - point_x) + (mouse_y - point_y) * (mouse_y - point_y);
+    dist_sq < (MOUSE_CLICK_RADIUS * 2) * (MOUSE_CLICK_RADIUS * 2) ? (
+      too_close = 1;
+    );
+    i += 1;
+  );
+  too_close;
+);
+
+//==============================================================================
+// GRAPH INTERACTION FUNCTIONS
+//==============================================================================
+
+function handle_point_movement() (
+  // Only allow movement of non-corner points
+  dragging_point > 0 && dragging_point < num_points - 1 ? (
+    // Convert mouse position to dB values with constraints
+    mouse_to_constrained_graph_coords();
+
+    // Store old position to check if significant movement occurred
+    old_input_db = graph_points[dragging_point*2];
+
+    // Update point position
+    graph_points[dragging_point*2] = new_input_db;
+    graph_points[dragging_point*2 + 1] = new_output_db;
+
+    // Re-sort points to maintain order
+    sort_points();
+
+    // Check if significant movement occurred and clean up displaced points
+    abs(new_input_db - old_input_db) > 1.0 ? (
+      remove_displaced_points(new_input_db, new_output_db);
+    );
+    
+    // Invalidate all caches since point movement affects curves and compression
+    invalidate_all_graph_caches();
+  );
+);
+
+function handle_curve_adjustment() (
+  // Only allow curve adjustment of non-corner points
+  dragging_point > 0 && dragging_point < num_points - 1 ? (
+    // Initialize curve drag on first call
+    !curve_drag_started ? (
+      curve_drag_started = 1;
+      curve_drag_start_x = mouse_x;
+      curve_drag_start_y = mouse_y;
+      curve_drag_start_amount = get_curve_amount(dragging_point);
+    );
+    
+    // Calculate horizontal drag distance (right = increase, left = decrease)
+    dx = mouse_x - curve_drag_start_x;
+    max_drag_distance = 100; // Maximum drag distance for 100% curve
+    
+    // Calculate new curve amount based on horizontal movement
+    // Right movement increases curve, left movement decreases curve
+    drag_factor = dx / max_drag_distance;
+    new_curve_amount = curve_drag_start_amount + (drag_factor * 100);
+    new_curve_amount = clamp(new_curve_amount, 0, 100);
+    
+    // Set the curve amount for this point and invalidate all caches for real-time updates
+    set_curve_amount(dragging_point, new_curve_amount);
+    invalidate_all_graph_caches();
+  );
+);
+
+function handle_point_addition() (
+  // Convert mouse position to dB values with constraints
+  mouse_to_constrained_graph_coords();
+
+  // Check if too close to existing points (buffer area)
+  !is_too_close_to_existing_points(mouse_x, mouse_y) ? (
+    new_point_index = add_point(new_input_db, new_output_db);
+    // Invalidate all caches since point addition affects curves and compression
+    invalidate_all_graph_caches();
+    new_point_index; // Return the index of the newly added point
+  ) : (
+    -1; // Return -1 if too close to add
+  );
+);
+
+function handle_point_deletion() (
+  // Delete point at mouse position (middle-click or ctrl+click)
+  target_point = find_point_at_mouse(mouse_x, mouse_y);
+  
+  target_point >= 0 && num_points > 2 ? ( // Keep at least 2 points
+    delete_point(target_point);
+    // Invalidate all caches since point deletion affects curves and compression
+    invalidate_all_graph_caches();
+  );
+);
+
+//==============================================================================
+// GRAPH MOUSE INPUT PROCESSING
+//==============================================================================
+
+function handle_graph_mouse_input() (
+  // Always update hover state first
+  hovered_point = find_point_at_mouse(mouse_x, mouse_y);
+
+  MOUSE_LEFT_BUTTON ? ( // Left mouse button pressed
+    // Skip all interaction if waiting for mouse release
+    !waiting_for_mouse_release ? (
+      !mouse_down ? ( // Start of click/drag
+        mouse_down = 1;
+
+        MOUSE_ALT_KEY ? ( // Alt+click = delete point
+          handle_point_deletion();
+          dragging_point = -1;
+        ) : (
+          // Find point under mouse for selection
+          dragging_point = find_point_at_mouse(mouse_x, mouse_y);
+          dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) && hovered_threshold_line == -1 ? (
+            // Click in empty space - add point (only if not hovering over threshold line)
+            dragging_point = handle_point_addition();
+          );
+        );
+
+        mouse_x_prev = mouse_x;
+        mouse_y_prev = mouse_y;
+      ) : ( // Continue drag
+        dragging_point >= 0 ? (
+          MOUSE_CTRL_KEY ? ( // Cmd+drag = adjust curve
+            handle_curve_adjustment();
+          ) : (
+            // CMD released mid-drag: if we were adjusting curve, revert and cancel drag
+            curve_drag_started ? (
+              // Revert curve to starting amount
+              set_curve_amount(dragging_point, curve_drag_start_amount);
+              // Reset all drag states and wait for mouse release
+              curve_drag_started = 0;
+              mouse_down = 0;
+              dragging_point = -1;
+              waiting_for_mouse_release = 1; // Block further interaction until mouse up
+            ) : (
+              // Normal drag = move point
+              handle_point_movement();
+            );
+          );
+        );
+
+        mouse_x_prev = mouse_x;
+        mouse_y_prev = mouse_y;
+      );
+    );
+  ) : MOUSE_RIGHT_BUTTON ? ( // Right mouse button
+    !mouse_down ? (
+      mouse_down = 1;
+      handle_point_deletion();
+    );
+  ) : (
+    // Mouse button released - reset all states
+    mouse_down = 0;
+    dragging_point = -1;
+    curve_drag_started = 0;
+    waiting_for_mouse_release = 0; // Clear the waiting flag
+  );
+);
+

@@ -56,6 +56,10 @@ function init_state_variables() (
   base_med_s = 0.3;    // 300ms
   base_slow_s = 1.0;   // 1000ms
   global_smoothed_gain_db = 0;
+  
+  // Min() envelope mode state variables
+  min_env_yR = 0;  // Release filter state
+  min_env_yA = 0;  // Attack filter state
 
   // Limiter state variables
   limiter_prev_l = 0;
@@ -125,6 +129,35 @@ function init_state_variables() (
     histogram_initialized = 1;
     debug_logf("Histogram allocated: %d samples", histogram_max_samples);
   );
+  
+  // Per-pixel histogram buffer state (for histogram buffer mode)
+  histogram_pixel_buffer = 0; // Will be allocated in memory
+  histogram_pixel_samples_per_pixel = 0; // Calculated based on srate and graph width
+  histogram_pixel_pos = 0; // Current sample position within current pixel
+  histogram_pixel_idx = 0; // Current pixel index
+  histogram_pixel_initialized = 0; // Flag to track initialization
+  
+  // Initialize per-pixel histogram buffer if enabled
+  HISTOGRAM_ENABLED ? (
+    // Allocate buffer for GRAPH_SIZE pixels (300 pixels)
+    histogram_pixel_buffer = freemem;
+    freemem += GRAPH_SIZE;
+    
+    // Clear per-pixel histogram buffer
+    i = 0;
+    while (i < GRAPH_SIZE) (
+      histogram_pixel_buffer[i] = 0;  // Initialize to 0 (no GR)
+      i += 1;
+    );
+    
+    // Calculate samples per pixel for histogram window
+    // HISTOGRAM_WINDOW_SECONDS worth of samples divided by GRAPH_SIZE pixels
+    histogram_pixel_samples_per_pixel = ceil((HISTOGRAM_WINDOW_SECONDS * srate) / GRAPH_SIZE);
+    histogram_pixel_pos = 0;
+    histogram_pixel_idx = 0;
+    histogram_pixel_initialized = 1;
+    debug_log2f("Per-pixel histogram allocated: %d pixels, %d samples/pixel", GRAPH_SIZE, histogram_pixel_samples_per_pixel);
+  );
 
   // Input histogram state
   input_histogram_buffer = 0; // Will be allocated in memory
@@ -155,11 +188,13 @@ function init_state_variables() (
   // Menu toggle states (persistent across @init)
   !menu_toggles_initialized ? (
     menu_toggles_initialized = 1;
-    menu_debug_enabled = 0;
+    menu_debug_enabled = 1;  // Default to enabled
     menu_histogram_enabled = 1;  // Default to enabled
     menu_gr_meter_enabled = 1;   // Default to enabled
     menu_brickwall_limiter_enabled = 1;  // Default to enabled
     menu_true_rms_enabled = 0;  // Default to exponential smoothing (off)
+    menu_min_envelope_enabled = 0;  // Default to standard envelope mode (off)
+    menu_histogram_buffer_mode = 1;  // Default to per-pixel buffer mode (on)
   );
 
   // Custom menu state
@@ -220,24 +255,46 @@ function init_state_variables() (
 //==============================================================================
 
 function update_histogram_state(gr_value) (
-  // Store block-level max GR value in circular buffer with rate control
-  // Note: smoothing removed - block-level max already provides smooth values
-  histogram_initialized ? (
-    // Frame rate control - only update every N frames
-    histogram_frame_counter += 1;
-    (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-      histogram_frame_counter = 0;
-      
-      // Optimization: only increment debug counter when actual GR occurs
-      abs(gr_value) > 0.0001 ? (
-        debug_counter_ui_histogram += 1;
+  menu_histogram_buffer_mode > 0.5 ? (
+    // PER-PIXEL BUFFER MODE: Accumulate max GR per pixel for scalability
+    // Each pixel accumulates the max absolute GR value across multiple samples
+    histogram_pixel_initialized ? (
+      // Accumulate max GR for current pixel (using absolute value for comparison)
+      abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+        histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
       );
       
-      // Store block-level max directly (no smoothing needed)
-      histogram_buffer[histogram_pos] = gr_value;
+      // Advance sample counter
+      histogram_pixel_pos += 1;
       
-      // Always advance buffer position to keep histogram rolling
-      histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+      // When we've accumulated enough samples for this pixel, move to next
+      histogram_pixel_pos >= histogram_pixel_samples_per_pixel ? (
+        histogram_pixel_pos = 0;
+        histogram_pixel_idx = (histogram_pixel_idx + 1) % GRAPH_SIZE;
+        // Reset next pixel's accumulator
+        histogram_pixel_buffer[histogram_pixel_idx] = 0;
+      );
+    );
+  ) : (
+    // ORIGINAL MODE: Store block-level max GR value in circular buffer with rate control
+    // Note: smoothing removed - block-level max already provides smooth values
+    histogram_initialized ? (
+      // Frame rate control - only update every N frames
+      histogram_frame_counter += 1;
+      (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+        histogram_frame_counter = 0;
+        
+        // Optimization: only increment debug counter when actual GR occurs
+        abs(gr_value) > 0.0001 ? (
+          debug_counter_ui_histogram += 1;
+        );
+        
+        // Store block-level max directly (no smoothing needed)
+        histogram_buffer[histogram_pos] = gr_value;
+        
+        // Always advance buffer position to keep histogram rolling
+        histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+      );
     );
   );
 );
