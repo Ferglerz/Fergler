@@ -29,7 +29,8 @@ function transient_db_to_graph_y(db) (
   db_to_graph_y(db);
 );
 
-// Optimized functions that can work with linear values to avoid redundant dB conversions
+// Helper functions for converting linear audio levels to graph coordinates
+// Note: These perform necessary conversions (linear → dB → pixel) - not redundant
 function input_level_linear_to_graph_y(linear) (
   db_to_graph_y(linear_to_db(max(linear, MIN_DETECTOR_LEVEL)));
 );
