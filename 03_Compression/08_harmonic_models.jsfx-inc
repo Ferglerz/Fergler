@@ -11,18 +11,25 @@
 //==============================================================================
 
 // Enhanced tube processing with sophisticated harmonic generation
-function apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost) (
+function apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
+  scaled_saturation, x, x2, x3, x4, clip_threshold, even_boost_factor, odd_boost_factor, result
+) (
   // combined_factor already scales by abs(gr_amount) from caller
   scaled_saturation = amount * combined_factor;
   x = driven * (1 + scaled_saturation * 0.3);
-  x2 = sqr(x);
-  x4 = sqr(x2);
+  
+  // OPTIMIZED: Cache power calculations - calculate x² once, derive x³, x⁴ from it
+  x2 = x * x;  // x²
   
   // Dynamic clipping with soft_clip utility
   clip_threshold = 0.7 / (1 + scaled_saturation * 0.3);
   x = soft_clip(x, clip_threshold);
   
-  // Explicit harmonic generation with boost controls
+  // Recalculate x2 after clipping
+  x2 = x * x;  // x² (after clipping)
+  x4 = x2 * x2;  // x⁴ = (x²)²
+  
+  // Pre-calculate boost factors
   even_boost_factor = 1 + even_boost;
   odd_boost_factor = 1 + odd_boost;
   
@@ -31,7 +38,7 @@ function apply_enhanced_tube_processing(driven, amount, combined_factor, even_bo
   
   // Add odd harmonics if boost is used
   odd_boost > 0 ? (
-    x3 = x2 * x;
+    x3 = x2 * x;  // x³ = x² * x (reuse x²)
     result += x3 * scaled_saturation * 0.05 * odd_boost
   );
   
@@ -39,15 +46,19 @@ function apply_enhanced_tube_processing(driven, amount, combined_factor, even_bo
 );
 
 // FET processing optimized for solid-state characteristics
-function apply_fet_processing(driven, amount, gr_amount, detector_level, even_boost, odd_boost) (
+function apply_fet_processing(driven, amount, gr_amount, detector_level, even_boost, odd_boost) local(
+  abs_gr, scaled_compression, x, x2, x3, x5, clip_point, odd_boost_factor, result
+) (
   // Scale by abs(gr_amount) to ensure zero harmonics at zero GR
   // Supports both positive and negative GR values
   abs_gr = abs(gr_amount);
   scaled_compression = amount * abs_gr * 0.4 * (1 + detector_level * 0.3);
   x = driven;
-  x2 = sqr(x);
-  x3 = x2 * x;
-  x5 = x3 * x2;
+  
+  // OPTIMIZED: Cache power calculations - calculate x² once, derive higher powers from it
+  x2 = x * x;  // x²
+  x3 = x2 * x;  // x³ = x² * x
+  x5 = x3 * x2;  // x⁵ = x³ * x²
   
   // Hard clipping characteristic of FET circuits (optimized)
   scaled_compression > 0.3 ? (
