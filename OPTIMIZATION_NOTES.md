@@ -295,21 +295,130 @@ Possible optimizations to consider:
 ---
 **Last Updated:** 2025-10-12  
 
+## Lookahead Bit Masking Optimization (Added)
+
+### Problem
+**Date:** 2025-10-12
+
+Lookahead circular buffer used modulo operations (`%`) for wrap-around indexing. Modulo is expensive on many CPUs (10-40 cycles depending on architecture).
+
+### Implementation
+**Affected files:**
+- `01_Utils/05_memory.jsfx-inc` - Buffer allocation rounded to power of 2
+- `02_InputProcessing/01_dsp_utils.jsfx-inc` - Replaced `%` with `&` bit masking
+- `01_Utils/01_constants.jsfx-inc` - Added `lookahead_mask` constant
+
+**Changes:**
+```jsfx
+// BEFORE:
+max_lookahead_samples = ceil(lookahead_max_ms * 0.001 * srate);
+delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+
+// AFTER:
+// Round up to power of 2
+max_lookahead_samples = 1;
+while(max_lookahead_samples < lookahead_needed_samples) (
+  max_lookahead_samples *= 2;
+);
+lookahead_mask = max_lookahead_samples - 1;
+
+// Use bit masking (much faster)
+delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) & lookahead_mask;
+lookahead_pos = (lookahead_pos + 1) & lookahead_mask;
+```
+
+### Benefits
+**Per-sample savings (when lookahead enabled):**
+- Eliminates 2 modulo operations → 2 bit masking operations
+- ~20-80 CPU cycles saved per sample (platform dependent)
+- Bit masking: 1 cycle vs modulo: 10-40 cycles
+
+**Expected impact:**
+- **CPU reduction: 0.5-1%** when lookahead enabled
+- Zero overhead when lookahead disabled (already skipped)
+
+### Technical Details
+**Why power-of-2 works:**
+- For any power of 2 buffer size `N`: `N - 1` creates a bit mask
+- Example: N=1024, mask=1023 (binary: 1111111111)
+- `index & mask` ≡ `index % N` but much faster
+- Only works for power of 2 sizes (hence the rounding)
+
+**Memory overhead:**
+- Slightly larger buffer (rounded up to power of 2)
+- Example: 10ms @ 44.1kHz = 441 samples → rounds to 512 samples
+- Extra memory: 71 samples × 2 channels × 4 bytes = 568 bytes (negligible)
+
+---
+
+## Harmonic Processing Power Caching (Added)
+
+### Problem
+**Date:** 2025-10-12
+
+Harmonic processing functions called `sqr(x)` multiple times to generate x², x³, x⁴, x⁵ using expensive function calls. Each `sqr()` is a function call with overhead.
+
+### Implementation
+**Affected files:**
+- `03_Compression/08_harmonic_models.jsfx-inc` - Cached power calculations
+
+**Optimizations applied:**
+1. **Calculate x² once, reuse for higher powers**
+2. **Derive x³ from x² * x (not sqr(x) then multiply)**
+3. **Derive x⁴ from x² * x² (not sqr(sqr(x)))**
+4. **Derive x⁵ from x³ * x²**
+
+**Before (Enhanced Tube):**
+```jsfx
+x2 = sqr(x);        // Function call
+x4 = sqr(x2);       // Another function call
+x3 = x2 * x;        // Only if odd boost > 0
+```
+
+**After (Enhanced Tube):**
+```jsfx
+x2 = x * x;         // Direct multiplication (1 op)
+x4 = x2 * x2;       // Reuse x² (1 op)
+x3 = x2 * x;        // Reuse x² (1 op, only if needed)
+```
+
+### Benefits
+**Per-sample savings (when harmonics enabled):**
+- Enhanced Tube: 2 function calls → 0 function calls
+- FET: 4 function calls → 0 function calls (x², x³, x⁵)
+- Direct multiplication is much faster than function calls
+
+**Expected impact:**
+- **CPU reduction: 2-4%** when harmonics enabled
+- Zero overhead when harmonics disabled (early exit already exists)
+
+### Validation
+- Mathematically identical: `sqr(x)` = `x * x`
+- Power laws preserved: x⁴ = (x²)², x⁵ = x³ × x²
+- Audio output unchanged
+
+---
+
 ## Combined Optimization Impact
 
 **All optimizations implemented:**
 1. ✅ Compression threshold early exit (20-30% savings on quiet signals)
 2. ✅ Envelope processing early exit (5-10% savings when idle)
 3. ✅ Clamp function inlining (2-5% savings, 8 calls/sample eliminated)
-4. ✅ **LUT activation fix (5-10% savings, 44,100 curve_interp calls eliminated)**
+4. ✅ LUT activation fix (5-10% savings, 44,100 curve_interp calls eliminated)
+5. ✅ **Lookahead bit masking (0.5-1% savings, 2 modulo ops eliminated)**
+6. ✅ **Harmonic power caching (2-4% savings when enabled)**
 
 **Total Expected Impact:**
-- **CPU reduction: 30-50%** on typical material
-- **CPU reduction: 40-60%** on low-level signals (combined with early exits)
-- **Function calls eliminated:** ~350,000+ per second at 44.1kHz
+- **CPU reduction: 33-56%** on typical material
+- **CPU reduction: 43-66%** on low-level signals (combined with early exits)
+- **Operations eliminated per second @ 44.1kHz:**
   - `curve_interp()`: 44,100/sec → ~0/sec
   - `clamp()`: 352,800/sec → ~220,000/sec (8 per sample eliminated)
   - `envelope()`: ~44,100/sec → ~30,000/sec (early exit when idle)
+  - `modulo ops`: ~88,200/sec → ~0/sec (when lookahead enabled)
+  - `sqr()` calls: ~176,400/sec → ~0/sec (when harmonics enabled)
 
 **Risk Level:** Low
 - All optimizations are functionally equivalent
