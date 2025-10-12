@@ -5,27 +5,6 @@
 @init
 
 //==============================================================================
-// MIN() TRICK ENVELOPE MODE (Alternative)
-//==============================================================================
-
-//--- Min() Trick Smooth Average (from Tukan Blue Compressor) ---
-function process_min_envelope(target_gr_db, attack_coeff, release_coeff) (
-  debug_counter_min_envelope += 1;
-  
-  // To ensure attack can't exceed input
-  // during the attack phase, creating smooth asymmetric behavior without branching
-  eps = 0.0000000001;
-  
-  // Release filter: smoothly follows input, but min() ensures it can't exceed target during attack
-  min_env_yR = min(target_gr_db, release_coeff * min_env_yR + (1 - release_coeff) * target_gr_db + eps - eps);
-  
-  // Attack filter: smooths the release filter output
-  min_env_yA = attack_coeff * min_env_yA + (1 - attack_coeff) * min_env_yR + eps - eps;
-  
-  min_env_yA;
-);
-
-//==============================================================================
 // ENVELOPE FOLLOWING AND PROGRAM RELEASE
 //==============================================================================
 
@@ -149,13 +128,8 @@ function process_envelope_following(target_gr_db, detector_level_db) (
   // Debug counter: track envelope processing
   debug_counter_envelope += 1;
   
-  menu_min_envelope_enabled > 0.5 ? (
-    // MIN() TRICK MODE: Use elegant min() smoothing technique
-    global_smoothed_gain_db = process_min_envelope(target_gr_db, attack_coeff, release_coeff);
-  ) : (
-    // STANDARD MODE: Use traditional single-stage envelope with program release
-    global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);
-  );
+  // Use traditional single-stage envelope with program release
+  global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);
   
   global_smoothed_gain_db;
 );

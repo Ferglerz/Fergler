@@ -137,13 +137,19 @@ function process_complete_audio_chain() (
       detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
       
       // Check if we can skip compression calculation:
-      // 1. Input must be below the minimum compression threshold
-      // 2. No global offset (which shifts the curve horizontally)
-      // 3. No active release state (envelope is near zero)
+      // 1. Input + global offset must be below the minimum compression threshold
+      //    (accounting for how global offset shifts the curve horizontally)
+      // 2. No active release state (envelope is near zero)
       can_skip_compression = (
-        detector_level_db < comp_curve_min_threshold_db &&
-        abs(global_offset_db) < 0.01 &&
+        (detector_level_db + global_offset_db) < comp_curve_min_threshold_db &&
         abs(global_smoothed_gain_db) < 0.01
+      );
+      
+      // DEBUG: Log skip decision occasionally
+      menu_debug_enabled && (samplesblock == 0) && (time_precise() % 1.0 < 0.1) ? (
+        debug_log3f("Skip check: detector=%.1f, offset_detector=%.1f, threshold=%.1f", 
+                    detector_level_db, detector_level_db + global_offset_db, comp_curve_min_threshold_db);
+        debug_logf("can_skip=%d", can_skip_compression ? 1 : 0);
       );
       
       can_skip_compression ? (
