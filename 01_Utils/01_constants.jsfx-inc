@@ -27,6 +27,7 @@ STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supp
 
 // Audio buffer sizes (calculated in memory allocation)
 max_lookahead_samples = 0;
+lookahead_mask = 0;  // Bit mask for efficient circular buffer indexing (size - 1)
 max_rms_samples = 0;
 
 // === FILTER FREQUENCY LIST ===

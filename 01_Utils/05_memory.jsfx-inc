@@ -48,13 +48,26 @@ function allocate_memory() (
   // Allocate based on lookahead slider's maximum value (slider5)
   // Convert from milliseconds to samples: max_ms * 0.001 * srate
   lookahead_max_ms = get_slider_max(5); // Get max from slider definition
-  max_lookahead_samples = ceil(lookahead_max_ms * 0.001 * srate);
+  lookahead_needed_samples = ceil(lookahead_max_ms * 0.001 * srate);
+  
+  // OPTIMIZATION: Round up to next power of 2 for efficient bit masking instead of modulo
+  // This allows using (index & mask) instead of (index % size) in circular buffer
+  max_lookahead_samples = 1;
+  while(max_lookahead_samples < lookahead_needed_samples) (
+    max_lookahead_samples *= 2;
+  );
+  lookahead_mask = max_lookahead_samples - 1; // For bit masking: (pos & mask) == (pos % size)
+  
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
 
   // RMS buffers: Stereo interleaved storage [L, R, L, R, ...]
   max_rms_samples = ceil(0.1 * srate);
   rms_buffer = freemem; freemem += max_rms_samples * 2; // *2 for stereo
+  
+  // Slider properties buffer (4 properties per control)
+  slider_properties_base = freemem;
+  freemem += NUM_CONTROLS * 4;
   
   debug_logf("Memory allocated: %d bytes", freemem);
 );

@@ -17,12 +17,14 @@ function process_lookahead_audio(input_l, input_r) (
     lookahead_buffer_l[lookahead_pos] = input_l;
     lookahead_buffer_r[lookahead_pos] = input_r;
     
-    // Read delayed audio
-    delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) % max_lookahead_samples;
+    // OPTIMIZED: Use bit masking instead of modulo (faster for power-of-2 buffer sizes)
+    // Read delayed audio: (pos - delay + size) & mask is equivalent to % but much faster
+    delayed_pos = (lookahead_pos - lookahead_samples + max_lookahead_samples) & lookahead_mask;
     lookahead_out_l = lookahead_buffer_l[delayed_pos];
     lookahead_out_r = lookahead_buffer_r[delayed_pos];
     
-    lookahead_pos = (lookahead_pos + 1) % max_lookahead_samples;
+    // Advance position with bit mask
+    lookahead_pos = (lookahead_pos + 1) & lookahead_mask;
   ) : (
     // No lookahead - pass through
     lookahead_out_l = input_l;
