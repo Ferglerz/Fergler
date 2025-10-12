@@ -40,7 +40,7 @@ function is_mouse_in_menu() (
   menu_y = get_menu_y();
   menu_visible > 0.5 && 
   mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
-  mouse_y >= menu_y && mouse_y <= menu_y + (8 * MENU_ITEM_HEIGHT)  // Changed from 6 to 8 items
+  mouse_y >= menu_y && mouse_y <= menu_y + (6 * MENU_ITEM_HEIGHT)
 );
 
 function get_hovered_menu_item() (
@@ -48,7 +48,7 @@ function get_hovered_menu_item() (
     menu_x = get_menu_x();
     menu_y = get_menu_y();
     item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
-    item_index >= 0 && item_index < 8 ? item_index : -1;  // Changed from 6 to 8 items
+    item_index >= 0 && item_index < 6 ? item_index : -1;
   ) : (
     -1
   );
@@ -76,16 +76,6 @@ function handle_menu_item_click(item_index) (
     clear_rms_state();
     rms_smoothed_squared = 0;
   ) : item_index == 5 ? (
-    // Toggle Compression LUT visualization
-    show_compression_lut_curve = show_compression_lut_curve > 0.5 ? 0 : 1;
-  ) : item_index == 6 ? (
-    // Toggle Min() Envelope Mode
-    menu_min_envelope_enabled = menu_min_envelope_enabled > 0.5 ? 0 : 1;
-    // Reset envelope state when switching modes
-    global_smoothed_gain_db = 0;
-    min_env_yR = 0;
-    min_env_yA = 0;
-  ) : item_index == 7 ? (
     // Toggle History Buffer Histogram Mode
     menu_histogram_buffer_mode = menu_histogram_buffer_mode > 0.5 ? 0 : 1;
     // Reset histogram buffers when switching modes

@@ -11,7 +11,7 @@
 
 // Debug rendering is controlled by menu_debug_enabled (toggled via right-click menu)
 // Debug messages are always collected regardless of this setting
-DEBUG_MAX_MESSAGES = STRING_SLOTS_DEBUG; // Use slots 0-49 for debug messages
+DEBUG_MAX_MESSAGES = 200; // Increased from STRING_SLOTS_DEBUG (50) to 200 for more debug history
 DEBUG_START_Y = 450; // Y position where debug output starts
 DEBUG_LINE_HEIGHT = 15;
 DEBUG_TEXT_COLOR_R = 1.0;
@@ -19,13 +19,13 @@ DEBUG_TEXT_COLOR_G = 1.0;
 DEBUG_TEXT_COLOR_B = 1.0;
 DEBUG_TEXT_ALPHA = 0.8;
 
-// Debug message storage (using string slots 0-63 - correct JSFX limit)
+// Debug message storage (using string slots 0-199 for expanded debug buffer)
 debug_message_count = 0;
 DEBUG_MESSAGES_BASE = 0;
 
 // Debug scrolling
 debug_scroll_offset = 0;
-DEBUG_VISIBLE_LINES = 20; // Number of debug lines visible at once
+DEBUG_VISIBLE_LINES = 30; // Number of debug lines visible at once (increased for better debugging)
 
 //==============================================================================
 // DEBUG LOGGING FUNCTIONS

@@ -166,149 +166,152 @@ function draw_debug_performance_counters() (
   gfx_printf("%d", debug_display_single_envelope);
   
   // === AUDIO PROCESSING COLUMNS (3 categories, 3 functions each) ===
+  // Only show when debug is enabled
+  menu_debug_enabled ? (
+    // --- COLUMN 1: Detection & Analysis ---
+    // Position to the left of UI rendering boxes (which start at x=988)
+    detect_panel_x = 730;
+    detect_panel_y = start_y;
+    detect_panel_w = 200;
+    detect_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    
+    // Background
+    gfx_set(0.1, 0.1, 0.1, 0.85);
+    gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 1);
+    
+    // Border
+    gfx_set(0.6, 0.6, 0.6, 1);
+    gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 0);
+    
+    // Title
+    gfx_set(0.5, 0.8, 1.0, 1); // Light blue
+    gfx_x = detect_panel_x + 10;
+    gfx_y = detect_panel_y + 8;
+    gfx_drawstr("Detection");
+    
+    // Functions
+    gfx_set(0.9, 0.9, 0.9, 1);
+    text_x = detect_panel_x + 8;
+    text_y = detect_panel_y + 28;
+    
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("gain_red()");
+    gfx_x = detect_panel_x + detect_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_gain_reduction);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("curve_interp()");
+    gfx_x = detect_panel_x + detect_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_curve_interp);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("lut_lookup()");
+    gfx_x = detect_panel_x + detect_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_lut_lookup);
   
-  // --- COLUMN 1: Detection & Analysis ---
-  detect_panel_x = start_x;
-  detect_panel_y = start_y;
-  detect_panel_w = 200;
-  detect_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    // --- COLUMN 2: Envelope & Dynamics ---
+    env_panel_x = 730;
+    env_panel_y = detect_panel_y + detect_panel_h + panel_gap_y;
+    env_panel_w = 200;
+    env_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    
+    // Background
+    gfx_set(0.1, 0.1, 0.1, 0.85);
+    gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 1);
+    
+    // Border
+    gfx_set(0.6, 0.6, 0.6, 1);
+    gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 0);
+    
+    // Title
+    gfx_set(0.8, 0.5, 1.0, 1); // Purple
+    gfx_x = env_panel_x + 10;
+    gfx_y = env_panel_y + 8;
+    gfx_drawstr("Envelope");
+    
+    // Functions
+    gfx_set(0.9, 0.9, 0.9, 1);
+    text_x = env_panel_x + 8;
+    text_y = env_panel_y + 28;
+    
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("envelope()");
+    gfx_x = env_panel_x + env_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_envelope);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("min_env()");
+    gfx_x = env_panel_x + env_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_min_envelope);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("audio_chain()");
+    gfx_x = env_panel_x + env_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_audio_chain);
   
-  // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 1);
-  
-  // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 0);
-  
-  // Title
-  gfx_set(0.5, 0.8, 1.0, 1); // Light blue
-  gfx_x = detect_panel_x + 10;
-  gfx_y = detect_panel_y + 8;
-  gfx_drawstr("Detection");
-  
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = detect_panel_x + 8;
-  text_y = detect_panel_y + 28;
-  
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("gain_red()");
-  gfx_x = detect_panel_x + detect_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_gain_reduction);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("curve_interp()");
-  gfx_x = detect_panel_x + detect_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_curve_interp);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("lut_lookup()");
-  gfx_x = detect_panel_x + detect_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_lut_lookup);
-  
-  // --- COLUMN 2: Envelope & Dynamics ---
-  env_panel_x = start_x;
-  env_panel_y = detect_panel_y + detect_panel_h + panel_gap_y;
-  env_panel_w = 200;
-  env_panel_h = 28 + (3 * line_height); // Title + 3 functions
-  
-  // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 1);
-  
-  // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 0);
-  
-  // Title
-  gfx_set(0.8, 0.5, 1.0, 1); // Purple
-  gfx_x = env_panel_x + 10;
-  gfx_y = env_panel_y + 8;
-  gfx_drawstr("Envelope");
-  
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = env_panel_x + 8;
-  text_y = env_panel_y + 28;
-  
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("envelope()");
-  gfx_x = env_panel_x + env_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_envelope);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("min_env()");
-  gfx_x = env_panel_x + env_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_min_envelope);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("audio_chain()");
-  gfx_x = env_panel_x + env_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_audio_chain);
-  
-  // --- COLUMN 3: Effects & Output ---
-  fx_panel_x = start_x;
-  fx_panel_y = env_panel_y + env_panel_h + panel_gap_y;
-  fx_panel_w = 200;
-  fx_panel_h = 28 + (3 * line_height); // Title + 3 functions
-  
-  // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 1);
-  
-  // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 0);
-  
-  // Title
-  gfx_set(1.0, 0.6, 0.3, 1); // Orange-red
-  gfx_x = fx_panel_x + 10;
-  gfx_y = fx_panel_y + 8;
-  gfx_drawstr("Effects");
-  
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = fx_panel_x + 8;
-  text_y = fx_panel_y + 28;
-  
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("harmonics()");
-  gfx_x = fx_panel_x + fx_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_harmonics);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("lookahead()");
-  gfx_x = fx_panel_x + fx_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_lookahead);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("limiter()");
-  gfx_x = fx_panel_x + fx_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_limiter);
+    // --- COLUMN 3: Effects & Output ---
+    fx_panel_x = 730;
+    fx_panel_y = env_panel_y + env_panel_h + panel_gap_y;
+    fx_panel_w = 200;
+    fx_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    
+    // Background
+    gfx_set(0.1, 0.1, 0.1, 0.85);
+    gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 1);
+    
+    // Border
+    gfx_set(0.6, 0.6, 0.6, 1);
+    gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 0);
+    
+    // Title
+    gfx_set(1.0, 0.6, 0.3, 1); // Orange-red
+    gfx_x = fx_panel_x + 10;
+    gfx_y = fx_panel_y + 8;
+    gfx_drawstr("Effects");
+    
+    // Functions
+    gfx_set(0.9, 0.9, 0.9, 1);
+    text_x = fx_panel_x + 8;
+    text_y = fx_panel_y + 28;
+    
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("harmonics()");
+    gfx_x = fx_panel_x + fx_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_harmonics);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("lookahead()");
+    gfx_x = fx_panel_x + fx_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_lookahead);
+    
+    text_y += line_height;
+    gfx_x = text_x;
+    gfx_y = text_y;
+    gfx_drawstr("limiter()");
+    gfx_x = fx_panel_x + fx_panel_w - 70;
+    gfx_y = text_y;
+    gfx_printf("%d", debug_display_limiter);
+  ); // End menu_debug_enabled check
 );
 
