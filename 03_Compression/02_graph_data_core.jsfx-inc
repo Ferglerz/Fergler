@@ -13,6 +13,29 @@ GRAPH_RANGE_DB = 80; // -80 to 0
 GRAPH_MIN_DB = -80;
 GRAPH_MAX_DB = 0;
 
+// Pre-calculated constants for coordinate conversion (optimization)
+// These eliminate repeated divisions in coordinate conversion functions
+// NOTE: These must be calculated AFTER GRAPH_SIZE/GRAPH_X/GRAPH_Y are defined
+// Call init_graph_optimization_constants() from main @init after all imports
+DB_TO_PIXEL_SCALE = 0;  // Will be: GRAPH_SIZE / GRAPH_RANGE_DB = 3.2875 pixels per dB
+PIXEL_TO_DB_SCALE = 0;  // Will be: GRAPH_RANGE_DB / GRAPH_SIZE = 0.304... dB per pixel
+
+// Pre-calculated offsets for histogram rendering (optimization)
+HISTOGRAM_Y_OFFSET = 0;  // Will be: GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE
+HISTOGRAM_X_OFFSET = 0;  // Will be: GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE
+
+// GR histogram scale (40dB range for gain reduction display)
+GR_PIXELS_PER_DB = 0;  // Will be: GRAPH_SIZE / 40
+
+// Function to initialize optimization constants after GRAPH_SIZE is available
+function init_graph_optimization_constants() (
+  DB_TO_PIXEL_SCALE = GRAPH_SIZE / GRAPH_RANGE_DB;
+  PIXEL_TO_DB_SCALE = GRAPH_RANGE_DB / GRAPH_SIZE;
+  HISTOGRAM_Y_OFFSET = GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
+  HISTOGRAM_X_OFFSET = GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
+  GR_PIXELS_PER_DB = GRAPH_SIZE / 40;
+);
+
 // Point management
 MIN_POINTS = 4;
 MAX_POINTS = 12;
@@ -20,6 +43,7 @@ MOUSE_CLICK_RADIUS = 10;
 
 // Optimization: Cache leftmost non-1:1 point for early exit
 comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;  // Threshold below which no compression occurs (default: no compression)
+comp_curve_min_threshold_linear = 1.0;  // Threshold in linear domain (calculated from dB)
 comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
 
 // Graph state - these need to persist across @init calls
@@ -52,21 +76,22 @@ comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
 
 // Convert between dB values and graph screen coordinates
 // These functions depend on GRAPH constants defined above and in UI constants
+// Optimized to use pre-calculated scale factors (eliminates divisions)
 
 function db_to_graph_x(db) (
-  GRAPH_X + (db - GRAPH_MIN_DB) / GRAPH_RANGE_DB * GRAPH_SIZE
+  GRAPH_X + (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
 );
 
 function db_to_graph_y(db) (
-  GRAPH_Y + GRAPH_SIZE - (db - GRAPH_MIN_DB) / GRAPH_RANGE_DB * GRAPH_SIZE
+  GRAPH_Y + GRAPH_SIZE - (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
 );
 
 function graph_x_to_db(x) (
-  (x - GRAPH_X) / GRAPH_SIZE * GRAPH_RANGE_DB + GRAPH_MIN_DB
+  (x - GRAPH_X) * PIXEL_TO_DB_SCALE + GRAPH_MIN_DB
 );
 
 function graph_y_to_db(y) (
-  GRAPH_MAX_DB - (y - GRAPH_Y) / GRAPH_SIZE * GRAPH_RANGE_DB
+  GRAPH_MAX_DB - (y - GRAPH_Y) * PIXEL_TO_DB_SCALE
 );
 
 function is_point_in_graph(x, y) (
@@ -283,6 +308,10 @@ function calculate_compression_threshold() (
       i += 1;
     );
   );
+  
+  // Convert threshold to linear domain ONCE (used for fast early exit checks in @sample)
+  // This avoids expensive log() conversion every sample
+  comp_curve_min_threshold_linear = db_to_linear(comp_curve_min_threshold_db);
   
   comp_curve_threshold_dirty = 0;
 );

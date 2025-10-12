@@ -160,6 +160,9 @@ read_slider_definitions();
 allocate_memory();
 init_state_variables();
 
+// 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
+init_graph_optimization_constants();
+
 // 3. Initialize stage control variables
 stage_input = 1;                    // Input stage (always needed)
 stage_detection_source = 1;         // Detection source selection
