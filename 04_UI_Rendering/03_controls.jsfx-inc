@@ -8,18 +8,20 @@
 // GENERIC SLIDER RENDERING
 //==============================================================================
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode) (
-  // Draw label
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  slider_type == 1 ? ( // Vertical slider (75% scaled)
-    gfx_x = x + w + 8; gfx_y = y;  // 10 * 0.75 = 7.5 rounded up
-  ) : ( // Horizontal slider
-    gfx_x = x; gfx_y = y - LABEL_HEIGHT;
-  );
-  gfx_drawstr(label);
-
+function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
   // Calculate normalized position
   normalized_pos = (value - min_val) / (max_val - min_val);
+  
+  // Draw label - center aligned for horizontal sliders
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  slider_type == 1 ? ( // Vertical slider
+    gfx_x = x + w + 8; gfx_y = y;
+  ) : ( // Horizontal slider - center align
+    gfx_measurestr(label, label_w, label_h);
+    gfx_x = x + (w - label_w) / 2;
+    gfx_y = y - LABEL_HEIGHT;
+  );
+  gfx_drawstr(label);
 
   slider_type == 1 ? ( // Vertical slider
     // Draw slider background
@@ -39,18 +41,47 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     // Draw value text (if not hidden)
     display_mode != 2 ? (
       gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-      gfx_x = x + w + 8; gfx_y = y + h/2;  // 10 * 0.75 = 7.5 rounded up
+      gfx_x = x + w + 8; gfx_y = y + h/2;
       gfx_printf("%.2f", value);
     );
-  ) : slider_type == 2 ? ( // Reverse slider
+  ) : ( // Horizontal slider (includes both normal and reverse)
     // Draw slider background
-    gfx_set(SLIDER_BG_REVERSE_R, SLIDER_BG_REVERSE_G, SLIDER_BG_REVERSE_B, 1);
+    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
     gfx_rect(x, y, w, h);
 
-    // Draw slider fill (yellow for higher values)
+    // Draw slider fill based on fill direction
     fill_w = normalized_pos * w;
-    gfx_set(SLIDER_FILL_REVERSE_R, SLIDER_FILL_REVERSE_G, SLIDER_FILL_REVERSE_B, 1);
-    gfx_rect(x, y, fill_w, h);
+    
+    // Get fill direction from slider properties (default to left-to-right for backward compatibility)
+    fill_direction = slider_type == 2 ? SLIDER_FILL_RIGHT_TO_LEFT : SLIDER_FILL_LEFT_TO_RIGHT;
+    
+    fill_direction == SLIDER_FILL_RIGHT_TO_LEFT ? (
+      // Fill from RIGHT edge to fader position
+      fill_start_x = x + fill_w;
+      fill_width = w - fill_w;
+      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_rect(fill_start_x, y, fill_width, h);
+    ) : fill_direction == SLIDER_FILL_CENTER_OUT ? (
+      // Fill from center to fader position (both directions)
+      center_x = x + w * 0.5;
+      fader_x = x + fill_w;
+      
+      // Fill left side (from center to fader if fader is right of center)
+      fader_x > center_x ? (
+        gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+        gfx_rect(center_x, y, fader_x - center_x, h);
+      );
+      
+      // Fill right side (from center to fader if fader is left of center)
+      fader_x < center_x ? (
+        gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+        gfx_rect(fader_x, y, center_x - fader_x, h);
+      );
+    ) : (
+      // Default: Fill from LEFT edge to fader position
+      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_rect(x, y, fill_w, h);
+    );
 
     // Draw handle
     handle_x = x + fill_w - 3;
@@ -59,66 +90,128 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
 
     // Draw value text (if not hidden)
     display_mode != 2 ? (
-      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-      display_mode == 1 ? (
-        // Display to left
-        gfx_x = x - 50; gfx_y = y + 3;
+      // Use standard numeric formatting (no special frequency formatting in generic slider)
+      sprintf(#value_str, "%.2f", value);
+      gfx_measurestr(#value_str, value_str_w, value_str_h);
+      
+      // Smart positioning: left-anchored when >50%, right-anchored when <50%
+      normalized_pos > 0.5 ? (
+        // >50%: Anchor left, black text
+        gfx_set(0, 0, 0, 1);  // Black
+        gfx_x = x + 3;
       ) : (
-        // Display to right (default)
-        gfx_x = x + w + 10; gfx_y = y + 3;
+        // <50%: Anchor right, white text
+        gfx_set(1, 1, 1, 1);  // White
+        gfx_x = x + w - value_str_w - 3;
       );
-      gfx_printf("%.2f", value);
-    );
-  ) : ( // Horizontal slider (default)
-    // Draw slider background
-    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
-    gfx_rect(x, y, w, h);
-
-    // Draw slider fill
-    fill_w = normalized_pos * w;
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-    gfx_rect(x, y, fill_w, h);
-
-    // Draw handle
-    handle_x = x + fill_w - 3;
-    gfx_set(1, 1, 1, 1);
-    gfx_rect(handle_x, y - 2, 6, h + 4);
-
-    // Draw value text (if not hidden) (75% scaled)
-    display_mode != 2 ? (
-      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-      display_mode == 1 ? (
-        // Display to left
-        gfx_x = x - 50; gfx_y = y + 2;
-      ) : (
-        // Display to right (default)
-        gfx_x = x + w + 8; gfx_y = y + 2;
-      );
-      gfx_printf("%.2f", value);
+      gfx_y = y + (h - value_str_h) / 2;  // Center vertically
+      gfx_drawstr(#value_str);
     );
   );
 );
 
 //==============================================================================
-// FREQUENCY LIST SLIDER RENDERING
+// FREQUENCY SLIDER RENDERING (with property system)
 //==============================================================================
 
-function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param_index, slider_type, display_mode) local(option_count, value_index, normalized_pos, reverse_mode, cache_key) (
+function draw_frequency_slider(x, y, w, h, value, min_val, max_val, label, control_index, slider_type, display_mode) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
+  // Calculate normalized position
+  normalized_pos = (value - min_val) / (max_val - min_val);
+  
+  // Draw label - center aligned for horizontal sliders
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_measurestr(label, label_w, label_h);
+  gfx_x = x + (w - label_w) / 2;
+  gfx_y = y - LABEL_HEIGHT;
+  gfx_drawstr(label);
+
+  // Draw slider background
+  gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+  gfx_rect(x, y, w, h);
+
+  // Draw slider fill based on fill direction from properties
+  fill_w = normalized_pos * w;
+  fill_direction = get_slider_fill_direction(control_index);
+  
+  fill_direction == SLIDER_FILL_RIGHT_TO_LEFT ? (
+    // Fill from RIGHT edge to fader position
+    fill_start_x = x + fill_w;
+    fill_width = w - fill_w;
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(fill_start_x, y, fill_width, h);
+  ) : fill_direction == SLIDER_FILL_CENTER_OUT ? (
+    // Fill from center to fader position (both directions)
+    center_x = x + w * 0.5;
+    fader_x = x + fill_w;
+    
+    // Fill left side (from center to fader if fader is right of center)
+    fader_x > center_x ? (
+      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_rect(center_x, y, fader_x - center_x, h);
+    );
+    
+    // Fill right side (from center to fader if fader is left of center)
+    fader_x < center_x ? (
+      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_rect(fader_x, y, center_x - fader_x, h);
+    );
+  ) : (
+    // Default: Fill from LEFT edge to fader position
+    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_rect(x, y, fill_w, h);
+  );
+
+  // Draw handle
+  handle_x = x + fill_w - 3;
+  gfx_set(1, 1, 1, 1);
+  gfx_rect(handle_x, y - 2, 6, h + 4);
+
+  // Draw value text (if not hidden)
+  display_mode != 2 ? (
+    // Use property-based formatting
+    formatted_str = format_slider_value(control_index, value);
+    gfx_measurestr(formatted_str, value_str_w, value_str_h);
+    
+    // Smart positioning: left-anchored when >50%, right-anchored when <50%
+    normalized_pos > 0.5 ? (
+      // >50%: Anchor left, black text
+      gfx_set(0, 0, 0, 1);  // Black
+      gfx_x = x + 3;
+    ) : (
+      // <50%: Anchor right, white text
+      gfx_set(1, 1, 1, 1);  // White
+      gfx_x = x + w - value_str_w - 3;
+    );
+    gfx_y = y + (h - value_str_h) / 2;  // Center vertically
+    gfx_drawstr(formatted_str);
+  );
+);
+
+//==============================================================================
+// FREQUENCY LIST SLIDER RENDERING (legacy - will be removed)
+//==============================================================================
+
+function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param_index, slider_type, display_mode) local(option_count, value_index, normalized_pos, reverse_mode, cache_key, label_w, label_h, value_str_w, value_str_h) (
   // Frequency list slider - looks like a slider but snaps to discrete frequency values
   // Supports both left-to-right (normal) and right-to-left (reverse) rendering
   
-  // Draw label
+  // Draw label - center aligned
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_measurestr(label, label_w, label_h);
+  gfx_x = x + (w - label_w) / 2;
+  gfx_y = y - LABEL_HEIGHT;
   gfx_drawstr(label);
 
   // Get enumerated options to calculate correct position
   option_count = get_dropdown_option_count(param_index);
   
   option_count > 0 ? (
-    // Instant O(1) lookup using pre-built reverse lookup table!
-    // No loops, no comparisons, just a single array access
+    // Get the index from our cached reverse lookup table (O(1) lookup)
     value_index = get_freq_list_index(param_index, value);
+    
+    // Get the actual discrete frequency value from our cached enumerated list
+    // This ensures we ONLY display values from the list we cached at init
+    freq_value = get_dropdown_option_value(param_index, value_index);
     
     // Calculate normalized position based on index in enumerated list
     reverse_mode = (slider_type == 2);
@@ -129,9 +222,6 @@ function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param
       // For normal sliders, first option is at left (0.0), last option is at right (1.0)
       normalized_pos = value_index / (option_count - 1);
     );
-    
-    // Use value directly for display (it's already the frequency)
-    freq_value = value;
   ) : (
     // Fallback: no enumerated options, use continuous range
     normalized_pos = (value - min_val) / (max_val - min_val);
@@ -175,8 +265,8 @@ function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param
   // Both HP and LP: 0 = Off
   freq_value == 0 ? (
     sprintf(#freq_display_str, "Off");
-  ) : freq_value >= 1000 ? (
-    // Display as kHz
+  ) : freq_value > 999 ? (
+    // Display as kHz (for values over 999)
     freq_khz = freq_value / 1000;
     freq_khz == floor(freq_khz) ? (
       sprintf(#freq_display_str, "%.0fk", freq_khz);
@@ -189,15 +279,36 @@ function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param
   );
   
   // Draw formatted frequency text (if not hidden)
+  // Smart positioning: left-anchored when >50%, right-anchored when <50%
+  // For normal sliders: Black text when left-anchored, white when right-anchored
+  // For reverse sliders: White text when left-anchored, black when right-anchored (inverted)
   display_mode != 2 ? (
-    gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-    display_mode == 1 ? (
-      // Display to left
-      gfx_x = x - 50; gfx_y = y + 2;
+    gfx_measurestr(#freq_display_str, value_str_w, value_str_h);
+    
+    slider_type == 2 ? (
+      // REVERSE SLIDER: Inverted color logic
+      normalized_pos > 0.5 ? (
+        // >50%: Anchor left, white text (inverted)
+        gfx_set(1, 1, 1, 1);  // White
+        gfx_x = x + 3;
+      ) : (
+        // <50%: Anchor right, black text (inverted)
+        gfx_set(0, 0, 0, 1);  // Black
+        gfx_x = x + w - value_str_w - 3;
+      );
     ) : (
-      // Display to right (default)
-      gfx_x = x + w + 8; gfx_y = y + 2;
+      // NORMAL SLIDER: Standard color logic
+      normalized_pos > 0.5 ? (
+        // >50%: Anchor left, black text
+        gfx_set(0, 0, 0, 1);  // Black
+        gfx_x = x + 3;
+      ) : (
+        // <50%: Anchor right, white text
+        gfx_set(1, 1, 1, 1);  // White
+        gfx_x = x + w - value_str_w - 3;
+      );
     );
+    gfx_y = y + (h - value_str_h) / 2;  // Center vertically
     gfx_drawstr(#freq_display_str);
   );
 );
@@ -301,12 +412,19 @@ function draw_control(index) local(group_idx) (
     // Skip rendering stage enable buttons when debug is enabled
     0;
   ) : (
-    type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode) :
-    type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
-    type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
-    type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
-    type == 4 ? draw_freq_list_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_type, display_mode) :
-    0;
+    // Check if this is a frequency slider (HP/LP filters) that should use special rendering
+    (index == 10 || index == 11) ? (
+      // HP and LP filters use frequency slider with property system
+      draw_frequency_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), index, slider_type, display_mode)
+    ) : (
+      // All other controls use standard rendering
+      type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode) :
+      type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
+      type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
+      type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
+      type == 4 ? draw_freq_list_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_type, display_mode) :
+      0;
+    );
   );
 );
 

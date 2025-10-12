@@ -46,7 +46,8 @@ function render_complete_interface() (
   // Draw meters and info outside graph area
   draw_gain_reduction_meter();  // 05i
   draw_labels_and_info();       // 05j
-
+  draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
+  
   // Draw custom menu (after graph elements to appear on top)
   draw_custom_menu();
   

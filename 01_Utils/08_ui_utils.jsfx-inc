@@ -136,18 +136,21 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
       // Check if this is a reverse slider (type 2)
       reverse_mode = (slider_type == 2);
       
-      // Map normalized position to option index
+      // Map normalized position (0.0 to 1.0) to option index (0 to option_count-1)
+      // Use (option_count - 1) to ensure even distribution across all options
       reverse_mode ? (
         // For reverse sliders, left = last option, right = first option
-        option_index = floor((1 - normalized_pos) * option_count + 0.5);
+        option_index = floor((1 - normalized_pos) * (option_count - 1) + 0.5);
       ) : (
         // For normal sliders, left = first option, right = last option
-        option_index = floor(normalized_pos * option_count + 0.5);
+        option_index = floor(normalized_pos * (option_count - 1) + 0.5);
       );
       
+      // Clamp to valid range (safety check)
       option_index = max(0, min(option_count - 1, option_index));
       
       // Get the pre-parsed numeric value at this index (fast, no string conversion)
+      // This returns ONLY values from our cached enumerated list
       get_dropdown_option_value(param_index, option_index);
     ) : (
       // Fallback: no enumerated options, use continuous range
@@ -170,6 +173,86 @@ function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy
   new_value;
 );
 
+//==============================================================================
+// SLIDER PROPERTIES SYSTEM
+//==============================================================================
+
+// Set slider property for a control
+function set_slider_property(control_index, property_index, value) (
+  array_index = control_index * 4 + property_index;
+  array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
+    slider_properties_base[array_index] = value;
+  );
+);
+
+// Get slider property for a control
+function get_slider_property(control_index, property_index) (
+  array_index = control_index * 4 + property_index;
+  array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
+    slider_properties_base[array_index]
+  ) : 0;
+);
+
+// Convenience functions for common properties
+function set_slider_increment(control_index, increment) (
+  set_slider_property(control_index, 0, increment);
+);
+
+function set_slider_fill_direction(control_index, direction) (
+  set_slider_property(control_index, 1, direction);
+);
+
+function set_slider_format_as_frequency(control_index, format_freq) (
+  set_slider_property(control_index, 2, format_freq ? 1 : 0);
+);
+
+function get_slider_increment(control_index) (
+  get_slider_property(control_index, 0);
+);
+
+function get_slider_fill_direction(control_index) (
+  get_slider_property(control_index, 1);
+);
+
+function get_slider_format_as_frequency(control_index) (
+  get_slider_property(control_index, 2) > 0;
+);
+
+// Format value for display based on slider properties
+function format_slider_value(control_index, value) local(increment, format_freq, rounded_value) (
+  increment = get_slider_increment(control_index);
+  format_freq = get_slider_format_as_frequency(control_index);
+  
+  // Apply rounding if increment is specified
+  increment > 0 ? (
+    rounded_value = floor(value / increment + 0.5) * increment;
+  ) : (
+    rounded_value = value;
+  );
+  
+  // Check for special "Off" values
+  rounded_value == 0 || rounded_value >= 16000 ? (
+    sprintf(#formatted_str, "Off");
+  ) : format_freq ? (
+    // Format as frequency (show "k" suffix if > 999)
+    rounded_value > 999 ? (
+      freq_khz = rounded_value / 1000;
+      freq_khz == floor(freq_khz) ? (
+        sprintf(#formatted_str, "%.0fk", freq_khz);
+      ) : (
+        sprintf(#formatted_str, "%.1fk", freq_khz);
+      );
+    ) : (
+      sprintf(#formatted_str, "%.0f", rounded_value);
+    );
+  ) : (
+    // Standard numeric formatting
+    sprintf(#formatted_str, "%.2f", rounded_value);
+  );
+  
+  #formatted_str;
+);
+
 function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
   param_index = get_knob_param(knob_index);
   min_val = get_knob_min(knob_index);
@@ -181,6 +264,32 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
   
   // Calculate mouse delta from previous position
   mouse_dy = mouse_y - ui_prev_mouse_y;
+  
+  // Get sensitivity based on knob size (large knobs = finer control)
+  sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
+  
+  // Update value based on mouse movement
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity);
+  
+  // Update knob value and slider
+  knob_defs[knob_index*9 + 8] = new_value;
+  slider(param_index) = new_value;
+  sliderchange(1 << (param_index - 1));
+  
+  new_value;
+);
+
+function update_knob_value_from_mouse_with_mult(knob_index, mouse_x, mouse_y, multiplier) (
+  param_index = get_knob_param(knob_index);
+  min_val = get_knob_min(knob_index);
+  max_val = get_knob_max(knob_index);
+  knob_size = get_knob_size(knob_index);
+  
+  // Get current value
+  current_value = slider(param_index);
+  
+  // Calculate mouse delta from previous position with multiplier
+  mouse_dy = (mouse_y - ui_prev_mouse_y) * multiplier;
   
   // Get sensitivity based on knob size (large knobs = finer control)
   sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;

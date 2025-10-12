@@ -39,15 +39,27 @@ function draw_grid() (
 //==============================================================================
 
 function draw_labels_and_info() (
-  gfx_x = GRAPH_X + GRAPH_SIZE + 15; gfx_y = GRAPH_Y - 15;  // 20 * 0.75 = 15
-  gfx_set(1, 1, 1, 1);
-  gfx_drawstr("GR");
-
   // Points text in top left of graph area in light grey (75% scaled)
+  // Display moveable points only (exclude the two corner points)
   gfx_set(0.7, 0.7, 0.7, 1);
   gfx_x = GRAPH_X + 8; gfx_y = GRAPH_Y + 9;  // 10 * 0.75 = 7.5 rounded up, 12 * 0.75 = 9
-  gfx_printf("%d/%d", num_points, MAX_POINTS);
+  gfx_printf("%d/%d", num_points - 2, MAX_POINTS - 2);
 
+);
+
+function draw_compression_threshold_overlay() (
+  // Display the current compression threshold in red text over the graph
+  // This shows the early-exit optimization threshold from calculate_gain_reduction_from_db()
+  
+  gfx_set(1.0, 0.2, 0.2, 0.9); // Bright red with slight transparency
+  gfx_setfont(1, "Arial", 11); // Match standard UI font size
+  
+  // Position in top-right area of graph, below the points counter
+  gfx_x = GRAPH_X + GRAPH_SIZE - 130;
+  gfx_y = GRAPH_Y + 9;
+  
+  // Show threshold value (accounts for global offset in the actual check)
+  gfx_printf("Threshold: %.1f dB", comp_curve_min_threshold_db);
 );
 
 //==============================================================================

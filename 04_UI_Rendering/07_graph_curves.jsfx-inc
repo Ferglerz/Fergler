@@ -4,9 +4,8 @@
 
 @init
 
-// Visualization mode toggle
-show_compression_lut_curve = 0; // 0 = UI cache, 1 = Compression LUT
-show_compression_lut_curve_prev = 0;
+// Visualization mode - now controlled by debug mode
+// show_compression_lut_curve is automatically set based on menu_debug_enabled
 
 // Cache for LUT visualization curve
 lut_viz_cache_dirty = 1;
@@ -46,14 +45,6 @@ function input_level_linear_to_graph_x(linear) (
 // Draw curve directly from compression lookup table
 // This visualizes the actual PRE-COMPUTED data used for audio processing
 function draw_compression_lut_curve() (
-  // If just turned on, force a rebuild to ensure fresh data
-  show_compression_lut_curve != show_compression_lut_curve_prev ? (
-    show_compression_lut_curve_prev = show_compression_lut_curve;
-    show_compression_lut_curve ? (
-      comp_lut_dirty = 1;
-    );
-  );
-  
   // Ensure LUT is built (will only rebuild if dirty)
   comp_lut_dirty ? build_compression_lut();
   
@@ -148,12 +139,12 @@ function draw_mixed_curves() (
   // Debug counter: track curve rendering
   debug_counter_ui_curves += 1;
   
-  // Choose which curve to render based on visualization mode
-  show_compression_lut_curve ? (
-    // Show compression LUT data (actual audio processing curve)
+  // Choose which curve to render based on debug mode
+  menu_debug_enabled > 0.5 ? (
+    // DEBUG MODE: Show compression LUT data (actual audio processing curve)
     draw_compression_lut_curve();
   ) : (
-    // Show UI cached curve (optimized rendering version)
+    // NORMAL MODE: Show UI cached curve (optimized rendering version)
     draw_cached_mixed_curves();
   );
   
@@ -212,9 +203,17 @@ function draw_graph_points() (
       gfx_y = text_y - 4;
       gfx_printf("%.1f dB", output_db - input_db);
       
-      // Show curve amount if curved
+      // Draw total output dB value in light yellow (like the curve line)
+      gfx_set(1, 1, 0.6, 1);
+      gfx_x = text_x;
+      gfx_y = text_y + 8;
+      gfx_printf("%.1f dB", output_db);
+      
+      // Show curve amount if curved (moved down to make room)
       is_curved ? (
-        gfx_y = text_y + 8;
+        gfx_set(1, 1, 1, 1);
+        gfx_x = text_x;
+        gfx_y = text_y + 20;
         gfx_printf("Curve: %.0f%%", curve_amount);
       );
     );

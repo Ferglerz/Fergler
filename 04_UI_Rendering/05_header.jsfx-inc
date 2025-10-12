@@ -49,7 +49,7 @@ function draw_custom_menu() (
   is_menu_visible() ? (
     menu_x = get_menu_x();
     menu_y = get_menu_y();
-    menu_height = 8 * MENU_ITEM_HEIGHT;  // Increased from 6 to 8 items
+    menu_height = 6 * MENU_ITEM_HEIGHT;
     
     // Draw menu background
     gfx_set(MENU_BG_R, MENU_BG_G, MENU_BG_B, 1);
@@ -61,7 +61,7 @@ function draw_custom_menu() (
     
     // Draw menu items
     i = 0;
-    while (i < 8) (  // Increased from 6 to 8 items
+    while (i < 6) (
       item_y = menu_y + i * MENU_ITEM_HEIGHT;
       is_hovered = (menu_hovered_item == i);
       
@@ -81,9 +81,7 @@ function draw_custom_menu() (
       i == 2 ? gfx_drawstr("GR Meter") :
       i == 3 ? gfx_drawstr("Brickwall Limiter") :
       i == 4 ? gfx_drawstr("True RMS") :
-      i == 5 ? gfx_drawstr("Show Compression LUT") :
-      i == 6 ? gfx_drawstr("Min() Envelope Mode") :
-      i == 7 ? gfx_drawstr("History Buffer Histogram") : 0;
+      i == 5 ? gfx_drawstr("History Buffer Histogram") : 0;
       
       // Draw checkmark if option is enabled
       is_enabled = (i == 0 && menu_debug_enabled > 0.5) ||
@@ -91,9 +89,7 @@ function draw_custom_menu() (
                    (i == 2 && menu_gr_meter_enabled > 0.5) ||
                    (i == 3 && menu_brickwall_limiter_enabled > 0.5) ||
                    (i == 4 && menu_true_rms_enabled > 0.5) ||
-                   (i == 5 && show_compression_lut_curve > 0.5) ||
-                   (i == 6 && menu_min_envelope_enabled > 0.5) ||
-                   (i == 7 && menu_histogram_buffer_mode > 0.5);
+                   (i == 5 && menu_histogram_buffer_mode > 0.5);
       
       is_enabled ? (
         gfx_set(MENU_CHECKMARK_R, MENU_CHECKMARK_G, MENU_CHECKMARK_B, 1);

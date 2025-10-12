@@ -17,6 +17,11 @@ curve_drag_start_y = 0;
 curve_drag_start_amount = 0;
 waiting_for_mouse_release = 0; // Flag to prevent interaction after CMD release during curve drag
 
+// Double-click detection for graph points
+graph_last_click_time = 0;
+graph_last_clicked_point = -1;
+graph_double_click_threshold = 0.3; // 300ms for double click
+
 //==============================================================================
 // HELPER FUNCTIONS
 //==============================================================================
@@ -128,9 +133,53 @@ function handle_point_deletion() (
   // Delete point at mouse position (middle-click or ctrl+click)
   target_point = find_point_at_mouse(mouse_x, mouse_y);
   
-  target_point >= 0 && num_points > 2 ? ( // Keep at least 2 points
-    delete_point(target_point);
-    // Invalidate all caches since point deletion affects curves and compression
+  target_point >= 0 ? (
+    // If trying to delete one of the last two points, reset them to 1:1 instead
+    num_points <= 2 ? (
+      // Reset both points to 1:1 (keep their x positions, set y to match x)
+      input_db_0 = graph_points[0];  // Keep x position
+      input_db_1 = graph_points[2];  // Keep x position
+      graph_points[0] = input_db_0;
+      graph_points[1] = input_db_0;  // Set y to match x (1:1)
+      graph_points[2] = input_db_1;
+      graph_points[3] = input_db_1;  // Set y to match x (1:1)
+      
+      // Reset curve amounts to 0
+      set_curve_amount(0, 0);
+      set_curve_amount(1, 0);
+      
+      // Invalidate all caches
+      invalidate_all_graph_caches();
+    ) : (
+      // Normal deletion - only if we have more than 2 points
+      delete_point(target_point);
+      // Invalidate all caches since point deletion affects curves and compression
+      invalidate_all_graph_caches();
+    );
+  );
+);
+
+// Check if this is a double-click on graph point
+function is_double_click_point(point_index) local(current_time, is_double) (
+  current_time = time_precise();
+  is_double = (point_index == graph_last_clicked_point && 
+               (current_time - graph_last_click_time) < graph_double_click_threshold);
+  graph_last_clicked_point = point_index;
+  graph_last_click_time = current_time;
+  is_double;
+);
+
+// Reset point to 1:1 (input = output)
+function reset_point_to_1_to_1(point_index) (
+  point_index >= 0 && point_index < num_points ? (
+    // Set output to match input (1:1 line)
+    input_db = graph_points[point_index * 2];
+    graph_points[point_index * 2 + 1] = input_db;
+    
+    // Reset curve amount to 0
+    set_curve_amount(point_index, 0);
+    
+    // Invalidate all caches
     invalidate_all_graph_caches();
   );
 );
@@ -155,9 +204,16 @@ function handle_graph_mouse_input() (
         ) : (
           // Find point under mouse for selection
           dragging_point = find_point_at_mouse(mouse_x, mouse_y);
-          dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) && hovered_threshold_line == -1 ? (
-            // Click in empty space - add point (only if not hovering over threshold line)
-            dragging_point = handle_point_addition();
+          
+          // Check for double-click to reset point to 1:1
+          dragging_point >= 0 && is_double_click_point(dragging_point) ? (
+            reset_point_to_1_to_1(dragging_point);
+            dragging_point = -1; // Don't start dragging
+          ) : (
+            dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) && hovered_threshold_line == -1 ? (
+              // Click in empty space - add point (only if not hovering over threshold line)
+              dragging_point = handle_point_addition();
+            );
           );
         );
 
