@@ -34,9 +34,6 @@ function calculate_gain_reduction_from_db(input_level_db) (
   // Debug counter: track gain reduction calculations
   debug_counter_gain_reduction += 1;
   
-  // Update display level for visualization
-  current_input_db = input_level_db;
-  
   // Early exit optimization: Check if actual input is below compression threshold
   // Note: Global offset is NOT used here - it only affects curve lookup, not where compression starts
   // The threshold is based on the curve shape, which doesn't change with global offset

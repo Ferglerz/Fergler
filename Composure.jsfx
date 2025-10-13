@@ -186,6 +186,9 @@ makeup_gain_linear = 1.0;
 // Initialize strength multiplier (will be recalculated in @slider)
 strength_actual = strength * strength;
 
+// Calculate limiter normalization constant (pre-calculated to avoid per-sample division)
+LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
+
 // 4. Initialize curve data
 init_curve_data();
 
@@ -298,12 +301,12 @@ slider_initialized = 1;
 @block
 
 // Store block-level max values for histograms (captured during previous block)
-// No calculation needed - already tracked in @sample section
-input_db_for_histogram = input_db_block_max;
+// Convert detector level from linear to dB (once per block instead of per sample)
+input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL));
 gr_db_for_histogram = gr_db_block_max;
 
 // Reset max trackers for next block
-input_db_block_max = GRAPH_MIN_DB;
+detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
 
 // Update filter coefficients every block for real-time response
@@ -363,6 +366,12 @@ new_rms_samples != rms_samples ? (
   rms_samples = new_rms_samples;  // Update even if same (for safety)
 );
 
+// OPTIMIZATION: Cache RMS reciprocal to avoid per-sample division
+rms_samples_inv = 1.0 / max(rms_samples, 1);
+
+// OPTIMIZATION: Cache harmonic drive compensation reciprocal to avoid per-sample division
+drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
+
 
 //==============================================================================
 // GFX RUNTIME
@@ -377,6 +386,9 @@ MOUSE_MIDDLE_BUTTON = mouse_cap & 64 ? 1 : 0;   // Middle mouse button (wheel cl
 MOUSE_CTRL_KEY = mouse_cap & 4 ? 1 : 0;         // Ctrl/Cmd key held
 MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
 MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
+
+// Convert detector level to dB once per frame for UI display (instead of per-sample)
+current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
 
 // Update histograms with block-max values (most efficient and smooth)
 HISTOGRAM_ENABLED ? update_histogram_state(gr_db_for_histogram);

@@ -147,8 +147,8 @@ function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_l
     );
 
     // Optimized level management with proper drive compensation
-    drive_compensation = max(drive, 1);
-    processed = processed / drive_compensation;
+    // OPTIMIZATION: Use cached reciprocal (multiply) instead of division
+    processed = processed * drive_compensation_inv;
 
     // Enhanced intensity calculation - scales directly with abs(gr_amount)
     // Zero GR = zero harmonics, works for both positive and negative GR

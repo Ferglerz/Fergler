@@ -97,7 +97,8 @@ function process_complete_audio_chain() (
         
         // Use max of L/R channels for detection (not average)
         // This provides better transient response and matches Cockos approach
-        rms_level = sqrt(max(rms_sum_l, rms_sum_r) / rms_samples);
+        // OPTIMIZATION: Use cached reciprocal (multiply) instead of division
+        rms_level = sqrt(max(rms_sum_l, rms_sum_r) * rms_samples_inv);
       ) : (
         // EXPONENTIAL SMOOTHING MODE (default): No buffer, simple smoothing
         rms_size_ms > 0 ? (
@@ -145,21 +146,18 @@ function process_complete_audio_chain() (
       can_skip_compression ? (
         // No compression needed - set target GR to 0
         target_gr_db = 0;
-        // Convert to dB only for display (still cheaper than processing)
-        current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
         // Set flag for UI indicator
         gr_processing_skipped = 1;
       ) : (
         // Above threshold - convert to dB and calculate compression
         detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
         target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
-        // current_input_db is set by calculate_gain_reduction_from_db
         // gr_processing_skipped is set by calculate_gain_reduction_from_db
       );
       
-      // Track maximum input level for block-level histogram
-      current_input_db > input_db_block_max ? (
-        input_db_block_max = current_input_db;
+      // Track maximum input level for block-level histogram (in linear - convert in @block)
+      detector_level > detector_level_block_max ? (
+        detector_level_block_max = detector_level;
       );
     );
 

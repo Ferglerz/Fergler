@@ -48,8 +48,8 @@ function soft_clip_limiter(input, prev_sample) (
     peak_detected = max(oversample1, abs_input) > 0.95;
     
     peak_detected ? (
-      // Soft clipping using tanh
-      limited = tanh(input * 0.95) * (1.0 / tanh(0.95));
+      // Soft clipping using tanh with pre-calculated normalization constant
+      limited = tanh(input * LIMITER_SCALE) * LIMITER_TANH_NORM;
     ) : (
       limited = input;
     );

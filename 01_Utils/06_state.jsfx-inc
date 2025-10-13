@@ -71,8 +71,8 @@ function init_state_variables() (
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
   
-  // Block-level histogram max tracking
-  input_db_block_max = GRAPH_MIN_DB;
+  // Block-level histogram max tracking (linear values, converted to dB in @block)
+  detector_level_block_max = MIN_DETECTOR_LEVEL;  // Linear detector level max
   gr_db_block_max = 0;  // Track max absolute GR during block
   gr_processing_skipped = 0;  // Flag when GR calculation was skipped for optimization
   
