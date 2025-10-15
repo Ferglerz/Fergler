@@ -102,61 +102,50 @@ function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_l
   // Debug counter: track harmonic processing
   debug_counter_harmonics += 1;
   
-  // Note: amount is now hardcoded to 1.0 (max) - removed from UI
-  amount = 1.0;
-  
   // Early exit optimization - no processing if harmonic type is off
   type == 0 ? input : (
     // Pre-calculate common values for efficiency
     dry_signal = input;
     driven = input * drive;
     
-    // Dynamic scaling factors - scaled by abs(gr_amount) for zero harmonics at zero GR
-    // Supports both positive (expansion) and negative (compression) GR values
-    abs_gr = abs(gr_amount);
-    gr_factor = abs_gr * 0.3;  // Zero when gr_amount is zero
-    envelope_factor = 1 + envelope_amount * 0.2;
-    combined_factor = gr_factor * envelope_factor;
-    
-    // Boost factors for even/odd harmonics
-    even_factor = 1 + even_boost;
-    odd_factor = 1 + odd_boost;
+    // OPTIMIZATION: Use pre-calculated global values (calculated once in audio chain)
+    // These were previously calculated twice (once for L, once for R)
+    // Now they're shared between both channels for ~50% reduction in harmonic calculations
+    // Values used: harmonic_abs_gr, harmonic_combined_factor, harmonic_even_factor, 
+    //              harmonic_odd_factor, harmonic_amount, harmonic_intensity
     
     // Optimized harmonic processing based on type
     processed = type == 1 ? (
       // Tube Even (Simple) - optimized with sign function
-      tanh(abs(driven)) * sign(driven) * even_factor
+      tanh(abs(driven)) * sign(driven) * harmonic_even_factor
     ) : type == 2 ? (
       // Tube Odd (Simple) - direct tanh with boost
-      tanh(driven) * odd_factor
+      tanh(driven) * harmonic_odd_factor
     ) : type == 3 ? (
       // Tube Both (Simple) - combined even/odd processing
-      0.5 * (tanh(abs(driven)) * sign(driven) * even_factor + tanh(driven) * odd_factor)
+      0.5 * (tanh(abs(driven)) * sign(driven) * harmonic_even_factor + tanh(driven) * harmonic_odd_factor)
     ) : type == 4 ? (
       // Tape Saturation - asymmetric processing with boost
       atan(driven * (driven > 0 ? 1.02 : 0.98)) / ($pi/2) * (1 + 0.5 * (even_boost + odd_boost))
     ) : type == 5 ? (
       // Enhanced Tube (Sophisticated) - improved algorithm
-      apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost)
+      apply_enhanced_tube_processing(driven, harmonic_amount, harmonic_combined_factor, even_boost, odd_boost)
     ) : type == 6 ? (
       // FET (Solid State) - optimized solid-state processing
-      apply_fet_processing(driven, amount, gr_amount, detector_level, even_boost, odd_boost)
+      apply_fet_processing(driven, harmonic_amount, gr_amount, detector_level, even_boost, odd_boost)
     ) : (
       // Clean Drive (type == 7) - minimal processing with dynamic drive
       apply_clean_drive_processing(driven, drive, envelope_amount)
     );
 
     // Optimized level management with proper drive compensation
-    // OPTIMIZATION: Use cached reciprocal (multiply) instead of division
+    // OPTIMIZATION: Calculate reciprocal once (multiply is faster than divide)
+    drive_compensation_inv = 1.0 / max(drive, 1);
     processed = processed * drive_compensation_inv;
 
-    // Enhanced intensity calculation - scales directly with abs(gr_amount)
-    // Zero GR = zero harmonics, works for both positive and negative GR
-    base_intensity = amount * abs_gr * 0.15;  // Scaled by abs_gr for zero harmonics at zero GR
-    intensity = base_intensity * (1 + envelope_amount * 0.2);
-    
+    // OPTIMIZATION: Use pre-calculated intensity (calculated once in audio chain)
     // Efficient wet/dry blend calculation
-    wet_signal = dry_signal + intensity * (processed - dry_signal);
+    wet_signal = dry_signal + harmonic_intensity * (processed - dry_signal);
 
     // Final dry/wet mix - optimized calculation
     mix * wet_signal + (1 - mix) * dry_signal
