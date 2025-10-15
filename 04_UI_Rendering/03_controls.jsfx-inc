@@ -407,9 +407,9 @@ function draw_control(index) local(group_idx) (
   // Check if this is a stage enable button (param indices 27-31)
   is_stage_enable_button = (param_index >= 27 && param_index <= 31);
   
-  // Only render stage enable buttons when debug is disabled
-  is_stage_enable_button && !DEBUG_ENABLED ? (
-    // Skip rendering stage enable buttons when debug is enabled
+  // Only render stage enable buttons when debug is enabled
+  is_stage_enable_button && !menu_debug_enabled ? (
+    // Skip rendering stage enable buttons when debug is disabled
     0;
   ) : (
     // Check if this is a frequency slider (HP/LP filters) that should use special rendering
