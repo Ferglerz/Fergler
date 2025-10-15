@@ -369,8 +369,18 @@ new_rms_samples != rms_samples ? (
 // OPTIMIZATION: Cache RMS reciprocal to avoid per-sample division
 rms_samples_inv = 1.0 / max(rms_samples, 1);
 
-// OPTIMIZATION: Cache harmonic drive compensation reciprocal to avoid per-sample division
-drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
+// OPTIMIZATION: Calculate power-of-2 size and bit mask for fast circular buffer (like lookahead)
+// Bit masking (x & mask) is 3-5x faster than modulo (x % size)
+rms_samples_pow2 = 1;
+while(rms_samples_pow2 < rms_samples) (rms_samples_pow2 *= 2);
+rms_mask = rms_samples_pow2 - 1;
+
+// OPTIMIZATION: Pre-calculate RMS exponential smoothing coefficients (moved from @sample)
+// Only needed when NOT using True RMS mode and RMS window > 0
+menu_true_rms_enabled == 0 && rms_size_ms > 0 ? (
+  rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+  rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
+);
 
 
 //==============================================================================
