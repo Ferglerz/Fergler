@@ -70,6 +70,11 @@ function handle_point_movement() (
     // Store old position to check if significant movement occurred
     old_input_db = graph_points[dragging_point*2];
 
+    // Snap to 1:1 line if within 0.5dB
+    abs(new_output_db - new_input_db) < 0.5 ? (
+      new_output_db = new_input_db;  // Snap to 1:1 line
+    );
+
     // Update point position
     graph_points[dragging_point*2] = new_input_db;
     graph_points[dragging_point*2 + 1] = new_output_db;
