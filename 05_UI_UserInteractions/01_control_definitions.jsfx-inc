@@ -131,7 +131,7 @@ function define_knob(index, x, y, param_index, min_val, max_val, knob_type, knob
 // CONTROL LAYOUT AND INITIALIZATION
 //==============================================================================
 
-function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group_w, group_h, group_spacing) (
+function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group_w, group_h, group_spacing, rel_x_slider, rel_x_knob, rel_x_button, rel_x_dropdown) (
   // Initialize group positioning
   group_x = UI_PANEL_X + 15;
   group_y = UI_PANEL_Y + 15;
@@ -197,17 +197,13 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   define_control(4, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead");
   row += 1;
   define_control(29, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 34, get_slider_min(34), get_slider_max(34), "Transient");
-  row += 1;
-  define_control(25, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
-  row += 1;
-  define_control(26, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen Det.");
   
   //==============================================================================
   // GROUP 2: COMPRESSION
   //==============================================================================
   group_x += group_w + group_spacing;
   group_w = 150;  // Increased from 125
-  group_h = GRAPH_SIZE;  // Match graph height
+  group_h = 130;  // Shortened to fit just 2 controls (2 * CONTROL_SPACING_Y + padding)
   define_group(2, group_x, group_y, group_w, group_h, 1, "COMPRESSION");
   set_control_group(2);  // Associate following controls with group 2
   
@@ -219,6 +215,39 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   define_control(20, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Strength");
   row += 1;
   define_control(21, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, get_slider_min(20), get_slider_max(20), "Offset");
+  
+  //==============================================================================
+  // GROUP 4: SOURCE (below COMPRESSION)
+  //==============================================================================
+  define_group(4, group_x, group_y + group_h + group_spacing, group_w, GRAPH_SIZE - group_h - group_spacing, 1, "SOURCE");
+  set_control_group(4);  // Associate following controls with group 4
+  
+  // Center controls horizontally within group
+  rel_x_slider = (group_w - SLIDER_W) / 2;
+  rel_x_button = (group_w - BUTTON_W) / 2;
+  rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+  row = 0;
+  
+  // Sidechain button (moved from DETECTION group)
+  define_control(25, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
+  row += 1;
+  
+  // Listen button (moved from DETECTION group, renamed from "Listen Det.")
+  define_control(26, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen");
+  row += 1;
+  
+  // HP Filter (moved from FILTERS group)
+  define_control_full(10, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 0, 6000, "Highpass", 0, 1);
+  set_slider_increment(10, 10);
+  set_slider_fill_direction(10, SLIDER_FILL_LEFT_TO_RIGHT);
+  set_slider_format_as_frequency(10, 1);
+  row += 1;
+  
+  // LP Filter (moved from FILTERS group)
+  define_control_full(11, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 12, 20, 16000, "Lowpass", 2, 0);
+  set_slider_increment(11, 10);
+  set_slider_fill_direction(11, SLIDER_FILL_RIGHT_TO_LEFT);
+  set_slider_format_as_frequency(11, 1);
   
   //==============================================================================
   // GROUP 3: HARMONICS
@@ -244,34 +273,6 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   define_control(16, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Even");
   row += 1;
   define_control(17, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Odd");
-  
-  //==============================================================================
-  // GROUP 4: FILTERS (beneath graph - no title shown)
-  //==============================================================================
-  group_x = GRAPH_X;
-  group_y = GRAPH_Y + GRAPH_SIZE + 10;
-  group_w = GRAPH_SIZE;  // Match graph width
-  group_h = 50;
-  define_group(4, group_x, group_y, group_w, group_h, 0, "FILTERS");  // show_title = 0
-  set_control_group(4);  // Associate following controls with group 4
-  
-  rel_x = GROUP_PADDING;
-  // Center controls vertically within group
-  rel_y = (group_h - SLIDER_H) / 2;
-  
-  // HP Filter: normal slider (0-6000 Hz, 0=Off), display to left
-  define_control_full(10, 0, rel_x, rel_y, SLIDER_W, SLIDER_H, 11, 0, 6000, "Highpass", 0, 1);
-  // Configure HP slider properties: increment=10, fill=left-to-right, format=frequency
-  set_slider_increment(10, 10);
-  set_slider_fill_direction(10, SLIDER_FILL_LEFT_TO_RIGHT);
-  set_slider_format_as_frequency(10, 1);
-  
-  // LP Filter: reverse slider (20-16000 Hz, 16000=Off), display to right
-  define_control_full(11, 0, rel_x + SLIDER_W + 20, rel_y, SLIDER_W, SLIDER_H, 12, 20, 16000, "Lowpass", 2, 0);
-  // Configure LP slider properties: increment=10, fill=right-to-left, format=frequency
-  set_slider_increment(11, 10);
-  set_slider_fill_direction(11, SLIDER_FILL_RIGHT_TO_LEFT);
-  set_slider_format_as_frequency(11, 1);
   
   // Compressor Type moved to header (will be defined in setup_header_controls)
 );

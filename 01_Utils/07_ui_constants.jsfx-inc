@@ -38,14 +38,14 @@ GFX_WIDTH = 2625;  // 3500 * 0.75
 GFX_HEIGHT = 338 + HEADER_TOTAL_HEIGHT;  // 450 * 0.75 = 337.5 rounded up
 
 // UI Panel Configuration (now on LEFT side)
-UI_PANEL_X = 50;  // Left side of interface
-UI_PANEL_Y = 50 + HEADER_TOTAL_HEIGHT;  // Aligned with header
+UI_PANEL_X = 25;  // Left side of interface
+UI_PANEL_Y = 25 + HEADER_TOTAL_HEIGHT;  // Aligned with header
 UI_PANEL_W = 600;  // 800 * 0.75
 UI_PANEL_H = 263;  // 350 * 0.75 = 262.5 rounded up
 
 // Graph layout constants (now on RIGHT side, after panel)
-GRAPH_X = UI_PANEL_X + UI_PANEL_W + 45;  // After panel + gap (60 * 0.75)
-GRAPH_Y = UI_PANEL_Y;  // Aligned with panel
+GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85;  // After panel + gap (moved right 40px)
+GRAPH_Y = UI_PANEL_Y + 15;  // Aligned with panel (moved down 15px)
 GRAPH_SIZE = 263;  // 350 * 0.75 = 262.5 rounded up
 
 // Note: Graph range constants (GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
