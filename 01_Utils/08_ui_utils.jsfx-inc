@@ -93,7 +93,7 @@ function is_point_in_knob(x, y, knob_index) local(group_idx) (
   x >= knob_x && x <= knob_x + knob_size && y >= knob_y && y <= knob_y + knob_size;
 );
 
-function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode) (
+function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val) (
   slider_type = get_control_slider_type(control_index);
   min_val = get_control_min(control_index);
   max_val = get_control_max(control_index);
@@ -115,16 +115,35 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
     // Invert for vertical slider (0 at top, 1 at bottom)
     normalized_pos = 1 - normalized_pos;
   ) : ( // Horizontal slider (default)
-    ctrl_x = get_control_x(control_index);
+    ctrl_x_rel = get_control_x(control_index);
     ctrl_w = get_control_w(control_index);
+    
+    // Debug logging
+    menu_debug_enabled ? (
+      debug_log2f("Control %d: rel_x=%.1f", control_index, ctrl_x_rel);
+      debug_logf("  mouse_x=%.1f", mouse_x);
+    );
     
     // Add group offset if control is in a group
     group_idx >= 0 ? (
-      ctrl_x += get_group_x(group_idx);
+      group_x_val = get_group_x(group_idx);
+      ctrl_x = ctrl_x_rel + group_x_val;
+      
+      menu_debug_enabled ? (
+        debug_log2f("  group %d at x=%.1f", group_idx, group_x_val);
+        debug_logf("  abs_x=%.1f", ctrl_x);
+      );
+    ) : (
+      ctrl_x = ctrl_x_rel;
     );
     
     normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
     normalized_pos = max(0, min(1, normalized_pos));
+    
+    menu_debug_enabled ? (
+      debug_logf("  norm_pos=%.3f", normalized_pos);
+      debug_logf("  result=%.2f", min_val + normalized_pos * (max_val - min_val));
+    );
   );
   
   // For freq_list_slider (type 4), map position to enumerated values

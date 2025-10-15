@@ -122,6 +122,12 @@ function handle_control_click(control_index) (
   param_index = get_control_param(control_index);
   current_value = slider(param_index);
   
+  // Debug logging
+  menu_debug_enabled ? (
+    debug_log2f("Clicked control %d (param %d)", control_index, param_index);
+    debug_logf("  type=%d", control_type);
+  );
+  
   // Check for double-click or alt-click to reset
   (is_double_click_control(control_index) || MOUSE_ALT_KEY) ? (
     reset_control_to_default(control_index);
