@@ -531,7 +531,9 @@ function get_dropdown_option(slider_num, option_index) (
   array_index >= 0 && option_index >= 0 && 
   option_index < get_dropdown_option_count(slider_num) ? (
     base_slot = DROPDOWN_OPTIONS_BASE + (array_index * MAX_OPTIONS_PER_SLIDER);
-    base_slot + option_index; // Return string slot number
+    // Copy string from numeric slot to temporary string variable for return
+    strcpy(#temp_dropdown_option, base_slot + option_index);
+    #temp_dropdown_option;
   ) : (
     #empty_str = "";
     #empty_str;
