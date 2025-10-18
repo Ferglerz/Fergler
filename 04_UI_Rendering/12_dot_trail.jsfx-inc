@@ -1,0 +1,121 @@
+// UI Dot Trail Module
+// Fading dot trail visualization for the input level indicator
+// Depends on: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc, 01_Utils/08_ui_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// TRAIL DOT MANAGEMENT
+//==============================================================================
+
+// Create a new trail dot at the current input level position
+function create_trail_dot() (
+  trail_initialized && trail_count < trail_max_dots ? (
+    // Calculate current position in graph coordinates
+    input_x = db_to_graph_x(current_input_db);
+    input_y = db_to_graph_y(current_input_db);
+    
+    // Store dot data: [x, y, age, max_age]
+    trail_buffer[trail_write_pos * 4 + 0] = input_x;
+    trail_buffer[trail_write_pos * 4 + 1] = input_y;
+    trail_buffer[trail_write_pos * 4 + 2] = 0; // age starts at 0
+    trail_buffer[trail_write_pos * 4 + 3] = trail_fade_duration_ms * 0.001 * srate; // max_age in samples
+    
+    // Update circular buffer position
+    trail_write_pos = (trail_write_pos + 1) % trail_max_dots;
+    
+    // Update count (only increment if we're not overwriting)
+    trail_count < trail_max_dots ? trail_count += 1;
+    
+    // Update last creation time
+    trail_last_creation_time = 0; // Reset to 0, will be incremented in update function
+  );
+);
+
+// Update all trail dots (age them and remove expired ones)
+function update_trail_dots() (
+  trail_initialized ? (
+    // Age all existing dots
+    i = 0;
+    while (i < trail_count) (
+      // Get dot data
+      dot_x = trail_buffer[i * 4 + 0];
+      dot_y = trail_buffer[i * 4 + 1];
+      dot_age = trail_buffer[i * 4 + 2];
+      dot_max_age = trail_buffer[i * 4 + 3];
+      
+      // Age the dot
+      dot_age += 1;
+      trail_buffer[i * 4 + 2] = dot_age;
+      
+      // Check if dot has expired
+      dot_age >= dot_max_age ? (
+        // Remove expired dot by shifting remaining dots left
+        j = i;
+        while (j < trail_count - 1) (
+          trail_buffer[j * 4 + 0] = trail_buffer[(j + 1) * 4 + 0];
+          trail_buffer[j * 4 + 1] = trail_buffer[(j + 1) * 4 + 1];
+          trail_buffer[j * 4 + 2] = trail_buffer[(j + 1) * 4 + 2];
+          trail_buffer[j * 4 + 3] = trail_buffer[(j + 1) * 4 + 3];
+          j += 1;
+        );
+        trail_count -= 1;
+        // Don't increment i since we shifted dots left
+      ) : (
+        i += 1;
+      );
+    );
+    
+    // Check if it's time to create a new trail dot
+    trail_interval_samples = trail_interval_ms * 0.001 * srate;
+    trail_last_creation_time += 1;
+    
+    trail_last_creation_time >= trail_interval_samples ? (
+      create_trail_dot();
+    );
+  );
+);
+
+// Render all active trail dots
+function render_trail_dots() (
+  trail_initialized && trail_count > 0 ? (
+    i = 0;
+    while (i < trail_count) (
+      // Get dot data
+      dot_x = trail_buffer[i * 4 + 0];
+      dot_y = trail_buffer[i * 4 + 1];
+      dot_age = trail_buffer[i * 4 + 2];
+      dot_max_age = trail_buffer[i * 4 + 3];
+      
+      // Calculate fade alpha (linear fade from 0.5 to 0)
+      fade_progress = dot_age / dot_max_age;
+      alpha = 0.5 * (1 - fade_progress);
+      
+      // Only render if alpha is above minimum threshold
+      alpha > 0.01 ? (
+        // Set color (green with fade)
+        gfx_set(0, 1, 0, alpha);
+        
+        // Draw trail dot (smaller than main dot)
+        gfx_circle(dot_x, dot_y, 2, 1, 1); // 2px radius, filled, antialiased
+      );
+      
+      i += 1;
+    );
+  );
+);
+
+//==============================================================================
+// TRAIL DOT INTEGRATION
+//==============================================================================
+
+// Main function to update and render trail dots (called from graph display)
+function update_and_render_trail_dots() (
+  // Only update when audio is active
+  is_audio_active = (play_state == 1) || (play_state == 5);
+  
+  is_audio_active ? (
+    update_trail_dots();
+    render_trail_dots();
+  );
+);

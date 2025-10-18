@@ -66,6 +66,12 @@ function allocate_memory() (
   // Slider properties buffer (4 properties per control)
   slider_properties_base = freemem;
   freemem += NUM_CONTROLS * 4;
+  
+  // Trail buffer allocation (4 values per dot: x, y, age, max_age)
+  // Use default values for initial allocation (will be recalculated in @slider)
+  trail_max_dots = 100; // Default size, will be recalculated when sliders are available
+  trail_buffer = freemem;
+  freemem += trail_max_dots * 4;
 );
 
 function get_memory_usage() (

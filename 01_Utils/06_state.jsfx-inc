@@ -246,6 +246,33 @@ function init_state_variables() (
   // Reset time for counters (reset every second for readable rates)
   debug_counter_reset_interval = srate;
   debug_counter_samples = 0;
+  
+  // Dot trail state
+  trail_buffer = 0; // Will be allocated in memory
+  trail_max_dots = 0; // Calculated based on fade duration and interval
+  trail_count = 0; // Current number of active trail dots
+  trail_write_pos = 0; // Position in circular buffer
+  trail_last_creation_time = 0; // Last time a trail dot was created (in samples)
+  trail_initialized = 0; // Flag to track initialization
+  trail_interval_ms_prev = -1; // Previous trail interval for change detection
+  trail_fade_duration_ms_prev = -1; // Previous trail fade duration for change detection
+  
+  // Initialize trail buffer if enabled
+  trail_max_dots > 0 ? (
+    // Clear trail buffer
+    i = 0;
+    while (i < trail_max_dots * 4) (
+      trail_buffer[i] = 0;
+      i += 1;
+    );
+    
+    trail_count = 0;
+    trail_write_pos = 0;
+    trail_last_creation_time = 0;
+    trail_initialized = 1;
+  ) : (
+    trail_initialized = 0;
+  );
 );
 
 //==============================================================================

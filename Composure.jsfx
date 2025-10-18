@@ -58,6 +58,10 @@ slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
 slider30:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
 slider31:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
+// Dot Trail parameters (32-33)
+slider32:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
+slider33:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
+
 // SEARCH STOP
 
 //==============================================================================
@@ -104,6 +108,7 @@ import 04_UI_Rendering/06_graph_cache.jsfx-inc
 import 04_UI_Rendering/07_graph_curves.jsfx-inc
 import 04_UI_Rendering/08_graph_meters.jsfx-inc
 import 04_UI_Rendering/09_graph_display.jsfx-inc
+import 04_UI_Rendering/12_dot_trail.jsfx-inc
 
 // 05_UI_UserInteractions: User interaction handling (depends on 01_Utils, 04_UI_Rendering)
 import 05_UI_UserInteractions/01_control_definitions.jsfx-inc
@@ -289,6 +294,29 @@ pdc_delay > 0 ? (
   // Note: Strength is applied AFTER curve lookup in calculate_gain_reduction(),
   // so it doesn't affect the curve shape itself. No need to invalidate curve cache.
   // Global offset is applied at lookup time (shifts input level before curve lookup).
+);
+
+// --- Trail Parameters (32-33) ---
+(slider32 != trail_interval_ms_prev || slider33 != trail_fade_duration_ms_prev || !slider_initialized) ? (
+  trail_interval_ms_prev = slider32;
+  trail_fade_duration_ms_prev = slider33;
+  
+  // Recalculate trail buffer size if parameters changed
+  trail_interval_samples = trail_interval_ms * 0.001 * srate;
+  trail_fade_samples = trail_fade_duration_ms * 0.001 * srate;
+  new_trail_max_dots = ceil(trail_fade_samples / trail_interval_samples) + 10;
+  
+  // Only reallocate if size changed significantly
+  abs(new_trail_max_dots - trail_max_dots) > 5 ? (
+    // Update buffer size (memory is already allocated, just update the limit)
+    trail_max_dots = new_trail_max_dots;
+    // Clear existing trail dots when parameters change
+    trail_count = 0;
+    trail_write_pos = 0;
+    trail_last_creation_time = 0;
+  );
+  
+  param_changed = 1;
 );
 
 // Mark slider section as initialized (ensures all calculations run on first load)

@@ -37,6 +37,7 @@ function render_complete_interface() (
   draw_grid();                        // 05j
   draw_mixed_curves();                // 05h
   draw_graph_points();                // 05h
+  update_and_render_trail_dots();     // 05l - Trail dots (faded green dots)
   draw_level_indicators();            // 05h
   draw_threshold_lines_on_graph();    // 05h
   
