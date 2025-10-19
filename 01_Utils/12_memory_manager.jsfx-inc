@@ -1,0 +1,345 @@
+// Memory Manager Module
+// Centralized memory allocation and management system
+// Handles stage-specific memory allocation with proper constraints
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/11_memory_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// MEMORY MANAGER INITIALIZATION
+//==============================================================================
+
+function init_memory_manager() (
+  // Initialize memory manager state
+  memory.manager.state.initialized = 0;
+  memory.manager.state.allocation_phase = 0;  // 0=planning, 1=allocating, 2=complete
+  memory.manager.state.total_required = 0;
+  memory.manager.state.total_allocated = 0;
+  memory.manager.state.regions_allocated = 0;
+  memory.manager.state.constraints_met = 0;
+  
+  // Memory constraints from project requirements
+  memory.manager.constraints.string_slots_start = 0;
+  memory.manager.constraints.string_slots_count = 50;  // First 50 slots for strings
+  memory.manager.constraints.fft_boundary = 16384;  // FFT/MDCT boundary
+  memory.manager.constraints.alignment = 4;  // 4-byte alignment
+  memory.manager.constraints.max_memory = 8388608;  // 8MB default
+  
+  // Stage allocation order (dependency order)
+  memory.manager.stages.audio = 1;
+  memory.manager.stages.compression = 2;
+  memory.manager.stages.ui = 3;
+  memory.manager.stages.debug = 4;
+  memory.manager.stages.histogram = 5;
+  memory.manager.stages.sliders = 6;
+);
+
+//==============================================================================
+// MEMORY ALLOCATION FUNCTIONS
+//==============================================================================
+
+function memory_manager_allocate_all() (
+  // Phase 1: Calculate total memory requirements
+  memory.manager.state.allocation_phase = 1;
+  memory.manager.state.total_required = 0;
+  
+  // Calculate requirements for each stage
+  audio_memory_required = memory_manager_calculate_audio_requirements();
+  compression_memory_required = memory_manager_calculate_compression_requirements();
+  ui_memory_required = memory_manager_calculate_ui_requirements();
+  debug_memory_required = memory_manager_calculate_debug_requirements();
+  histogram_memory_required = memory_manager_calculate_histogram_requirements();
+  slider_memory_required = memory_manager_calculate_slider_requirements();
+  
+  // Total required memory
+  memory.manager.state.total_required = audio_memory_required + compression_memory_required + 
+                                       ui_memory_required + debug_memory_required + 
+                                       histogram_memory_required + slider_memory_required;
+  
+  // Check if we have enough memory
+  memory.manager.state.total_required <= memory.manager.constraints.max_memory ? (
+    // Phase 2: Allocate memory for each stage
+    memory_manager_allocate_audio_memory();
+    memory_manager_allocate_compression_memory();
+    memory_manager_allocate_ui_memory();
+    memory_manager_allocate_debug_memory();
+    memory_manager_allocate_histogram_memory();
+    memory_manager_allocate_slider_memory();
+    
+    // Phase 3: Complete allocation
+    memory.manager.state.allocation_phase = 2;
+    memory.manager.state.initialized = 1;
+    memory.manager.state.constraints_met = 1;
+    
+    // Free unused memory
+    freembuf(memory_alloc_get_freemem());
+    
+    1;  // Success
+  ) : (
+    // Not enough memory
+    memory.manager.state.constraints_met = 0;
+    0;  // Failure
+  );
+);
+
+//==============================================================================
+// STAGE-SPECIFIC MEMORY CALCULATION
+//==============================================================================
+
+function memory_manager_calculate_audio_requirements() local(total) (
+  total = 0;
+  
+  // Lookahead buffers (stereo, power-of-2 aligned)
+  lookahead_max_ms = get_slider_max(5);
+  lookahead_needed_samples = ceil(lookahead_max_ms * 0.001 * srate);
+  
+  // Round to power of 2 for bit masking
+  lookahead_samples_pow2 = 1;
+  while(lookahead_samples_pow2 < lookahead_needed_samples) (
+    lookahead_samples_pow2 *= 2;
+  );
+  
+  total += lookahead_samples_pow2 * 2;  // Left + Right channels
+  
+  // RMS buffer (stereo interleaved)
+  rms_samples = ceil(0.1 * srate);
+  total += rms_samples * 2;  // Stereo interleaved
+  
+  // Store calculated sizes in audio memory object
+  memory.audio.constants.max_lookahead_samples = lookahead_samples_pow2;
+  memory.audio.constants.max_rms_samples = rms_samples;
+  memory.audio.constants.lookahead_mask = lookahead_samples_pow2 - 1;
+  memory.audio.constants.rms_mask = rms_samples - 1;
+  
+  total;
+);
+
+function memory_manager_calculate_compression_requirements() local(total) (
+  total = 0;
+  
+  // Compression lookup table
+  total += memory.compression.constants.lut_size;
+  
+  // Graph points (2 values per point: x, y)
+  total += memory.graph.constants.max_points * memory.graph.constants.point_size;
+  
+  // Curve amounts (1 value per point)
+  total += memory.graph.constants.max_points * memory.graph.constants.curve_size;
+  
+  total;
+);
+
+function memory_manager_calculate_ui_requirements() local(total) (
+  total = 0;
+  
+  // Control definitions (11 values per control)
+  total += memory.ui.constants.num_controls * memory.ui.constants.control_def_size;
+  
+  // Knob definitions (10 values per knob)
+  total += memory.ui.constants.num_knobs * memory.ui.constants.knob_def_size;
+  
+  // Group definitions (6 values per group)
+  total += memory.ui.constants.num_groups * memory.ui.constants.group_def_size;
+  
+  // Group title strings (50 chars per group)
+  total += memory.ui.constants.num_groups * memory.ui.constants.title_string_size;
+  
+  total;
+);
+
+function memory_manager_calculate_debug_requirements() local(total) (
+  total = 0;
+  
+  // Debug messages (256 chars per message)
+  total += memory.debug.constants.max_messages * memory.debug.constants.message_size;
+  
+  total;
+);
+
+function memory_manager_calculate_histogram_requirements() local(total) (
+  total = 0;
+  
+  // Histogram buffers (4 bytes per bin)
+  total += memory.histogram.constants.num_bins * memory.histogram.constants.bin_size * 2;  // GR + Input
+  
+  total;
+);
+
+function memory_manager_calculate_slider_requirements() local(total) (
+  total = 0;
+  
+  // Slider properties (4 properties per slider)
+  total += memory.sliders.constants.num_sliders * 4;
+  
+  total;
+);
+
+//==============================================================================
+// STAGE-SPECIFIC MEMORY ALLOCATION
+//==============================================================================
+
+function memory_manager_allocate_audio_memory() (
+  // Allocate lookahead buffers
+  lookahead_buffer_l = memory_alloc_allocate(memory.audio.constants.max_lookahead_samples);
+  lookahead_buffer_r = memory_alloc_allocate(memory.audio.constants.max_lookahead_samples);
+  
+  // Allocate RMS buffer
+  rms_buffer = memory_alloc_allocate(memory.audio.constants.max_rms_samples * 2);
+  
+  // Set pointers in audio memory object
+  memory_audio_set_lookahead_buffers(lookahead_buffer_l, lookahead_buffer_r);
+  memory_audio_set_rms_buffer(rms_buffer);
+  memory_audio_set_samples(memory.audio.constants.max_lookahead_samples, memory.audio.constants.max_rms_samples);
+  
+  // Mark as allocated
+  memory.audio.state.allocated = 1;
+);
+
+function memory_manager_allocate_compression_memory() (
+  // Allocate compression lookup table
+  comp_lut = memory_alloc_allocate(memory.compression.constants.lut_size);
+  memory_compression_set_lut(comp_lut);
+  
+  // Allocate graph points
+  graph_points = memory_alloc_allocate(memory.graph.constants.max_points * memory.graph.constants.point_size);
+  curve_amounts = memory_alloc_allocate(memory.graph.constants.max_points * memory.graph.constants.curve_size);
+  memory_graph_set_pointers(graph_points, curve_amounts);
+  
+  // Mark as allocated
+  memory.compression.state.allocated = 1;
+  memory.graph.state.allocated = 1;
+);
+
+function memory_manager_allocate_ui_memory() (
+  // Allocate control definitions
+  ui.controls.state.control_defs = memory_alloc_allocate(memory.ui.constants.num_controls * memory.ui.constants.control_def_size);
+  ui.controls.state.knob_defs = memory_alloc_allocate(memory.ui.constants.num_knobs * memory.ui.constants.knob_def_size);
+  ui.controls.state.group_defs = memory_alloc_allocate(memory.ui.constants.num_groups * memory.ui.constants.group_def_size);
+  ui.controls.state.group_title_strings = memory_alloc_allocate(memory.ui.constants.num_groups * memory.ui.constants.title_string_size);
+  
+  // Set pointers in UI memory object
+  memory_ui_set_control_pointers(ui.controls.state.control_defs, ui.controls.state.knob_defs, 
+                                 ui.controls.state.group_defs, ui.controls.state.group_title_strings);
+  
+  // Mark as allocated
+  memory.ui.state.allocated = 1;
+);
+
+function memory_manager_allocate_debug_memory() (
+  // Allocate debug message buffer
+  debug_messages = memory_alloc_allocate(memory.debug.constants.total_size);
+  memory_debug_set_messages(debug_messages);
+  
+  // Mark as allocated
+  memory.debug.state.allocated = 1;
+);
+
+function memory_manager_allocate_histogram_memory() (
+  // Allocate histogram buffers
+  gr_histogram = memory_alloc_allocate(memory.histogram.constants.num_bins * memory.histogram.constants.bin_size);
+  input_histogram = memory_alloc_allocate(memory.histogram.constants.num_bins * memory.histogram.constants.bin_size);
+  memory_histogram_set_buffers(gr_histogram, input_histogram);
+  
+  // Mark as allocated
+  memory.histogram.state.allocated = 1;
+);
+
+function memory_manager_allocate_slider_memory() (
+  // Allocate slider properties
+  slider_properties_base = memory_alloc_allocate(memory.sliders.constants.num_sliders * 4);
+  memory_sliders_set_properties(slider_properties_base);
+  
+  // Mark as allocated
+  memory.sliders.state.allocated = 1;
+);
+
+//==============================================================================
+// MEMORY VALIDATION AND STATISTICS
+//==============================================================================
+
+function memory_manager_validate_all() local(valid) (
+  valid = 1;
+  
+  // Check each stage
+  memory.audio.state.allocated && memory_audio_get_lookahead_left() == 0 ? valid = 0;
+  memory.compression.state.allocated && memory_compression_get_lut() == 0 ? valid = 0;
+  memory.ui.state.allocated && memory_ui_get_control_defs() == 0 ? valid = 0;
+  memory.debug.state.allocated && memory_debug_get_messages() == 0 ? valid = 0;
+  memory.histogram.state.allocated && memory_histogram_get_gr_buffer() == 0 ? valid = 0;
+  memory.sliders.state.allocated && memory_sliders_get_properties() == 0 ? valid = 0;
+  
+  // Check constraints
+  memory.alloc.state.freemem > memory.manager.constraints.max_memory ? valid = 0;
+  
+  valid;
+);
+
+function memory_manager_get_statistics() local(stats) (
+  stats = 0;
+  
+  // Pack statistics into a single value
+  // High 16 bits: total allocated
+  // Middle 16 bits: peak usage
+  // Low 16 bits: fragmentation percentage
+  
+  total_allocated = memory_alloc_get_total_allocated();
+  peak_usage = memory_alloc_get_peak_usage();
+  fragmentation = peak_usage > 0 ? ((peak_usage - total_allocated) / peak_usage * 100) : 0;
+  
+  (total_allocated << 16) | (peak_usage << 8) | fragmentation;
+);
+
+function memory_manager_get_stage_usage() local(usage) (
+  usage = 0;
+  
+  // Pack stage usage into bits
+  // Bit 0: Audio allocated
+  // Bit 1: Compression allocated
+  // Bit 2: UI allocated
+  // Bit 3: Debug allocated
+  // Bit 4: Histogram allocated
+  // Bit 5: Sliders allocated
+  
+  (memory.audio.state.allocated ? 1 : 0) |
+  (memory.compression.state.allocated ? 2 : 0) |
+  (memory.ui.state.allocated ? 4 : 0) |
+  (memory.debug.state.allocated ? 8 : 0) |
+  (memory.histogram.state.allocated ? 16 : 0) |
+  (memory.sliders.state.allocated ? 32 : 0);
+);
+
+//==============================================================================
+// MEMORY CLEANUP AND RESET
+//==============================================================================
+
+function memory_manager_cleanup() (
+  // Reset all stage allocations
+  memory.audio.state.allocated = 0;
+  memory.compression.state.allocated = 0;
+  memory.ui.state.allocated = 0;
+  memory.debug.state.allocated = 0;
+  memory.histogram.state.allocated = 0;
+  memory.sliders.state.allocated = 0;
+  
+  // Reset manager state
+  memory.manager.state.initialized = 0;
+  memory.manager.state.allocation_phase = 0;
+  memory.manager.state.total_required = 0;
+  memory.manager.state.total_allocated = 0;
+  memory.manager.state.regions_allocated = 0;
+  memory.manager.state.constraints_met = 0;
+  
+  // Reset allocation state
+  memory_alloc_set_freemem(0);
+  memory.alloc.state.total_allocated = 0;
+  memory.alloc.state.peak_usage = 0;
+  memory.alloc.state.allocated_blocks = 0;
+);
+
+function memory_manager_reallocate() (
+  // Clean up existing allocation
+  memory_manager_cleanup();
+  
+  // Reallocate everything
+  memory_manager_allocate_all();
+);

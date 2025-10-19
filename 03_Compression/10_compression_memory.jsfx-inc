@@ -1,0 +1,190 @@
+// Compression Memory Management Module
+// Handles memory allocation specific to compression processing
+// Dependencies: 01_Utils/11_memory_objects.jsfx-inc, 01_Utils/12_memory_manager.jsfx-inc
+
+@init
+
+//==============================================================================
+// COMPRESSION MEMORY ALLOCATION
+//==============================================================================
+
+function compression_memory_allocate() (
+  // This function is called by the memory manager
+  // Compression-specific memory allocation is handled in memory_manager_allocate_compression_memory()
+  
+  // Initialize compression memory state
+  compression_memory_init_lut();
+  compression_memory_init_graph();
+);
+
+function compression_memory_init_lut() (
+  // Initialize compression lookup table
+  memory.compression.state.initialized = 0;
+  memory.compression.state.valid = 0;
+  memory.compression.state.cache_hits = 0;
+  memory.compression.state.cache_misses = 0;
+  
+  // Mark LUT as needing rebuild
+  comp_lut_dirty = 1;
+);
+
+function compression_memory_init_graph() (
+  // Initialize graph memory state
+  memory.graph.state.used_points = 0;
+  memory.graph.state.used_curves = 0;
+  memory.graph.state.cache_valid = 0;
+  memory.graph.state.hovered_point = -1;
+  memory.graph.state.selected_point = -1;
+  
+  // Initialize graph points if not already done
+  !graph_initialized ? (
+    compression_memory_init_default_points();
+  );
+);
+
+function compression_memory_init_default_points() (
+  // Initialize with default compression curve points
+  num_points = 6;
+  memory_graph_set_used_points(num_points);
+  
+  // Set default points (these will be overridden by @serialize if available)
+  i = 0;
+  loop(num_points,
+    // Default points: (0,0), (0.2,0.1), (0.4,0.3), (0.6,0.5), (0.8,0.7), (1,1)
+    x = i / (num_points - 1);
+    y = x;  // 1:1 ratio by default
+    
+    graph_points[i*2] = x;
+    graph_points[i*2 + 1] = y;
+    curve_amounts[i] = 0;  // No curve by default
+    
+    i += 1;
+  );
+  
+  graph_initialized = 1;
+);
+
+function compression_memory_rebuild_lut() (
+  // Rebuild compression lookup table
+  memory.compression.state.valid = 0;
+  comp_lut_dirty = 1;
+  
+  // The actual rebuild happens in @slider when comp_lut_dirty is set
+);
+
+function compression_memory_clear_graph() (
+  // Clear all graph points
+  memset(memory_graph_get_points(), 0, memory.graph.constants.max_points * memory.graph.constants.point_size);
+  memset(memory_graph_get_curve_amounts(), 0, memory.graph.constants.max_points * memory.graph.constants.curve_size);
+  
+  memory_graph_set_used_points(0);
+  memory_graph_set_cache_valid(0);
+);
+
+//==============================================================================
+// COMPRESSION BUFFER ACCESS FUNCTIONS
+//==============================================================================
+
+function compression_buffer_get_point(index) local(ptr) (
+  // Get graph point at index
+  ptr = memory_graph_get_points();
+  index < memory_graph_get_used_points() ? (
+    x = ptr[index * 2];
+    y = ptr[index * 2 + 1];
+    x;  // Return x coordinate (y available via global)
+  ) : (
+    -1;  // Invalid index
+  );
+);
+
+function compression_buffer_set_point(index, x, y) local(ptr) (
+  // Set graph point at index
+  ptr = memory_graph_get_points();
+  index < memory_graph_get_used_points() ? (
+    ptr[index * 2] = x;
+    ptr[index * 2 + 1] = y;
+    1;  // Success
+  ) : (
+    0;  // Invalid index
+  );
+);
+
+function compression_buffer_get_curve_amount(index) local(ptr) (
+  // Get curve amount at index
+  ptr = memory_graph_get_curve_amounts();
+  index < memory_graph_get_used_points() ? (
+    ptr[index];
+  ) : (
+    0;  // Default curve amount
+  );
+);
+
+function compression_buffer_set_curve_amount(index, amount) local(ptr) (
+  // Set curve amount at index
+  ptr = memory_graph_get_curve_amounts();
+  index < memory_graph_get_used_points() ? (
+    ptr[index] = amount;
+    1;  // Success
+  ) : (
+    0;  // Invalid index
+  );
+);
+
+function compression_buffer_lookup_lut(input_db) local(index, fraction, lut) (
+  // Look up value in compression LUT
+  memory.compression.state.valid ? (
+    lut = memory_compression_get_lut();
+    
+    // Calculate index
+    index = (input_db - memory.compression.constants.lut_min_db) / memory.compression.constants.lut_granularity;
+    index_floor = floor(index);
+    fraction = index - index_floor;
+    
+    // Clamp to valid range
+    index_floor = max(0, min(index_floor, memory.compression.constants.lut_size - 2));
+    
+    // Linear interpolation
+    value1 = lut[index_floor];
+    value2 = lut[index_floor + 1];
+    result = value1 + (value2 - value1) * fraction;
+    
+    // Update cache statistics
+    memory.compression.state.cache_hits += 1;
+    result;
+  ) : (
+    // LUT not valid, fall back to curve interpolation
+    memory.compression.state.cache_misses += 1;
+    interpolate_compression_curve(input_db);
+  );
+);
+
+//==============================================================================
+// COMPRESSION MEMORY VALIDATION
+//==============================================================================
+
+function compression_memory_validate() local(valid) (
+  valid = 1;
+  
+  // Check LUT
+  memory.compression.state.allocated && memory_compression_get_lut() == 0 ? valid = 0;
+  
+  // Check graph points
+  memory.graph.state.allocated && memory_graph_get_points() == 0 ? valid = 0;
+  memory.graph.state.allocated && memory_graph_get_curve_amounts() == 0 ? valid = 0;
+  
+  // Check point count
+  memory_graph_get_used_points() > memory.graph.constants.max_points ? valid = 0;
+  
+  valid;
+);
+
+function compression_memory_get_usage() local(usage) (
+  // Get compression memory usage statistics
+  lut_usage = memory.compression.state.allocated ? 1 : 0;
+  graph_usage = memory.graph.state.allocated ? 1 : 0;
+  points_used = memory_graph_get_used_points();
+  lut_valid = memory.compression.state.valid ? 1 : 0;
+  
+  // Pack into single value
+  (lut_usage << 3) | (graph_usage << 2) | (lut_valid << 1) | (points_used > 0 ? 1 : 0);
+);

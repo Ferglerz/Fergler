@@ -1,0 +1,137 @@
+// Audio Memory Management Module
+// Handles memory allocation specific to audio processing
+// Dependencies: 01_Utils/11_memory_objects.jsfx-inc, 01_Utils/12_memory_manager.jsfx-inc
+
+@init
+
+//==============================================================================
+// AUDIO MEMORY ALLOCATION
+//==============================================================================
+
+function audio_memory_allocate() (
+  // This function is called by the memory manager
+  // Audio-specific memory allocation is handled in memory_manager_allocate_audio_memory()
+  
+  // Set audio buffer sizes based on current parameters
+  audio_memory_update_buffer_sizes();
+  
+  // Initialize audio buffer state
+  audio_memory_init_buffers();
+);
+
+function audio_memory_update_buffer_sizes() (
+  // Update buffer sizes based on current slider values
+  lookahead_ms = slider5;
+  rms_size_ms = slider7;
+  
+  // Calculate required samples
+  lookahead_samples = ceil(lookahead_ms * 0.001 * srate);
+  rms_samples = ceil(rms_size_ms * 0.001 * srate);
+  
+  // Round lookahead to power of 2 for bit masking
+  lookahead_samples_pow2 = 1;
+  while(lookahead_samples_pow2 < lookahead_samples) (
+    lookahead_samples_pow2 *= 2;
+  );
+  
+  // Update audio memory object
+  memory.audio.state.lookahead_samples = lookahead_samples_pow2;
+  memory.audio.state.rms_samples = rms_samples;
+  memory.audio.constants.lookahead_mask = lookahead_samples_pow2 - 1;
+  memory.audio.constants.rms_mask = rms_samples - 1;
+);
+
+function audio_memory_init_buffers() (
+  // Initialize lookahead buffer state
+  audio.lookahead.state.position = 0;
+  audio.lookahead.state.samples = memory.audio.state.lookahead_samples;
+  audio.lookahead.state.buffer_left = memory_audio_get_lookahead_left();
+  audio.lookahead.state.buffer_right = memory_audio_get_lookahead_right();
+  
+  // Initialize RMS buffer state
+  audio.detection.state.rms.samples = memory.audio.state.rms_samples;
+  audio.detection.state.rms.samples_inv = 1.0 / memory.audio.state.rms_samples;
+  audio.detection.state.rms.position = 0;
+  audio.detection.state.rms.left_sum = 0;
+  audio.detection.state.rms.right_sum = 0;
+);
+
+function audio_memory_clear_buffers() (
+  // Clear lookahead buffers
+  memset(memory_audio_get_lookahead_left(), 0, memory.audio.state.lookahead_samples);
+  memset(memory_audio_get_lookahead_right(), 0, memory.audio.state.lookahead_samples);
+  
+  // Clear RMS buffer
+  memset(memory_audio_get_rms_buffer(), 0, memory.audio.state.rms_samples * 2);
+  
+  // Reset buffer positions
+  audio.lookahead.state.position = 0;
+  audio.detection.state.rms.position = 0;
+);
+
+function audio_memory_reallocate() (
+  // Reallocate audio buffers when parameters change
+  audio_memory_update_buffer_sizes();
+  
+  // Check if we need to reallocate
+  current_lookahead = memory.audio.state.lookahead_samples;
+  current_rms = memory.audio.state.rms_samples;
+  
+  // If sizes changed, we need to reallocate
+  (current_lookahead != audio.lookahead.state.samples || 
+   current_rms != audio.detection.state.rms.samples) ? (
+    // Trigger memory manager reallocation
+    memory_manager_reallocate();
+  );
+);
+
+//==============================================================================
+// AUDIO BUFFER ACCESS FUNCTIONS
+//==============================================================================
+
+function audio_buffer_write_lookahead(left, right) (
+  // Write to lookahead buffers
+  pos = audio.lookahead.state.position;
+  audio.lookahead.state.buffer_left[pos] = left;
+  audio.lookahead.state.buffer_right[pos] = right;
+  
+  // Update position with bit masking
+  audio.lookahead.state.position = (pos + 1) & memory.audio.constants.lookahead_mask;
+);
+
+function audio_buffer_read_lookahead(delay_samples) local(read_pos) (
+  // Read from lookahead buffers with delay
+  write_pos = audio.lookahead.state.position;
+  read_pos = (write_pos - delay_samples + memory.audio.state.lookahead_samples) & memory.audio.constants.lookahead_mask;
+  
+  // Return both channels
+  left = audio.lookahead.state.buffer_left[read_pos];
+  right = audio.lookahead.state.buffer_right[read_pos];
+  
+  left;  // Return left channel (right available via global)
+);
+
+function audio_buffer_write_rms(left, right) (
+  // Write to RMS buffer (stereo interleaved)
+  pos = audio.detection.state.rms.position;
+  rms_buffer = memory_audio_get_rms_buffer();
+  
+  rms_buffer[pos * 2] = left;      // Left channel
+  rms_buffer[pos * 2 + 1] = right; // Right channel
+  
+  // Update position with bit masking
+  audio.detection.state.rms.position = (pos + 1) & memory.audio.constants.rms_mask;
+);
+
+function audio_buffer_read_rms(delay_samples) local(read_pos, rms_buffer) (
+  // Read from RMS buffer with delay
+  write_pos = audio.detection.state.rms.position;
+  read_pos = (write_pos - delay_samples + memory.audio.state.rms_samples) & memory.audio.constants.rms_mask;
+  rms_buffer = memory_audio_get_rms_buffer();
+  
+  // Return both channels
+  left = rms_buffer[read_pos * 2];
+  right = rms_buffer[read_pos * 2 + 1];
+  
+  left;  // Return left channel (right available via global)
+);

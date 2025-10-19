@@ -1,0 +1,233 @@
+// UI Memory Management Module
+// Handles memory allocation specific to UI rendering and interaction
+// Dependencies: 01_Utils/11_memory_objects.jsfx-inc, 01_Utils/12_memory_manager.jsfx-inc
+
+@init
+
+//==============================================================================
+// UI MEMORY ALLOCATION
+//==============================================================================
+
+function ui_memory_allocate() (
+  // This function is called by the memory manager
+  // UI-specific memory allocation is handled in memory_manager_allocate_ui_memory()
+  
+  // Initialize UI memory state
+  ui_memory_init_controls();
+  ui_memory_init_groups();
+  ui_memory_init_strings();
+);
+
+function ui_memory_init_controls() (
+  // Initialize control definitions
+  ui.controls.state.hovered_control = -1;
+  ui.controls.state.hovered_knob = -1;
+  ui.controls.state.hovered_group = -1;
+  ui.controls.state.dragging_control = -1;
+  ui.controls.state.dragging_knob = -1;
+  ui.controls.state.selected_point = -1;
+  ui.controls.state.point_dragging = 0;
+  
+  // Clear control definitions
+  memset(memory_ui_get_control_defs(), 0, memory.ui.constants.num_controls * memory.ui.constants.control_def_size);
+  memset(memory_ui_get_knob_defs(), 0, memory.ui.constants.num_knobs * memory.ui.constants.knob_def_size);
+);
+
+function ui_memory_init_groups() (
+  // Initialize group definitions
+  memset(memory_ui_get_group_defs(), 0, memory.ui.constants.num_groups * memory.ui.constants.group_def_size);
+  
+  // Set up default groups
+  ui_memory_setup_default_groups();
+);
+
+function ui_memory_init_strings() (
+  // Initialize group title strings
+  memset(memory_ui_get_group_title_strings(), 0, memory.ui.constants.num_groups * memory.ui.constants.title_string_size);
+  
+  // Set up default group titles
+  ui_memory_setup_default_titles();
+);
+
+function ui_memory_setup_default_groups() (
+  // Set up default group definitions
+  // Group 0: ENVELOPE
+  ui_memory_set_group(0, 50, 100, 200, 150, 1, "ENVELOPE");
+  
+  // Group 1: DETECTION
+  ui_memory_set_group(1, 270, 100, 200, 150, 1, "DETECTION");
+  
+  // Group 2: COMPRESSION
+  ui_memory_set_group(2, 490, 100, 200, 150, 1, "COMPRESSION");
+  
+  // Group 3: SOURCE
+  ui_memory_set_group(3, 50, 270, 200, 100, 1, "SOURCE");
+  
+  // Group 4: HARMONICS
+  ui_memory_set_group(4, 270, 270, 200, 100, 1, "HARMONICS");
+  
+  // Group 5: GRAPH
+  ui_memory_set_group(5, 490, 270, 200, 100, 1, "GRAPH");
+);
+
+function ui_memory_setup_default_titles() (
+  // Set up default group titles
+  ui_memory_set_group_title(0, "ENVELOPE");
+  ui_memory_set_group_title(1, "DETECTION");
+  ui_memory_set_group_title(2, "COMPRESSION");
+  ui_memory_set_group_title(3, "SOURCE");
+  ui_memory_set_group_title(4, "HARMONICS");
+  ui_memory_set_group_title(5, "GRAPH");
+);
+
+//==============================================================================
+// UI MEMORY ACCESS FUNCTIONS
+//==============================================================================
+
+function ui_memory_set_group(index, x, y, w, h, show_title, title) local(title_ptr) (
+  // Set group definition
+  group_defs = memory_ui_get_group_defs();
+  title_strings = memory_ui_get_group_title_strings();
+  
+  group_defs[index*6 + 0] = x;
+  group_defs[index*6 + 1] = y;
+  group_defs[index*6 + 2] = w;
+  group_defs[index*6 + 3] = h;
+  group_defs[index*6 + 4] = show_title;
+  
+  // Set title string pointer
+  title_ptr = title_strings + index * memory.ui.constants.title_string_size;
+  group_defs[index*6 + 5] = title_ptr;
+  
+  // Copy title string
+  ui_memory_set_group_title(index, title);
+);
+
+function ui_memory_set_group_title(index, title) local(title_ptr, i, char) (
+  // Set group title string
+  title_strings = memory_ui_get_group_title_strings();
+  title_ptr = title_strings + index * memory.ui.constants.title_string_size;
+  
+  // Copy string character by character
+  i = 0;
+  while(i < memory.ui.constants.title_string_size - 1 && title[i] != 0) (
+    title_ptr[i] = title[i];
+    i += 1;
+  );
+  title_ptr[i] = 0;  // Null terminator
+);
+
+function ui_memory_get_group(index) local(group_defs) (
+  // Get group definition
+  group_defs = memory_ui_get_group_defs();
+  index < memory.ui.constants.num_groups ? (
+    x = group_defs[index*6 + 0];
+    y = group_defs[index*6 + 1];
+    w = group_defs[index*6 + 2];
+    h = group_defs[index*6 + 3];
+    show_title = group_defs[index*6 + 4];
+    title_ptr = group_defs[index*6 + 5];
+    
+    // Pack into single value (x in high bits, y in middle, w in low)
+    (x << 16) | (y << 8) | w;
+  ) : (
+    0;  // Invalid index
+  );
+);
+
+function ui_memory_set_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
+  // Set control definition
+  control_defs = memory_ui_get_control_defs();
+  
+  control_defs[index*11 + 0] = type;
+  control_defs[index*11 + 1] = x;
+  control_defs[index*11 + 2] = y;
+  control_defs[index*11 + 3] = w;
+  control_defs[index*11 + 4] = h;
+  control_defs[index*11 + 5] = param_index;
+  control_defs[index*11 + 6] = min_val;
+  control_defs[index*11 + 7] = max_val;
+  control_defs[index*11 + 8] = 0;  // Slider subtype
+  control_defs[index*11 + 9] = 0;  // Display mode
+  control_defs[index*11 + 10] = -1;  // Group index (no group)
+);
+
+function ui_memory_get_control(index) local(control_defs) (
+  // Get control definition
+  control_defs = memory_ui_get_control_defs();
+  index < memory.ui.constants.num_controls ? (
+    type = control_defs[index*11 + 0];
+    x = control_defs[index*11 + 1];
+    y = control_defs[index*11 + 2];
+    w = control_defs[index*11 + 3];
+    h = control_defs[index*11 + 4];
+    param_index = control_defs[index*11 + 5];
+    min_val = control_defs[index*11 + 6];
+    max_val = control_defs[index*11 + 7];
+    
+    // Pack into single value
+    (type << 24) | (x << 16) | (y << 8) | w;
+  ) : (
+    0;  // Invalid index
+  );
+);
+
+function ui_memory_set_knob(index, x, y, size, param_index, min_val, max_val, label) (
+  // Set knob definition
+  knob_defs = memory_ui_get_knob_defs();
+  
+  knob_defs[index*10 + 0] = x;
+  knob_defs[index*10 + 1] = y;
+  knob_defs[index*10 + 2] = size;
+  knob_defs[index*10 + 3] = param_index;
+  knob_defs[index*10 + 4] = min_val;
+  knob_defs[index*10 + 5] = max_val;
+  knob_defs[index*10 + 6] = 0;  // is_hovered
+  knob_defs[index*10 + 7] = 0;  // is_active
+  knob_defs[index*10 + 8] = 0;  // is_dragging
+  knob_defs[index*10 + 9] = -1; // group_index
+);
+
+function ui_memory_get_knob(index) local(knob_defs) (
+  // Get knob definition
+  knob_defs = memory_ui_get_knob_defs();
+  index < memory.ui.constants.num_knobs ? (
+    x = knob_defs[index*10 + 0];
+    y = knob_defs[index*10 + 1];
+    size = knob_defs[index*10 + 2];
+    param_index = knob_defs[index*10 + 3];
+    min_val = knob_defs[index*10 + 4];
+    max_val = knob_defs[index*10 + 5];
+    
+    // Pack into single value
+    (x << 16) | (y << 8) | size;
+  ) : (
+    0;  // Invalid index
+  );
+);
+
+//==============================================================================
+// UI MEMORY VALIDATION
+//==============================================================================
+
+function ui_memory_validate() local(valid) (
+  valid = 1;
+  
+  // Check control definitions
+  memory.ui.state.allocated && memory_ui_get_control_defs() == 0 ? valid = 0;
+  memory.ui.state.allocated && memory_ui_get_knob_defs() == 0 ? valid = 0;
+  memory.ui.state.allocated && memory_ui_get_group_defs() == 0 ? valid = 0;
+  memory.ui.state.allocated && memory_ui_get_group_title_strings() == 0 ? valid = 0;
+  
+  valid;
+);
+
+function ui_memory_get_usage() local(usage) (
+  // Get UI memory usage statistics
+  controls_allocated = memory.ui.state.allocated ? 1 : 0;
+  groups_allocated = memory.ui.state.allocated ? 1 : 0;
+  strings_allocated = memory.ui.state.allocated ? 1 : 0;
+  
+  // Pack into single value
+  (controls_allocated << 2) | (groups_allocated << 1) | strings_allocated;
+);

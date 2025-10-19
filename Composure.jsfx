@@ -76,10 +76,12 @@ import 01_Utils/06_state.jsfx-inc
 import 01_Utils/09_audio_objects.jsfx-inc
 import 01_Utils/10_ui_objects.jsfx-inc
 import 01_Utils/11_memory_objects.jsfx-inc
+import 01_Utils/12_memory_manager.jsfx-inc
 
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
 import 02_InputProcessing/02_filters.jsfx-inc
+import 02_InputProcessing/03_audio_memory.jsfx-inc
 import 02_InputProcessing/04_transient_detection.jsfx-inc
 
 // 03_Compression: Core compression engine (depends on 01_Utils, 02_InputProcessing)
@@ -92,10 +94,12 @@ import 03_Compression/06_gain_reduction.jsfx-inc
 import 03_Compression/07_envelope.jsfx-inc
 import 03_Compression/08_harmonic_models.jsfx-inc
 import 03_Compression/09_audio_processing_chain.jsfx-inc
+import 03_Compression/10_compression_memory.jsfx-inc
 
 // 04_UI_Rendering: UI rendering components (depends on 01_Utils)
 import 01_Utils/07_ui_constants.jsfx-inc
 import 01_Utils/08_ui_utils.jsfx-inc
+import 04_UI_Rendering/02_ui_memory.jsfx-inc
 import 04_UI_Rendering/01_helpers.jsfx-inc
 import 04_UI_Rendering/02_knobs.jsfx-inc
 import 04_UI_Rendering/03_controls.jsfx-inc
@@ -160,11 +164,12 @@ while (i < num_points) (
 read_slider_definitions();
 
 // 2. Initialize all constants, memory, and state variables
-allocate_memory();
+init_memory_objects();
+init_memory_manager();
+memory_manager_allocate_all();
 init_state_variables();
 init_audio_objects();
 init_ui_objects();
-init_memory_objects();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
 init_graph_optimization_constants();
