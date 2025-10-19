@@ -74,6 +74,7 @@ import 01_Utils/04_file_reading.jsfx-inc
 import 01_Utils/05_memory.jsfx-inc
 import 01_Utils/06_state.jsfx-inc
 import 01_Utils/09_audio_objects.jsfx-inc
+import 01_Utils/10_ui_objects.jsfx-inc
 
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
@@ -161,6 +162,7 @@ read_slider_definitions();
 allocate_memory();
 init_state_variables();
 init_audio_objects();
+init_ui_objects();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
 init_graph_optimization_constants();
@@ -399,12 +401,7 @@ drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
 @gfx 2625 800 // Width: 2625 (75% of 3500), Height: 800 (increased to show debug panel at bottom)
 
 // Update mouse state constants dynamically (evaluated every frame)
-MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button
-MOUSE_RIGHT_BUTTON = mouse_cap & 2 ? 1 : 0;     // Right mouse button
-MOUSE_MIDDLE_BUTTON = mouse_cap & 64 ? 1 : 0;   // Middle mouse button (wheel click)
-MOUSE_CTRL_KEY = mouse_cap & 4 ? 1 : 0;         // Ctrl/Cmd key held
-MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
-MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
+ui_mouse_update_state();
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
 current_input_db = linear_to_db(max(audio.detection.state.level, audio.detection.constants.min_detector_level));

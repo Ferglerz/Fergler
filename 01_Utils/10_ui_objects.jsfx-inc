@@ -1,0 +1,357 @@
+// UI Objects Module
+// Hierarchical object structure for all user interface components
+// Includes constants and state within each relevant object
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// UI OBJECT INITIALIZATION
+//==============================================================================
+
+function init_ui_objects() (
+  // Initialize all UI objects with their constants and state
+  
+  // === UI LAYOUT OBJECT ===
+  ui.layout.constants.width = 2625;
+  ui.layout.constants.height = 338 + 77;  // 77 = HEADER_TOTAL_HEIGHT
+  ui.layout.constants.header_height = 77;
+  ui.layout.constants.panel_width = 2625;
+  ui.layout.constants.panel_height = 338;
+  ui.layout.constants.graph_x = 695;
+  ui.layout.constants.graph_y = 77;
+  ui.layout.constants.graph_size = 263;
+  ui.layout.constants.graph_width = 263;
+  ui.layout.constants.graph_height = 263;
+  ui.layout.constants.graph_center_x = 695 + 131.5;  // graph_x + graph_size/2
+  ui.layout.constants.graph_center_y = 77 + 131.5;   // graph_y + graph_size/2
+  ui.layout.constants.graph_radius = 131.5;          // graph_size/2
+  
+  // === UI COLORS OBJECT ===
+  ui.colors.constants.background_r = 0.12;
+  ui.colors.constants.background_g = 0.12;
+  ui.colors.constants.background_b = 0.13;
+  ui.colors.constants.accent_r = 0.3;
+  ui.colors.constants.accent_g = 0.5;
+  ui.colors.constants.accent_b = 0.9;
+  ui.colors.constants.text_r = 0.9;
+  ui.colors.constants.text_g = 0.9;
+  ui.colors.constants.text_b = 0.9;
+  ui.colors.constants.grid_r = 0.3;
+  ui.colors.constants.grid_g = 0.3;
+  ui.colors.constants.grid_b = 0.3;
+  ui.colors.constants.curve_r = 0.8;
+  ui.colors.constants.curve_g = 0.4;
+  ui.colors.constants.curve_b = 0.2;
+  ui.colors.constants.threshold_r = 0.9;
+  ui.colors.constants.threshold_g = 0.6;
+  ui.colors.constants.threshold_b = 0.1;
+  ui.colors.constants.meter_r = 0.2;
+  ui.colors.constants.meter_g = 0.8;
+  ui.colors.constants.meter_b = 0.2;
+  ui.colors.constants.hover_r = 1.0;
+  ui.colors.constants.hover_g = 0.7;
+  ui.colors.constants.hover_b = 0.0;
+  ui.colors.constants.active_r = 1.0;
+  ui.colors.constants.active_g = 0.5;
+  ui.colors.constants.active_b = 0.0;
+  
+  // === UI MOUSE OBJECT ===
+  ui.mouse.state.x = 0;
+  ui.mouse.state.y = 0;
+  ui.mouse.state.cap = 0;
+  ui.mouse.state.wheel = 0;
+  ui.mouse.state.hwheel = 0;
+  ui.mouse.state.left_button = 0;
+  ui.mouse.state.right_button = 0;
+  ui.mouse.state.ctrl_key = 0;
+  ui.mouse.state.shift_key = 0;
+  ui.mouse.state.alt_key = 0;
+  ui.mouse.state.middle_button = 0;
+  ui.mouse.state.dragging = 0;
+  ui.mouse.state.drag_start_x = 0;
+  ui.mouse.state.drag_start_y = 0;
+  ui.mouse.state.drag_threshold = 3;  // Pixels to move before drag starts
+  
+  // === UI CONTROLS OBJECT ===
+  ui.controls.constants.num_controls = NUM_CONTROLS;
+  ui.controls.constants.num_knobs = NUM_KNOBS;
+  ui.controls.constants.num_groups = 6;  // ENVELOPE, DETECTION, COMPRESSION, SOURCE, HARMONICS, GRAPH
+  ui.controls.state.hovered_control = -1;
+  ui.controls.state.hovered_knob = -1;
+  ui.controls.state.hovered_group = -1;
+  ui.controls.state.dragging_control = -1;
+  ui.controls.state.dragging_knob = -1;
+  ui.controls.state.selected_point = -1;
+  ui.controls.state.point_dragging = 0;
+  ui.controls.state.control_defs = 0;  // Memory pointer
+  ui.controls.state.knob_defs = 0;     // Memory pointer
+  ui.controls.state.group_defs = 0;    // Memory pointer
+  ui.controls.state.group_title_strings = 0;  // Memory pointer
+  
+  // === UI GRAPH OBJECT ===
+  ui.graph.constants.min_db = GRAPH_MIN_DB;
+  ui.graph.constants.max_db = GRAPH_MAX_DB;
+  ui.graph.constants.range_db = GRAPH_RANGE_DB;
+  ui.graph.constants.min_gr_db = GRAPH_MIN_GR_DB;
+  ui.graph.constants.max_gr_db = GRAPH_MAX_GR_DB;
+  ui.graph.constants.range_gr_db = GRAPH_RANGE_GR_DB;
+  ui.graph.constants.grid_spacing_db = 10;  // 10dB grid lines
+  ui.graph.constants.grid_spacing_gr_db = 5;  // 5dB GR grid lines
+  ui.graph.constants.num_grid_lines_h = 9;  // Horizontal grid lines
+  ui.graph.constants.num_grid_lines_v = 9;  // Vertical grid lines
+  ui.graph.state.points = 0;  // Memory pointer to graph_points
+  ui.graph.state.num_points = 0;
+  ui.graph.state.curve_cache = 0;  // Memory pointer to curve cache
+  ui.graph.state.cache_valid = 0;
+  ui.graph.state.hovered_point = -1;
+  ui.graph.state.selected_point = -1;
+  ui.graph.state.point_radius = 4;
+  ui.graph.state.point_hover_radius = 6;
+  ui.graph.state.curve_width = 2;
+  ui.graph.state.grid_alpha = 0.3;
+  ui.graph.state.curve_alpha = 1.0;
+  ui.graph.state.point_alpha = 0.8;
+  ui.graph.state.hover_alpha = 1.0;
+  
+  // === UI METERS OBJECT ===
+  ui.meters.constants.num_bins = 100;
+  ui.meters.constants.decay_rate = 0.95;
+  ui.meters.constants.max_height = 50;
+  ui.meters.constants.bin_width = 2;
+  ui.meters.constants.spacing = 1;
+  ui.meters.state.gr_histogram = 0;  // Memory pointer
+  ui.meters.state.input_histogram = 0;  // Memory pointer
+  ui.meters.state.gr_histogram_max = 0;
+  ui.meters.state.input_histogram_max = 0;
+  ui.meters.state.gr_histogram_decay = 0.95;
+  ui.meters.state.input_histogram_decay = 0.95;
+  ui.meters.state.gr_histogram_alpha = 0.7;
+  ui.meters.state.input_histogram_alpha = 0.5;
+  ui.meters.state.gr_histogram_color_r = 0.8;
+  ui.meters.state.gr_histogram_color_g = 0.2;
+  ui.meters.state.gr_histogram_color_b = 0.2;
+  ui.meters.state.input_histogram_color_r = 0.2;
+  ui.meters.state.input_histogram_color_g = 0.6;
+  ui.meters.state.input_histogram_color_b = 0.8;
+  
+  // === UI INTERACTION OBJECT ===
+  ui.interaction.state.mouse_in_graph = 0;
+  ui.interaction.state.mouse_in_control = 0;
+  ui.interaction.state.mouse_in_knob = 0;
+  ui.interaction.state.mouse_in_group = 0;
+  ui.interaction.state.last_click_time = 0;
+  ui.interaction.state.double_click_threshold = 0.3;  // 300ms
+  ui.interaction.state.scroll_sensitivity = 0.1;
+  ui.interaction.state.drag_sensitivity = 1.0;
+  ui.interaction.state.zoom_factor = 1.0;
+  ui.interaction.state.pan_x = 0;
+  ui.interaction.state.pan_y = 0;
+  
+  // === UI RENDERING OBJECT ===
+  ui.rendering.state.current_color_r = 0.9;
+  ui.rendering.state.current_color_g = 0.9;
+  ui.rendering.state.current_color_b = 0.9;
+  ui.rendering.state.current_color_a = 1.0;
+  ui.rendering.state.current_x = 0;
+  ui.rendering.state.current_y = 0;
+  ui.rendering.state.current_width = 0;
+  ui.rendering.state.current_height = 0;
+  ui.rendering.state.font_size = 12;
+  ui.rendering.state.line_width = 1;
+  ui.rendering.state.antialiasing = 1;
+  ui.rendering.state.smoothing = 1;
+  
+  // === UI DEBUG OBJECT ===
+  ui.debug.constants.max_messages = STRING_SLOTS_DEBUG;
+  ui.debug.constants.message_height = 14;
+  ui.debug.constants.panel_height = 200;
+  ui.debug.constants.scroll_speed = 20;
+  ui.debug.state.enabled = 0;
+  ui.debug.state.scroll_offset = 0;
+  ui.debug.state.max_scroll = 0;
+  ui.debug.state.messages = 0;  // Memory pointer to debug messages
+  ui.debug.state.message_count = 0;
+  ui.debug.state.auto_scroll = 1;
+  ui.debug.state.show_performance = 1;
+  ui.debug.state.show_variables = 1;
+  ui.debug.state.show_memory = 1;
+  ui.debug.state.font_color_r = 0.8;
+  ui.debug.state.font_color_g = 0.8;
+  ui.debug.state.font_color_b = 0.8;
+  ui.debug.state.background_color_r = 0.1;
+  ui.debug.state.background_color_g = 0.1;
+  ui.debug.state.background_color_b = 0.1;
+  ui.debug.state.border_color_r = 0.4;
+  ui.debug.state.border_color_g = 0.4;
+  ui.debug.state.border_color_b = 0.4;
+);
+
+//==============================================================================
+// UI OBJECT ACCESSOR FUNCTIONS
+//==============================================================================
+
+// Mouse object functions
+function ui_mouse_update_state() (
+  ui.mouse.state.x = mouse_x;
+  ui.mouse.state.y = mouse_y;
+  ui.mouse.state.cap = mouse_cap;
+  ui.mouse.state.wheel = mouse_wheel;
+  ui.mouse.state.hwheel = mouse_hwheel;
+  ui.mouse.state.left_button = mouse_cap & 1 ? 1 : 0;
+  ui.mouse.state.right_button = mouse_cap & 2 ? 1 : 0;
+  ui.mouse.state.ctrl_key = mouse_cap & 4 ? 1 : 0;
+  ui.mouse.state.shift_key = mouse_cap & 8 ? 1 : 0;
+  ui.mouse.state.alt_key = mouse_cap & 16 ? 1 : 0;
+  ui.mouse.state.middle_button = mouse_cap & 64 ? 1 : 0;
+);
+
+function ui_mouse_get_x() (ui.mouse.state.x);
+function ui_mouse_get_y() (ui.mouse.state.y);
+function ui_mouse_get_left_button() (ui.mouse.state.left_button);
+function ui_mouse_get_right_button() (ui.mouse.state.right_button);
+function ui_mouse_get_ctrl_key() (ui.mouse.state.ctrl_key);
+function ui_mouse_get_shift_key() (ui.mouse.state.shift_key);
+function ui_mouse_get_alt_key() (ui.mouse.state.alt_key);
+
+// Controls object functions
+function ui_controls_set_hovered_control(control_id) (ui.controls.state.hovered_control = control_id);
+function ui_controls_get_hovered_control() (ui.controls.state.hovered_control);
+function ui_controls_set_hovered_knob(knob_id) (ui.controls.state.hovered_knob = knob_id);
+function ui_controls_get_hovered_knob() (ui.controls.state.hovered_knob);
+function ui_controls_set_hovered_group(group_id) (ui.controls.state.hovered_group = group_id);
+function ui_controls_get_hovered_group() (ui.controls.state.hovered_group);
+
+function ui_controls_set_dragging_control(control_id) (ui.controls.state.dragging_control = control_id);
+function ui_controls_get_dragging_control() (ui.controls.state.dragging_control);
+function ui_controls_set_dragging_knob(knob_id) (ui.controls.state.dragging_knob = knob_id);
+function ui_controls_get_dragging_knob() (ui.controls.state.dragging_knob);
+
+// Graph object functions
+function ui_graph_set_num_points(num) (ui.graph.state.num_points = num);
+function ui_graph_get_num_points() (ui.graph.state.num_points);
+function ui_graph_set_hovered_point(point_id) (ui.graph.state.hovered_point = point_id);
+function ui_graph_get_hovered_point() (ui.graph.state.hovered_point);
+function ui_graph_set_selected_point(point_id) (ui.graph.state.selected_point = point_id);
+function ui_graph_get_selected_point() (ui.graph.state.selected_point);
+
+function ui_graph_set_cache_valid(valid) (ui.graph.state.cache_valid = valid);
+function ui_graph_get_cache_valid() (ui.graph.state.cache_valid);
+
+// Meters object functions
+function ui_meters_set_gr_histogram_max(max_val) (ui.meters.state.gr_histogram_max = max_val);
+function ui_meters_get_gr_histogram_max() (ui.meters.state.gr_histogram_max);
+function ui_meters_set_input_histogram_max(max_val) (ui.meters.state.input_histogram_max = max_val);
+function ui_meters_get_input_histogram_max() (ui.meters.state.input_histogram_max);
+
+// Interaction object functions
+function ui_interaction_set_mouse_in_graph(in_graph) (ui.interaction.state.mouse_in_graph = in_graph);
+function ui_interaction_get_mouse_in_graph() (ui.interaction.state.mouse_in_graph);
+function ui_interaction_set_mouse_in_control(in_control) (ui.interaction.state.mouse_in_control = in_control);
+function ui_interaction_get_mouse_in_control() (ui.interaction.state.mouse_in_control);
+
+// Rendering object functions
+function ui_rendering_set_color(r, g, b, a) (
+  ui.rendering.state.current_color_r = r;
+  ui.rendering.state.current_color_g = g;
+  ui.rendering.state.current_color_b = b;
+  ui.rendering.state.current_color_a = a;
+);
+
+function ui_rendering_get_color_r() (ui.rendering.state.current_color_r);
+function ui_rendering_get_color_g() (ui.rendering.state.current_color_g);
+function ui_rendering_get_color_b() (ui.rendering.state.current_color_b);
+function ui_rendering_get_color_a() (ui.rendering.state.current_color_a);
+
+// Debug object functions
+function ui_debug_set_enabled(enabled) (ui.debug.state.enabled = enabled);
+function ui_debug_get_enabled() (ui.debug.state.enabled);
+function ui_debug_set_scroll_offset(offset) (ui.debug.state.scroll_offset = offset);
+function ui_debug_get_scroll_offset() (ui.debug.state.scroll_offset);
+function ui_debug_set_message_count(count) (ui.debug.state.message_count = count);
+function ui_debug_get_message_count() (ui.debug.state.message_count);
+
+//==============================================================================
+// UI UTILITY FUNCTIONS
+//==============================================================================
+
+// Coordinate conversion functions
+function ui_db_to_graph_y(db) (
+  // Convert dB value to graph Y coordinate
+  // Graph Y: 0 = top, GRAPH_SIZE = bottom
+  // dB range: GRAPH_MIN_DB to GRAPH_MAX_DB
+  db_clamped = max(min(db, ui.graph.constants.max_db), ui.graph.constants.min_db);
+  normalized = (db_clamped - ui.graph.constants.min_db) / ui.graph.constants.range_db;
+  ui.layout.constants.graph_y + (1.0 - normalized) * ui.layout.constants.graph_size;
+);
+
+function ui_graph_y_to_db(y) (
+  // Convert graph Y coordinate to dB value
+  y_clamped = max(min(y, ui.layout.constants.graph_y + ui.layout.constants.graph_size), ui.layout.constants.graph_y);
+  normalized = 1.0 - (y_clamped - ui.layout.constants.graph_y) / ui.layout.constants.graph_size;
+  ui.graph.constants.min_db + normalized * ui.graph.constants.range_db;
+);
+
+function ui_gr_db_to_graph_x(gr_db) (
+  // Convert gain reduction dB to graph X coordinate
+  gr_db_clamped = max(min(gr_db, ui.graph.constants.max_gr_db), ui.graph.constants.min_gr_db);
+  normalized = (gr_db_clamped - ui.graph.constants.min_gr_db) / ui.graph.constants.range_gr_db;
+  ui.layout.constants.graph_x + normalized * ui.layout.constants.graph_size;
+);
+
+function ui_graph_x_to_gr_db(x) (
+  // Convert graph X coordinate to gain reduction dB
+  x_clamped = max(min(x, ui.layout.constants.graph_x + ui.layout.constants.graph_size), ui.layout.constants.graph_x);
+  normalized = (x_clamped - ui.layout.constants.graph_x) / ui.layout.constants.graph_size;
+  ui.graph.constants.min_gr_db + normalized * ui.graph.constants.range_gr_db;
+);
+
+// Hit testing functions
+function ui_is_point_in_rect(px, py, x, y, w, h) (
+  px >= x && px <= x + w && py >= y && py <= y + h;
+);
+
+function ui_is_point_in_circle(px, py, cx, cy, radius) (
+  dx = px - cx;
+  dy = py - cy;
+  (dx * dx + dy * dy) <= (radius * radius);
+);
+
+function ui_is_point_in_graph(px, py) (
+  ui_is_point_in_rect(px, py, ui.layout.constants.graph_x, ui.layout.constants.graph_y, 
+                     ui.layout.constants.graph_width, ui.layout.constants.graph_height);
+);
+
+// Color utility functions
+function ui_set_color_from_constants(color_name) (
+  color_name == "background" ? (
+    ui_rendering_set_color(ui.colors.constants.background_r, ui.colors.constants.background_g, 
+                          ui.colors.constants.background_b, 1.0);
+  ) : color_name == "accent" ? (
+    ui_rendering_set_color(ui.colors.constants.accent_r, ui.colors.constants.accent_g, 
+                          ui.colors.constants.accent_b, 1.0);
+  ) : color_name == "text" ? (
+    ui_rendering_set_color(ui.colors.constants.text_r, ui.colors.constants.text_g, 
+                          ui.colors.constants.text_b, 1.0);
+  ) : color_name == "grid" ? (
+    ui_rendering_set_color(ui.colors.constants.grid_r, ui.colors.constants.grid_g, 
+                          ui.colors.constants.grid_b, ui.graph.state.grid_alpha);
+  ) : color_name == "curve" ? (
+    ui_rendering_set_color(ui.colors.constants.curve_r, ui.colors.constants.curve_g, 
+                          ui.colors.constants.curve_b, ui.graph.state.curve_alpha);
+  ) : color_name == "threshold" ? (
+    ui_rendering_set_color(ui.colors.constants.threshold_r, ui.colors.constants.threshold_g, 
+                          ui.colors.constants.threshold_b, 1.0);
+  ) : color_name == "meter" ? (
+    ui_rendering_set_color(ui.colors.constants.meter_r, ui.colors.constants.meter_g, 
+                          ui.colors.constants.meter_b, 1.0);
+  ) : color_name == "hover" ? (
+    ui_rendering_set_color(ui.colors.constants.hover_r, ui.colors.constants.hover_g, 
+                          ui.colors.constants.hover_b, ui.graph.state.hover_alpha);
+  ) : color_name == "active" ? (
+    ui_rendering_set_color(ui.colors.constants.active_r, ui.colors.constants.active_g, 
+                          ui.colors.constants.active_b, 1.0);
+  ) : (
+    ui_rendering_set_color(0.9, 0.9, 0.9, 1.0);  // Default white
+  );
+);

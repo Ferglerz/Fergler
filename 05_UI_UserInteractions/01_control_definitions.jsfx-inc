@@ -17,15 +17,15 @@
 // [5] = title_string_ptr (pointer to string in group_title_strings buffer)
 
 function define_group(index, x, y, w, h, show_title, title) local(title_ptr, i, char) (
-  group_defs[index*6 + 0] = x;
-  group_defs[index*6 + 1] = y;
-  group_defs[index*6 + 2] = w;
-  group_defs[index*6 + 3] = h;
-  group_defs[index*6 + 4] = show_title;
+  ui.controls.state.group_defs[index*6 + 0] = x;
+  ui.controls.state.group_defs[index*6 + 1] = y;
+  ui.controls.state.group_defs[index*6 + 2] = w;
+  ui.controls.state.group_defs[index*6 + 3] = h;
+  ui.controls.state.group_defs[index*6 + 4] = show_title;
   
   // Store title string pointer
-  title_ptr = group_title_strings + index * 50;
-  group_defs[index*6 + 5] = title_ptr;
+  title_ptr = ui.controls.state.group_title_strings + index * 50;
+  ui.controls.state.group_defs[index*6 + 5] = title_ptr;
   
   // Copy title string (using JSFX string as character buffer)
   strcpy(title_ptr, title);
@@ -59,17 +59,17 @@ function set_control_group(group_index) (
 );
 
 function define_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
-  control_defs[index*11 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
-  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
-  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
-  control_defs[index*11 + 3] = w;         // Width
-  control_defs[index*11 + 4] = h;         // Height
-  control_defs[index*11 + 5] = param_index; // Parameter index (0-28 for sliders)
-  control_defs[index*11 + 6] = min_val;   // Min value
-  control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = 0;         // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*11 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
-  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+  ui.controls.state.control_defs[index*11 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
+  ui.controls.state.control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  ui.controls.state.control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  ui.controls.state.control_defs[index*11 + 3] = w;         // Width
+  ui.controls.state.control_defs[index*11 + 4] = h;         // Height
+  ui.controls.state.control_defs[index*11 + 5] = param_index; // Parameter index (0-28 for sliders)
+  ui.controls.state.control_defs[index*11 + 6] = min_val;   // Min value
+  ui.controls.state.control_defs[index*11 + 7] = max_val;   // Max value
+  ui.controls.state.control_defs[index*11 + 8] = 0;         // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
+  ui.controls.state.control_defs[index*11 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
+  ui.controls.state.control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
 function define_control_with_slider_type(index, type, x, y, w, h, param_index, min_val, max_val, label, slider_type) (

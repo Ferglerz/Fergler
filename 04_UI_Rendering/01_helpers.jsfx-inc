@@ -142,8 +142,10 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
 
 function set_interactive_color(is_hovered, is_active, normal_r, normal_g, normal_b, highlight_r, highlight_g, highlight_b, alpha) (
   is_hovered || is_active ? (
+    ui_rendering_set_color(highlight_r, highlight_g, highlight_b, alpha);
     gfx_set(highlight_r, highlight_g, highlight_b, alpha);
   ) : (
+    ui_rendering_set_color(normal_r, normal_g, normal_b, alpha);
     gfx_set(normal_r, normal_g, normal_b, alpha);
   );
 );
@@ -152,16 +154,20 @@ function set_point_color(is_hovered, is_curved) (
   is_hovered ? (
     // Hovered point - larger and brighter
     is_curved ? (
-      gfx_set(1, 0.8, 0.2, 1); // Orange for curved points
+      ui_rendering_set_color(1, 0.8, 0.2, 1); // Orange for curved points
+      gfx_set(1, 0.8, 0.2, 1);
     ) : (
-      gfx_set(1, 1, 0.5, 1); // Yellowish highlight for normal points
+      ui_rendering_set_color(1, 1, 0.5, 1); // Yellowish highlight for normal points
+      gfx_set(1, 1, 0.5, 1);
     );
   ) : (
     // Normal point - smaller
     is_curved ? (
-      gfx_set(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
+      ui_rendering_set_color(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
+      gfx_set(1, 0.6, 0.1, 0.9);
     ) : (
-      gfx_set(1, 1, 1, 0.8); // Slightly transparent white for normal points
+      ui_rendering_set_color(1, 1, 1, 0.8); // Slightly transparent white for normal points
+      gfx_set(1, 1, 1, 0.8);
     );
   );
 );
