@@ -10,37 +10,40 @@
 
 function allocate_memory() (
   // Initialize automatic memory allocation
-  freemem = 0;
+  memory_alloc_set_freemem(0);
   
   // Allocate graph points memory (2 values per point: x,y)
-  !graph_points ? graph_points = freemem;
-  freemem += MAX_POINTS * 2;
+  !graph_points ? graph_points = memory_alloc_allocate(MAX_POINTS * 2);
   
   // Allocate curve amounts memory (1 value per point)
-  !curve_amounts ? curve_amounts = freemem;
-  freemem += MAX_POINTS;
+  !curve_amounts ? curve_amounts = memory_alloc_allocate(MAX_POINTS);
+  
+  // Set graph memory pointers
+  memory_graph_set_pointers(graph_points, curve_amounts);
   
   // Allocate compression lookup table (400 entries for -50dB to +50dB at 0.25dB granularity)
-  !comp_lut ? comp_lut = freemem;
-  freemem += COMP_LUT_SIZE;
+  !comp_lut ? comp_lut = memory_alloc_allocate(COMP_LUT_SIZE);
+  
+  // Set compression memory pointer
+  memory_compression_set_lut(comp_lut);
   
   // Allocate control definitions memory (11 values per control: added group_index field)
-  !ui.controls.state.control_defs ? ui.controls.state.control_defs = freemem;
-  freemem += ui.controls.constants.num_controls * 11;
+  !ui.controls.state.control_defs ? ui.controls.state.control_defs = memory_alloc_allocate(ui.controls.constants.num_controls * 11);
 
   // Allocate unified knob definitions memory (10 values per knob: added group_index field)
   // size: 0=small (KNOB_SIZE), 1=large (LARGE_KNOB_SIZE)
-  !ui.controls.state.knob_defs ? ui.controls.state.knob_defs = freemem;
-  freemem += ui.controls.constants.num_knobs * 10;
+  !ui.controls.state.knob_defs ? ui.controls.state.knob_defs = memory_alloc_allocate(ui.controls.constants.num_knobs * 10);
 
   // Allocate group definitions memory (6 values per group: x, y, w, h, show_title, title_string_ptr)
   // title_string_ptr points to a string buffer (allocated separately below)
-  !ui.controls.state.group_defs ? ui.controls.state.group_defs = freemem;
-  freemem += ui.controls.constants.num_groups * 6;
+  !ui.controls.state.group_defs ? ui.controls.state.group_defs = memory_alloc_allocate(ui.controls.constants.num_groups * 6);
   
   // Allocate string buffer for group titles (50 chars per group max)
-  !ui.controls.state.group_title_strings ? ui.controls.state.group_title_strings = freemem;
-  freemem += ui.controls.constants.num_groups * 50;
+  !ui.controls.state.group_title_strings ? ui.controls.state.group_title_strings = memory_alloc_allocate(ui.controls.constants.num_groups * 50);
+  
+  // Set UI memory pointers
+  memory_ui_set_control_pointers(ui.controls.state.control_defs, ui.controls.state.knob_defs, 
+                                 ui.controls.state.group_defs, ui.controls.state.group_title_strings);
 
   // Always allocate audio buffers (these can be reallocated safely)
   // Allocate based on lookahead slider's maximum value (slider5)
@@ -56,18 +59,27 @@ function allocate_memory() (
   );
   lookahead_mask = max_lookahead_samples - 1; // For bit masking: (pos & mask) == (pos % size)
   
-  lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
-  lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
+  lookahead_buffer_l = memory_alloc_allocate(max_lookahead_samples);
+  lookahead_buffer_r = memory_alloc_allocate(max_lookahead_samples);
 
   // RMS buffers: Stereo interleaved storage [L, R, L, R, ...]
   max_rms_samples = ceil(0.1 * srate);
-  rms_buffer = freemem; freemem += max_rms_samples * 2; // *2 for stereo
+  rms_buffer = memory_alloc_allocate(max_rms_samples * 2); // *2 for stereo
+  
+  // Set audio buffer pointers
+  memory_audio_set_lookahead_buffers(lookahead_buffer_l, lookahead_buffer_r);
+  memory_audio_set_rms_buffer(rms_buffer);
   
   // Slider properties buffer (4 properties per control)
-  slider_properties_base = freemem;
-  freemem += NUM_CONTROLS * 4;
+  slider_properties_base = memory_alloc_allocate(NUM_CONTROLS * 4);
+  
+  // Set slider memory pointer
+  memory_sliders_set_properties(slider_properties_base);
+  
+  // Free unused memory
+  freembuf(memory_alloc_get_freemem());
 );
 
 function get_memory_usage() (
-  freemem; // Return current memory usage
+  memory_alloc_get_freemem(); // Return current memory usage
 );

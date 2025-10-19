@@ -12,14 +12,14 @@
 // Function to clear RMS buffer state when window size changes
 function clear_rms_state() (
   // Stereo RMS sums (separate L/R tracking)
-  rms_sum_l = 0;
-  rms_sum_r = 0;
-  rms_pos = 0;
+  audio.detection.state.rms.left_sum = 0;
+  audio.detection.state.rms.right_sum = 0;
+  audio.detection.state.rms.position = 0;
   
   // Clear stereo interleaved RMS buffer [L, R, L, R, ...] up to max size
   i = 0;
-  while (i < max_rms_samples * 2) ( // *2 for stereo
-    rms_buffer[i] = 0;
+  while (i < memory_audio_get_rms_samples() * 2) ( // *2 for stereo
+    memory_audio_get_rms_buffer()[i] = 0;
     i += 1;
   );
 );

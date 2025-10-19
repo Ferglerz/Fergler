@@ -1,0 +1,351 @@
+// Memory Objects Module
+// Hierarchical object structure for all memory management and allocation
+// Includes constants and state within each relevant object
+// Dependencies: 01_Utils/01_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// MEMORY OBJECT INITIALIZATION
+//==============================================================================
+
+function init_memory_objects() (
+  // Initialize all memory objects with their constants and state
+  
+  // === MEMORY ALLOCATION OBJECT ===
+  memory.alloc.constants.freemem_start = 0;
+  memory.alloc.constants.max_memory = 8388608;  // 8MB default
+  memory.alloc.constants.alignment = 4;  // 4-byte alignment
+  memory.alloc.constants.boundary_size = 16384;  // FFT/MDCT boundary
+  memory.alloc.state.freemem = 0;
+  memory.alloc.state.allocated_blocks = 0;
+  memory.alloc.state.total_allocated = 0;
+  memory.alloc.state.peak_usage = 0;
+  memory.alloc.state.fragmentation = 0;
+  
+  // === GRAPH MEMORY OBJECT ===
+  memory.graph.constants.max_points = MAX_POINTS;
+  memory.graph.constants.point_size = 2;  // x, y coordinates
+  memory.graph.constants.curve_size = 1;  // curve amount per point
+  memory.graph.constants.total_size = MAX_POINTS * 3;  // points + curves
+  memory.graph.state.points = 0;  // Memory pointer
+  memory.graph.state.curve_amounts = 0;  // Memory pointer
+  memory.graph.state.allocated = 0;
+  memory.graph.state.used_points = 0;
+  memory.graph.state.used_curves = 0;
+  
+  // === COMPRESSION MEMORY OBJECT ===
+  memory.compression.constants.lut_size = COMP_LUT_SIZE;
+  memory.compression.constants.lut_granularity = COMP_LUT_GRANULARITY;
+  memory.compression.constants.lut_min_db = COMP_LUT_MIN_DB;
+  memory.compression.constants.lut_max_db = COMP_LUT_MAX_DB;
+  memory.compression.state.lut = 0;  // Memory pointer
+  memory.compression.state.allocated = 0;
+  memory.compression.state.initialized = 0;
+  memory.compression.state.valid = 0;
+  memory.compression.state.cache_hits = 0;
+  memory.compression.state.cache_misses = 0;
+  
+  // === AUDIO BUFFER MEMORY OBJECT ===
+  memory.audio.constants.max_lookahead_samples = 0;
+  memory.audio.constants.max_rms_samples = 0;
+  memory.audio.constants.lookahead_mask = 0;
+  memory.audio.constants.rms_mask = 0;
+  memory.audio.state.lookahead_buffer_left = 0;  // Memory pointer
+  memory.audio.state.lookahead_buffer_right = 0;  // Memory pointer
+  memory.audio.state.rms_buffer = 0;  // Memory pointer
+  memory.audio.state.allocated = 0;
+  memory.audio.state.lookahead_samples = 0;
+  memory.audio.state.rms_samples = 0;
+  memory.audio.state.buffer_overflow = 0;
+  
+  // === UI MEMORY OBJECT ===
+  memory.ui.constants.num_controls = NUM_CONTROLS;
+  memory.ui.constants.num_knobs = NUM_KNOBS;
+  memory.ui.constants.num_groups = NUM_GROUPS;
+  memory.ui.constants.control_def_size = 11;
+  memory.ui.constants.knob_def_size = 10;
+  memory.ui.constants.group_def_size = 6;
+  memory.ui.constants.title_string_size = 50;
+  memory.ui.state.control_defs = 0;  // Memory pointer
+  memory.ui.state.knob_defs = 0;  // Memory pointer
+  memory.ui.state.group_defs = 0;  // Memory pointer
+  memory.ui.state.group_title_strings = 0;  // Memory pointer
+  memory.ui.state.allocated = 0;
+  memory.ui.state.controls_used = 0;
+  memory.ui.state.knobs_used = 0;
+  memory.ui.state.groups_used = 0;
+  
+  // === DEBUG MEMORY OBJECT ===
+  memory.debug.constants.max_messages = STRING_SLOTS_DEBUG;
+  memory.debug.constants.message_size = 256;  // Max chars per message
+  memory.debug.constants.total_size = STRING_SLOTS_DEBUG * 256;
+  memory.debug.state.messages = 0;  // Memory pointer
+  memory.debug.state.allocated = 0;
+  memory.debug.state.message_count = 0;
+  memory.debug.state.current_message = 0;
+  memory.debug.state.overflow_count = 0;
+  
+  // === SLIDER MEMORY OBJECT ===
+  memory.sliders.constants.num_sliders = 35;  // slider1-slider35
+  memory.sliders.constants.property_size = 8;  // 8 properties per slider
+  memory.sliders.constants.total_size = 35 * 8;
+  memory.sliders.state.properties = 0;  // Memory pointer
+  memory.sliders.state.allocated = 0;
+  memory.sliders.state.initialized = 0;
+  memory.sliders.state.changed_mask = 0;
+  
+  // === HISTOGRAM MEMORY OBJECT ===
+  memory.histogram.constants.num_bins = 100;
+  memory.histogram.constants.bin_size = 4;  // 4 bytes per bin (float)
+  memory.histogram.constants.total_size = 100 * 4;
+  memory.histogram.state.gr_histogram = 0;  // Memory pointer
+  memory.histogram.state.input_histogram = 0;  // Memory pointer
+  memory.histogram.state.allocated = 0;
+  memory.histogram.state.gr_max = 0;
+  memory.histogram.state.input_max = 0;
+  memory.histogram.state.decay_rate = 0.95;
+  
+  // === MEMORY REGIONS OBJECT ===
+  memory.regions.constants.num_regions = 10;
+  memory.regions.state.region_start = 0;  // Array of start addresses
+  memory.regions.state.region_size = 0;   // Array of sizes
+  memory.regions.state.region_used = 0;   // Array of used flags
+  memory.regions.state.region_name = 0;   // Array of name pointers
+  memory.regions.state.allocated = 0;
+  memory.regions.state.active_regions = 0;
+);
+
+//==============================================================================
+// MEMORY OBJECT ACCESSOR FUNCTIONS
+//==============================================================================
+
+// Memory allocation functions
+function memory_alloc_get_freemem() (memory.alloc.state.freemem);
+function memory_alloc_set_freemem(value) (memory.alloc.state.freemem = value);
+function memory_alloc_get_total_allocated() (memory.alloc.state.total_allocated);
+function memory_alloc_get_peak_usage() (memory.alloc.state.peak_usage);
+
+function memory_alloc_allocate(size) local(new_freemem) (
+  new_freemem = memory.alloc.state.freemem + size;
+  new_freemem <= memory.alloc.constants.max_memory ? (
+    memory.alloc.state.total_allocated += size;
+    memory.alloc.state.peak_usage = max(memory.alloc.state.peak_usage, new_freemem);
+    memory.alloc.state.freemem = new_freemem;
+    memory.alloc.state.freemem;  // Return start address
+  ) : (
+    -1;  // Allocation failed
+  );
+);
+
+function memory_alloc_free(ptr) (
+  // In JSFX, we can't actually free memory, but we can track it
+  memory.alloc.state.allocated_blocks -= 1;
+);
+
+// Graph memory functions
+function memory_graph_set_pointers(points_ptr, curves_ptr) (
+  memory.graph.state.points = points_ptr;
+  memory.graph.state.curve_amounts = curves_ptr;
+  memory.graph.state.allocated = 1;
+);
+
+function memory_graph_get_points() (memory.graph.state.points);
+function memory_graph_get_curve_amounts() (memory.graph.state.curve_amounts);
+function memory_graph_set_used_points(count) (memory.graph.state.used_points = count);
+function memory_graph_get_used_points() (memory.graph.state.used_points);
+
+// Compression memory functions
+function memory_compression_set_lut(ptr) (
+  memory.compression.state.lut = ptr;
+  memory.compression.state.allocated = 1;
+);
+
+function memory_compression_get_lut() (memory.compression.state.lut);
+function memory_compression_set_initialized(init) (memory.compression.state.initialized = init);
+function memory_compression_get_initialized() (memory.compression.state.initialized);
+function memory_compression_set_valid(valid) (memory.compression.state.valid = valid);
+function memory_compression_get_valid() (memory.compression.state.valid);
+
+// Audio buffer memory functions
+function memory_audio_set_lookahead_buffers(left_ptr, right_ptr) (
+  memory.audio.state.lookahead_buffer_left = left_ptr;
+  memory.audio.state.lookahead_buffer_right = right_ptr;
+);
+
+function memory_audio_set_rms_buffer(ptr) (
+  memory.audio.state.rms_buffer = ptr;
+);
+
+function memory_audio_get_lookahead_left() (memory.audio.state.lookahead_buffer_left);
+function memory_audio_get_lookahead_right() (memory.audio.state.lookahead_buffer_right);
+function memory_audio_get_rms_buffer() (memory.audio.state.rms_buffer);
+
+function memory_audio_set_samples(lookahead_samples, rms_samples) (
+  memory.audio.state.lookahead_samples = lookahead_samples;
+  memory.audio.state.rms_samples = rms_samples;
+);
+
+function memory_audio_get_lookahead_samples() (memory.audio.state.lookahead_samples);
+function memory_audio_get_rms_samples() (memory.audio.state.rms_samples);
+
+// UI memory functions
+function memory_ui_set_control_pointers(control_ptr, knob_ptr, group_ptr, title_ptr) (
+  memory.ui.state.control_defs = control_ptr;
+  memory.ui.state.knob_defs = knob_ptr;
+  memory.ui.state.group_defs = group_ptr;
+  memory.ui.state.group_title_strings = title_ptr;
+  memory.ui.state.allocated = 1;
+);
+
+function memory_ui_get_control_defs() (memory.ui.state.control_defs);
+function memory_ui_get_knob_defs() (memory.ui.state.knob_defs);
+function memory_ui_get_group_defs() (memory.ui.state.group_defs);
+function memory_ui_get_group_title_strings() (memory.ui.state.group_title_strings);
+
+// Debug memory functions
+function memory_debug_set_messages(ptr) (
+  memory.debug.state.messages = ptr;
+  memory.debug.state.allocated = 1;
+);
+
+function memory_debug_get_messages() (memory.debug.state.messages);
+function memory_debug_set_message_count(count) (memory.debug.state.message_count = count);
+function memory_debug_get_message_count() (memory.debug.state.message_count);
+
+// Slider memory functions
+function memory_sliders_set_properties(ptr) (
+  memory.sliders.state.properties = ptr;
+  memory.sliders.state.allocated = 1;
+);
+
+function memory_sliders_get_properties() (memory.sliders.state.properties);
+function memory_sliders_set_initialized(init) (memory.sliders.state.initialized = init);
+function memory_sliders_get_initialized() (memory.sliders.state.initialized);
+
+// Histogram memory functions
+function memory_histogram_set_buffers(gr_ptr, input_ptr) (
+  memory.histogram.state.gr_histogram = gr_ptr;
+  memory.histogram.state.input_histogram = input_ptr;
+  memory.histogram.state.allocated = 1;
+);
+
+function memory_histogram_get_gr_buffer() (memory.histogram.state.gr_histogram);
+function memory_histogram_get_input_buffer() (memory.histogram.state.input_histogram);
+
+//==============================================================================
+// MEMORY UTILITY FUNCTIONS
+//==============================================================================
+
+// Memory allocation with alignment
+function memory_alloc_aligned(size, alignment) local(aligned_size, aligned_ptr) (
+  aligned_size = ((size + alignment - 1) / alignment) * alignment;
+  memory_alloc_allocate(aligned_size);
+);
+
+// Memory allocation with boundary checking
+function memory_alloc_with_boundary(size) local(ptr, next_boundary, space_to_boundary) (
+  ptr = memory_alloc_get_freemem();
+  next_boundary = ((ptr / memory.alloc.constants.boundary_size) + 1) * memory.alloc.constants.boundary_size;
+  space_to_boundary = next_boundary - ptr;
+  
+  space_to_boundary >= size ? (
+    memory_alloc_allocate(size);
+  ) : (
+    // Skip to next boundary
+    memory_alloc_set_freemem(next_boundary);
+    memory_alloc_allocate(size);
+  );
+);
+
+// Memory region management
+function memory_region_allocate(name, size) local(region_id, ptr) (
+  region_id = memory.regions.state.active_regions;
+  region_id < memory.regions.constants.num_regions ? (
+    ptr = memory_alloc_allocate(size);
+    ptr >= 0 ? (
+      memory.regions.state.region_start[region_id] = ptr;
+      memory.regions.state.region_size[region_id] = size;
+      memory.regions.state.region_used[region_id] = 1;
+      memory.regions.state.region_name[region_id] = name;
+      memory.regions.state.active_regions += 1;
+      ptr;
+    ) : (
+      -1;  // Allocation failed
+    );
+  ) : (
+    -1;  // Too many regions
+  );
+);
+
+// Memory usage statistics
+function memory_get_usage_stats() local(total, peak, fragmentation) (
+  total = memory_alloc_get_total_allocated();
+  peak = memory_alloc_get_peak_usage();
+  fragmentation = (peak - total) / peak * 100;
+  
+  // Return as packed values (total in high bits, peak in middle, fragmentation in low)
+  (total << 20) | (peak << 10) | fragmentation;
+);
+
+// Memory validation
+function memory_validate_all() local(valid) (
+  valid = 1;
+  
+  // Check graph memory
+  memory.graph.state.allocated && memory.graph.state.points == 0 ? valid = 0;
+  memory.graph.state.allocated && memory.graph.state.curve_amounts == 0 ? valid = 0;
+  
+  // Check compression memory
+  memory.compression.state.allocated && memory.compression.state.lut == 0 ? valid = 0;
+  
+  // Check audio memory
+  memory.audio.state.allocated && memory.audio.state.lookahead_buffer_left == 0 ? valid = 0;
+  memory.audio.state.allocated && memory.audio.state.rms_buffer == 0 ? valid = 0;
+  
+  // Check UI memory
+  memory.ui.state.allocated && memory.ui.state.control_defs == 0 ? valid = 0;
+  
+  valid;
+);
+
+// Memory cleanup
+function memory_cleanup() (
+  // Reset all pointers
+  memory.graph.state.points = 0;
+  memory.graph.state.curve_amounts = 0;
+  memory.graph.state.allocated = 0;
+  
+  memory.compression.state.lut = 0;
+  memory.compression.state.allocated = 0;
+  memory.compression.state.initialized = 0;
+  memory.compression.state.valid = 0;
+  
+  memory.audio.state.lookahead_buffer_left = 0;
+  memory.audio.state.lookahead_buffer_right = 0;
+  memory.audio.state.rms_buffer = 0;
+  memory.audio.state.allocated = 0;
+  
+  memory.ui.state.control_defs = 0;
+  memory.ui.state.knob_defs = 0;
+  memory.ui.state.group_defs = 0;
+  memory.ui.state.group_title_strings = 0;
+  memory.ui.state.allocated = 0;
+  
+  memory.debug.state.messages = 0;
+  memory.debug.state.allocated = 0;
+  
+  memory.sliders.state.properties = 0;
+  memory.sliders.state.allocated = 0;
+  
+  memory.histogram.state.gr_histogram = 0;
+  memory.histogram.state.input_histogram = 0;
+  memory.histogram.state.allocated = 0;
+  
+  // Reset allocation state
+  memory.alloc.state.freemem = 0;
+  memory.alloc.state.total_allocated = 0;
+  memory.alloc.state.peak_usage = 0;
+  memory.alloc.state.allocated_blocks = 0;
+  memory.regions.state.active_regions = 0;
+);
