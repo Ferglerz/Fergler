@@ -73,6 +73,7 @@ import 01_Utils/03_debug_logging.jsfx-inc
 import 01_Utils/04_file_reading.jsfx-inc
 import 01_Utils/05_memory.jsfx-inc
 import 01_Utils/06_state.jsfx-inc
+import 01_Utils/09_audio_objects.jsfx-inc
 
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
@@ -159,35 +160,36 @@ read_slider_definitions();
 // 2. Initialize all constants, memory, and state variables
 allocate_memory();
 init_state_variables();
+init_audio_objects();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
 init_graph_optimization_constants();
 
-// 3. Initialize stage control variables
-stage_input = 1;                    // Input stage (always needed)
-stage_detection_source = 1;         // Detection source selection
-stage_filtering = 1;                // Detection signal filtering (applies to active detection signal)
-stage_detection_analysis = 1;       // RMS detection and gain reduction calculation
-stage_character = 1;                // Character application
-stage_envelope = 1;                 // Envelope following
-stage_lookahead = 1;                // Lookahead processing
-stage_gain_reduction = 1;           // Gain reduction application
-stage_harmonics = 1;                // Harmonic processing
-stage_final_mix = 1;                // Final mix
-stage_limiter = 1;                  // Brickwall limiter
-stage_output = 1;                   // Output stage (always needed)
+// 3. Initialize stage control variables (now using audio objects)
+audio_stage_set_enabled("input", 1);                    // Input stage (always needed)
+audio_stage_set_enabled("detection_source", 1);         // Detection source selection
+audio_stage_set_enabled("filtering", 1);                // Detection signal filtering (applies to active detection signal)
+audio_stage_set_enabled("detection_analysis", 1);       // RMS detection and gain reduction calculation
+audio_stage_set_enabled("character", 1);                // Character application
+audio_stage_set_enabled("envelope", 1);                 // Envelope following
+audio_stage_set_enabled("lookahead", 1);                // Lookahead processing
+audio_stage_set_enabled("gain_reduction", 1);           // Gain reduction application
+audio_stage_set_enabled("harmonics", 1);                // Harmonic processing
+audio_stage_set_enabled("final_mix", 1);                // Final mix
+audio_stage_set_enabled("limiter", 1);                  // Brickwall limiter
+audio_stage_set_enabled("output", 1);                   // Output stage (always needed)
 
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
 
 // Initialize makeup gain to unity (will be recalculated in @slider)
-makeup_gain_linear = 1.0;
+audio.output.state.makeup_gain_linear = 1.0;
 
 // Initialize strength multiplier (will be recalculated in @slider)
-strength_actual = strength * strength;
+audio.compression.state.strength_actual = strength * strength;
 
 // Calculate limiter normalization constant (pre-calculated to avoid per-sample division)
-LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
+audio.output.constants.limiter_tanh_norm = 1.0 / tanh(0.95);  // ≈ 1.343
 
 // 4. Initialize curve data
 init_curve_data();
@@ -260,7 +262,7 @@ param_changed = 0;
 
 // --- Makeup Gain (21) ---
 (slider21 != makeup_gain_db_prev || !slider_initialized) ? (
-  makeup_gain_linear = db_to_linear(makeup_gain_db);
+  audio.output.state.makeup_gain_linear = db_to_linear(makeup_gain_db);
   makeup_gain_db_prev = slider21;
   param_changed = 1;
 );
@@ -282,7 +284,8 @@ pdc_delay > 0 ? (
   
   // Apply logarithmic/exponential transformation to strength for more pronounced effect
   // Using power of 2: strength=1 -> actual=1, strength=3 -> actual=9, strength=10 -> actual=100
-  strength_actual = strength * strength;
+  audio.compression.state.strength_actual = strength * strength;
+  audio.compression.state.global_offset_db = global_offset_db;
   
   param_changed = 1;
   
@@ -302,20 +305,22 @@ slider_initialized = 1;
 
 // Store block-level max values for histograms (captured during previous block)
 // Convert detector level from linear to dB (once per block instead of per sample)
-input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL));
-gr_db_for_histogram = gr_db_block_max;
+input_db_for_histogram = linear_to_db(max(audio.detection.state.level_block_max, audio.detection.constants.min_detector_level));
+gr_db_for_histogram = audio.compression.state.gain_reduction_block_max;
 
 // Reset max trackers for next block
-detector_level_block_max = MIN_DETECTOR_LEVEL;
-gr_db_block_max = 0;
+audio.detection.state.level_block_max = audio.detection.constants.min_detector_level;
+audio.compression.state.gain_reduction_block_max = 0;
 
 // Update filter coefficients every block for real-time response
 update_filter_coefficients();
 
 // Update attack and release coefficients every block for real-time response
 // Cache coefficients to avoid redundant calculations
-attack_coeff = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
-release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
+audio_envelope_set_coeffs(
+  attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0,
+  release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0
+);
 
 // Cache frequently used calculations
 srate_inv = 1.0 / srate;
@@ -329,11 +334,11 @@ attack_curve != 0 ? (
     curve_amount = attack_curve;
     s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
     s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
-    attack_coeff = pow(attack_coeff, s_curve_factor);
+    audio.envelope.state.attack_coeff = pow(audio.envelope.state.attack_coeff, s_curve_factor);
   ) : (
     // Negative curves (left): steep exponential response - fast, aggressive onset
     curve_amount = abs(attack_curve);
-    attack_coeff = pow(attack_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
+    audio.envelope.state.attack_coeff = pow(audio.envelope.state.attack_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
   );
 );
 
@@ -343,11 +348,11 @@ release_curve != 0 ? (
     curve_amount = release_curve;
     s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
     s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
-    release_coeff = pow(release_coeff, s_curve_factor);
+    audio.envelope.state.release_coeff = pow(audio.envelope.state.release_coeff, s_curve_factor);
   ) : (
     // Negative curves (left): steep exponential response - fast, aggressive recovery
     curve_amount = abs(release_curve);
-    release_coeff = pow(release_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
+    audio.envelope.state.release_coeff = pow(audio.envelope.state.release_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
   );
 );
 
@@ -402,7 +407,7 @@ MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
 MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
-current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+current_input_db = linear_to_db(max(audio.detection.state.level, audio.detection.constants.min_detector_level));
 
 // Update histograms with block-max values (most efficient and smooth)
 HISTOGRAM_ENABLED ? update_histogram_state(gr_db_for_histogram);

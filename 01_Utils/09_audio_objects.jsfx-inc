@@ -1,0 +1,247 @@
+// Audio Processing Objects Module
+// Hierarchical object structure for all audio processing components
+// Includes constants and state within each relevant object
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// AUDIO OBJECT INITIALIZATION
+//==============================================================================
+
+function init_audio_objects() (
+  // Initialize all audio processing objects with their constants and state
+  
+  // === AUDIO INPUT OBJECT ===
+  audio.input.constants.eps = EPS;
+  audio.input.constants.min_detector_level = MIN_DETECTOR_LEVEL;
+  audio.input.state.left_original = 0;
+  audio.input.state.right_original = 0;
+  audio.input.state.left_detection = 0;
+  audio.input.state.right_detection = 0;
+  audio.input.state.has_stereo = 0;
+  audio.input.state.has_sidechain_left = 0;
+  audio.input.state.has_sidechain_right = 0;
+  
+  // === AUDIO FILTERS OBJECT ===
+  audio.filters.constants.max_freq = 20000;
+  audio.filters.constants.min_freq = 20;
+  audio.filters.state.hp.enabled = 0;
+  audio.filters.state.hp.left.x1 = 0;
+  audio.filters.state.hp.left.x2 = 0;
+  audio.filters.state.hp.left.y1 = 0;
+  audio.filters.state.hp.left.y2 = 0;
+  audio.filters.state.hp.right.x1 = 0;
+  audio.filters.state.hp.right.x2 = 0;
+  audio.filters.state.hp.right.y1 = 0;
+  audio.filters.state.hp.right.y2 = 0;
+  audio.filters.state.hp.coeffs.b0 = 0;
+  audio.filters.state.hp.coeffs.b1 = 0;
+  audio.filters.state.hp.coeffs.b2 = 0;
+  audio.filters.state.hp.coeffs.a1 = 0;
+  audio.filters.state.hp.coeffs.a2 = 0;
+  
+  audio.filters.state.lp.enabled = 0;
+  audio.filters.state.lp.left.x1 = 0;
+  audio.filters.state.lp.left.x2 = 0;
+  audio.filters.state.lp.left.y1 = 0;
+  audio.filters.state.lp.left.y2 = 0;
+  audio.filters.state.lp.right.x1 = 0;
+  audio.filters.state.lp.right.x2 = 0;
+  audio.filters.state.lp.right.y1 = 0;
+  audio.filters.state.lp.right.y2 = 0;
+  audio.filters.state.lp.coeffs.b0 = 0;
+  audio.filters.state.lp.coeffs.b1 = 0;
+  audio.filters.state.lp.coeffs.b2 = 0;
+  audio.filters.state.lp.coeffs.a1 = 0;
+  audio.filters.state.lp.coeffs.a2 = 0;
+  
+  // === AUDIO DETECTION OBJECT ===
+  audio.detection.constants.max_gr_range_db = MAX_GR_RANGE_DB;
+  audio.detection.state.rms.left_sum = 0;
+  audio.detection.state.rms.right_sum = 0;
+  audio.detection.state.rms.position = 0;
+  audio.detection.state.rms.samples = 0;
+  audio.detection.state.rms.samples_inv = 0;
+  audio.detection.state.rms.smoothed_squared = 0;
+  audio.detection.state.rms.smoothing_coeff = 0;
+  audio.detection.state.rms.smoothing_one_minus = 0;
+  audio.detection.state.rms.max = 0.5;
+  audio.detection.state.level = MIN_DETECTOR_LEVEL;
+  audio.detection.state.level_db = GRAPH_MIN_DB;
+  audio.detection.state.level_block_max = MIN_DETECTOR_LEVEL;
+  audio.detection.state.level_block_max_db = GRAPH_MIN_DB;
+  
+  // === AUDIO COMPRESSION OBJECT ===
+  audio.compression.constants.lut.min_db = COMP_LUT_MIN_DB;
+  audio.compression.constants.lut.max_db = COMP_LUT_MAX_DB;
+  audio.compression.constants.lut.range_db = COMP_LUT_RANGE_DB;
+  audio.compression.constants.lut.granularity = COMP_LUT_GRANULARITY;
+  audio.compression.constants.lut.size = COMP_LUT_SIZE;
+  audio.compression.state.lut.initialized = 0;
+  audio.compression.state.lut.valid = 0;
+  audio.compression.state.gain_reduction_db = 0;
+  audio.compression.state.gain_reduction_linear = 1.0;
+  audio.compression.state.gain_reduction_block_max = 0;
+  audio.compression.state.strength_actual = 1.0;
+  audio.compression.state.global_offset_db = 0;
+  
+  // === AUDIO ENVELOPE OBJECT ===
+  audio.envelope.constants.base_fast_s = 0.05;  // 50ms
+  audio.envelope.constants.base_med_s = 0.3;    // 300ms
+  audio.envelope.constants.base_slow_s = 1.0;   // 1000ms
+  audio.envelope.state.attack_coeff = 0;
+  audio.envelope.state.release_coeff = 0;
+  audio.envelope.state.smoothed_gain_db = 0;
+  audio.envelope.state.program_release_timer = 0;
+  audio.envelope.state.cached_release_ms = -1;
+  audio.envelope.state.cached_srate = -1;
+  audio.envelope.state.rel_mult = 1.0;
+  audio.envelope.state.rel_fast_cached = 0;
+  audio.envelope.state.rel_med_cached = 0;
+  audio.envelope.state.rel_slow_cached = 0;
+  audio.envelope.state.min_env_yR = 0;  // Release filter state
+  audio.envelope.state.min_env_yA = 0;  // Attack filter state
+  audio.envelope.state.prev_detector_db = GRAPH_MIN_DB;
+  
+  // === AUDIO HARMONICS OBJECT ===
+  audio.harmonics.constants.drive_compensation_inv = 1.0;
+  audio.harmonics.state.type = 0;
+  audio.harmonics.state.amount = 0;
+  audio.harmonics.state.drive = 1.0;
+  audio.harmonics.state.mix = 0;
+  audio.harmonics.state.even_boost = 0;
+  audio.harmonics.state.odd_boost = 0;
+  
+  // === AUDIO LOOKAHEAD OBJECT ===
+  audio.lookahead.constants.max_samples = 0;
+  audio.lookahead.constants.mask = 0;
+  audio.lookahead.state.position = 0;
+  audio.lookahead.state.samples = 0;
+  audio.lookahead.state.buffer_left = 0;
+  audio.lookahead.state.buffer_right = 0;
+  
+  // === AUDIO OUTPUT OBJECT ===
+  audio.output.constants.limiter_scale = 0.95;
+  audio.output.constants.limiter_tanh_norm = 0;
+  audio.output.state.makeup_gain_linear = 1.0;
+  audio.output.state.final_left_prev = 0;
+  audio.output.state.final_right_prev = 0;
+  audio.output.state.limiter_prev_left = 0;
+  audio.output.state.limiter_prev_right = 0;
+  audio.output.state.wet_dry_mix = 1.0;
+  
+  // === AUDIO STAGES OBJECT ===
+  audio.stages.input.enabled = 1;
+  audio.stages.detection_source.enabled = 1;
+  audio.stages.filtering.enabled = 1;
+  audio.stages.detection_analysis.enabled = 1;
+  audio.stages.character.enabled = 1;
+  audio.stages.envelope.enabled = 1;
+  audio.stages.lookahead.enabled = 1;
+  audio.stages.gain_reduction.enabled = 1;
+  audio.stages.harmonics.enabled = 1;
+  audio.stages.final_mix.enabled = 1;
+  audio.stages.limiter.enabled = 1;
+  audio.stages.output.enabled = 1;
+);
+
+//==============================================================================
+// AUDIO OBJECT ACCESSOR FUNCTIONS
+//==============================================================================
+
+// Input object functions
+function audio_input_set_original(left, right) (
+  audio.input.state.left_original = left;
+  audio.input.state.right_original = right;
+);
+
+function audio_input_set_detection(left, right) (
+  audio.input.state.left_detection = left;
+  audio.input.state.right_detection = right;
+);
+
+function audio_input_get_original_left() (audio.input.state.left_original);
+function audio_input_get_original_right() (audio.input.state.right_original);
+function audio_input_get_detection_left() (audio.input.state.left_detection);
+function audio_input_get_detection_right() (audio.input.state.right_detection);
+
+// Filter object functions
+function audio_filters_hp_set_coeffs(b0, b1, b2, a1, a2) (
+  audio.filters.state.hp.coeffs.b0 = b0;
+  audio.filters.state.hp.coeffs.b1 = b1;
+  audio.filters.state.hp.coeffs.b2 = b2;
+  audio.filters.state.hp.coeffs.a1 = a1;
+  audio.filters.state.hp.coeffs.a2 = a2;
+);
+
+function audio_filters_lp_set_coeffs(b0, b1, b2, a1, a2) (
+  audio.filters.state.lp.coeffs.b0 = b0;
+  audio.filters.state.lp.coeffs.b1 = b1;
+  audio.filters.state.lp.coeffs.b2 = b2;
+  audio.filters.state.lp.coeffs.a1 = a1;
+  audio.filters.state.lp.coeffs.a2 = a2;
+);
+
+function audio_filters_hp_set_enabled(enabled) (audio.filters.state.hp.enabled = enabled);
+function audio_filters_lp_set_enabled(enabled) (audio.filters.state.lp.enabled = enabled);
+
+// Detection object functions
+function audio_detection_set_level(level) (
+  audio.detection.state.level = level;
+  audio.detection.state.level_db = linear_to_db(max(level, audio.detection.constants.min_detector_level));
+);
+
+function audio_detection_get_level() (audio.detection.state.level);
+function audio_detection_get_level_db() (audio.detection.state.level_db);
+
+// Compression object functions
+function audio_compression_set_gain_reduction(gr_db) (
+  audio.compression.state.gain_reduction_db = gr_db;
+  audio.compression.state.gain_reduction_linear = db_to_linear(gr_db);
+);
+
+function audio_compression_get_gain_reduction_db() (audio.compression.state.gain_reduction_db);
+function audio_compression_get_gain_reduction_linear() (audio.compression.state.gain_reduction_linear);
+
+// Envelope object functions
+function audio_envelope_set_coeffs(attack, release) (
+  audio.envelope.state.attack_coeff = attack;
+  audio.envelope.state.release_coeff = release;
+);
+
+function audio_envelope_get_attack_coeff() (audio.envelope.state.attack_coeff);
+function audio_envelope_get_release_coeff() (audio.envelope.state.release_coeff);
+
+// Stage control functions
+function audio_stage_set_enabled(stage_name, enabled) (
+  stage_name == "input" ? audio.stages.input.enabled = enabled :
+  stage_name == "detection_source" ? audio.stages.detection_source.enabled = enabled :
+  stage_name == "filtering" ? audio.stages.filtering.enabled = enabled :
+  stage_name == "detection_analysis" ? audio.stages.detection_analysis.enabled = enabled :
+  stage_name == "character" ? audio.stages.character.enabled = enabled :
+  stage_name == "envelope" ? audio.stages.envelope.enabled = enabled :
+  stage_name == "lookahead" ? audio.stages.lookahead.enabled = enabled :
+  stage_name == "gain_reduction" ? audio.stages.gain_reduction.enabled = enabled :
+  stage_name == "harmonics" ? audio.stages.harmonics.enabled = enabled :
+  stage_name == "final_mix" ? audio.stages.final_mix.enabled = enabled :
+  stage_name == "limiter" ? audio.stages.limiter.enabled = enabled :
+  stage_name == "output" ? audio.stages.output.enabled = enabled :
+  0; // Unknown stage
+);
+
+function audio_stage_get_enabled(stage_name) (
+  stage_name == "input" ? audio.stages.input.enabled :
+  stage_name == "detection_source" ? audio.stages.detection_source.enabled :
+  stage_name == "filtering" ? audio.stages.filtering.enabled :
+  stage_name == "detection_analysis" ? audio.stages.detection_analysis.enabled :
+  stage_name == "character" ? audio.stages.character.enabled :
+  stage_name == "envelope" ? audio.stages.envelope.enabled :
+  stage_name == "lookahead" ? audio.stages.lookahead.enabled :
+  stage_name == "gain_reduction" ? audio.stages.gain_reduction.enabled :
+  stage_name == "harmonics" ? audio.stages.harmonics.enabled :
+  stage_name == "final_mix" ? audio.stages.final_mix.enabled :
+  stage_name == "limiter" ? audio.stages.limiter.enabled :
+  stage_name == "output" ? audio.stages.output.enabled :
+  0 // Unknown stage
+);

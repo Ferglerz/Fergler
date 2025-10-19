@@ -18,55 +18,56 @@ function process_complete_audio_chain() (
   debug_counter_audio_chain += 1;
 
   // === INPUT STAGE (inlined) ===
-  input_l_orig = spl0;
-  input_r_orig = spl1;
+  audio_input_set_original(spl0, spl1);
 
   // Pre-calculate channel availability flags
-  has_stereo = (num_ch >= 2);
-  has_sidechain_l = (use_sidechain && num_ch >= 3);
-  has_sidechain_r = (use_sidechain && num_ch >= 4);
+  audio.input.state.has_stereo = (num_ch >= 2);
+  audio.input.state.has_sidechain_left = (use_sidechain && num_ch >= 3);
+  audio.input.state.has_sidechain_right = (use_sidechain && num_ch >= 4);
 
   // Set detection signals based on mode
   // Detect on CURRENT input (not delayed) for lookahead to work
-  detect_l = spl0;
-  detect_r = spl1;
+  audio_input_set_detection(spl0, spl1);
 
   // === DETECTION SOURCE SELECTION (inlined) ===
-  stage_detection_source == 1 ? (
+  audio_stage_get_enabled("detection_source") ? (
     detection_mode > 0.5 ? (
       // FEEDFORWARD: Use input signal for detection
-      detect_l = has_sidechain_l ? spl2 : spl0;
-      detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
+      audio_input_set_detection(
+        audio.input.state.has_sidechain_left ? spl2 : spl0,
+        audio.input.state.has_sidechain_right ? spl3 : (audio.input.state.has_stereo ? spl1 : spl0)
+      );
     ) : (
       // FEEDBACK: Use previous sample's output for detection (one-sample delay)
-      detect_l = has_sidechain_l ? spl2 : final_l_prev;
-      detect_r = has_sidechain_r ? spl3 : final_r_prev;
+      audio_input_set_detection(
+        audio.input.state.has_sidechain_left ? spl2 : audio.output.state.final_left_prev,
+        audio.input.state.has_sidechain_right ? spl3 : audio.output.state.final_right_prev
+      );
     );
   );
 
   // === DETECTION FILTERING (inlined) ===
   // Skip if both filters are Off (saves CPU)
-  (hp_filter_enabled || lp_filter_enabled) ? (
-    apply_detection_filters(detect_l, detect_r);
-    detect_l = filtered_l;
-    detect_r = filtered_r;
+  (audio.filters.state.hp.enabled || audio.filters.state.lp.enabled) ? (
+    apply_detection_filters(audio.input.state.left_detection, audio.input.state.right_detection);
+    audio_input_set_detection(filtered_l, filtered_r);
   );
 
   // === LISTEN MODE (early exit) ===
-  should_listen = listen_to_sidechain && stage_detection_source == 1;
+  should_listen = listen_to_sidechain && audio_stage_get_enabled("detection_source");
   should_listen ? (
-    spl0 = detect_l;
-    has_stereo ? spl1 = detect_r;
+    spl0 = audio.input.state.left_detection;
+    audio.input.state.has_stereo ? spl1 = audio.input.state.right_detection;
   ) : (
     // === DETECTION AND ANALYSIS (inlined) ===
-    stage_detection_analysis == 1 ? (
+    audio_stage_get_enabled("detection_analysis") ? (
       // Early exit optimization: Skip compression calculation if input is below threshold
       // and we're not in an active release state (global_smoothed_gain_db near zero)
       // Note: We still need to process if global_offset is non-zero as it shifts the curve
       
       // RMS calculation - supports both True RMS (buffer) and Exponential Smoothing
-      detect_squared_l = detect_l * detect_l;
-      detect_squared_r = detect_r * detect_r;
+      detect_squared_l = audio.input.state.left_detection * audio.input.state.left_detection;
+      detect_squared_r = audio.input.state.right_detection * audio.input.state.right_detection;
       
       menu_true_rms_enabled > 0.5 ? (
         // TRUE RMS MODE: Stereo circular buffer with per-channel detection
