@@ -65,11 +65,12 @@ function compression_memory_init_default_points() (
 );
 
 function compression_memory_rebuild_lut() (
-  // Rebuild compression lookup table
+  // Rebuild compression lookup table (coefficients only, not memory)
   memory.compression.state.valid = 0;
   comp_lut_dirty = 1;
   
   // The actual rebuild happens in @slider when comp_lut_dirty is set
+  // This only recalculates LUT values, doesn't reallocate memory
 );
 
 function compression_memory_clear_graph() (

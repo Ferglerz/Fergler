@@ -336,10 +336,5 @@ function memory_manager_cleanup() (
   memory.alloc.state.allocated_blocks = 0;
 );
 
-function memory_manager_reallocate() (
-  // Clean up existing allocation
-  memory_manager_cleanup();
-  
-  // Reallocate everything
-  memory_manager_allocate_all();
-);
+// Note: Dynamic reallocation not supported in JSFX
+// Memory is allocated once at @init and remains fixed during runtime

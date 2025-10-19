@@ -69,21 +69,8 @@ function audio_memory_clear_buffers() (
   audio.detection.state.rms.position = 0;
 );
 
-function audio_memory_reallocate() (
-  // Reallocate audio buffers when parameters change
-  audio_memory_update_buffer_sizes();
-  
-  // Check if we need to reallocate
-  current_lookahead = memory.audio.state.lookahead_samples;
-  current_rms = memory.audio.state.rms_samples;
-  
-  // If sizes changed, we need to reallocate
-  (current_lookahead != audio.lookahead.state.samples || 
-   current_rms != audio.detection.state.rms.samples) ? (
-    // Trigger memory manager reallocation
-    memory_manager_reallocate();
-  );
-);
+// Note: Dynamic reallocation not supported in JSFX
+// Buffer sizes are determined at @init and remain fixed during runtime
 
 //==============================================================================
 // AUDIO BUFFER ACCESS FUNCTIONS
