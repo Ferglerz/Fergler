@@ -1,0 +1,328 @@
+// DSP Objects Module
+// Digital signal processing utilities organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// DSP OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_dsp_objects() (
+  // Initialize DSP state
+  dsp.detection.state.rms.enabled = 1;
+  dsp.detection.state.rms.window_size = 0;
+  dsp.detection.state.rms.position = 0;
+  dsp.detection.state.rms.left_sum = 0.0;
+  dsp.detection.state.rms.right_sum = 0.0;
+  dsp.detection.state.rms.left_prev = 0.0;
+  dsp.detection.state.rms.right_prev = 0.0;
+  
+  dsp.detection.state.peak.enabled = 1;
+  dsp.detection.state.peak.left_max = 0.0;
+  dsp.detection.state.peak.right_max = 0.0;
+  dsp.detection.state.peak.left_prev = 0.0;
+  dsp.detection.state.peak.right_prev = 0.0;
+  
+  dsp.detection.state.level.left_db = constants.audio.constants.min_level_db;
+  dsp.detection.state.level.right_db = constants.audio.constants.min_level_db;
+  dsp.detection.state.level.left_linear = 0.0;
+  dsp.detection.state.level.right_linear = 0.0;
+  
+  // Initialize DSP constants
+  dsp.constants.eps = constants_audio_get_eps();
+  dsp.constants.min_detector_level = constants_audio_get_min_detector_level();
+  dsp.constants.denormal_threshold = constants_audio_get_denormal_threshold();
+  dsp.constants.db_scale = constants_audio_get_db_scale();
+  dsp.constants.db_scale_inv = constants_audio_get_db_scale_inv();
+  
+  // Initialize DSP processing state
+  dsp.processing.state.block_samples = 0;
+  dsp.processing.state.sample_rate = 0;
+  dsp.processing.state.sample_rate_inv = 0.0;
+  dsp.processing.state.initialized = 0;
+);
+
+//==============================================================================
+// RMS DETECTION FUNCTIONS
+//==============================================================================
+
+function dsp_rms_update(left, right) (
+  // Update RMS detection
+  dsp.detection.state.rms.enabled ? (
+    // Add new samples to sum
+    dsp.detection.state.rms.left_sum += left * left;
+    dsp.detection.state.rms.right_sum += right * right;
+    
+    // Remove old samples from sum
+    dsp.detection.state.rms.left_sum -= dsp.detection.state.rms.left_prev * dsp.detection.state.rms.left_prev;
+    dsp.detection.state.rms.right_sum -= dsp.detection.state.rms.right_prev * dsp.detection.state.rms.right_prev;
+    
+    // Store current samples for next iteration
+    dsp.detection.state.rms.left_prev = left;
+    dsp.detection.state.rms.right_prev = right;
+    
+    // Calculate RMS values
+    dsp.detection.state.rms.left_sum < 0 ? dsp.detection.state.rms.left_sum = 0;
+    dsp.detection.state.rms.right_sum < 0 ? dsp.detection.state.rms.right_sum = 0;
+    
+    dsp.detection.state.level.left_linear = sqrt(dsp.detection.state.rms.left_sum / dsp.detection.state.rms.window_size);
+    dsp.detection.state.level.right_linear = sqrt(dsp.detection.state.rms.right_sum / dsp.detection.state.rms.window_size);
+    
+    // Convert to dB
+    dsp.detection.state.level.left_db = dsp.detection.state.level.left_linear > dsp.constants.min_detector_level ? 
+                                       math_linear_to_db_safe(dsp.detection.state.level.left_linear) : 
+                                       constants.audio.constants.min_level_db;
+    dsp.detection.state.level.right_db = dsp.detection.state.level.right_linear > dsp.constants.min_detector_level ? 
+                                        math_linear_to_db_safe(dsp.detection.state.level.right_linear) : 
+                                        constants.audio.constants.min_level_db;
+  );
+);
+
+function dsp_rms_set_window_size(samples) (
+  // Set RMS window size
+  dsp.detection.state.rms.window_size = samples;
+  dsp.detection.state.rms.position = 0;
+  dsp.detection.state.rms.left_sum = 0.0;
+  dsp.detection.state.rms.right_sum = 0.0;
+  dsp.detection.state.rms.left_prev = 0.0;
+  dsp.detection.state.rms.right_prev = 0.0;
+);
+
+function dsp_rms_get_level_left() (
+  // Get left RMS level in dB
+  dsp.detection.state.level.left_db;
+);
+
+function dsp_rms_get_level_right() (
+  // Get right RMS level in dB
+  dsp.detection.state.level.right_db;
+);
+
+function dsp_rms_get_level_linear_left() (
+  // Get left RMS level in linear
+  dsp.detection.state.level.left_linear;
+);
+
+function dsp_rms_get_level_linear_right() (
+  // Get right RMS level in linear
+  dsp.detection.state.level.right_linear;
+);
+
+//==============================================================================
+// PEAK DETECTION FUNCTIONS
+//==============================================================================
+
+function dsp_peak_update(left, right) (
+  // Update peak detection
+  dsp.detection.state.peak.enabled ? (
+    // Update peak values
+    abs(left) > dsp.detection.state.peak.left_max ? dsp.detection.state.peak.left_max = abs(left);
+    abs(right) > dsp.detection.state.peak.right_max ? dsp.detection.state.peak.right_max = abs(right);
+    
+    // Store current samples for next iteration
+    dsp.detection.state.peak.left_prev = left;
+    dsp.detection.state.peak.right_prev = right;
+  );
+);
+
+function dsp_peak_reset() (
+  // Reset peak values
+  dsp.detection.state.peak.left_max = 0.0;
+  dsp.detection.state.peak.right_max = 0.0;
+  dsp.detection.state.peak.left_prev = 0.0;
+  dsp.detection.state.peak.right_prev = 0.0;
+);
+
+function dsp_peak_get_max_left() (
+  // Get left peak value
+  dsp.detection.state.peak.left_max;
+);
+
+function dsp_peak_get_max_right() (
+  // Get right peak value
+  dsp.detection.state.peak.right_max;
+);
+
+function dsp_peak_get_max_db_left() (
+  // Get left peak value in dB
+  dsp.detection.state.peak.left_max > dsp.constants.min_detector_level ? 
+  math_linear_to_db_safe(dsp.detection.state.peak.left_max) : 
+  constants.audio.constants.min_level_db;
+);
+
+function dsp_peak_get_max_db_right() (
+  // Get right peak value in dB
+  dsp.detection.state.peak.right_max > dsp.constants.min_detector_level ? 
+  math_linear_to_db_safe(dsp.detection.state.peak.right_max) : 
+  constants.audio.constants.min_level_db;
+);
+
+//==============================================================================
+// LEVEL DETECTION FUNCTIONS
+//==============================================================================
+
+function dsp_level_update(left, right, mode) (
+  // Update level detection based on mode
+  mode == 0 ? (
+    // RMS mode
+    dsp_rms_update(left, right);
+  ) : (
+    // Peak mode
+    dsp_peak_update(left, right);
+    dsp.detection.state.level.left_linear = dsp.detection.state.peak.left_max;
+    dsp.detection.state.level.right_linear = dsp.detection.state.peak.right_max;
+    dsp.detection.state.level.left_db = dsp_peak_get_max_db_left();
+    dsp.detection.state.level.right_db = dsp_peak_get_max_db_right();
+  );
+);
+
+function dsp_level_get_db_left() (
+  // Get left level in dB
+  dsp.detection.state.level.left_db;
+);
+
+function dsp_level_get_db_right() (
+  // Get right level in dB
+  dsp.detection.state.level.right_db;
+);
+
+function dsp_level_get_linear_left() (
+  // Get left level in linear
+  dsp.detection.state.level.left_linear;
+);
+
+function dsp_level_get_linear_right() (
+  // Get right level in linear
+  dsp.detection.state.level.right_linear;
+);
+
+//==============================================================================
+// STEREO PROCESSING FUNCTIONS
+//==============================================================================
+
+function dsp_stereo_get_mid(left, right) (
+  // Get mid signal (L + R) / 2
+  (left + right) * 0.5;
+);
+
+function dsp_stereo_get_side(left, right) (
+  // Get side signal (L - R) / 2
+  (left - right) * 0.5;
+);
+
+function dsp_stereo_get_mono(left, right) (
+  // Get mono signal (L + R) / 2
+  dsp_stereo_get_mid(left, right);
+);
+
+function dsp_stereo_get_stereo_width(left, right) local(mid, side) (
+  // Get stereo width (side / mid)
+  mid = dsp_stereo_get_mid(left, right);
+  side = dsp_stereo_get_side(left, right);
+  
+  mid > dsp.constants.min_detector_level ? side / mid : 0.0;
+);
+
+//==============================================================================
+// SIGNAL CONDITIONING FUNCTIONS
+//==============================================================================
+
+function dsp_condition_input(left, right) local(conditioned_left, conditioned_right) (
+  // Condition input signal
+  conditioned_left = left;
+  conditioned_right = right;
+  
+  // Prevent denormals
+  abs(conditioned_left) < dsp.constants.denormal_threshold ? conditioned_left = 0.0;
+  abs(conditioned_right) < dsp.constants.denormal_threshold ? conditioned_right = 0.0;
+  
+  // Clamp to valid range
+  conditioned_left = math_clamp(conditioned_left, -1.0, 1.0);
+  conditioned_right = math_clamp(conditioned_right, -1.0, 1.0);
+  
+  // Return left channel (right available via global)
+  conditioned_left;
+);
+
+function dsp_condition_output(left, right) local(conditioned_left, conditioned_right) (
+  // Condition output signal
+  conditioned_left = left;
+  conditioned_right = right;
+  
+  // Prevent denormals
+  abs(conditioned_left) < dsp.constants.denormal_threshold ? conditioned_left = 0.0;
+  abs(conditioned_right) < dsp.constants.denormal_threshold ? conditioned_right = 0.0;
+  
+  // Soft clipping
+  conditioned_left = dsp_soft_clip(conditioned_left);
+  conditioned_right = dsp_soft_clip(conditioned_right);
+  
+  // Return left channel (right available via global)
+  conditioned_left;
+);
+
+function dsp_soft_clip(sample) (
+  // Soft clipping function
+  sample > 1.0 ? (1.0 + tanh(sample - 1.0)) :
+  sample < -1.0 ? (-1.0 + tanh(sample + 1.0)) :
+  sample;
+);
+
+//==============================================================================
+// DSP PROCESSING FUNCTIONS
+//==============================================================================
+
+function dsp_process_block(samples, sample_rate) (
+  // Process a block of samples
+  dsp.processing.state.block_samples = samples;
+  dsp.processing.state.sample_rate = sample_rate;
+  dsp.processing.state.sample_rate_inv = 1.0 / sample_rate;
+  dsp.processing.state.initialized = 1;
+);
+
+function dsp_reset_all() (
+  // Reset all DSP state
+  dsp_rms_set_window_size(0);
+  dsp_peak_reset();
+  dsp.detection.state.level.left_db = constants.audio.constants.min_level_db;
+  dsp.detection.state.level.right_db = constants.audio.constants.min_level_db;
+  dsp.detection.state.level.left_linear = 0.0;
+  dsp.detection.state.level.right_linear = 0.0;
+);
+
+//==============================================================================
+// DSP OBJECT VALIDATION
+//==============================================================================
+
+function dsp_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  dsp.constants.eps <= 0 ? valid = 0;
+  dsp.constants.min_detector_level <= 0 ? valid = 0;
+  dsp.constants.denormal_threshold <= 0 ? valid = 0;
+  dsp.constants.db_scale <= 0 ? valid = 0;
+  dsp.constants.db_scale_inv <= 0 ? valid = 0;
+  
+  // Validate state
+  dsp.detection.state.rms.window_size < 0 ? valid = 0;
+  dsp.detection.state.rms.position < 0 ? valid = 0;
+  dsp.detection.state.level.left_db < constants.audio.constants.min_level_db ? valid = 0;
+  dsp.detection.state.level.right_db < constants.audio.constants.min_level_db ? valid = 0;
+  
+  valid;
+);
+
+function dsp_get_summary() local(summary) (
+  // Pack DSP summary into single value
+  // High 16 bits: RMS enabled
+  // Middle 16 bits: Peak enabled
+  // Low 16 bits: Initialized
+  
+  rms_enabled = dsp.detection.state.rms.enabled ? 1 : 0;
+  peak_enabled = dsp.detection.state.peak.enabled ? 1 : 0;
+  initialized = dsp.processing.state.initialized ? 1 : 0;
+  
+  (rms_enabled << 16) | (peak_enabled << 8) | initialized;
+);

@@ -1,0 +1,338 @@
+// Transient Detection Objects Module
+// Transient detection system organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// TRANSIENT OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_transient_objects() (
+  // Initialize transient detection state
+  transient.detection.state.enabled = 1;
+  transient.detection.state.sensitivity = 0.5;
+  transient.detection.state.threshold = 0.1;
+  transient.detection.state.attack_time = 0.001;  // 1ms
+  transient.detection.state.release_time = 0.01;  // 10ms
+  
+  // Initialize transient analysis state
+  transient.analysis.state.left_prev = 0.0;
+  transient.analysis.state.right_prev = 0.0;
+  transient.analysis.state.left_derivative = 0.0;
+  transient.analysis.state.right_derivative = 0.0;
+  transient.analysis.state.left_envelope = 0.0;
+  transient.analysis.state.right_envelope = 0.0;
+  
+  // Initialize transient detection results
+  transient.results.state.detected = 0;
+  transient.results.state.strength = 0.0;
+  transient.results.state.left_strength = 0.0;
+  transient.results.state.right_strength = 0.0;
+  transient.results.state.position = 0.0;
+  
+  // Initialize transient constants
+  transient.constants.min_sensitivity = 0.0;
+  transient.constants.max_sensitivity = 1.0;
+  transient.constants.min_threshold = 0.001;
+  transient.constants.max_threshold = 1.0;
+  transient.constants.min_attack_time = 0.0001;  // 0.1ms
+  transient.constants.max_attack_time = 0.01;    // 10ms
+  transient.constants.min_release_time = 0.001;  // 1ms
+  transient.constants.max_release_time = 0.1;    // 100ms
+  
+  // Initialize transient processing state
+  transient.processing.state.sample_rate = 0;
+  transient.processing.state.attack_coeff = 0.0;
+  transient.processing.state.release_coeff = 0.0;
+  transient.processing.state.initialized = 0;
+);
+
+//==============================================================================
+// TRANSIENT DETECTION FUNCTIONS
+//==============================================================================
+
+function transient_detect(left, right) local(
+  left_derivative, right_derivative, left_envelope, right_envelope,
+  left_strength, right_strength, max_strength, detected
+) (
+  // Detect transients in input signal
+  transient.detection.state.enabled ? (
+    // Calculate derivatives (rate of change)
+    left_derivative = abs(left - transient.analysis.state.left_prev);
+    right_derivative = abs(right - transient.analysis.state.right_prev);
+    
+    // Update envelopes with attack/release
+    left_envelope = transient.analysis.state.left_envelope;
+    right_envelope = transient.analysis.state.right_envelope;
+    
+    left_derivative > left_envelope ? (
+      // Attack
+      left_envelope = left_derivative;
+    ) : (
+      // Release
+      left_envelope = left_envelope + (left_derivative - left_envelope) * 
+                     (1.0 - transient.processing.state.release_coeff);
+    );
+    
+    right_derivative > right_envelope ? (
+      // Attack
+      right_envelope = right_derivative;
+    ) : (
+      // Release
+      right_envelope = right_envelope + (right_derivative - right_envelope) * 
+                      (1.0 - transient.processing.state.release_coeff);
+    );
+    
+    // Store updated envelopes
+    transient.analysis.state.left_envelope = left_envelope;
+    transient.analysis.state.right_envelope = right_envelope;
+    
+    // Calculate transient strength
+    left_strength = left_envelope * transient.detection.state.sensitivity;
+    right_strength = right_envelope * transient.detection.state.sensitivity;
+    
+    // Store individual strengths
+    transient.results.state.left_strength = left_strength;
+    transient.results.state.right_strength = right_strength;
+    
+    // Get maximum strength
+    max_strength = left_strength > right_strength ? left_strength : right_strength;
+    transient.results.state.strength = max_strength;
+    
+    // Check if transient detected
+    detected = max_strength > transient.detection.state.threshold ? 1 : 0;
+    transient.results.state.detected = detected;
+    
+    // Update previous values
+    transient.analysis.state.left_prev = left;
+    transient.analysis.state.right_prev = right;
+    
+    // Return detection result
+    detected;
+  ) : (
+    // Transient detection disabled
+    transient.results.state.detected = 0;
+    transient.results.state.strength = 0.0;
+    0;
+  );
+);
+
+function transient_get_strength() (
+  // Get current transient strength
+  transient.results.state.strength;
+);
+
+function transient_get_left_strength() (
+  // Get left channel transient strength
+  transient.results.state.left_strength;
+);
+
+function transient_get_right_strength() (
+  // Get right channel transient strength
+  transient.results.state.right_strength;
+);
+
+function transient_is_detected() (
+  // Check if transient is currently detected
+  transient.results.state.detected;
+);
+
+//==============================================================================
+// TRANSIENT CONFIGURATION FUNCTIONS
+//==============================================================================
+
+function transient_set_sensitivity(sensitivity) (
+  // Set transient detection sensitivity
+  transient.detection.state.sensitivity = math_clamp(sensitivity, 
+                                                    transient.constants.min_sensitivity, 
+                                                    transient.constants.max_sensitivity);
+);
+
+function transient_set_threshold(threshold) (
+  // Set transient detection threshold
+  transient.detection.state.threshold = math_clamp(threshold, 
+                                                  transient.constants.min_threshold, 
+                                                  transient.constants.max_threshold);
+);
+
+function transient_set_attack_time(attack_time) (
+  // Set transient attack time
+  transient.detection.state.attack_time = math_clamp(attack_time, 
+                                                    transient.constants.min_attack_time, 
+                                                    transient.constants.max_attack_time);
+  
+  // Update attack coefficient
+  transient.processing.state.initialized ? (
+    transient.processing.state.attack_coeff = math_exp_coeff_safe(
+      transient.detection.state.attack_time * 1000.0, 
+      transient.processing.state.sample_rate
+    );
+  );
+);
+
+function transient_set_release_time(release_time) (
+  // Set transient release time
+  transient.detection.state.release_time = math_clamp(release_time, 
+                                                     transient.constants.min_release_time, 
+                                                     transient.constants.max_release_time);
+  
+  // Update release coefficient
+  transient.processing.state.initialized ? (
+    transient.processing.state.release_coeff = math_exp_coeff_safe(
+      transient.detection.state.release_time * 1000.0, 
+      transient.processing.state.sample_rate
+    );
+  );
+);
+
+function transient_set_enabled(enabled) (
+  // Enable/disable transient detection
+  transient.detection.state.enabled = enabled ? 1 : 0;
+);
+
+//==============================================================================
+// TRANSIENT PROCESSING FUNCTIONS
+//==============================================================================
+
+function transient_process_block(sample_rate) (
+  // Process a block with new sample rate
+  transient.processing.state.sample_rate = sample_rate;
+  transient.processing.state.attack_coeff = math_exp_coeff_safe(
+    transient.detection.state.attack_time * 1000.0, 
+    sample_rate
+  );
+  transient.processing.state.release_coeff = math_exp_coeff_safe(
+    transient.detection.state.release_time * 1000.0, 
+    sample_rate
+  );
+  transient.processing.state.initialized = 1;
+);
+
+function transient_reset() (
+  // Reset transient detection state
+  transient.analysis.state.left_prev = 0.0;
+  transient.analysis.state.right_prev = 0.0;
+  transient.analysis.state.left_derivative = 0.0;
+  transient.analysis.state.right_derivative = 0.0;
+  transient.analysis.state.left_envelope = 0.0;
+  transient.analysis.state.right_envelope = 0.0;
+  
+  transient.results.state.detected = 0;
+  transient.results.state.strength = 0.0;
+  transient.results.state.left_strength = 0.0;
+  transient.results.state.right_strength = 0.0;
+  transient.results.state.position = 0.0;
+);
+
+//==============================================================================
+// TRANSIENT ANALYSIS FUNCTIONS
+//==============================================================================
+
+function transient_analyze_signal(left, right) local(
+  left_derivative, right_derivative, left_envelope, right_envelope,
+  left_strength, right_strength, max_strength, detected
+) (
+  // Analyze signal for transients
+  transient.detection.state.enabled ? (
+    // Calculate derivatives
+    left_derivative = abs(left - transient.analysis.state.left_prev);
+    right_derivative = abs(right - transient.analysis.state.right_prev);
+    
+    // Update envelopes
+    left_envelope = transient.analysis.state.left_envelope;
+    right_envelope = transient.analysis.state.right_envelope;
+    
+    left_derivative > left_envelope ? (
+      left_envelope = left_derivative;
+    ) : (
+      left_envelope = left_envelope + (left_derivative - left_envelope) * 
+                     (1.0 - transient.processing.state.release_coeff);
+    );
+    
+    right_derivative > right_envelope ? (
+      right_envelope = right_derivative;
+    ) : (
+      right_envelope = right_envelope + (right_derivative - right_envelope) * 
+                      (1.0 - transient.processing.state.release_coeff);
+    );
+    
+    // Store updated envelopes
+    transient.analysis.state.left_envelope = left_envelope;
+    transient.analysis.state.right_envelope = right_envelope;
+    
+    // Calculate strengths
+    left_strength = left_envelope * transient.detection.state.sensitivity;
+    right_strength = right_envelope * transient.detection.state.sensitivity;
+    
+    // Get maximum strength
+    max_strength = left_strength > right_strength ? left_strength : right_strength;
+    
+    // Check detection
+    detected = max_strength > transient.detection.state.threshold ? 1 : 0;
+    
+    // Update previous values
+    transient.analysis.state.left_prev = left;
+    transient.analysis.state.right_prev = right;
+    
+    // Return analysis result
+    max_strength;
+  ) : (
+    0.0;
+  );
+);
+
+function transient_get_envelope_left() (
+  // Get left channel envelope
+  transient.analysis.state.left_envelope;
+);
+
+function transient_get_envelope_right() (
+  // Get right channel envelope
+  transient.analysis.state.right_envelope;
+);
+
+function transient_get_derivative_left() (
+  // Get left channel derivative
+  transient.analysis.state.left_derivative;
+);
+
+function transient_get_derivative_right() (
+  // Get right channel derivative
+  transient.analysis.state.right_derivative;
+);
+
+//==============================================================================
+// TRANSIENT OBJECT VALIDATION
+//==============================================================================
+
+function transient_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  transient.constants.min_sensitivity < 0 ? valid = 0;
+  transient.constants.max_sensitivity > 1 ? valid = 0;
+  transient.constants.min_threshold <= 0 ? valid = 0;
+  transient.constants.max_threshold > 1 ? valid = 0;
+  
+  // Validate state
+  transient.detection.state.sensitivity < transient.constants.min_sensitivity ? valid = 0;
+  transient.detection.state.sensitivity > transient.constants.max_sensitivity ? valid = 0;
+  transient.detection.state.threshold < transient.constants.min_threshold ? valid = 0;
+  transient.detection.state.threshold > transient.constants.max_threshold ? valid = 0;
+  
+  valid;
+);
+
+function transient_get_summary() local(summary) (
+  // Pack transient summary into single value
+  // High 16 bits: enabled
+  // Middle 16 bits: detected
+  // Low 16 bits: strength (scaled by 1000)
+  
+  enabled = transient.detection.state.enabled ? 1 : 0;
+  detected = transient.results.state.detected ? 1 : 0;
+  strength_scaled = transient.results.state.strength * 1000.0;
+  
+  (enabled << 16) | (detected << 8) | strength_scaled;
+);

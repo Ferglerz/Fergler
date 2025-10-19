@@ -1,0 +1,324 @@
+// Constants Objects Module
+// Centralized constants organization using hierarchical objects
+// Dependencies: None (foundation module)
+
+@init
+
+//==============================================================================
+// CONSTANTS OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_constants_objects() (
+  // Initialize constants hierarchy
+  constants.audio.constants.sample_rate = srate;
+  constants.audio.constants.eps = 0.000000000000000000000000000001;
+  constants.audio.constants.min_detector_level = 0.000001;
+  constants.audio.constants.denormal_threshold = pow(10, -15);
+  constants.audio.constants.max_level_db = 20.0;
+  constants.audio.constants.min_level_db = -80.0;
+  constants.audio.constants.db_scale = 8.6858896380650366;  // 20/log(10)
+  constants.audio.constants.db_scale_inv = 0.11512925464970229;  // log(10)/20
+  
+  // Math constants
+  constants.math.constants.pi = $pi;
+  constants.math.constants.tau = 2 * $pi;
+  constants.math.constants.e = 2.718281828459045;
+  constants.math.constants.ln2 = 0.6931471805599453;
+  constants.math.constants.ln10 = 2.302585092994046;
+  constants.math.constants.sqrt2 = 1.4142135623730951;
+  constants.math.constants.sqrt3 = 1.7320508075688772;
+  
+  // Compression constants
+  constants.compression.constants.max_ratio = 100.0;
+  constants.compression.constants.min_ratio = 0.1;
+  constants.compression.constants.max_threshold_db = 20.0;
+  constants.compression.constants.min_threshold_db = -80.0;
+  constants.compression.constants.max_knee_db = 20.0;
+  constants.compression.constants.min_knee_db = 0.0;
+  constants.compression.constants.max_makeup_db = 24.0;
+  constants.compression.constants.min_makeup_db = 0.0;
+  
+  // Graph constants
+  constants.graph.constants.max_points = 10000;
+  constants.graph.constants.point_size = 2;  // x, y coordinates
+  constants.graph.constants.curve_size = 1;  // curve amount
+  constants.graph.constants.default_points = 6;
+  constants.graph.constants.min_x = 0.0;
+  constants.graph.constants.max_x = 1.0;
+  constants.graph.constants.min_y = 0.0;
+  constants.graph.constants.max_y = 1.0;
+  
+  // UI constants
+  constants.ui.constants.width = 2625;
+  constants.ui.constants.height = 338;
+  constants.ui.constants.header_height = 77;
+  constants.ui.constants.panel_height = 261;
+  constants.ui.constants.graph_size = 263;
+  constants.ui.constants.graph_x = 695;
+  constants.ui.constants.graph_y = 77;
+  
+  // Color constants
+  constants.ui.colors.background_r = 0.12;
+  constants.ui.colors.background_g = 0.12;
+  constants.ui.colors.background_b = 0.13;
+  constants.ui.colors.accent_r = 0.3;
+  constants.ui.colors.accent_g = 0.5;
+  constants.ui.colors.accent_b = 0.9;
+  constants.ui.colors.text_r = 0.9;
+  constants.ui.colors.text_g = 0.9;
+  constants.ui.colors.text_b = 0.9;
+  constants.ui.colors.highlight_r = 1.0;
+  constants.ui.colors.highlight_g = 0.8;
+  constants.ui.colors.highlight_b = 0.0;
+  
+  // Memory constants
+  constants.memory.constants.max_memory = 8388608;  // 8MB
+  constants.memory.constants.string_slots_start = 0;
+  constants.memory.constants.string_slots_count = 50;
+  constants.memory.constants.fft_boundary = 16384;
+  constants.memory.constants.alignment = 4;
+  
+  // Debug constants
+  constants.debug.constants.max_messages = 200;
+  constants.debug.constants.message_size = 256;
+  constants.debug.constants.string_slots_debug = 50;
+  
+  // Slider constants
+  constants.sliders.constants.num_sliders = 64;
+  constants.sliders.constants.max_slider_value = 1.0;
+  constants.sliders.constants.min_slider_value = 0.0;
+  
+  // Histogram constants
+  constants.histogram.constants.num_bins = 100;
+  constants.histogram.constants.bin_size = 4;  // 4 bytes per bin
+  constants.histogram.constants.decay_rate = 0.95;
+  constants.histogram.constants.max_value = 1.0;
+);
+
+//==============================================================================
+// CONSTANTS ACCESS FUNCTIONS
+//==============================================================================
+
+function constants_audio_get_sample_rate() (
+  constants.audio.constants.sample_rate;
+);
+
+function constants_audio_get_eps() (
+  constants.audio.constants.eps;
+);
+
+function constants_audio_get_min_detector_level() (
+  constants.audio.constants.min_detector_level;
+);
+
+function constants_audio_get_denormal_threshold() (
+  constants.audio.constants.denormal_threshold;
+);
+
+function constants_audio_get_db_scale() (
+  constants.audio.constants.db_scale;
+);
+
+function constants_audio_get_db_scale_inv() (
+  constants.audio.constants.db_scale_inv;
+);
+
+function constants_math_get_pi() (
+  constants.math.constants.pi;
+);
+
+function constants_math_get_tau() (
+  constants.math.constants.tau;
+);
+
+function constants_math_get_e() (
+  constants.math.constants.e;
+);
+
+function constants_compression_get_max_ratio() (
+  constants.compression.constants.max_ratio;
+);
+
+function constants_compression_get_min_ratio() (
+  constants.compression.constants.min_ratio;
+);
+
+function constants_compression_get_max_threshold_db() (
+  constants.compression.constants.max_threshold_db;
+);
+
+function constants_compression_get_min_threshold_db() (
+  constants.compression.constants.min_threshold_db;
+);
+
+function constants_graph_get_max_points() (
+  constants.graph.constants.max_points;
+);
+
+function constants_graph_get_point_size() (
+  constants.graph.constants.point_size;
+);
+
+function constants_graph_get_curve_size() (
+  constants.graph.constants.curve_size;
+);
+
+function constants_ui_get_width() (
+  constants.ui.constants.width;
+);
+
+function constants_ui_get_height() (
+  constants.ui.constants.height;
+);
+
+function constants_ui_get_header_height() (
+  constants.ui.constants.header_height;
+);
+
+function constants_ui_get_panel_height() (
+  constants.ui.constants.panel_height;
+);
+
+function constants_ui_get_graph_size() (
+  constants.ui.constants.graph_size;
+);
+
+function constants_ui_get_graph_x() (
+  constants.ui.constants.graph_x;
+);
+
+function constants_ui_get_graph_y() (
+  constants.ui.constants.graph_y;
+);
+
+function constants_ui_get_background_color() local(r, g, b) (
+  r = constants.ui.colors.background_r;
+  g = constants.ui.colors.background_g;
+  b = constants.ui.colors.background_b;
+  (r << 16) | (g << 8) | b;
+);
+
+function constants_ui_get_accent_color() local(r, g, b) (
+  r = constants.ui.colors.accent_r;
+  g = constants.ui.colors.accent_g;
+  b = constants.ui.colors.accent_b;
+  (r << 16) | (g << 8) | b;
+);
+
+function constants_ui_get_text_color() local(r, g, b) (
+  r = constants.ui.colors.text_r;
+  g = constants.ui.colors.text_g;
+  b = constants.ui.colors.text_b;
+  (r << 16) | (g << 8) | b;
+);
+
+function constants_ui_get_highlight_color() local(r, g, b) (
+  r = constants.ui.colors.highlight_r;
+  g = constants.ui.colors.highlight_g;
+  b = constants.ui.colors.highlight_b;
+  (r << 16) | (g << 8) | b;
+);
+
+function constants_memory_get_max_memory() (
+  constants.memory.constants.max_memory;
+);
+
+function constants_memory_get_string_slots_start() (
+  constants.memory.constants.string_slots_start;
+);
+
+function constants_memory_get_string_slots_count() (
+  constants.memory.constants.string_slots_count;
+);
+
+function constants_memory_get_fft_boundary() (
+  constants.memory.constants.fft_boundary;
+);
+
+function constants_memory_get_alignment() (
+  constants.memory.constants.alignment;
+);
+
+function constants_debug_get_max_messages() (
+  constants.debug.constants.max_messages;
+);
+
+function constants_debug_get_message_size() (
+  constants.debug.constants.message_size;
+);
+
+function constants_debug_get_string_slots_debug() (
+  constants.debug.constants.string_slots_debug;
+);
+
+function constants_sliders_get_num_sliders() (
+  constants.sliders.constants.num_sliders;
+);
+
+function constants_histogram_get_num_bins() (
+  constants.histogram.constants.num_bins;
+);
+
+function constants_histogram_get_bin_size() (
+  constants.histogram.constants.bin_size;
+);
+
+function constants_histogram_get_decay_rate() (
+  constants.histogram.constants.decay_rate;
+);
+
+function constants_histogram_get_max_value() (
+  constants.histogram.constants.max_value;
+);
+
+//==============================================================================
+// CONSTANTS VALIDATION
+//==============================================================================
+
+function constants_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate audio constants
+  constants.audio.constants.sample_rate <= 0 ? valid = 0;
+  constants.audio.constants.eps <= 0 ? valid = 0;
+  constants.audio.constants.min_detector_level <= 0 ? valid = 0;
+  
+  // Validate math constants
+  constants.math.constants.pi <= 0 ? valid = 0;
+  constants.math.constants.tau <= 0 ? valid = 0;
+  constants.math.constants.e <= 0 ? valid = 0;
+  
+  // Validate compression constants
+  constants.compression.constants.max_ratio <= constants.compression.constants.min_ratio ? valid = 0;
+  constants.compression.constants.max_threshold_db <= constants.compression.constants.min_threshold_db ? valid = 0;
+  
+  // Validate graph constants
+  constants.graph.constants.max_points <= 0 ? valid = 0;
+  constants.graph.constants.point_size <= 0 ? valid = 0;
+  constants.graph.constants.curve_size <= 0 ? valid = 0;
+  
+  // Validate UI constants
+  constants.ui.constants.width <= 0 ? valid = 0;
+  constants.ui.constants.height <= 0 ? valid = 0;
+  constants.ui.constants.header_height <= 0 ? valid = 0;
+  
+  // Validate memory constants
+  constants.memory.constants.max_memory <= 0 ? valid = 0;
+  constants.memory.constants.string_slots_count <= 0 ? valid = 0;
+  constants.memory.constants.fft_boundary <= 0 ? valid = 0;
+  
+  valid;
+);
+
+function constants_get_summary() local(summary) (
+  // Pack constants summary into single value
+  // High 16 bits: audio constants valid
+  // Middle 16 bits: math constants valid
+  // Low 16 bits: compression constants valid
+  
+  audio_valid = constants.audio.constants.sample_rate > 0 ? 1 : 0;
+  math_valid = constants.math.constants.pi > 0 ? 1 : 0;
+  compression_valid = constants.compression.constants.max_ratio > 0 ? 1 : 0;
+  
+  (audio_valid << 16) | (math_valid << 8) | compression_valid;
+);

@@ -1,0 +1,399 @@
+// Graph Objects Module
+// Graph data management organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// GRAPH OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_graph_objects() (
+  // Initialize graph data state
+  graph.data.state.num_points = 0;
+  graph.data.state.num_curves = 0;
+  graph.data.state.points_allocated = 0;
+  graph.data.state.curves_allocated = 0;
+  graph.data.state.cache_valid = 0;
+  graph.data.state.cache_dirty = 1;
+  
+  // Initialize graph point state
+  graph.points.state.hovered = -1;
+  graph.points.state.selected = -1;
+  graph.points.state.dragging = 0;
+  graph.points.state.drag_start_x = 0.0;
+  graph.points.state.drag_start_y = 0.0;
+  graph.points.state.drag_current_x = 0.0;
+  graph.points.state.drag_current_y = 0.0;
+  
+  // Initialize graph curve state
+  graph.curves.state.hovered = -1;
+  graph.curves.state.selected = -1;
+  graph.curves.state.dragging = 0;
+  graph.curves.state.drag_start_amount = 0.0;
+  graph.curves.state.drag_current_amount = 0.0;
+  
+  // Initialize graph constants
+  graph.constants.max_points = constants_graph_get_max_points();
+  graph.constants.point_size = constants_graph_get_point_size();
+  graph.constants.curve_size = constants_graph_get_curve_size();
+  graph.constants.default_points = constants_graph_get_default_points();
+  graph.constants.min_x = constants_graph_get_min_x();
+  graph.constants.max_x = constants_graph_get_max_x();
+  graph.constants.min_y = constants_graph_get_min_y();
+  graph.constants.max_y = constants_graph_get_max_y();
+  
+  // Initialize graph processing state
+  graph.processing.state.initialized = 0;
+  graph.processing.state.needs_rebuild = 1;
+  graph.processing.state.needs_validation = 1;
+);
+
+//==============================================================================
+// GRAPH POINT FUNCTIONS
+//==============================================================================
+
+function graph_add_point(x, y) local(index) (
+  // Add a new point to the graph
+  graph.data.state.num_points < graph.constants.max_points ? (
+    index = graph.data.state.num_points;
+    graph_set_point(index, x, y);
+    graph.data.state.num_points += 1;
+    graph.data.state.cache_dirty = 1;
+    index;
+  ) : (
+    -1;  // Failed to add point
+  );
+);
+
+function graph_remove_point(index) local(i) (
+  // Remove a point from the graph
+  index >= 0 && index < graph.data.state.num_points ? (
+    // Shift remaining points
+    i = index;
+    while(i < graph.data.state.num_points - 1) (
+      graph_set_point(i, graph_get_point_x(i + 1), graph_get_point_y(i + 1));
+      graph_set_curve_amount(i, graph_get_curve_amount(i + 1));
+      i += 1;
+    );
+    
+    graph.data.state.num_points -= 1;
+    graph.data.state.cache_dirty = 1;
+    1;  // Success
+  ) : (
+    0;  // Failed to remove point
+  );
+);
+
+function graph_set_point(index, x, y) local(ptr) (
+  // Set point coordinates
+  index >= 0 && index < graph.data.state.num_points ? (
+    ptr = memory_graph_get_points();
+    ptr[index * 2] = math_clamp(x, graph.constants.min_x, graph.constants.max_x);
+    ptr[index * 2 + 1] = math_clamp(y, graph.constants.min_y, graph.constants.max_y);
+    graph.data.state.cache_dirty = 1;
+    1;  // Success
+  ) : (
+    0;  // Failed to set point
+  );
+);
+
+function graph_get_point_x(index) local(ptr) (
+  // Get point X coordinate
+  index >= 0 && index < graph.data.state.num_points ? (
+    ptr = memory_graph_get_points();
+    ptr[index * 2];
+  ) : (
+    0.0;  // Default value
+  );
+);
+
+function graph_get_point_y(index) local(ptr) (
+  // Get point Y coordinate
+  index >= 0 && index < graph.data.state.num_points ? (
+    ptr = memory_graph_get_points();
+    ptr[index * 2 + 1];
+  ) : (
+    0.0;  // Default value
+  );
+);
+
+function graph_get_point_count() (
+  // Get number of points
+  graph.data.state.num_points;
+);
+
+//==============================================================================
+// GRAPH CURVE FUNCTIONS
+//==============================================================================
+
+function graph_set_curve_amount(index, amount) local(ptr) (
+  // Set curve amount for a point
+  index >= 0 && index < graph.data.state.num_points ? (
+    ptr = memory_graph_get_curve_amounts();
+    ptr[index] = math_clamp(amount, -1.0, 1.0);
+    graph.data.state.cache_dirty = 1;
+    1;  // Success
+  ) : (
+    0;  // Failed to set curve amount
+  );
+);
+
+function graph_get_curve_amount(index) local(ptr) (
+  // Get curve amount for a point
+  index >= 0 && index < graph.data.state.num_points ? (
+    ptr = memory_graph_get_curve_amounts();
+    ptr[index];
+  ) : (
+    0.0;  // Default value
+  );
+);
+
+function graph_set_curve_count(count) (
+  // Set number of curves
+  graph.data.state.num_curves = math_clamp(count, 0, graph.data.state.num_points);
+  graph.data.state.cache_dirty = 1;
+);
+
+function graph_get_curve_count() (
+  // Get number of curves
+  graph.data.state.num_curves;
+);
+
+//==============================================================================
+// GRAPH INTERACTION FUNCTIONS
+//==============================================================================
+
+function graph_hit_test_point(x, y) local(i, px, py, dx, dy, distance) (
+  // Test if point (x, y) hits any graph point
+  graph.points.state.hovered = -1;
+  
+  i = 0;
+  while(i < graph.data.state.num_points) (
+    px = graph_get_point_x(i);
+    py = graph_get_point_y(i);
+    dx = x - px;
+    dy = y - py;
+    distance = sqrt(dx * dx + dy * dy);
+    
+    distance < 8.0 ? (
+      graph.points.state.hovered = i;
+      i = graph.data.state.num_points;  // Exit loop
+    );
+    
+    i += 1;
+  );
+  
+  graph.points.state.hovered;
+);
+
+function graph_hit_test_curve(x, y) local(i, px, py, dx, dy, distance) (
+  // Test if point (x, y) hits any curve control
+  graph.curves.state.hovered = -1;
+  
+  i = 0;
+  while(i < graph.data.state.num_curves) (
+    px = graph_get_point_x(i);
+    py = graph_get_point_y(i);
+    dx = x - px;
+    dy = y - py;
+    distance = sqrt(dx * dx + dy * dy);
+    
+    distance < 6.0 ? (
+      graph.curves.state.hovered = i;
+      i = graph.data.state.num_curves;  // Exit loop
+    );
+    
+    i += 1;
+  );
+  
+  graph.curves.state.hovered;
+);
+
+function graph_start_drag_point(index, x, y) (
+  // Start dragging a point
+  index >= 0 && index < graph.data.state.num_points ? (
+    graph.points.state.selected = index;
+    graph.points.state.dragging = 1;
+    graph.points.state.drag_start_x = x;
+    graph.points.state.drag_start_y = y;
+    graph.points.state.drag_current_x = x;
+    graph.points.state.drag_current_y = y;
+    1;  // Success
+  ) : (
+    0;  // Failed to start drag
+  );
+);
+
+function graph_start_drag_curve(index, amount) (
+  // Start dragging a curve
+  index >= 0 && index < graph.data.state.num_curves ? (
+    graph.curves.state.selected = index;
+    graph.curves.state.dragging = 1;
+    graph.curves.state.drag_start_amount = amount;
+    graph.curves.state.drag_current_amount = amount;
+    1;  // Success
+  ) : (
+    0;  // Failed to start drag
+  );
+);
+
+function graph_update_drag_point(x, y) (
+  // Update point drag
+  graph.points.state.dragging ? (
+    graph.points.state.drag_current_x = x;
+    graph.points.state.drag_current_y = y;
+    
+    // Update point position
+    graph_set_point(graph.points.state.selected, x, y);
+    1;  // Success
+  ) : (
+    0;  // Not dragging
+  );
+);
+
+function graph_update_drag_curve(amount) (
+  // Update curve drag
+  graph.curves.state.dragging ? (
+    graph.curves.state.drag_current_amount = amount;
+    
+    // Update curve amount
+    graph_set_curve_amount(graph.curves.state.selected, amount);
+    1;  // Success
+  ) : (
+    0;  // Not dragging
+  );
+);
+
+function graph_end_drag() (
+  // End dragging
+  graph.points.state.dragging = 0;
+  graph.curves.state.dragging = 0;
+  graph.points.state.selected = -1;
+  graph.curves.state.selected = -1;
+);
+
+//==============================================================================
+// GRAPH VALIDATION FUNCTIONS
+//==============================================================================
+
+function graph_validate_points() local(valid, i, x, y, prev_x) (
+  // Validate all graph points
+  valid = 1;
+  
+  // Check point count
+  graph.data.state.num_points < 0 ? valid = 0;
+  graph.data.state.num_points > graph.constants.max_points ? valid = 0;
+  
+  // Check point coordinates and ordering
+  i = 0;
+  prev_x = -1.0;
+  while(i < graph.data.state.num_points && valid) (
+    x = graph_get_point_x(i);
+    y = graph_get_point_y(i);
+    
+    // Check coordinate ranges
+    x < graph.constants.min_x || x > graph.constants.max_x ? valid = 0;
+    y < graph.constants.min_y || y > graph.constants.max_y ? valid = 0;
+    
+    // Check X ordering (points must be in ascending order)
+    x <= prev_x ? valid = 0;
+    prev_x = x;
+    
+    i += 1;
+  );
+  
+  valid;
+);
+
+function graph_validate_curves() local(valid, i, amount) (
+  // Validate all graph curves
+  valid = 1;
+  
+  // Check curve count
+  graph.data.state.num_curves < 0 ? valid = 0;
+  graph.data.state.num_curves > graph.data.state.num_points ? valid = 0;
+  
+  // Check curve amounts
+  i = 0;
+  while(i < graph.data.state.num_curves && valid) (
+    amount = graph_get_curve_amount(i);
+    amount < -1.0 || amount > 1.0 ? valid = 0;
+    i += 1;
+  );
+  
+  valid;
+);
+
+function graph_validate_all() local(valid) (
+  // Validate entire graph
+  valid = 1;
+  
+  // Validate points
+  graph_validate_points() ? 0 : valid = 0;
+  
+  // Validate curves
+  graph_validate_curves() ? 0 : valid = 0;
+  
+  // Update validation state
+  graph.processing.state.needs_validation = valid ? 0 : 1;
+  
+  valid;
+);
+
+//==============================================================================
+// GRAPH CACHE FUNCTIONS
+//==============================================================================
+
+function graph_invalidate_cache() (
+  // Invalidate graph cache
+  graph.data.state.cache_valid = 0;
+  graph.data.state.cache_dirty = 1;
+  graph.processing.state.needs_rebuild = 1;
+);
+
+function graph_validate_cache() (
+  // Validate graph cache
+  graph.data.state.cache_valid = 1;
+  graph.data.state.cache_dirty = 0;
+  graph.processing.state.needs_rebuild = 0;
+);
+
+function graph_needs_rebuild() (
+  // Check if graph needs rebuilding
+  graph.data.state.cache_dirty || graph.processing.state.needs_rebuild;
+);
+
+//==============================================================================
+// GRAPH OBJECT VALIDATION
+//==============================================================================
+
+function graph_validate_objects() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  graph.constants.max_points <= 0 ? valid = 0;
+  graph.constants.point_size <= 0 ? valid = 0;
+  graph.constants.curve_size <= 0 ? valid = 0;
+  
+  // Validate state
+  graph.data.state.num_points < 0 ? valid = 0;
+  graph.data.state.num_points > graph.constants.max_points ? valid = 0;
+  graph.data.state.num_curves < 0 ? valid = 0;
+  graph.data.state.num_curves > graph.data.state.num_points ? valid = 0;
+  
+  valid;
+);
+
+function graph_get_summary() local(summary) (
+  // Pack graph summary into single value
+  // High 16 bits: point count
+  // Middle 16 bits: curve count
+  // Low 16 bits: cache valid
+  
+  point_count = graph.data.state.num_points;
+  curve_count = graph.data.state.num_curves;
+  cache_valid = graph.data.state.cache_valid ? 1 : 0;
+  
+  (point_count << 16) | (curve_count << 8) | cache_valid;
+);

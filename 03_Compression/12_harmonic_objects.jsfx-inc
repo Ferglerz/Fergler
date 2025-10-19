@@ -1,0 +1,329 @@
+// Harmonic Objects Module
+// Harmonic processing models organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// HARMONIC OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_harmonic_objects() (
+  // Initialize harmonic processing state
+  harmonic.processing.state.enabled = 1;
+  harmonic.processing.state.type = 0;  // Off
+  harmonic.processing.state.drive = 0.0;
+  harmonic.processing.state.even_boost = 0.0;
+  harmonic.processing.state.odd_boost = 0.0;
+  harmonic.processing.state.wet_dry = 1.0;
+  
+  // Initialize harmonic character state
+  harmonic.character.state.tube_even = 0;
+  harmonic.character.state.tube_odd = 0;
+  harmonic.character.state.tube_both = 0;
+  harmonic.character.state.tape_saturation = 0;
+  harmonic.character.state.fet = 0;
+  harmonic.character.state.vca = 0;
+  harmonic.character.state.optical = 0;
+  
+  // Initialize harmonic constants
+  harmonic.constants.max_drive = 10.0;
+  harmonic.constants.min_drive = 0.0;
+  harmonic.constants.max_boost = 6.0;
+  harmonic.constants.min_boost = -6.0;
+  harmonic.constants.max_wet_dry = 1.0;
+  harmonic.constants.min_wet_dry = 0.0;
+  
+  // Initialize harmonic processing state
+  harmonic.processing.state.initialized = 0;
+  harmonic.processing.state.needs_update = 1;
+);
+
+//==============================================================================
+// HARMONIC PROCESSING FUNCTIONS
+//==============================================================================
+
+function harmonic_process(sample, type) local(
+  processed, drive, even_boost, odd_boost, wet_dry, x, x2, x3, x4, x5
+) (
+  // Process sample with harmonic distortion
+  harmonic.processing.state.enabled && type > 0 ? (
+    // Get processing parameters
+    drive = harmonic.processing.state.drive;
+    even_boost = harmonic.processing.state.even_boost;
+    odd_boost = harmonic.processing.state.odd_boost;
+    wet_dry = harmonic.processing.state.wet_dry;
+    
+    // Apply drive
+    x = sample * (1.0 + drive);
+    
+    // Calculate powers (cached for efficiency)
+    x2 = x * x;
+    x3 = x2 * x;
+    x4 = x2 * x2;
+    x5 = x3 * x2;
+    
+    // Apply harmonic processing based on type
+    type == 1 ? (
+      // Tube Even
+      processed = x + even_boost * (x2 + x4);
+    ) : type == 2 ? (
+      // Tube Odd
+      processed = x + odd_boost * (x3 + x5);
+    ) : type == 3 ? (
+      // Tube Both
+      processed = x + even_boost * (x2 + x4) + odd_boost * (x3 + x5);
+    ) : type == 4 ? (
+      // Tape Saturation
+      processed = x + 0.1 * (x2 + x3) + 0.05 * (x4 + x5);
+    ) : type == 5 ? (
+      // FET
+      processed = x + 0.2 * x2 + 0.1 * x4;
+    ) : type == 6 ? (
+      // VCA
+      processed = x + 0.05 * (x2 + x3 + x4 + x5);
+    ) : type == 7 ? (
+      // Optical
+      processed = x + 0.15 * x2 + 0.08 * x3 + 0.04 * x4;
+    ) : (
+      // Unknown type, return original
+      processed = x;
+    );
+    
+    // Apply wet/dry mix
+    sample + (processed - sample) * wet_dry;
+  ) : (
+    // Harmonic processing disabled or type is 0
+    sample;
+  );
+);
+
+function harmonic_process_left(sample) (
+  // Process left channel
+  harmonic_process(sample, harmonic.processing.state.type);
+);
+
+function harmonic_process_right(sample) (
+  // Process right channel
+  harmonic_process(sample, harmonic.processing.state.type);
+);
+
+//==============================================================================
+// HARMONIC CONFIGURATION FUNCTIONS
+//==============================================================================
+
+function harmonic_set_type(type) (
+  // Set harmonic type
+  harmonic.processing.state.type = math_clamp(type, 0, 7);
+  harmonic.processing.state.needs_update = 1;
+);
+
+function harmonic_set_drive(drive) (
+  // Set harmonic drive
+  harmonic.processing.state.drive = math_clamp(drive, 
+                                              harmonic.constants.min_drive, 
+                                              harmonic.constants.max_drive);
+  harmonic.processing.state.needs_update = 1;
+);
+
+function harmonic_set_even_boost(boost) (
+  // Set even harmonic boost
+  harmonic.processing.state.even_boost = math_clamp(boost, 
+                                                   harmonic.constants.min_boost, 
+                                                   harmonic.constants.max_boost);
+  harmonic.processing.state.needs_update = 1;
+);
+
+function harmonic_set_odd_boost(boost) (
+  // Set odd harmonic boost
+  harmonic.processing.state.odd_boost = math_clamp(boost, 
+                                                  harmonic.constants.min_boost, 
+                                                  harmonic.constants.max_boost);
+  harmonic.processing.state.needs_update = 1;
+);
+
+function harmonic_set_wet_dry(wet_dry) (
+  // Set wet/dry mix
+  harmonic.processing.state.wet_dry = math_clamp(wet_dry, 
+                                                harmonic.constants.min_wet_dry, 
+                                                harmonic.constants.max_wet_dry);
+  harmonic.processing.state.needs_update = 1;
+);
+
+function harmonic_set_enabled(enabled) (
+  // Enable/disable harmonic processing
+  harmonic.processing.state.enabled = enabled ? 1 : 0;
+  harmonic.processing.state.needs_update = 1;
+);
+
+//==============================================================================
+// HARMONIC CHARACTER FUNCTIONS
+//==============================================================================
+
+function harmonic_apply_tube_even(sample) local(x, x2, x4) (
+  // Apply tube even harmonic character
+  x = sample;
+  x2 = x * x;
+  x4 = x2 * x2;
+  
+  x + harmonic.processing.state.even_boost * (x2 + x4);
+);
+
+function harmonic_apply_tube_odd(sample) local(x, x3, x5) (
+  // Apply tube odd harmonic character
+  x = sample;
+  x3 = x * x * x;
+  x5 = x3 * x * x;
+  
+  x + harmonic.processing.state.odd_boost * (x3 + x5);
+);
+
+function harmonic_apply_tube_both(sample) local(x, x2, x3, x4, x5) (
+  // Apply tube both harmonic character
+  x = sample;
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  x5 = x3 * x2;
+  
+  x + harmonic.processing.state.even_boost * (x2 + x4) + 
+     harmonic.processing.state.odd_boost * (x3 + x5);
+);
+
+function harmonic_apply_tape_saturation(sample) local(x, x2, x3, x4, x5) (
+  // Apply tape saturation character
+  x = sample;
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  x5 = x3 * x2;
+  
+  x + 0.1 * (x2 + x3) + 0.05 * (x4 + x5);
+);
+
+function harmonic_apply_fet(sample) local(x, x2, x4) (
+  // Apply FET character
+  x = sample;
+  x2 = x * x;
+  x4 = x2 * x2;
+  
+  x + 0.2 * x2 + 0.1 * x4;
+);
+
+function harmonic_apply_vca(sample) local(x, x2, x3, x4, x5) (
+  // Apply VCA character
+  x = sample;
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  x5 = x3 * x2;
+  
+  x + 0.05 * (x2 + x3 + x4 + x5);
+);
+
+function harmonic_apply_optical(sample) local(x, x2, x3, x4) (
+  // Apply optical character
+  x = sample;
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  
+  x + 0.15 * x2 + 0.08 * x3 + 0.04 * x4;
+);
+
+//==============================================================================
+// HARMONIC ANALYSIS FUNCTIONS
+//==============================================================================
+
+function harmonic_analyze_thd(sample) local(
+  fundamental, harmonic2, harmonic3, harmonic4, harmonic5, thd
+) (
+  // Analyze total harmonic distortion
+  fundamental = sample;
+  harmonic2 = sample * sample;
+  harmonic3 = harmonic2 * sample;
+  harmonic4 = harmonic2 * harmonic2;
+  harmonic5 = harmonic3 * harmonic2;
+  
+  // Calculate THD
+  thd = sqrt(harmonic2 * harmonic2 + harmonic3 * harmonic3 + 
+             harmonic4 * harmonic4 + harmonic5 * harmonic5);
+  
+  fundamental > 0 ? thd / fundamental : 0.0;
+);
+
+function harmonic_analyze_even_odd(sample) local(
+  even_harmonics, odd_harmonics, x, x2, x3, x4, x5
+) (
+  // Analyze even vs odd harmonic content
+  x = sample;
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  x5 = x3 * x2;
+  
+  even_harmonics = x2 + x4;
+  odd_harmonics = x3 + x5;
+  
+  // Return even/odd ratio
+  odd_harmonics > 0 ? even_harmonics / odd_harmonics : 0.0;
+);
+
+//==============================================================================
+// HARMONIC PROCESSING FUNCTIONS
+//==============================================================================
+
+function harmonic_process_block(sample_rate) (
+  // Process a block with new sample rate
+  harmonic.processing.state.initialized = 1;
+  harmonic.processing.state.needs_update = 0;
+);
+
+function harmonic_reset() (
+  // Reset harmonic processing state
+  harmonic.processing.state.enabled = 1;
+  harmonic.processing.state.type = 0;
+  harmonic.processing.state.drive = 0.0;
+  harmonic.processing.state.even_boost = 0.0;
+  harmonic.processing.state.odd_boost = 0.0;
+  harmonic.processing.state.wet_dry = 1.0;
+  harmonic.processing.state.needs_update = 1;
+);
+
+//==============================================================================
+// HARMONIC OBJECT VALIDATION
+//==============================================================================
+
+function harmonic_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  harmonic.constants.max_drive <= harmonic.constants.min_drive ? valid = 0;
+  harmonic.constants.max_boost <= harmonic.constants.min_boost ? valid = 0;
+  harmonic.constants.max_wet_dry <= harmonic.constants.min_wet_dry ? valid = 0;
+  
+  // Validate state
+  harmonic.processing.state.drive < harmonic.constants.min_drive ? valid = 0;
+  harmonic.processing.state.drive > harmonic.constants.max_drive ? valid = 0;
+  harmonic.processing.state.even_boost < harmonic.constants.min_boost ? valid = 0;
+  harmonic.processing.state.even_boost > harmonic.constants.max_boost ? valid = 0;
+  harmonic.processing.state.odd_boost < harmonic.constants.min_boost ? valid = 0;
+  harmonic.processing.state.odd_boost > harmonic.constants.max_boost ? valid = 0;
+  harmonic.processing.state.wet_dry < harmonic.constants.min_wet_dry ? valid = 0;
+  harmonic.processing.state.wet_dry > harmonic.constants.max_wet_dry ? valid = 0;
+  
+  valid;
+);
+
+function harmonic_get_summary() local(summary) (
+  // Pack harmonic summary into single value
+  // High 16 bits: enabled
+  // Middle 16 bits: type
+  // Low 16 bits: drive (scaled by 100)
+  
+  enabled = harmonic.processing.state.enabled ? 1 : 0;
+  type = harmonic.processing.state.type;
+  drive_scaled = harmonic.processing.state.drive * 100.0;
+  
+  (enabled << 16) | (type << 8) | drive_scaled;
+);

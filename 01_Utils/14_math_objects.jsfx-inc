@@ -1,0 +1,284 @@
+// Math Objects Module
+// Mathematical utilities organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// MATH OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_math_objects() (
+  // Initialize math utility state
+  math.utils.state.clamp_cache = 0;
+  math.utils.state.db_cache_valid = 0;
+  math.utils.state.db_cache_size = 1000;
+  math.utils.state.db_cache_min = -80.0;
+  math.utils.state.db_cache_max = 20.0;
+  math.utils.state.db_cache_step = 0.1;
+  
+  // Initialize math utility constants
+  math.utils.constants.ln10 = constants.math.constants.ln10;
+  math.utils.constants.ln2 = constants.math.constants.ln2;
+  math.utils.constants.db_scale = constants.audio.constants.db_scale;
+  math.utils.constants.db_scale_inv = constants.audio.constants.db_scale_inv;
+  math.utils.constants.eps = constants.audio.constants.eps;
+  math.utils.constants.pi = constants.math.constants.pi;
+  math.utils.constants.tau = constants.math.constants.tau;
+  math.utils.constants.e = constants.math.constants.e;
+  
+  // Initialize conversion state
+  math.conversion.state.db_to_linear_cache = 0;
+  math.conversion.state.linear_to_db_cache = 0;
+  math.conversion.state.cache_initialized = 0;
+);
+
+//==============================================================================
+// MATH UTILITY FUNCTIONS
+//==============================================================================
+
+function math_clamp(value, min_val, max_val) (
+  // Clamp value between min and max
+  value < min_val ? min_val : (value > max_val ? max_val : value);
+);
+
+function math_clamp_01(value) (
+  // Clamp value between 0 and 1
+  value < 0 ? 0 : (value > 1 ? 1 : value);
+);
+
+function math_clamp_db(value) (
+  // Clamp value between -80 and +20 dB
+  value < constants.audio.constants.min_level_db ? constants.audio.constants.min_level_db : 
+  (value > constants.audio.constants.max_level_db ? constants.audio.constants.max_level_db : value);
+);
+
+function math_safe_divide(numerator, denominator) (
+  // Safe division with epsilon to prevent divide by zero
+  denominator + math.utils.constants.eps;
+  numerator / (denominator + math.utils.constants.eps);
+);
+
+function math_safe_log(value) (
+  // Safe logarithm with minimum value to prevent log(0)
+  value < math.utils.constants.eps ? math.utils.constants.eps : value;
+  log(value);
+);
+
+function math_safe_sqrt(value) (
+  // Safe square root with minimum value to prevent sqrt(negative)
+  value < 0 ? 0 : sqrt(value);
+);
+
+function math_safe_pow(base, exponent) (
+  // Safe power with minimum base to prevent pow(0, negative)
+  base < math.utils.constants.eps ? math.utils.constants.eps : base;
+  pow(base, exponent);
+);
+
+//==============================================================================
+// CONVERSION FUNCTIONS
+//==============================================================================
+
+function math_db_to_linear(db) (
+  // Convert dB to linear using cached constant
+  exp(db * math.utils.constants.db_scale_inv);
+);
+
+function math_linear_to_db(linear) (
+  // Convert linear to dB using cached constant
+  linear <= 0 ? constants.audio.constants.min_level_db : 
+  (log(linear) * math.utils.constants.db_scale);
+);
+
+function math_db_to_linear_safe(db) (
+  // Safe dB to linear conversion with clamping
+  db_clamped = math_clamp_db(db);
+  exp(db_clamped * math.utils.constants.db_scale_inv);
+);
+
+function math_linear_to_db_safe(linear) (
+  // Safe linear to dB conversion with clamping
+  linear_clamped = linear < math.utils.constants.eps ? math.utils.constants.eps : linear;
+  log(linear_clamped) * math.utils.constants.db_scale;
+);
+
+function math_degrees_to_radians(degrees) (
+  // Convert degrees to radians
+  degrees * math.utils.constants.pi / 180.0;
+);
+
+function math_radians_to_degrees(radians) (
+  // Convert radians to degrees
+  radians * 180.0 / math.utils.constants.pi;
+);
+
+//==============================================================================
+// INTERPOLATION FUNCTIONS
+//==============================================================================
+
+function math_lerp(a, b, t) (
+  // Linear interpolation
+  a + (b - a) * t;
+);
+
+function math_lerp_clamped(a, b, t) (
+  // Linear interpolation with clamped t
+  t_clamped = math_clamp_01(t);
+  a + (b - a) * t_clamped;
+);
+
+function math_smoothstep(edge0, edge1, x) local(t) (
+  // Smooth step interpolation
+  t = math_clamp_01((x - edge0) / (edge1 - edge0));
+  t * t * (3.0 - 2.0 * t);
+);
+
+function math_smootherstep(edge0, edge1, x) local(t) (
+  // Smoother step interpolation
+  t = math_clamp_01((x - edge0) / (edge1 - edge0));
+  t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+);
+
+//==============================================================================
+// BEZIER CURVE FUNCTIONS
+//==============================================================================
+
+function math_bezier_quadratic(p0, p1, p2, t) local(t_inv) (
+  // Quadratic Bezier curve
+  t_inv = 1.0 - t;
+  t_inv * t_inv * p0 + 2.0 * t_inv * t * p1 + t * t * p2;
+);
+
+function math_bezier_cubic(p0, p1, p2, p3, t) local(t_inv, t2, t3, t_inv2, t_inv3) (
+  // Cubic Bezier curve
+  t_inv = 1.0 - t;
+  t2 = t * t;
+  t3 = t2 * t;
+  t_inv2 = t_inv * t_inv;
+  t_inv3 = t_inv2 * t_inv;
+  
+  t_inv3 * p0 + 3.0 * t_inv2 * t * p1 + 3.0 * t_inv * t2 * p2 + t3 * p3;
+);
+
+function math_bezier_cubic_derivative(p0, p1, p2, p3, t) local(t_inv, t2, t_inv2) (
+  // Cubic Bezier curve derivative
+  t_inv = 1.0 - t;
+  t2 = t * t;
+  t_inv2 = t_inv * t_inv;
+  
+  3.0 * t_inv2 * (p1 - p0) + 6.0 * t_inv * t * (p2 - p1) + 3.0 * t2 * (p3 - p2);
+);
+
+//==============================================================================
+// EXPONENTIAL FUNCTIONS
+//==============================================================================
+
+function math_exp_smooth(current, target, coeff) (
+  // Exponential smoothing
+  current + (target - current) * (1.0 - coeff);
+);
+
+function math_exp_smooth_clamped(current, target, coeff) (
+  // Exponential smoothing with clamped coefficient
+  coeff_clamped = math_clamp_01(coeff);
+  current + (target - current) * (1.0 - coeff_clamped);
+);
+
+function math_exp_coeff(time_ms, sample_rate) (
+  // Calculate exponential coefficient from time constant
+  exp(-1000.0 / (time_ms * sample_rate));
+);
+
+function math_exp_coeff_safe(time_ms, sample_rate) (
+  // Safe exponential coefficient calculation
+  time_ms < 0.001 ? 0.0 : math_exp_coeff(time_ms, sample_rate);
+);
+
+//==============================================================================
+// WINDOW FUNCTIONS
+//==============================================================================
+
+function math_window_hann(n, N) (
+  // Hann window function
+  0.5 * (1.0 - cos(2.0 * math.utils.constants.pi * n / (N - 1)));
+);
+
+function math_window_hamming(n, N) (
+  // Hamming window function
+  0.54 - 0.46 * cos(2.0 * math.utils.constants.pi * n / (N - 1));
+);
+
+function math_window_blackman(n, N) (
+  // Blackman window function
+  0.42 - 0.5 * cos(2.0 * math.utils.constants.pi * n / (N - 1)) + 
+  0.08 * cos(4.0 * math.utils.constants.pi * n / (N - 1));
+);
+
+//==============================================================================
+// STATISTICAL FUNCTIONS
+//==============================================================================
+
+function math_rms_calculate(samples, count) local(sum, i) (
+  // Calculate RMS of samples
+  sum = 0.0;
+  i = 0;
+  while(i < count) (
+    sum += samples[i] * samples[i];
+    i += 1;
+  );
+  sqrt(sum / count);
+);
+
+function math_rms_calculate_safe(samples, count) local(sum, i) (
+  // Calculate RMS with safe division
+  sum = 0.0;
+  i = 0;
+  while(i < count) (
+    sum += samples[i] * samples[i];
+    i += 1;
+  );
+  count > 0 ? sqrt(sum / count) : 0.0;
+);
+
+function math_peak_calculate(samples, count) local(peak, i) (
+  // Calculate peak of samples
+  peak = 0.0;
+  i = 0;
+  while(i < count) (
+    abs(samples[i]) > peak ? peak = abs(samples[i]);
+    i += 1;
+  );
+  peak;
+);
+
+//==============================================================================
+// MATH OBJECT VALIDATION
+//==============================================================================
+
+function math_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  math.utils.constants.ln10 <= 0 ? valid = 0;
+  math.utils.constants.ln2 <= 0 ? valid = 0;
+  math.utils.constants.db_scale <= 0 ? valid = 0;
+  math.utils.constants.db_scale_inv <= 0 ? valid = 0;
+  math.utils.constants.eps <= 0 ? valid = 0;
+  math.utils.constants.pi <= 0 ? valid = 0;
+  
+  valid;
+);
+
+function math_get_summary() local(summary) (
+  // Pack math utility summary into single value
+  // High 16 bits: constants valid
+  // Middle 16 bits: cache valid
+  // Low 16 bits: conversion valid
+  
+  constants_valid = math.utils.constants.pi > 0 ? 1 : 0;
+  cache_valid = math.utils.state.db_cache_valid ? 1 : 0;
+  conversion_valid = math.conversion.state.cache_initialized ? 1 : 0;
+  
+  (constants_valid << 16) | (cache_valid << 8) | conversion_valid;
+);

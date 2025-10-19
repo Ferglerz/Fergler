@@ -1,0 +1,359 @@
+// Debug Objects Module
+// Debug logging system organized using hierarchical objects
+// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/11_memory_objects.jsfx-inc
+
+@init
+
+//==============================================================================
+// DEBUG OBJECTS INITIALIZATION
+//==============================================================================
+
+function init_debug_objects() (
+  // Initialize debug state
+  debug.logging.state.enabled = 0;
+  debug.logging.state.message_count = 0;
+  debug.logging.state.current_message = 0;
+  debug.logging.state.buffer_full = 0;
+  debug.logging.state.overflow_count = 0;
+  
+  // Initialize debug constants
+  debug.logging.constants.max_messages = constants_debug_get_max_messages();
+  debug.logging.constants.message_size = constants_debug_get_message_size();
+  debug.logging.constants.string_slots_start = constants_memory_get_string_slots_start();
+  debug.logging.constants.string_slots_count = constants_memory_get_string_slots_count();
+  
+  // Initialize debug categories
+  debug.categories.state.audio = 1;
+  debug.categories.state.compression = 1;
+  debug.categories.state.ui = 1;
+  debug.categories.state.memory = 1;
+  debug.categories.state.performance = 1;
+  debug.categories.state.errors = 1;
+  
+  // Initialize debug levels
+  debug.levels.state.verbose = 0;
+  debug.levels.state.info = 1;
+  debug.levels.state.warning = 1;
+  debug.levels.state.error = 1;
+  debug.levels.state.critical = 1;
+  
+  // Initialize debug performance tracking
+  debug.performance.state.function_calls = 0;
+  debug.performance.state.total_time = 0.0;
+  debug.performance.state.start_time = 0.0;
+  debug.performance.state.measurement_active = 0;
+);
+
+//==============================================================================
+// DEBUG LOGGING FUNCTIONS
+//==============================================================================
+
+function debug_log(message) (
+  // Log a simple message (1 parameter)
+  debug.logging.state.enabled ? (
+    debug_log_internal(message, 0, 0, 0, 0);
+  );
+);
+
+function debug_logf(format, value) (
+  // Log a formatted message with 1 value (2 parameters)
+  debug.logging.state.enabled ? (
+    debug_log_internal(format, value, 0, 0, 1);
+  );
+);
+
+function debug_log2f(format, value1, value2) (
+  // Log a formatted message with 2 values (3 parameters)
+  debug.logging.state.enabled ? (
+    debug_log_internal(format, value1, value2, 0, 2);
+  );
+);
+
+function debug_log3f(format, value1, value2, value3) (
+  // Log a formatted message with 3 values (4 parameters)
+  debug.logging.state.enabled ? (
+    debug_log_internal(format, value1, value2, value3, 3);
+  );
+);
+
+function debug_log_internal(message, value1, value2, value3, param_count) local(
+  message_ptr, i, char, formatted_message
+) (
+  // Internal logging function
+  debug.logging.state.message_count < debug.logging.constants.max_messages ? (
+    // Get message buffer pointer
+    message_ptr = memory_debug_get_messages() + 
+                  debug.logging.state.current_message * debug.logging.constants.message_size;
+    
+    // Format message based on parameter count
+    param_count == 0 ? (
+      // Simple message
+      i = 0;
+      while(i < debug.logging.constants.message_size - 1 && message[i] != 0) (
+        message_ptr[i] = message[i];
+        i += 1;
+      );
+      message_ptr[i] = 0;
+    ) : param_count == 1 ? (
+      // 1 parameter
+      sprintf(formatted_message, message, value1);
+      i = 0;
+      while(i < debug.logging.constants.message_size - 1 && formatted_message[i] != 0) (
+        message_ptr[i] = formatted_message[i];
+        i += 1;
+      );
+      message_ptr[i] = 0;
+    ) : param_count == 2 ? (
+      // 2 parameters
+      sprintf(formatted_message, message, value1, value2);
+      i = 0;
+      while(i < debug.logging.constants.message_size - 1 && formatted_message[i] != 0) (
+        message_ptr[i] = formatted_message[i];
+        i += 1;
+      );
+      message_ptr[i] = 0;
+    ) : param_count == 3 ? (
+      // 3 parameters
+      sprintf(formatted_message, message, value1, value2, value3);
+      i = 0;
+      while(i < debug.logging.constants.message_size - 1 && formatted_message[i] != 0) (
+        message_ptr[i] = formatted_message[i];
+        i += 1;
+      );
+      message_ptr[i] = 0;
+    );
+    
+    // Update state
+    debug.logging.state.current_message = (debug.logging.state.current_message + 1) % 
+                                         debug.logging.constants.max_messages;
+    debug.logging.state.message_count += 1;
+    
+    // Check if buffer is full
+    debug.logging.state.message_count >= debug.logging.constants.max_messages ? (
+      debug.logging.state.buffer_full = 1;
+    );
+  ) : (
+    // Buffer overflow
+    debug.logging.state.overflow_count += 1;
+  );
+);
+
+function debug_separator() (
+  // Add separator line to debug log
+  debug.logging.state.enabled ? (
+    debug_log("----------------------------------------");
+  );
+);
+
+function debug_clear() (
+  // Clear debug log
+  debug.logging.state.message_count = 0;
+  debug.logging.state.current_message = 0;
+  debug.logging.state.buffer_full = 0;
+  debug.logging.state.overflow_count = 0;
+  
+  // Clear message buffer
+  memset(memory_debug_get_messages(), 0, 
+         debug.logging.constants.max_messages * debug.logging.constants.message_size);
+);
+
+function debug_get_message_count() (
+  // Get current message count
+  debug.logging.state.message_count;
+);
+
+//==============================================================================
+// DEBUG CATEGORY FUNCTIONS
+//==============================================================================
+
+function debug_set_category(category, enabled) (
+  category == "audio" ? debug.categories.state.audio = enabled :
+  category == "compression" ? debug.categories.state.compression = enabled :
+  category == "ui" ? debug.categories.state.ui = enabled :
+  category == "memory" ? debug.categories.state.memory = enabled :
+  category == "performance" ? debug.categories.state.performance = enabled :
+  category == "errors" ? debug.categories.state.errors = enabled :
+  0;
+);
+
+function debug_get_category(category) (
+  category == "audio" ? debug.categories.state.audio :
+  category == "compression" ? debug.categories.state.compression :
+  category == "ui" ? debug.categories.state.ui :
+  category == "memory" ? debug.categories.state.memory :
+  category == "performance" ? debug.categories.state.performance :
+  category == "errors" ? debug.categories.state.errors :
+  0;
+);
+
+function debug_log_category(category, message) (
+  debug_get_category(category) ? debug_log(message) : 0;
+);
+
+function debug_logf_category(category, format, value) (
+  debug_get_category(category) ? debug_logf(format, value) : 0;
+);
+
+function debug_log2f_category(category, format, value1, value2) (
+  debug_get_category(category) ? debug_log2f(format, value1, value2) : 0;
+);
+
+function debug_log3f_category(category, format, value1, value2, value3) (
+  debug_get_category(category) ? debug_log3f(format, value1, value2, value3) : 0;
+);
+
+//==============================================================================
+// DEBUG LEVEL FUNCTIONS
+//==============================================================================
+
+function debug_set_level(level, enabled) (
+  level == "verbose" ? debug.levels.state.verbose = enabled :
+  level == "info" ? debug.levels.state.info = enabled :
+  level == "warning" ? debug.levels.state.warning = enabled :
+  level == "error" ? debug.levels.state.error = enabled :
+  level == "critical" ? debug.levels.state.critical = enabled :
+  0;
+);
+
+function debug_get_level(level) (
+  level == "verbose" ? debug.levels.state.verbose :
+  level == "info" ? debug.levels.state.info :
+  level == "warning" ? debug.levels.state.warning :
+  level == "error" ? debug.levels.state.error :
+  level == "critical" ? debug.levels.state.critical :
+  0;
+);
+
+function debug_log_level(level, message) (
+  debug_get_level(level) ? debug_log(message) : 0;
+);
+
+function debug_logf_level(level, format, value) (
+  debug_get_level(level) ? debug_logf(format, value) : 0;
+);
+
+function debug_log2f_level(level, format, value1, value2) (
+  debug_get_level(level) ? debug_log2f(format, value1, value2) : 0;
+);
+
+function debug_log3f_level(level, format, value1, value2, value3) (
+  debug_get_level(level) ? debug_log3f(format, value1, value2, value3) : 0;
+);
+
+//==============================================================================
+// DEBUG PERFORMANCE FUNCTIONS
+//==============================================================================
+
+function debug_performance_start() (
+  debug.performance.state.start_time = time_precise();
+  debug.performance.state.measurement_active = 1;
+);
+
+function debug_performance_end(function_name) local(elapsed) (
+  debug.performance.state.measurement_active ? (
+    elapsed = time_precise() - debug.performance.state.start_time;
+    debug.performance.state.total_time += elapsed;
+    debug.performance.state.function_calls += 1;
+    debug.performance.state.measurement_active = 0;
+    
+    debug_logf_category("performance", "%s: %.3f ms", function_name, elapsed * 1000.0);
+  );
+);
+
+function debug_performance_get_stats() local(avg_time) (
+  // Get performance statistics
+  avg_time = debug.performance.state.function_calls > 0 ? 
+             debug.performance.state.total_time / debug.performance.state.function_calls : 0.0;
+  
+  // Pack into single value
+  (debug.performance.state.function_calls << 16) | (avg_time * 1000.0);
+);
+
+function debug_performance_reset() (
+  // Reset performance statistics
+  debug.performance.state.function_calls = 0;
+  debug.performance.state.total_time = 0.0;
+  debug.performance.state.start_time = 0.0;
+  debug.performance.state.measurement_active = 0;
+);
+
+//==============================================================================
+// DEBUG RENDERING FUNCTIONS
+//==============================================================================
+
+function debug_render_messages() local(
+  start_y, message_height, max_messages, i, message_ptr, y_pos
+) (
+  // Render debug messages in UI
+  debug.logging.state.enabled ? (
+    start_y = constants_ui_get_height() - 100;
+    message_height = 12;
+    max_messages = min(8, debug.logging.state.message_count);
+    
+    i = 0;
+    while(i < max_messages) (
+      y_pos = start_y + i * message_height;
+      
+      // Get message pointer
+      message_ptr = memory_debug_get_messages() + 
+                    ((debug.logging.state.current_message - max_messages + i + 
+                      debug.logging.constants.max_messages) % debug.logging.constants.max_messages) * 
+                    debug.logging.constants.message_size;
+      
+      // Render message
+      gfx_set(0.8, 0.8, 0.8, 1.0);
+      gfx_drawstr(message_ptr, 0, 10, y_pos);
+      
+      i += 1;
+    );
+  );
+);
+
+function debug_render_performance() local(
+  start_y, stats, function_calls, avg_time
+) (
+  // Render performance statistics
+  debug.logging.state.enabled ? (
+    start_y = constants_ui_get_height() - 20;
+    stats = debug_performance_get_stats();
+    function_calls = stats >> 16;
+    avg_time = stats & 0xFFFF;
+    
+    gfx_set(0.6, 0.8, 0.6, 1.0);
+    sprintf(debug_temp_string, "Calls: %d, Avg: %.2f ms", function_calls, avg_time);
+    gfx_drawstr(debug_temp_string, 0, 10, start_y);
+  );
+);
+
+//==============================================================================
+// DEBUG OBJECT VALIDATION
+//==============================================================================
+
+function debug_validate_all() local(valid) (
+  valid = 1;
+  
+  // Validate constants
+  debug.logging.constants.max_messages <= 0 ? valid = 0;
+  debug.logging.constants.message_size <= 0 ? valid = 0;
+  debug.logging.constants.string_slots_count <= 0 ? valid = 0;
+  
+  // Validate state
+  debug.logging.state.message_count < 0 ? valid = 0;
+  debug.logging.state.current_message < 0 ? valid = 0;
+  debug.logging.state.current_message >= debug.logging.constants.max_messages ? valid = 0;
+  
+  valid;
+);
+
+function debug_get_summary() local(summary) (
+  // Pack debug summary into single value
+  // High 16 bits: enabled
+  // Middle 16 bits: message count
+  // Low 16 bits: overflow count
+  
+  enabled = debug.logging.state.enabled ? 1 : 0;
+  message_count = debug.logging.state.message_count;
+  overflow_count = debug.logging.state.overflow_count;
+  
+  (enabled << 16) | (message_count << 8) | overflow_count;
+);
