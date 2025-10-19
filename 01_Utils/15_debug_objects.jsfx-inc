@@ -16,11 +16,11 @@ function init_debug_objects() (
   debug.logging.state.buffer_full = 0;
   debug.logging.state.overflow_count = 0;
   
-  // Initialize debug constants
-  debug.logging.constants.max_messages = constants_debug_get_max_messages();
-  debug.logging.constants.message_size = constants_debug_get_message_size();
-  debug.logging.constants.string_slots_start = constants_memory_get_string_slots_start();
-  debug.logging.constants.string_slots_count = constants_memory_get_string_slots_count();
+  // Initialize debug constants (self-contained)
+  debug.logging.constants.max_messages = 200;
+  debug.logging.constants.message_size = 256;
+  debug.logging.constants.string_slots_start = 0;
+  debug.logging.constants.string_slots_count = 50;
   
   // Initialize debug categories
   debug.categories.state.audio = 1;
@@ -42,6 +42,28 @@ function init_debug_objects() (
   debug.performance.state.total_time = 0.0;
   debug.performance.state.start_time = 0.0;
   debug.performance.state.measurement_active = 0;
+  
+  // Initialize debug memory (self-contained fallback)
+  debug.memory.state.messages_ptr = 0;
+  debug.memory.state.allocated = 0;
+);
+
+//==============================================================================
+// DEBUG MEMORY FUNCTIONS (self-contained)
+//==============================================================================
+
+function debug_memory_get_messages() (
+  // Get debug messages buffer pointer
+  debug.memory.state.allocated ? debug.memory.state.messages_ptr : 0;
+);
+
+function debug_memory_allocate() (
+  // Allocate debug memory (fallback if memory manager not available)
+  debug.memory.state.allocated ? 0 : (
+    debug.memory.state.messages_ptr = 100000;  // Fallback memory location
+    debug.memory.state.allocated = 1;
+    1;
+  );
 );
 
 //==============================================================================
@@ -82,7 +104,8 @@ function debug_log_internal(message, value1, value2, value3, param_count) local(
   // Internal logging function
   debug.logging.state.message_count < debug.logging.constants.max_messages ? (
     // Get message buffer pointer
-    message_ptr = memory_debug_get_messages() + 
+    debug_memory_allocate();
+    message_ptr = debug_memory_get_messages() + 
                   debug.logging.state.current_message * debug.logging.constants.message_size;
     
     // Format message based on parameter count
@@ -153,7 +176,8 @@ function debug_clear() (
   debug.logging.state.overflow_count = 0;
   
   // Clear message buffer
-  memset(memory_debug_get_messages(), 0, 
+  debug_memory_allocate();
+  memset(debug_memory_get_messages(), 0, 
          debug.logging.constants.max_messages * debug.logging.constants.message_size);
 );
 
@@ -286,7 +310,7 @@ function debug_render_messages() local(
 ) (
   // Render debug messages in UI
   debug.logging.state.enabled ? (
-    start_y = constants_ui_get_height() - 100;
+    start_y = 238;  // UI height - 100
     message_height = 12;
     max_messages = min(8, debug.logging.state.message_count);
     
@@ -295,7 +319,8 @@ function debug_render_messages() local(
       y_pos = start_y + i * message_height;
       
       // Get message pointer
-      message_ptr = memory_debug_get_messages() + 
+      debug_memory_allocate();
+      message_ptr = debug_memory_get_messages() + 
                     ((debug.logging.state.current_message - max_messages + i + 
                       debug.logging.constants.max_messages) % debug.logging.constants.max_messages) * 
                     debug.logging.constants.message_size;
@@ -314,7 +339,7 @@ function debug_render_performance() local(
 ) (
   // Render performance statistics
   debug.logging.state.enabled ? (
-    start_y = constants_ui_get_height() - 20;
+    start_y = 318;  // UI height - 20
     stats = debug_performance_get_stats();
     function_calls = stats >> 16;
     avg_time = stats & 0xFFFF;

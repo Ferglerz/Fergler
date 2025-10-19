@@ -1,6 +1,6 @@
 // Transient Detection Objects Module
 // Transient detection system organized using hierarchical objects
-// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+// Dependencies: None (self-contained)
 
 @init
 
@@ -46,6 +46,23 @@ function init_transient_objects() (
   transient.processing.state.attack_coeff = 0.0;
   transient.processing.state.release_coeff = 0.0;
   transient.processing.state.initialized = 0;
+  
+  // Initialize transient math utilities (self-contained)
+  transient.math.constants.ln10 = 2.302585092994046;
+);
+
+//==============================================================================
+// TRANSIENT MATH UTILITIES (self-contained)
+//==============================================================================
+
+function transient_math_clamp(value, min_val, max_val) (
+  // Clamp value between min and max
+  value < min_val ? min_val : (value > max_val ? max_val : value);
+);
+
+function transient_math_exp_coeff_safe(time_ms, sample_rate) (
+  // Safe exponential coefficient calculation
+  time_ms < 0.001 ? 0.0 : exp(-1000.0 / (time_ms * sample_rate));
 );
 
 //==============================================================================
@@ -144,27 +161,27 @@ function transient_is_detected() (
 
 function transient_set_sensitivity(sensitivity) (
   // Set transient detection sensitivity
-  transient.detection.state.sensitivity = math_clamp(sensitivity, 
-                                                    transient.constants.min_sensitivity, 
-                                                    transient.constants.max_sensitivity);
+  transient.detection.state.sensitivity = transient_math_clamp(sensitivity, 
+                                                              transient.constants.min_sensitivity, 
+                                                              transient.constants.max_sensitivity);
 );
 
 function transient_set_threshold(threshold) (
   // Set transient detection threshold
-  transient.detection.state.threshold = math_clamp(threshold, 
-                                                  transient.constants.min_threshold, 
-                                                  transient.constants.max_threshold);
+  transient.detection.state.threshold = transient_math_clamp(threshold, 
+                                                            transient.constants.min_threshold, 
+                                                            transient.constants.max_threshold);
 );
 
 function transient_set_attack_time(attack_time) (
   // Set transient attack time
-  transient.detection.state.attack_time = math_clamp(attack_time, 
-                                                    transient.constants.min_attack_time, 
-                                                    transient.constants.max_attack_time);
+  transient.detection.state.attack_time = transient_math_clamp(attack_time, 
+                                                              transient.constants.min_attack_time, 
+                                                              transient.constants.max_attack_time);
   
   // Update attack coefficient
   transient.processing.state.initialized ? (
-    transient.processing.state.attack_coeff = math_exp_coeff_safe(
+    transient.processing.state.attack_coeff = transient_math_exp_coeff_safe(
       transient.detection.state.attack_time * 1000.0, 
       transient.processing.state.sample_rate
     );
@@ -173,13 +190,13 @@ function transient_set_attack_time(attack_time) (
 
 function transient_set_release_time(release_time) (
   // Set transient release time
-  transient.detection.state.release_time = math_clamp(release_time, 
-                                                     transient.constants.min_release_time, 
-                                                     transient.constants.max_release_time);
+  transient.detection.state.release_time = transient_math_clamp(release_time, 
+                                                               transient.constants.min_release_time, 
+                                                               transient.constants.max_release_time);
   
   // Update release coefficient
   transient.processing.state.initialized ? (
-    transient.processing.state.release_coeff = math_exp_coeff_safe(
+    transient.processing.state.release_coeff = transient_math_exp_coeff_safe(
       transient.detection.state.release_time * 1000.0, 
       transient.processing.state.sample_rate
     );
@@ -198,11 +215,11 @@ function transient_set_enabled(enabled) (
 function transient_process_block(sample_rate) (
   // Process a block with new sample rate
   transient.processing.state.sample_rate = sample_rate;
-  transient.processing.state.attack_coeff = math_exp_coeff_safe(
+  transient.processing.state.attack_coeff = transient_math_exp_coeff_safe(
     transient.detection.state.attack_time * 1000.0, 
     sample_rate
   );
-  transient.processing.state.release_coeff = math_exp_coeff_safe(
+  transient.processing.state.release_coeff = transient_math_exp_coeff_safe(
     transient.detection.state.release_time * 1000.0, 
     sample_rate
   );

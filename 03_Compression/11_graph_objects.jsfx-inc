@@ -1,6 +1,6 @@
 // Graph Objects Module
 // Graph data management organized using hierarchical objects
-// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+// Dependencies: None (self-contained)
 
 @init
 
@@ -33,20 +33,61 @@ function init_graph_objects() (
   graph.curves.state.drag_start_amount = 0.0;
   graph.curves.state.drag_current_amount = 0.0;
   
-  // Initialize graph constants
-  graph.constants.max_points = constants_graph_get_max_points();
-  graph.constants.point_size = constants_graph_get_point_size();
-  graph.constants.curve_size = constants_graph_get_curve_size();
-  graph.constants.default_points = constants_graph_get_default_points();
-  graph.constants.min_x = constants_graph_get_min_x();
-  graph.constants.max_x = constants_graph_get_max_x();
-  graph.constants.min_y = constants_graph_get_min_y();
-  graph.constants.max_y = constants_graph_get_max_y();
+  // Initialize graph constants (self-contained)
+  graph.constants.max_points = 10000;
+  graph.constants.point_size = 2;  // x, y coordinates
+  graph.constants.curve_size = 1;  // curve amount
+  graph.constants.default_points = 6;
+  graph.constants.min_x = 0.0;
+  graph.constants.max_x = 1.0;
+  graph.constants.min_y = 0.0;
+  graph.constants.max_y = 1.0;
   
   // Initialize graph processing state
   graph.processing.state.initialized = 0;
   graph.processing.state.needs_rebuild = 1;
   graph.processing.state.needs_validation = 1;
+  
+  // Initialize graph math utilities (self-contained)
+  graph.math.constants.eps = 0.000000000000000000000000000001;
+  
+  // Initialize graph memory (self-contained fallback)
+  graph.memory.state.points_ptr = 0;
+  graph.memory.state.curves_ptr = 0;
+  graph.memory.state.allocated = 0;
+);
+
+//==============================================================================
+// GRAPH MEMORY FUNCTIONS (self-contained)
+//==============================================================================
+
+function graph_memory_get_points() (
+  // Get graph points buffer pointer
+  graph.memory.state.allocated ? graph.memory.state.points_ptr : 0;
+);
+
+function graph_memory_get_curve_amounts() (
+  // Get graph curve amounts buffer pointer
+  graph.memory.state.allocated ? graph.memory.state.curves_ptr : 0;
+);
+
+function graph_memory_allocate() (
+  // Allocate graph memory (fallback if memory manager not available)
+  graph.memory.state.allocated ? 0 : (
+    graph.memory.state.points_ptr = 200000;  // Fallback memory location
+    graph.memory.state.curves_ptr = 300000;  // Fallback memory location
+    graph.memory.state.allocated = 1;
+    1;
+  );
+);
+
+//==============================================================================
+// GRAPH MATH UTILITIES (self-contained)
+//==============================================================================
+
+function graph_math_clamp(value, min_val, max_val) (
+  // Clamp value between min and max
+  value < min_val ? min_val : (value > max_val ? max_val : value);
 );
 
 //==============================================================================
@@ -88,9 +129,10 @@ function graph_remove_point(index) local(i) (
 function graph_set_point(index, x, y) local(ptr) (
   // Set point coordinates
   index >= 0 && index < graph.data.state.num_points ? (
-    ptr = memory_graph_get_points();
-    ptr[index * 2] = math_clamp(x, graph.constants.min_x, graph.constants.max_x);
-    ptr[index * 2 + 1] = math_clamp(y, graph.constants.min_y, graph.constants.max_y);
+    graph_memory_allocate();
+    ptr = graph_memory_get_points();
+    ptr[index * 2] = graph_math_clamp(x, graph.constants.min_x, graph.constants.max_x);
+    ptr[index * 2 + 1] = graph_math_clamp(y, graph.constants.min_y, graph.constants.max_y);
     graph.data.state.cache_dirty = 1;
     1;  // Success
   ) : (
@@ -101,7 +143,8 @@ function graph_set_point(index, x, y) local(ptr) (
 function graph_get_point_x(index) local(ptr) (
   // Get point X coordinate
   index >= 0 && index < graph.data.state.num_points ? (
-    ptr = memory_graph_get_points();
+    graph_memory_allocate();
+    ptr = graph_memory_get_points();
     ptr[index * 2];
   ) : (
     0.0;  // Default value
@@ -111,7 +154,8 @@ function graph_get_point_x(index) local(ptr) (
 function graph_get_point_y(index) local(ptr) (
   // Get point Y coordinate
   index >= 0 && index < graph.data.state.num_points ? (
-    ptr = memory_graph_get_points();
+    graph_memory_allocate();
+    ptr = graph_memory_get_points();
     ptr[index * 2 + 1];
   ) : (
     0.0;  // Default value
@@ -130,8 +174,9 @@ function graph_get_point_count() (
 function graph_set_curve_amount(index, amount) local(ptr) (
   // Set curve amount for a point
   index >= 0 && index < graph.data.state.num_points ? (
-    ptr = memory_graph_get_curve_amounts();
-    ptr[index] = math_clamp(amount, -1.0, 1.0);
+    graph_memory_allocate();
+    ptr = graph_memory_get_curve_amounts();
+    ptr[index] = graph_math_clamp(amount, -1.0, 1.0);
     graph.data.state.cache_dirty = 1;
     1;  // Success
   ) : (
@@ -142,7 +187,8 @@ function graph_set_curve_amount(index, amount) local(ptr) (
 function graph_get_curve_amount(index) local(ptr) (
   // Get curve amount for a point
   index >= 0 && index < graph.data.state.num_points ? (
-    ptr = memory_graph_get_curve_amounts();
+    graph_memory_allocate();
+    ptr = graph_memory_get_curve_amounts();
     ptr[index];
   ) : (
     0.0;  // Default value
@@ -151,7 +197,7 @@ function graph_get_curve_amount(index) local(ptr) (
 
 function graph_set_curve_count(count) (
   // Set number of curves
-  graph.data.state.num_curves = math_clamp(count, 0, graph.data.state.num_points);
+  graph.data.state.num_curves = graph_math_clamp(count, 0, graph.data.state.num_points);
   graph.data.state.cache_dirty = 1;
 );
 

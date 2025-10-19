@@ -1,6 +1,6 @@
 // DSP Objects Module
 // Digital signal processing utilities organized using hierarchical objects
-// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+// Dependencies: None (self-contained)
 
 @init
 
@@ -29,18 +29,38 @@ function init_dsp_objects() (
   dsp.detection.state.level.left_linear = 0.0;
   dsp.detection.state.level.right_linear = 0.0;
   
-  // Initialize DSP constants
-  dsp.constants.eps = constants_audio_get_eps();
-  dsp.constants.min_detector_level = constants_audio_get_min_detector_level();
-  dsp.constants.denormal_threshold = constants_audio_get_denormal_threshold();
-  dsp.constants.db_scale = constants_audio_get_db_scale();
-  dsp.constants.db_scale_inv = constants_audio_get_db_scale_inv();
+  // Initialize DSP constants (self-contained)
+  dsp.constants.eps = 0.000000000000000000000000000001;
+  dsp.constants.min_detector_level = 0.000001;
+  dsp.constants.denormal_threshold = pow(10, -15);
+  dsp.constants.db_scale = 8.6858896380650366;  // 20/log(10)
+  dsp.constants.db_scale_inv = 0.11512925464970229;  // log(10)/20
   
   // Initialize DSP processing state
   dsp.processing.state.block_samples = 0;
   dsp.processing.state.sample_rate = 0;
   dsp.processing.state.sample_rate_inv = 0.0;
   dsp.processing.state.initialized = 0;
+  
+  // Initialize DSP math utilities (self-contained)
+  dsp.math.constants.ln10 = 2.302585092994046;
+  dsp.math.constants.db_scale = 8.6858896380650366;  // 20/log(10)
+  dsp.math.constants.db_scale_inv = 0.11512925464970229;  // log(10)/20
+);
+
+//==============================================================================
+// DSP MATH UTILITIES (self-contained)
+//==============================================================================
+
+function dsp_math_clamp(value, min_val, max_val) (
+  // Clamp value between min and max
+  value < min_val ? min_val : (value > max_val ? max_val : value);
+);
+
+function dsp_math_linear_to_db_safe(linear) (
+  // Safe linear to dB conversion with clamping
+  linear_clamped = linear < dsp.constants.min_detector_level ? dsp.constants.min_detector_level : linear;
+  log(linear_clamped) * dsp.math.constants.db_scale;
 );
 
 //==============================================================================
@@ -71,11 +91,11 @@ function dsp_rms_update(left, right) (
     
     // Convert to dB
     dsp.detection.state.level.left_db = dsp.detection.state.level.left_linear > dsp.constants.min_detector_level ? 
-                                       math_linear_to_db_safe(dsp.detection.state.level.left_linear) : 
-                                       constants.audio.constants.min_level_db;
+                                       dsp_math_linear_to_db_safe(dsp.detection.state.level.left_linear) : 
+                                       -80.0;
     dsp.detection.state.level.right_db = dsp.detection.state.level.right_linear > dsp.constants.min_detector_level ? 
-                                        math_linear_to_db_safe(dsp.detection.state.level.right_linear) : 
-                                        constants.audio.constants.min_level_db;
+                                        dsp_math_linear_to_db_safe(dsp.detection.state.level.right_linear) : 
+                                        -80.0;
   );
 );
 
@@ -147,15 +167,15 @@ function dsp_peak_get_max_right() (
 function dsp_peak_get_max_db_left() (
   // Get left peak value in dB
   dsp.detection.state.peak.left_max > dsp.constants.min_detector_level ? 
-  math_linear_to_db_safe(dsp.detection.state.peak.left_max) : 
-  constants.audio.constants.min_level_db;
+  dsp_math_linear_to_db_safe(dsp.detection.state.peak.left_max) : 
+  -80.0;
 );
 
 function dsp_peak_get_max_db_right() (
   // Get right peak value in dB
   dsp.detection.state.peak.right_max > dsp.constants.min_detector_level ? 
-  math_linear_to_db_safe(dsp.detection.state.peak.right_max) : 
-  constants.audio.constants.min_level_db;
+  dsp_math_linear_to_db_safe(dsp.detection.state.peak.right_max) : 
+  -80.0;
 );
 
 //==============================================================================
@@ -238,8 +258,8 @@ function dsp_condition_input(left, right) local(conditioned_left, conditioned_ri
   abs(conditioned_right) < dsp.constants.denormal_threshold ? conditioned_right = 0.0;
   
   // Clamp to valid range
-  conditioned_left = math_clamp(conditioned_left, -1.0, 1.0);
-  conditioned_right = math_clamp(conditioned_right, -1.0, 1.0);
+  conditioned_left = dsp_math_clamp(conditioned_left, -1.0, 1.0);
+  conditioned_right = dsp_math_clamp(conditioned_right, -1.0, 1.0);
   
   // Return left channel (right available via global)
   conditioned_left;

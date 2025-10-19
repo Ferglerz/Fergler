@@ -1,6 +1,6 @@
 // Harmonic Objects Module
 // Harmonic processing models organized using hierarchical objects
-// Dependencies: 01_Utils/13_constants_objects.jsfx-inc, 01_Utils/14_math_objects.jsfx-inc
+// Dependencies: None (self-contained)
 
 @init
 
@@ -37,6 +37,9 @@ function init_harmonic_objects() (
   // Initialize harmonic processing state
   harmonic.processing.state.initialized = 0;
   harmonic.processing.state.needs_update = 1;
+  
+  // Initialize harmonic math utilities (self-contained)
+  harmonic.math.constants.eps = 0.000000000000000000000000000001;
 );
 
 //==============================================================================
@@ -109,44 +112,53 @@ function harmonic_process_right(sample) (
 );
 
 //==============================================================================
+// HARMONIC MATH UTILITIES (self-contained)
+//==============================================================================
+
+function harmonic_math_clamp(value, min_val, max_val) (
+  // Clamp value between min and max
+  value < min_val ? min_val : (value > max_val ? max_val : value);
+);
+
+//==============================================================================
 // HARMONIC CONFIGURATION FUNCTIONS
 //==============================================================================
 
 function harmonic_set_type(type) (
   // Set harmonic type
-  harmonic.processing.state.type = math_clamp(type, 0, 7);
+  harmonic.processing.state.type = harmonic_math_clamp(type, 0, 7);
   harmonic.processing.state.needs_update = 1;
 );
 
 function harmonic_set_drive(drive) (
   // Set harmonic drive
-  harmonic.processing.state.drive = math_clamp(drive, 
-                                              harmonic.constants.min_drive, 
-                                              harmonic.constants.max_drive);
+  harmonic.processing.state.drive = harmonic_math_clamp(drive, 
+                                                       harmonic.constants.min_drive, 
+                                                       harmonic.constants.max_drive);
   harmonic.processing.state.needs_update = 1;
 );
 
 function harmonic_set_even_boost(boost) (
   // Set even harmonic boost
-  harmonic.processing.state.even_boost = math_clamp(boost, 
-                                                   harmonic.constants.min_boost, 
-                                                   harmonic.constants.max_boost);
+  harmonic.processing.state.even_boost = harmonic_math_clamp(boost, 
+                                                            harmonic.constants.min_boost, 
+                                                            harmonic.constants.max_boost);
   harmonic.processing.state.needs_update = 1;
 );
 
 function harmonic_set_odd_boost(boost) (
   // Set odd harmonic boost
-  harmonic.processing.state.odd_boost = math_clamp(boost, 
-                                                  harmonic.constants.min_boost, 
-                                                  harmonic.constants.max_boost);
+  harmonic.processing.state.odd_boost = harmonic_math_clamp(boost, 
+                                                           harmonic.constants.min_boost, 
+                                                           harmonic.constants.max_boost);
   harmonic.processing.state.needs_update = 1;
 );
 
 function harmonic_set_wet_dry(wet_dry) (
   // Set wet/dry mix
-  harmonic.processing.state.wet_dry = math_clamp(wet_dry, 
-                                                harmonic.constants.min_wet_dry, 
-                                                harmonic.constants.max_wet_dry);
+  harmonic.processing.state.wet_dry = harmonic_math_clamp(wet_dry, 
+                                                          harmonic.constants.min_wet_dry, 
+                                                          harmonic.constants.max_wet_dry);
   harmonic.processing.state.needs_update = 1;
 );
 
