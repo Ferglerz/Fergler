@@ -160,20 +160,35 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
       min_val + normalized_pos * (max_val - min_val);
     );
   ) : (
-    // For normal sliders, use continuous range
-    min_val + normalized_pos * (max_val - min_val);
+    // For normal sliders, use continuous range with increment snapping
+    raw_value = min_val + normalized_pos * (max_val - min_val);
+    increment = get_slider_increment(param_index);
+    increment > 0 ? (
+      // Snap to nearest increment step
+      floor(raw_value / increment + 0.5) * increment
+    ) : (
+      raw_value
+    );
   );
 );
 
 // Shared function to update value from mouse delta
-function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity) (
+function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index) (
   // Vertical mouse movement controls value (down = increase, up = decrease)
   value_range = max_val - min_val;
   delta = -mouse_dy * sensitivity * value_range / 100; // Negative because down = increase
   
   new_value = current_value + delta;
   new_value = max(min_val, min(max_val, new_value));
-  new_value;
+  
+  // Apply increment snapping
+  increment = get_slider_increment(param_index);
+  increment > 0 ? (
+    // Snap to nearest increment step
+    floor(new_value / increment + 0.5) * increment
+  ) : (
+    new_value
+  );
 );
 
 //==============================================================================
@@ -272,7 +287,7 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
   sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
   
   // Update value based on mouse movement
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity);
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index);
   
   // Update knob value and slider
   knob_defs[knob_index*9 + 8] = new_value;
@@ -298,7 +313,7 @@ function update_knob_value_from_mouse_with_mult(knob_index, mouse_x, mouse_y, mu
   sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
   
   // Update value based on mouse movement
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity);
+  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index);
   
   // Update knob value and slider
   knob_defs[knob_index*9 + 8] = new_value;
@@ -342,4 +357,36 @@ function draw_curve_segment(end_x, end_y, is_first_point) (
   ) : (
     gfx_lineto(end_x, end_y, 1); 
   );
+);
+
+//==============================================================================
+// DISPLAY FORMATTING FUNCTIONS
+//==============================================================================
+
+// Calculate decimal places based on increment
+function get_decimal_places(increment) (
+  increment <= 0 ? 2 : (
+    increment >= 1 ? 0 : (
+      increment >= 0.1 ? 1 : (
+        increment >= 0.01 ? 2 : 3
+      )
+    )
+  )
+);
+
+// Format value with appropriate decimal places and suffix
+function format_value_with_suffix(value, increment, display_mode) local(decimal_places, format_str) (
+  decimal_places = get_decimal_places(increment);
+  
+  display_mode == DISPLAY_MODE_PERCENT ? (
+    sprintf(#temp_display_str, "%%.%df %%", decimal_places, value);
+  ) : display_mode == DISPLAY_MODE_DB ? (
+    sprintf(#temp_display_str, "%%.%df dB", decimal_places, value);
+  ) : display_mode == DISPLAY_MODE_MS ? (
+    sprintf(#temp_display_str, "%%.%df ms", decimal_places, value);
+  ) : (
+    sprintf(#temp_display_str, "%%.%df", decimal_places, value);
+  );
+  
+  temp_display_str;
 );

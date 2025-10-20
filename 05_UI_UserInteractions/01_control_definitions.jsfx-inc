@@ -152,15 +152,15 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Attack large knob (index 0, param 1)
-  define_knob(0, rel_x_knob, rel_y + row * CONTROL_SPACING_Y, 1, get_slider_min(1), get_slider_max(1), LARGE_KNOB_TYPE_LTR, 1);
+  // Attack slider (index 0, param 1) - ms suffix
+  define_control_full(0, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, get_slider_min(1), get_slider_max(1), "Attack", 0, DISPLAY_MODE_MS);
   row += 1;
   // Attack Curve: hide value display
-  define_control_full(1, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve", 0, 2);
+  define_control_full(1, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve", 0, DISPLAY_MODE_HIDE_VALUE);
   row += 1;
   
-  // Release large knob (index 1, param 3)
-  define_knob(1, rel_x_knob, rel_y + row * CONTROL_SPACING_Y, 3, get_slider_min(3), get_slider_max(3), LARGE_KNOB_TYPE_LTR, 1);
+  // Release slider (index 2, param 3) - ms suffix
+  define_control_full(2, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, get_slider_min(3), get_slider_max(3), "Release", 0, DISPLAY_MODE_MS);
   row += 1;
   // Release Curve
   define_control(3, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve");
@@ -168,7 +168,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   
   // Progressive Release Type (moved from column 4) - center dropdown
   rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
-  define_control(18, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y - 10, DROPDOWN_W, DROPDOWN_H, 25, get_slider_min(25), get_slider_max(25), "Prog Release");
+  define_control(4, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y - 10, DROPDOWN_W, DROPDOWN_H, 24, get_slider_min(24), get_slider_max(24), "Prog Release");
   
   //==============================================================================
   // GROUP 1: DETECTION
@@ -186,17 +186,21 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  define_control(6, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 7, get_slider_min(7), get_slider_max(7), "RMS Window");
+  // Time Unit selector (index 23, param 33) - moved to DETECTION group
+  define_control(23, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 33, get_slider_min(33), get_slider_max(33), "Time Unit");
   row += 1;
-  define_control(7, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 8, get_slider_min(8), get_slider_max(8), "RMS Norm");
+  
+  define_control_full(5, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "RMS Window", 0, DISPLAY_MODE_MS);
   row += 1;
-  define_control(8, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 9, get_slider_min(9), get_slider_max(9), "Det. Mode");
+  define_control(6, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 7, get_slider_min(7), get_slider_max(7), "RMS Norm");
   row += 1;
-  define_control(9, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, get_slider_min(10), get_slider_max(10), "Max GR");
+  define_control(7, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 8, get_slider_min(8), get_slider_max(8), "Det. Mode");
   row += 1;
-  define_control(4, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead");
+  define_control_full(8, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 9, get_slider_min(9), get_slider_max(9), "Max GR", 0, DISPLAY_MODE_DB);
   row += 1;
-  define_control(29, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 34, get_slider_min(34), get_slider_max(34), "Transient");
+  define_control_full(9, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead", 0, DISPLAY_MODE_MS);
+  row += 1;
+  define_control_full(10, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 29, get_slider_min(29), get_slider_max(29), "Transient", 0, DISPLAY_MODE_PERCENT);
   
   //==============================================================================
   // GROUP 2: COMPRESSION
@@ -212,9 +216,9 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  define_control(20, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Strength");
+  define_control(11, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Strength");
   row += 1;
-  define_control(21, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, get_slider_min(20), get_slider_max(20), "Offset");
+  define_control_full(12, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Offset", 0, DISPLAY_MODE_DB);
   
   //==============================================================================
   // GROUP 4: SOURCE (below COMPRESSION)
@@ -229,25 +233,25 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row = 0;
   
   // Sidechain button (moved from DETECTION group)
-  define_control(25, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Sidechain");
+  define_control(13, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 22, get_slider_min(22), get_slider_max(22), "Sidechain");
   row += 1;
   
   // Listen button (moved from DETECTION group, renamed from "Listen Det.")
-  define_control(26, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 24, get_slider_min(24), get_slider_max(24), "Listen");
+  define_control(14, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Listen");
   row += 1;
   
   // HP Filter (moved from FILTERS group)
-  define_control_full(10, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 0, 6000, "Highpass", 0, 1);
-  set_slider_increment(10, 10);
-  set_slider_fill_direction(10, SLIDER_FILL_LEFT_TO_RIGHT);
-  set_slider_format_as_frequency(10, 1);
+  define_control_full(15, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, 0, 6000, "Highpass", 0, 1);
+  set_slider_increment(15, 10);
+  set_slider_fill_direction(15, SLIDER_FILL_LEFT_TO_RIGHT);
+  set_slider_format_as_frequency(15, 1);
   row += 1;
   
   // LP Filter (moved from FILTERS group)
-  define_control_full(11, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 12, 20, 16000, "Lowpass", 2, 0);
-  set_slider_increment(11, 10);
-  set_slider_fill_direction(11, SLIDER_FILL_RIGHT_TO_LEFT);
-  set_slider_format_as_frequency(11, 1);
+  define_control_full(16, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 20, 16000, "Lowpass", 2, 0);
+  set_slider_increment(16, 10);
+  set_slider_fill_direction(16, SLIDER_FILL_RIGHT_TO_LEFT);
+  set_slider_format_as_frequency(16, 1);
   
   //==============================================================================
   // GROUP 3: HARMONICS
@@ -264,15 +268,15 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  define_control(12, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 13, get_slider_min(13), get_slider_max(13), "Type");
+  define_control(17, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 12, get_slider_min(12), get_slider_max(12), "Type");
   row += 1;
-  define_control(14, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Drive");
+  define_control(18, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 14, get_slider_min(14), get_slider_max(14), "Drive");
   row += 1;
-  define_control(15, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Mix");
+  define_control_full(19, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Mix", 0, DISPLAY_MODE_PERCENT);
   row += 1;
-  define_control(16, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Even");
+  define_control_full(20, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Even", 0, DISPLAY_MODE_PERCENT);
   row += 1;
-  define_control(17, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Odd");
+  define_control_full(21, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Odd", 0, DISPLAY_MODE_PERCENT);
   
   // Compressor Type moved to header (will be defined in setup_header_controls)
 );
@@ -287,16 +291,16 @@ function setup_header_controls() (
     // Header controls are not in a group (absolute positioning)
     set_control_group(-1);
     
-    // Define output volume knob (index 2, param 21, small size)
+    // Define output volume knob (index 2, param 20, small size)
     output_knob_x = gfx_w - 5 - KNOB_SIZE;
     output_knob_y = (HEADER_HEIGHT - KNOB_SIZE) / 2;
-    define_knob(2, output_knob_x, output_knob_y, 21, -20, 20, KNOB_TYPE_ANGULAR, 0);
+    define_knob(2, output_knob_x, output_knob_y, 20, -20, 20, KNOB_TYPE_ANGULAR, 0);
     
-    // Define Compressor Type dropdown in header (control index 24, param 22)
+    // Define Compressor Type dropdown in header (control index 22, param 21)
     // Position to the left of the output knob
     compressor_type_x = output_knob_x - DROPDOWN_W - 20;
     compressor_type_y = (HEADER_HEIGHT - DROPDOWN_H) / 2;
-    define_control(24, 2, compressor_type_x, compressor_type_y, DROPDOWN_W, DROPDOWN_H, 22, get_slider_min(22), get_slider_max(22), "Comp Type");
+    define_control(22, 2, compressor_type_x, compressor_type_y, DROPDOWN_W, DROPDOWN_H, 21, get_slider_min(21), get_slider_max(21), "Comp Type");
   );
 );
 

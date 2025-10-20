@@ -1,0 +1,42 @@
+// Simple Blur Test - Red Dot with Blur Effect
+// Test file to verify gfx_blurto() functionality
+
+desc:Blur Test - Red Dot
+
+@init
+// Simple configuration
+CENTER_X = 250;
+CENTER_Y = 180;
+DOT_RADIUS = 30;
+
+@gfx 500 360
+
+// Clear background
+gfx_set(0.1, 0.1, 0.1, 1);
+gfx_rect(0, 0, gfx_w, gfx_h);
+
+// Draw a bright red dot
+gfx_set(1.0, 0.2, 0.2, 0.8);
+gfx_circle(CENTER_X, CENTER_Y, DOT_RADIUS, 1, 1);
+
+// Apply blur effect - 50 passes for strong blur
+loop(50,
+  gfx_x = CENTER_X - DOT_RADIUS;
+  gfx_y = CENTER_Y - DOT_RADIUS;
+  gfx_blurto(CENTER_X + DOT_RADIUS, CENTER_Y + DOT_RADIUS);
+);
+
+// Draw a second dot for comparison (no blur)
+gfx_set(0.2, 1.0, 0.2, 0.8);
+gfx_circle(CENTER_X + 100, CENTER_Y, DOT_RADIUS, 1, 1);
+
+// Add some text
+gfx_set(0.9, 0.9, 0.9, 1);
+gfx_setfont(1, "Arial", 16);
+gfx_x = 10;
+gfx_y = 30;
+gfx_drawstr("Left: Red dot with blur");
+gfx_y = 50;
+gfx_drawstr("Right: Green dot without blur");
+gfx_y = 70;
+gfx_drawstr("If blur works, red dot should appear softer/glowing");

@@ -1,0 +1,309 @@
+// VU Meter with Blurred Background Effect
+// Fully optimized with dirty flags and pre-calculated values
+// Experimental feature for Composure Modular Compressor
+
+desc:VU Meter Test - Fully Optimized
+
+@init
+
+//==============================================================================
+// CONFIGURATION
+//==============================================================================
+
+// VU meter dimensions
+VU_CENTER_X = 250;
+VU_CENTER_Y = 200;  // Moved down a little
+VU_RADIUS = 120;
+VU_ARC_START = -1.571 - 0.218;  // Start at -12.5 degrees from top (-π/2 - 0.218)
+VU_ARC_END = -1.571 + 0.218;    // End at +12.5 degrees from top (-π/2 + 0.218)
+
+// Background colors (dark orange/amber theme)
+BG_R = 0.15;
+BG_G = 0.1;
+BG_B = 0.05;
+
+// Frame configuration
+FRAME_PADDING_H = 30;
+FRAME_PADDING_V = 20;
+FRAME_COLOR_R = 0.25;
+FRAME_COLOR_G = 0.25;
+FRAME_COLOR_B = 0.25;
+FRAME_BORDER_R = 0.15;
+FRAME_BORDER_G = 0.15;
+FRAME_BORDER_B = 0.15;
+
+// Frame bounds (calculated once, used by multiple functions)
+frame_left = 0;
+frame_top = 0;
+frame_width = 0;
+frame_height = 0;
+
+// Removed blur and dot configuration
+
+// Meter markings
+NUM_TICKS = 15;
+MAJOR_TICK_INTERVAL = 5;
+TICK_LENGTH_MAJOR = 45;  // 3x larger (15 * 3)
+TICK_LENGTH_MINOR = 24;  // 3x larger (8 * 3)
+TEXT_RADIUS_OFFSET = 25;
+
+// Colors for meter markings
+MARKING_R = 0.9;
+MARKING_G = 0.85;
+MARKING_B = 0.75;
+LABEL_R = 0.85;
+LABEL_G = 0.8;
+LABEL_B = 0.7;
+
+// GFX state caching
+gfx_cached_r = -1;
+gfx_cached_g = -1;
+gfx_cached_b = -1;
+gfx_cached_a = -1;
+
+// Dirty flag system
+needs_redraw = 1;
+last_mouse_x = -1;
+last_mouse_y = -1;
+last_mouse_cap = 0;
+last_gfx_w = 0;
+last_gfx_h = 0;
+
+//==============================================================================
+// MEMORY ALLOCATION - Tightly Packed
+//==============================================================================
+
+// Dot arrays (5 values each)
+dot1 = 1000;
+dot2 = 1005;
+dot3 = 1010;
+dot4 = 1015;
+
+// Master arrays
+dots = 1020;
+vu_scale = 1030;
+
+// Pre-calculated values
+tick_angles = 1050;
+text_positions = 1100;
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+function set_vu_scale(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9) (
+  vu_scale[0] = v0; vu_scale[1] = v1; vu_scale[2] = v2; vu_scale[3] = v3; vu_scale[4] = v4;
+  vu_scale[5] = v5; vu_scale[6] = v6; vu_scale[7] = v7; vu_scale[8] = v8; vu_scale[9] = v9;
+);
+
+function init_vu_values() (
+  set_vu_scale(-20, -15, -10, -7, -5, -3, -1, -0.5, -0.1, 0);
+);
+
+//==============================================================================
+// DIRTY FLAG MANAGEMENT
+//==============================================================================
+
+function check_needs_redraw() (
+  // Mouse movement
+  mouse_x != last_mouse_x || mouse_y != last_mouse_y ? (
+    needs_redraw = 1;
+    last_mouse_x = mouse_x;
+    last_mouse_y = mouse_y;
+  );
+  
+  // Mouse button state
+  mouse_cap != last_mouse_cap ? (
+    needs_redraw = 1;
+    last_mouse_cap = mouse_cap;
+  );
+  
+  // Window resize
+  gfx_w != last_gfx_w || gfx_h != last_gfx_h ? (
+    needs_redraw = 1;
+    last_gfx_w = gfx_w;
+    last_gfx_h = gfx_h;
+  );
+);
+
+function mark_dirty() (
+  needs_redraw = 1;
+);
+
+//==============================================================================
+// PRE-CALCULATION FUNCTIONS
+//==============================================================================
+
+function precalculate_tick_angles() local(i) (
+  i = 0;
+  while (i <= NUM_TICKS) (
+    tick_angles[i] = VU_ARC_START + (VU_ARC_END - VU_ARC_START) * i / NUM_TICKS;
+    i += 1;
+  );
+);
+
+function precalculate_text_positions() local(i, angle, idx) (
+  i = 0;
+  idx = 0;
+  while (i <= NUM_TICKS) (
+    i % MAJOR_TICK_INTERVAL == 0 ? (
+      angle = tick_angles[i];
+      text_positions[idx] = VU_CENTER_X + cos(angle) * (VU_RADIUS + TEXT_RADIUS_OFFSET);
+      text_positions[idx + 1] = VU_CENTER_Y + sin(angle) * (VU_RADIUS + TEXT_RADIUS_OFFSET);
+      idx += 2;
+    );
+    i += 1;
+  );
+);
+
+//==============================================================================
+// OPTIMIZED GFX FUNCTIONS
+//==============================================================================
+
+function gfx_set_cached(r, g, b, a) (
+  r != gfx_cached_r || g != gfx_cached_g || 
+  b != gfx_cached_b || a != gfx_cached_a ? (
+    gfx_set(r, g, b, a);
+    gfx_cached_r = r;
+    gfx_cached_g = g;
+    gfx_cached_b = b;
+    gfx_cached_a = a;
+  );
+);
+
+//==============================================================================
+// DRAWING FUNCTIONS
+//==============================================================================
+
+function draw_background() (
+  gfx_set_cached(BG_R, BG_G, BG_B, 1);
+  gfx_rect(0, 0, gfx_w, gfx_h);
+);
+
+// Removed dot and blur drawing functions
+
+function calculate_frame_bounds() (
+  frame_left = VU_CENTER_X - VU_RADIUS - FRAME_PADDING_H;
+  frame_top = VU_CENTER_Y - VU_RADIUS - FRAME_PADDING_V;
+  frame_width = VU_RADIUS * 2 + FRAME_PADDING_H * 2;
+  frame_height = VU_RADIUS + FRAME_PADDING_V * 2;
+);
+
+function draw_frame_mask() (
+  gfx_set_cached(FRAME_COLOR_R, FRAME_COLOR_G, FRAME_COLOR_B, 1);
+  
+  gfx_rect(0, 0, gfx_w, frame_top);
+  gfx_rect(0, frame_top + frame_height, gfx_w, gfx_h - frame_top - frame_height);
+  gfx_rect(0, frame_top, frame_left, frame_height);
+  gfx_rect(frame_left + frame_width, frame_top, gfx_w - frame_left - frame_width, frame_height);
+);
+
+function draw_frame_border() (
+  gfx_set_cached(FRAME_BORDER_R, FRAME_BORDER_G, FRAME_BORDER_B, 1);
+  gfx_rect(frame_left - 2, frame_top - 2, frame_width + 4, frame_height + 4, 0);
+);
+
+function draw_tick_mark(angle, is_major) local(tick_length, x1, y1, x2, y2) (
+  tick_length = is_major ? TICK_LENGTH_MAJOR : TICK_LENGTH_MINOR;
+  
+  x1 = VU_CENTER_X + cos(angle) * VU_RADIUS;
+  y1 = VU_CENTER_Y + sin(angle) * VU_RADIUS;
+  x2 = VU_CENTER_X + cos(angle) * (VU_RADIUS - tick_length);
+  y2 = VU_CENTER_Y + sin(angle) * (VU_RADIUS - tick_length);
+  
+  gfx_line(x1, y1, x2, y2, 1);
+);
+
+function draw_tick_marks() local(tick_idx, angle, is_major) (
+  gfx_set_cached(MARKING_R, MARKING_G, MARKING_B, 1);
+  
+  tick_idx = 0;
+  while (tick_idx <= NUM_TICKS) (
+    angle = tick_angles[tick_idx];  // Pre-calculated!
+    is_major = (tick_idx % MAJOR_TICK_INTERVAL == 0);
+    draw_tick_mark(angle, is_major);
+    tick_idx += 1;
+  );
+);
+
+function draw_scale_numbers() local(tick_idx, value_idx, pos_idx) (
+  gfx_set_cached(MARKING_R, MARKING_G, MARKING_B, 1);
+  gfx_setfont(1, "Arial", 14);
+  
+  tick_idx = 0;
+  pos_idx = 0;
+  while (tick_idx <= NUM_TICKS) (
+    tick_idx % MAJOR_TICK_INTERVAL == 0 ? (
+      value_idx = tick_idx / MAJOR_TICK_INTERVAL;
+      value_idx < 10 ? (
+        gfx_x = text_positions[pos_idx] - 8;      // Pre-calculated X!
+        gfx_y = text_positions[pos_idx + 1] - 7;  // Pre-calculated Y!
+        gfx_printf("%d", vu_scale[value_idx]);
+      );
+      pos_idx += 2;
+    );
+    tick_idx += 1;
+  );
+);
+
+function draw_labels() (
+  gfx_set_cached(LABEL_R, LABEL_G, LABEL_B, 1);
+  gfx_setfont(1, "Arial", 16, 'b');
+  gfx_x = VU_CENTER_X - 15;
+  gfx_y = VU_CENTER_Y + 40;
+  gfx_drawstr("dB");
+  
+  gfx_x = VU_CENTER_X - 20;
+  gfx_y = frame_top + 5;
+  gfx_setfont(1, "Arial", 18, 'b');
+  gfx_drawstr("VU");
+);
+
+function draw_title() (
+  gfx_set_cached(0.7, 0.7, 0.7, 1);
+  gfx_setfont(1, "Arial", 12);
+  gfx_x = 10;
+  gfx_y = 10;
+  gfx_drawstr("VU Meter - Fully Optimized");
+  gfx_y = 25;
+  gfx_drawstr("Dirty flags | Pre-calc | Cached | Direct access");
+);
+
+function draw_meter_markings() (
+  draw_tick_marks();
+  draw_scale_numbers();
+  draw_labels();
+);
+
+function render_complete_frame() (
+  calculate_frame_bounds();
+  
+  draw_background();
+  draw_frame_mask();
+  draw_frame_border();
+  draw_meter_markings();
+  draw_title();
+);
+
+//==============================================================================
+// INITIALIZATION
+//==============================================================================
+
+init_vu_values();
+precalculate_tick_angles();
+precalculate_text_positions();
+
+//==============================================================================
+// MAIN RENDERING
+//==============================================================================
+
+@gfx 500 360
+
+// Check if redraw is needed
+check_needs_redraw();
+
+// Only render if something changed
+needs_redraw ? (
+  render_complete_frame();
+  needs_redraw = 0;
+);

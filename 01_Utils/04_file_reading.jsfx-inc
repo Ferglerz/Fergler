@@ -234,8 +234,8 @@ function extract_inc_value(line, comma2_pos, pos_greater) (
 
 // Helper: Store parsed parameters in memory
 function store_slider_params(slider_index, default_val, min_val, max_val, inc_val) (
-  // Use slider_index - 1 to match the retrieval functions
-  base_offset = (slider_index - 1) * 4;
+  // slider_index is already 0-based from process_slider_line
+  base_offset = slider_index * 4;
   slider_params_base[base_offset + 0] = default_val;
   slider_params_base[base_offset + 1] = min_val;
   slider_params_base[base_offset + 2] = max_val;
@@ -366,21 +366,27 @@ function parse_comma_separated_options(options_str, options_len, slider_index) (
   base_slot = DROPDOWN_OPTIONS_BASE + (slider_index * MAX_OPTIONS_PER_SLIDER);
   opt_count = 0;
   option_start = 0;
-  i = 0;
+  pos = 0;
   
-  while (i <= options_len && opt_count < MAX_OPTIONS_PER_SLIDER) (
-    char = str_getchar(options_str, i);
+  // Loop through string finding commas
+  while (pos <= options_len && opt_count < MAX_OPTIONS_PER_SLIDER) (
+    current_char = str_getchar(options_str, pos);
     
-    // Found comma (ASCII 44) or end of string
-    (char == 44 || i == options_len) ? (
-      extract_single_option(options_str, option_start, i, base_slot + opt_count, slider_index, opt_count) ? (
+    // At comma or end of string?
+    (current_char == 44 || pos == options_len) ? (
+      // Extract option from option_start to pos
+      len = pos - option_start;
+      len > 0 ? (
+        strcpy_substr(base_slot + opt_count, options_str, option_start, len);
+        // Parse and store numeric value for fast lookup
+        numeric_value = string_to_number(base_slot + opt_count);
+        dropdown_option_values_base[slider_index * MAX_OPTIONS_PER_SLIDER + opt_count] = numeric_value;
         opt_count += 1;
+        option_start = pos + 1;
       );
-      option_start = i + 1;
     );
-    i += 1;
+    pos += 1;
   );
-  
   opt_count;
 );
 

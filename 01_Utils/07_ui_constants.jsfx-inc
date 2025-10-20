@@ -8,6 +8,15 @@
 
 MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
 
+// === DISPLAY MODE CONSTANTS ===
+DISPLAY_MODE_NORMAL = 0;        // Normal display (no suffix)
+DISPLAY_MODE_HIDE_VALUE = 2;    // Hide value display (e.g., Attack Curve)
+DISPLAY_MODE_PERCENT = 3;       // Display with % suffix
+DISPLAY_MODE_DB = 4;            // Display with dB suffix  
+DISPLAY_MODE_MS = 5;            // Display with ms suffix
+DISPLAY_MODE_US = 6;            // Display with us (microseconds) suffix
+DISPLAY_MODE_S = 7;             // Display with s (seconds) suffix
+
 // === HISTOGRAM CONFIGURATION ===
 HISTOGRAM_ENABLED = 1; // Set to 0 to disable histogram completely
 HISTOGRAM_WINDOW_SECONDS = 3; // 3-second window for history

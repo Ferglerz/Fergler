@@ -14,53 +14,56 @@ desc:Advanced Multi-Model Compressor (Modular)
 
 
 // Time-related parameters (1-5)
-slider1:attack_ms=10<0.05,100,0.1>-Attack (ms)
+slider1:attack_ms=10<0.05,100,0.1>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-slider3:release_ms=100<10,1000,1>Release (ms)
+slider3:release_ms=100<10,1000,1>Release
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
-slider5:lookahead_ms=0<0,2000,0.1>-Lookahead (ms)
+slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
-// RMS & Detection parameters (7-10)
-slider7:rms_size_ms=0<1,100,0.1>-RMS Window (ms)
-slider8:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
-slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
-slider10:max_gr_db=-100<-100,0,1>-Max GR (dB)
+// RMS & Detection parameters (6-9)
+slider6:rms_size_ms=0<1,100,0.1>-RMS Window
+slider7:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
+slider8:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
+slider9:max_gr_db=-100<-100,0,1>-Max GR
 
-// Filtering parameters (11-12)
+// Filtering parameters (10-11)
 // Sliders store actual frequency values - discrete steps
 // HP: 0=Off (displayed as "Off" in UI), then 20Hz to 6kHz
 // LP: 20Hz to 14kHz, then 0=Off (displayed as "Off" in UI, default)
-slider11:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
-slider12:lp_freq=16000<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
+slider10:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
+slider11:lp_freq=16000<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
 
-// Character & Harmonics parameters (13-20)
-slider13:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Harmonic Type
-slider14:harmonic_amount=0<0,1,0.01>-Harmonic Amount
-slider15:harmonic_drive=1<0.5,10,0.1>-Harmonic Drive
-slider16:harmonic_mix=0<0,1,0.01>-Harmonic Mix
-slider17:harmonic_even_boost=0<0,2,0.01>-Even
-slider18:harmonic_odd_boost=0<0,2,0.01>-Odd
+// Character & Harmonics parameters (12-17)
+slider12:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Type
+slider13:harmonic_amount=0<0,1,0.01>-Amount
+slider14:harmonic_drive=1<0.5,10,0.1>-Drive
+slider15:harmonic_mix=0<0,100,1>-Mix
+slider16:harmonic_even_boost=0<0,200,1>-Even
+slider17:harmonic_odd_boost=0<0,200,1>-Odd
 
-// Global parameters (19-25)
-slider19:strength=1<0.25,10,0.1>Strength
-slider20:global_offset_db=0<-30,30,0.1>-Global Offset (dB)
-slider21:makeup_gain_db=0<-20,20,0.1>-Makeup Gain (dB)
-slider22:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
-slider23:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
-slider24:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
-slider25:prog_release_type=0<0,4,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,Input-Dependent 2}>-Program Release Type
-slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+// Global parameters (18-24)
+slider18:strength=1<0.25,10,0.1>Strength
+slider19:global_offset_db=0<-30,30,0.25>-Global Offset
+slider20:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
+slider21:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
+slider22:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
+slider23:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
+slider24:prog_release_type=0<0,4,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,Input-Dependent 2}>-Program Release Type
+slider25:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 
-// Advanced Envelope parameters (27-30)
-slider27:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
-slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
-slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider30:transient_detection=0<0,100,1>-Transient Detection (0=Off, 100=Max)
-slider31:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
+// Advanced Envelope parameters (26-29)
+slider26:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
+slider27:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider28:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
+slider29:transient_detection=0<0,100,1>-Transient Detection
+slider30:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
-// Dot Trail parameters (32-33)
-slider32:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
-slider33:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
+// Dot Trail parameters (31-32)
+slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
+slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
+
+// Time multiplier for attack display (33)
+slider33:time_multiplier=1<0,2,1{Microseconds,Milliseconds,Seconds}>-Time Unit
 
 // SEARCH STOP
 
@@ -152,11 +155,11 @@ while (i < num_points) (
   i += 1;
 );
 
-@init
-
 //==============================================================================
 // INITIALIZATION SEQUENCE
 //==============================================================================
+
+@init
 
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
 read_slider_definitions();
@@ -296,10 +299,10 @@ pdc_delay > 0 ? (
   // Global offset is applied at lookup time (shifts input level before curve lookup).
 );
 
-// --- Trail Parameters (32-33) ---
-(slider32 != trail_interval_ms_prev || slider33 != trail_fade_duration_ms_prev || !slider_initialized) ? (
-  trail_interval_ms_prev = slider32;
-  trail_fade_duration_ms_prev = slider33;
+// --- Trail Parameters (31-32) ---
+(slider31 != trail_interval_ms_prev || slider32 != trail_fade_duration_ms_prev || !slider_initialized) ? (
+  trail_interval_ms_prev = slider31;
+  trail_fade_duration_ms_prev = slider32;
   
   // Recalculate trail buffer size if parameters changed
   trail_interval_samples = trail_interval_ms * 0.001 * srate;

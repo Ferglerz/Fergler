@@ -8,7 +8,24 @@
 // GENERIC SLIDER RENDERING
 //==============================================================================
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
+// Get display mode for time controls based on time multiplier
+function get_time_display_mode(param_index, original_display_mode) (
+  // Check if this is the Attack control (param 1 only)
+  param_index == 1 ? (
+    // Get time multiplier setting
+    time_multiplier = slider(33);
+    // Debug: show what time_multiplier value we're getting
+    time_multiplier == 0 ? DISPLAY_MODE_US : (  // Microseconds
+    time_multiplier == 1 ? DISPLAY_MODE_MS : (  // Milliseconds  
+    DISPLAY_MODE_S                              // Seconds
+    ))
+  ) : (
+    // Not the Attack control, use original display mode
+    original_display_mode
+  );
+);
+
+function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode, param_index) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
   // Calculate normalized position
   normalized_pos = (value - min_val) / (max_val - min_val);
   
@@ -39,10 +56,53 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     gfx_rect(x - 2, handle_y, w + 4, 6);
 
     // Draw value text (if not hidden)
-    display_mode != 2 ? (
+    display_mode != DISPLAY_MODE_HIDE_VALUE ? (
       gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
       gfx_x = x + w + 8; gfx_y = y + h/2;
-      gfx_printf("%.2f", value);
+      // Calculate decimal places from slider increment
+      increment = get_slider_increment(param_index);
+      decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
+      
+      // Temporary debug: force specific decimal places for testing
+      param_index == 1 ? decimal_places = 1 : (  // Attack: 0.1 increment
+      param_index == 3 ? decimal_places = 0 : (  // Release: 1 increment  
+      param_index == 5 ? decimal_places = 1 : (  // Lookahead: 0.1 increment
+      param_index == 6 ? decimal_places = 1 : (  // RMS Window: 0.1 increment
+      param_index == 9 ? decimal_places = 0 : (  // Max GR: 1 increment
+      param_index == 15 ? decimal_places = 0 : ( // Harmonic Mix: 1 increment
+      param_index == 16 ? decimal_places = 0 : ( // Even: 1 increment
+      param_index == 17 ? decimal_places = 0 : ( // Odd: 1 increment
+      param_index == 18 ? decimal_places = 1 : ( // Strength: 0.1 increment
+      param_index == 19 ? decimal_places = 2 : ( // Global Offset: 0.25 increment
+      decimal_places = 2;  // Default fallback
+      ))))))))));
+      
+      // Format the value with calculated decimal places
+      sprintf(#temp_display_str, "%%.%df", decimal_places);
+      sprintf(#temp_display_str, #temp_display_str, value);
+      
+      // Get dynamic display mode for time controls
+      dynamic_display_mode = get_time_display_mode(param_index, display_mode);
+      
+      // Add suffix at drawstr stage
+      dynamic_display_mode == DISPLAY_MODE_PERCENT ? (
+        gfx_drawstr(#temp_display_str);
+        gfx_drawstr(" %")
+      ) : dynamic_display_mode == DISPLAY_MODE_DB ? (
+        gfx_drawstr(#temp_display_str);
+        gfx_drawstr(" dB")
+      ) : dynamic_display_mode == DISPLAY_MODE_MS ? (
+        gfx_drawstr(#temp_display_str);
+        gfx_drawstr(" ms")
+      ) : dynamic_display_mode == DISPLAY_MODE_US ? (
+        gfx_drawstr(#temp_display_str);
+        gfx_drawstr(" us")
+      ) : dynamic_display_mode == DISPLAY_MODE_S ? (
+        gfx_drawstr(#temp_display_str);
+        gfx_drawstr(" s")
+      ) : (
+        gfx_drawstr(#temp_display_str)
+      );
     );
   ) : ( // Horizontal slider (includes both normal and reverse)
     // Draw slider background
@@ -89,9 +149,47 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
     // Draw value text (if not hidden)
-    display_mode != 2 ? (
-      // Use standard numeric formatting (no special frequency formatting in generic slider)
-      sprintf(#value_str, "%.2f", value);
+    display_mode != DISPLAY_MODE_HIDE_VALUE ? (
+      // Calculate decimal places from slider increment
+      increment = get_slider_increment(param_index);
+      decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
+      
+      // Temporary debug: force specific decimal places for testing
+      param_index == 1 ? decimal_places = 1 : (  // Attack: 0.1 increment
+      param_index == 3 ? decimal_places = 0 : (  // Release: 1 increment  
+      param_index == 5 ? decimal_places = 1 : (  // Lookahead: 0.1 increment
+      param_index == 6 ? decimal_places = 1 : (  // RMS Window: 0.1 increment
+      param_index == 9 ? decimal_places = 0 : (  // Max GR: 1 increment
+      param_index == 15 ? decimal_places = 0 : ( // Harmonic Mix: 1 increment
+      param_index == 16 ? decimal_places = 0 : ( // Even: 1 increment
+      param_index == 17 ? decimal_places = 0 : ( // Odd: 1 increment
+      param_index == 18 ? decimal_places = 1 : ( // Strength: 0.1 increment
+      param_index == 19 ? decimal_places = 2 : ( // Global Offset: 0.25 increment
+      decimal_places = 2;  // Default fallback
+      ))))))))));
+      
+      // Format the value with calculated decimal places
+      sprintf(#value_str, "%%.%df", decimal_places);
+      sprintf(#value_str, #value_str, value);
+      
+      // Get dynamic display mode for time controls
+      dynamic_display_mode = get_time_display_mode(param_index, display_mode);
+      
+      // Add suffix at drawstr stage
+      dynamic_display_mode == DISPLAY_MODE_PERCENT ? (
+        sprintf(#value_str, "%s %%", #value_str)
+      ) : dynamic_display_mode == DISPLAY_MODE_DB ? (
+        sprintf(#value_str, "%s dB", #value_str)
+      ) : dynamic_display_mode == DISPLAY_MODE_MS ? (
+        sprintf(#value_str, "%s ms", #value_str)
+      ) : dynamic_display_mode == DISPLAY_MODE_US ? (
+        sprintf(#value_str, "%s us", #value_str)
+      ) : dynamic_display_mode == DISPLAY_MODE_S ? (
+        sprintf(#value_str, "%s s", #value_str)
+      ) : (
+        // No suffix for normal display - value_str already formatted
+        0; // Satisfy syntax requirement
+      );
       gfx_measurestr(#value_str, value_str_w, value_str_h);
       
       // Smart positioning: left-anchored when >50%, right-anchored when <50%
@@ -404,27 +502,19 @@ function draw_control(index) local(group_idx) (
   // Get current parameter value
   current_value = slider(param_index);
   
-  // Check if this is a stage enable button (param indices 27-31)
-  is_stage_enable_button = (param_index >= 27 && param_index <= 31);
-  
-  // Only render stage enable buttons when debug is enabled
-  is_stage_enable_button && !menu_debug_enabled ? (
-    // Skip rendering stage enable buttons when debug is disabled
-    0;
-  ) : (
-    // Check if this is a frequency slider (HP/LP filters) that should use special rendering
-    (index == 10 || index == 11) ? (
+  // No stage enable buttons currently defined, so render all controls
+  // Check if this is a frequency slider (HP/LP filters) that should use special rendering
+  (index == 15 || index == 16) ? (
       // HP and LP filters use frequency slider with property system
       draw_frequency_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), index, slider_type, display_mode)
     ) : (
       // All other controls use standard rendering
-      type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode) :
+      type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode, param_index) :
       type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
       type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
       type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
       type == 4 ? draw_freq_list_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_type, display_mode) :
       0;
     );
-  );
 );
 

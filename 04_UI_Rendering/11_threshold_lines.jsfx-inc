@@ -19,9 +19,9 @@ THRESHOLD_INPUT_LEVEL_2 = 3; // Second input level threshold (on graph)
 
 // Slider mappings for each threshold line (for programmatic sliderchange calls)
 THRESHOLD_SLIDER_GR_BLEND = 32;      // slider32: gr_blend_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 33;   // slider33: input_level_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL_2 = 36; // slider36: input_level_threshold_2_db
-THRESHOLD_SLIDER_TRANSIENT = 34;     // slider34: transient_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL = 27;   // slider27: input_level_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 28; // slider28: input_level_threshold_2_db
+THRESHOLD_SLIDER_TRANSIENT = 30;     // slider30: transient_threshold_db
 
 // Interaction state
 dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)

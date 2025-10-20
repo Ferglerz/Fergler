@@ -4,6 +4,13 @@
 
 @init
 
+// === STRING VARIABLES ===
+// Use slots 50+ to avoid reserved slots 0-49
+#temp_display_str = 50;
+#value_str = 51;
+#temp_dropdown_option = 52;
+#empty_str = 53;
+
 // === AUDIO CONSTANTS ===
 
 EPS = 0.000000000000000000000000000001;
@@ -23,7 +30,7 @@ HISTORY_UPDATE = 0.001;
 // === MEMORY LAYOUT CONFIGURATION ===
 
 // UI Controls
-NUM_CONTROLS = 30;  // Total number of UI controls (highest index is 29, so need at least 30)
+NUM_CONTROLS = 25;  // Total number of UI controls (highest index is 24, so need at least 25)
 NUM_KNOBS = 3;      // Total number of knobs: 2 large (Attack, Release) + 1 small (Output in header)
 
 // Debug logging (string slots for debug messages)

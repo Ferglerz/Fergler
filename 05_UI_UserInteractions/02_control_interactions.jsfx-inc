@@ -25,6 +25,7 @@ ui_last_clicked_control = -1;
 ui_last_clicked_knob = -1;
 ui_double_click_threshold = 0.3; // 300ms for double click
 
+
 //==============================================================================
 // HELPER FUNCTIONS
 //==============================================================================
@@ -122,14 +123,10 @@ function handle_control_click(control_index) (
   param_index = get_control_param(control_index);
   current_value = slider(param_index);
   
-  // Debug logging
-  menu_debug_enabled ? (
-    debug_log2f("Clicked control %d (param %d)", control_index, param_index);
-    debug_logf("  type=%d", control_type);
-  );
+  // Debug logging removed per user request
   
-  // Check for double-click or alt-click to reset
-  (is_double_click_control(control_index) || MOUSE_ALT_KEY) ? (
+  // Check for double-click or alt-click to reset (but not for dropdowns)
+  (is_double_click_control(control_index) || MOUSE_ALT_KEY) && control_type != 2 ? (
     reset_control_to_default(control_index);
     ui_drag_control = -2; // Prevent drag
   ) : (
@@ -158,8 +155,10 @@ function handle_control_click(control_index) (
     ) : control_type == 2 ? (
       // Dropdown - cycle (don't start drag for dropdowns)
       max_options = get_dropdown_option_count(param_index);
-      slider(param_index) = (current_value + 1) % max_options;
-      sliderchange(1 << (param_index - 1));
+      max_options > 0 ? (
+        slider(param_index) = (current_value + 1) % max_options;
+        sliderchange(1 << (param_index - 1));
+      );
       ui_drag_control = -2; // Special value to prevent further checks
     );
   );
@@ -181,7 +180,7 @@ function handle_drag_continuation() local(fine_drag_mult) (
       max_val = get_control_max(ui_drag_control);
       current_value = slider(param_index);
       mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
-      new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY);
+      new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY, param_index);
       slider(param_index) = new_value;
       sliderchange(1 << (param_index - 1));
     ) : (
