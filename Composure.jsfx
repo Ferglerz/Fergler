@@ -34,9 +34,9 @@ slider10:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500
 slider11:lp_freq=16000<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
 
 // Character & Harmonics parameters (12-17)
-slider12:harmonic_type=0<0,7,1{Off,Tube Even,Tube Odd,Tube Both,Tape Saturation,Enhanced Tube,FET,Clean Drive}>-Type
+slider12:harmonic_type=0<0,2,1{Off,Tape,Tube}>-Type
 slider13:harmonic_amount=0<0,1,0.01>-Amount
-slider14:harmonic_drive=1<0.5,10,0.1>-Drive
+slider14:harmonic_drive=50<0,100,1>-Drive (%)
 slider15:harmonic_mix=0<0,100,1>-Mix
 slider16:harmonic_even_boost=0<0,200,1>-Even
 slider17:harmonic_odd_boost=0<0,200,1>-Odd

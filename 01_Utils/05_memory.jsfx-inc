@@ -74,6 +74,3 @@ function allocate_memory() (
   freemem += trail_max_dots * 4;
 );
 
-function get_memory_usage() (
-  freemem; // Return current memory usage
-);
