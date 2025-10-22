@@ -144,9 +144,10 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
     // Only draw negative values (reduction)
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
-      // Convert GR to graph Y coordinate (from top)
+      // Convert GR to graph Y coordinate (depression from top of graph)
+      // GR values are negative, so we want to show them as a downward depression
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = GRAPH_Y + gr_height;
+      y_pos = GRAPH_Y + gr_height;  // Depression from top of graph
       
       first_point ? (
         gfx_x = x_pos;
