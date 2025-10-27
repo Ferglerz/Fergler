@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # JSFX Development Rules for Composure Compressor
 
 ## 🚨 CRITICAL JSFX SYNTAX RULES
@@ -326,20 +330,532 @@ Define all memory layout constants in config module (00_config.jsfx-inc).
 ### Debug Logging Functions
 ```jsfx
 debug_log(message)                    // 1 parameter: message string only
-debug_logf(format, value)             // 2 parameters: format string + 1 value
-debug_log2f(format, value1, value2)  // 3 parameters: format string + 2 values
-debug_log3f(format, val1, val2, val3) // 4 parameters: format string + 3 values
 ```
 
-**CRITICAL**: Each debug function has a FIXED number of parameters. Using the wrong number will cause "needs X parms" errors.
+**CRITICAL**: The debug system only supports `debug_log(message)` with a single string parameter. For formatted messages, use `sprintf()` + `debug_log()`.
+
+### Debug Usage Pattern
+```jsfx
+// For simple messages
+debug_log("Processing started");
+
+// For formatted messages with variables, use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
+
+// For multiple values
+sprintf(#debug_temp_str, "Values: %.2f, %.2f", val1, val2);
+debug_log(#debug_temp_str);
+```
 
 ### Common Debug Errors
 ```jsfx
-// WRONG - debug_log2f needs 3 parameters (format + 2 values)
-debug_log2f("Value: %.2f", single_value);  // ERROR: needs 3 parms
+// WRONG - debug_logf doesn't exist
+debug_logf("Value: %.2f", single_value);  // ERROR: undefined function
 
-// CORRECT - use debug_logf for 1 value
-debug_logf("Value: %.2f", single_value);   // OK: 2 parameters
+// CORRECT - use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
+```
+
+## 🎛️ SLIDER DEFINITIONS
+
+### Basic Slider
+```jsfx
+slider1:variable_name<min,max,inc>Description
+```
+
+### Enumerated Slider
+```jsfx
+slider1:0<0,2,1{off,on,value}>name
+```
+
+### Hidden Parameter
+```jsfx
+slider1:0<0,127,1>-Hidden Parameter  // prefix with -
+```
+
+### Logarithmic Slider
+```jsfx
+slider1:5<0,10,0.1:log>Description
+```
+
+### Automation-Safe
+```jsfx
+slider1:5<0,10,0.1:log!>Description  // Use :log! or :sqr! to not affect existing automation
+```
+
+## 🔧 PLUGIN DELAY COMPENSATION (PDC)
+
+### Setting PDC (in @slider section)
+```jsfx
+@slider
+// Calculate lookahead delay in samples
+pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
+
+// Configure PDC for stereo
+pdc_delay > 0 ? (
+  pdc_bot_ch = 0;  // Bottom channel (left)
+  pdc_top_ch = 2;  // Top channel + 1 (right)
+);
+```
+
+### PDC Rules
+- Must set in @slider (not @block or @sample)
+- Must set unconditionally every time @slider executes
+- `pdc_bot_ch` = first channel (0 for left)
+- `pdc_top_ch` = last channel + 1 (2 for stereo)
+- REAPER handles automatic delay compensation to align with other tracks
+
+## 📝 COMMON PATTERNS
+
+### Safe Division
+```jsfx
+result = numerator / (denominator + EPS);
+```
+
+### Circular Buffer
+```jsfx
+// Write
+buffer[write_pos] = value;
+write_pos = (write_pos + 1) % buffer_size;
+
+// Read (with delay)
+read_pos = (write_pos - delay + buffer_size) % buffer_size;
+delayed_value = buffer[read_pos];
+```
+
+### Exponential Smoothing
+```jsfx
+smoothed = smoothed + (target - smoothed) * (1 - coeff);
+// where coeff = exp(-1 / (time_constant * srate))
+```
+
+### Envelope Following
+```jsfx
+input_level > envelope ? (
+  // Attack
+  envelope += (input_level - envelope) * (1 - attack_coeff);
+) : (
+  // Release  
+  envelope += (input_level - envelope) * (1 - release_coeff);
+);
+```
+
+### Soft Clipping
+```jsfx
+function soft_clip(x) (
+  x > 1 ? (1 + tanh(x - 1)) :
+  x < -1 ? (-1 + tanh(x + 1)) :
+  x
+);
+```
+
+## 🎯 KEY EXECUTION FLOW
+
+### @init Section
+1. Clear debug log
+2. Read slider definitions from file
+3. Allocate memory (centralized)
+4. Initialize state variables
+5. Initialize stage control flags
+6. Initialize curve data
+7. Setup UI control layout
+8. Initialize graph points (if first load)
+9. Mark compression system ready
+
+### @slider Section
+1. Detect which parameters changed
+2. Update filter parameters
+3. Update timing parameters (attack, release, lookahead, RMS)
+4. Update makeup gain
+5. Configure plugin delay compensation (PDC)
+6. Update stage control flags
+7. Update strength and global offset
+
+### @block Section
+1. Store histogram values from previous block
+2. Reset block-level max trackers
+3. Update filter coefficients for current block
+4. Calculate and cache attack/release coefficients
+5. Update RMS window size if changed
+
+### @sample Section
+- Calls `process_complete_audio_chain()` which orchestrates:
+  1. Input stage (stereo handling, sidechain routing)
+  2. Filtering stage (HP/LP filters on detection signal)
+  3. Detection analysis (RMS/peak, gain reduction calculation)
+  4. Character stage (apply compressor character)
+  5. Envelope stage (attack/release following)
+  6. Lookahead stage (delay compensation)
+  7. Gain reduction stage (apply calculated GR)
+  8. Harmonics stage (add harmonic distortion)
+  9. Final mix stage (wet/dry blend)
+  10. Limiter stage (brickwall limiting)
+  11. Output stage
+
+### @gfx Section
+1. Update mouse state constants
+2. Update histograms with block-max values
+3. Render complete interface (via `render_complete_interface()`)
+4. Render debug information (if enabled)
+
+---
+
+**Remember**: These rules are CRITICAL for JSFX development. Always check function definition order, string variable allocation, and module import order before making changes.# JSFX Development Rules for Composure Compressor
+
+## 🚨 CRITICAL JSFX SYNTAX RULES
+
+### Function Definition Order (ABSOLUTE REQUIREMENT)
+- **ALL FUNCTIONS MUST BE DEFINED BEFORE BEING CALLED** in JSFX
+- No forward declarations supported
+- Functions must be ordered by dependency within each file
+- Module import order is strictly enforced with numbered prefixes
+
+### String Variable Allocation (CRITICAL)
+- **String slots 0-49 are RESERVED** - NEVER use these slots
+- Use slots 50+ for custom string variables: `#temp_display_str = 50;`
+- Always declare string variables in constants file
+- Example: `#temp_display_str = 50;` not `#temp_display_str = "";`
+
+### Conditional Statements (STRICT RULE)
+- **EMPTY CONDITIONAL BRANCHES ARE NOT ALLOWED PERIOD**
+- They must return something, or not be used at all
+- Use single condition if else is empty
+- Add meaningful comments in all branches
+
+### Dynamic Format Strings (NOT SUPPORTED)
+- JSFX `gfx_printf` does not support dynamic format strings
+- Use two-step sprintf approach:
+```jsfx
+// ❌ WRONG - Dynamic format string
+gfx_printf("%%.%df%%", decimal_places, value);
+
+// ✅ CORRECT - Two-step sprintf
+sprintf(#temp_display_str, "%%.%df%%", decimal_places);
+sprintf(#temp_display_str, #temp_display_str, value);
+gfx_drawstr(#temp_display_str);
+```
+
+### Function Parameter Passing (CRITICAL)
+- When adding new parameters to functions, update ALL call sites
+- Parameter mismatches will cause runtime errors
+- Test all function calls when modifying signatures
+
+## 🏗️ MODULAR ARCHITECTURE RULES
+
+### Module Import Order (STRICTLY ENFORCED)
+```
+Phase 0 (00): Configuration - No dependencies
+Phase 1 (01): Foundation - Depends on Phase 0
+Phase 2 (02): Utilities - Depends on Phases 0-1
+Phase 3 (03): Graph Data - Depends on Phases 0-2
+Phase 4 (04): Audio Processing - Depends on Phases 0-3
+Phase 5 (05): UI Components - Depends on Phases 0-4
+```
+
+### Phase 5 UI Module Order (CRITICAL)
+```
+05a_ui_interaction.jsfx-inc    ← Independent interaction handling
+05b_ui_controls.jsfx-inc       ← Control definitions (uses interaction)
+05c_ui_rendering.jsfx-inc      ← Pure drawing functions (uses controls)
+05e_ui_graph.jsfx-inc          ← Graph rendering (uses rendering functions)
+05f_ui_orchestration.jsfx-inc  ← MUST BE LAST - calls ALL other UI functions
+```
+
+**⚠️ ORCHESTRATION MUST ALWAYS BE LAST (05f/06_UI_Orchestration)**
+- Orchestration modules call functions from ALL other modules
+- They coordinate the complete interface
+- Must be imported after all dependencies are defined
+
+### File Naming Convention
+- Format: `[phase][letter]_[descriptive_name].jsfx-inc`
+- Examples: `01a_memory.jsfx-inc`, `05f_ui_orchestration.jsfx-inc`
+- **ORCHESTRATION MODULES MUST BE LAST IN THEIR PHASE**
+
+## 🧪 TESTING METHODOLOGY
+
+### Python Equivalent Testing (RECOMMENDED)
+Create Python test files to verify mathematical and DSP functions before JSFX implementation:
+
+#### Math Utils Testing
+```python
+# test_math_utils.py
+import math
+import numpy as np
+
+def db_to_linear(db):
+    """Convert dB to linear scale"""
+    return math.exp(db * 0.11512925464970229)  # log(10)/20
+
+def linear_to_db(linear):
+    """Convert linear to dB scale"""
+    return math.log(linear) * 8.6858896380650366  # 20/log(10)
+
+def test_db_conversions():
+    """Test dB/linear conversion accuracy"""
+    test_values = [-60, -20, -6, 0, 6, 20, 60]
+    for db in test_values:
+        linear = db_to_linear(db)
+        back_to_db = linear_to_db(linear)
+        assert abs(back_to_db - db) < 0.001, f"Conversion error: {db} -> {back_to_db}"
+    print("✅ dB conversion tests passed")
+```
+
+#### DSP Processing Testing
+```python
+# test_dsp_processing.py
+import numpy as np
+import matplotlib.pyplot as plt
+
+def test_envelope_follower():
+    """Test attack/release envelope following"""
+    sample_rate = 44100
+    attack_time = 0.01  # 10ms
+    release_time = 0.1  # 100ms
+    
+    attack_coeff = np.exp(-1 / (attack_time * sample_rate))
+    release_coeff = np.exp(-1 / (release_time * sample_rate))
+    
+    # Generate test signal
+    t = np.linspace(0, 1, sample_rate)
+    input_signal = np.sin(2 * np.pi * 440 * t) * (1 + 0.5 * np.sin(2 * np.pi * 2 * t))
+    
+    # Envelope following
+    envelope = np.zeros_like(input_signal)
+    for i in range(1, len(input_signal)):
+        input_level = abs(input_signal[i])
+        if input_level > envelope[i-1]:
+            envelope[i] = envelope[i-1] + (input_level - envelope[i-1]) * (1 - attack_coeff)
+        else:
+            envelope[i] = envelope[i-1] + (input_level - envelope[i-1]) * (1 - release_coeff)
+    
+    # Plot results
+    plt.figure(figsize=(12, 6))
+    plt.subplot(2, 1, 1)
+    plt.plot(t, input_signal, label='Input Signal')
+    plt.plot(t, envelope, label='Envelope', linewidth=2)
+    plt.legend()
+    plt.title('Envelope Following Test')
+    plt.ylabel('Amplitude')
+    
+    plt.subplot(2, 1, 2)
+    plt.plot(t, envelope, label='Envelope')
+    plt.legend()
+    plt.xlabel('Time (s)')
+    plt.ylabel('Envelope Level')
+    
+    plt.tight_layout()
+    plt.show()
+
+def test_biquad_filter():
+    """Test biquad filter implementation"""
+    def biquad_filter(signal, b0, b1, b2, a1, a2):
+        """Simple biquad filter implementation"""
+        output = np.zeros_like(signal)
+        x1 = x2 = y1 = y2 = 0
+        
+        for i in range(len(signal)):
+            output[i] = b0 * signal[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+            x2, x1 = x1, signal[i]
+            y2, y1 = y1, output[i]
+        
+        return output
+    
+    # Generate test signal
+    sample_rate = 44100
+    t = np.linspace(0, 1, sample_rate)
+    signal = np.sin(2 * np.pi * 1000 * t) + 0.5 * np.sin(2 * np.pi * 5000 * t)
+    
+    # High-pass filter coefficients (1000 Hz cutoff)
+    fc = 1000
+    w = 2 * np.pi * fc / sample_rate
+    q = 0.707
+    
+    b0 = (1 + np.cos(w)) / 2
+    b1 = -(1 + np.cos(w))
+    b2 = (1 + np.cos(w)) / 2
+    a1 = -2 * np.cos(w)
+    a2 = 1 - np.sin(w) / (2 * q)
+    
+    filtered = biquad_filter(signal, b0, b1, b2, a1, a2)
+    
+    # Plot frequency response
+    plt.figure(figsize=(12, 6))
+    plt.subplot(2, 1, 1)
+    plt.plot(t, signal, label='Original')
+    plt.plot(t, filtered, label='Filtered')
+    plt.legend()
+    plt.title('Biquad Filter Test')
+    plt.ylabel('Amplitude')
+    
+    plt.subplot(2, 1, 2)
+    freqs = np.fft.fftfreq(len(signal), 1/sample_rate)[:len(signal)//2]
+    fft_orig = np.abs(np.fft.fft(signal))[:len(signal)//2]
+    fft_filt = np.abs(np.fft.fft(filtered))[:len(signal)//2]
+    
+    plt.semilogx(freqs[1:], 20 * np.log10(fft_orig[1:]), label='Original')
+    plt.semilogx(freqs[1:], 20 * np.log10(fft_filt[1:]), label='Filtered')
+    plt.legend()
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude (dB)')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    test_envelope_follower()
+    test_biquad_filter()
+```
+
+### Testing Approach (6-Step Process)
+1. **Use Python for Math/DSP Testing** - Verify mathematical correctness before JSFX implementation
+2. **Use hardcoded values for debugging** - Start with known values to verify logic
+3. **Test with simple cases first** - Basic functionality before complex scenarios
+4. **Add complexity gradually** - Incrementally build up functionality
+5. **Check linter errors immediately** - Fix syntax errors as they occur
+6. **Validate with Python** - Use Python tests to verify mathematical correctness
+
+## 🚫 COMMON ERRORS TO AVOID
+
+### Syntax Errors
+1. **Empty conditional branches** - Add meaningful content or use single condition
+2. **Dynamic format strings** - Use two-step sprintf
+3. **String slot conflicts** - Use slots 50+
+4. **Function order** - Define before calling
+5. **Parameter mismatches** - Update all call sites
+
+### Architecture Errors
+❌ **Putting orchestration first**: `05a_ui_orchestration.jsfx-inc`
+✅ **Putting orchestration last**: `05f_ui_orchestration.jsfx-inc`
+
+❌ **Calling undefined functions**: Function called before definition
+✅ **Define before use**: All functions defined before being called
+
+❌ **Circular dependencies**: Module A imports B, B imports A
+✅ **Linear dependencies**: Clear phase-based dependency chain
+
+## 🔧 REAL-TIME PARAMETER RESPONSE PATTERN
+
+For parameters that need real-time response (filters, attack/release curves, RMS, Hold):
+
+1. **Add tracking variables in @init (01b_state.jsfx-inc):**
+```jsfx
+param_prev = -999;
+```
+
+2. **Add slider change detection in @slider:**
+```jsfx
+(sliderN != param_prev || !slider_initialized) ? (
+  // Calculate parameter values
+  param_prev = sliderN;
+);
+```
+
+3. **Update processing variables in @block:**
+```jsfx
+// Update parameter every block for real-time response
+param_value = calculate_param_value();
+```
+
+## 📋 ENFORCEMENT CHECKLIST
+
+Before adding any new module or function:
+
+1. ✅ **Is this function defined before it's called?**
+2. ✅ **Is this module imported after its dependencies?**
+3. ✅ **Does orchestration come LAST in the phase?**
+4. ✅ **Are prefixes correctly ordered by dependency?**
+5. ✅ **No circular dependencies created?**
+6. ✅ **String variables use slots 50+?**
+7. ✅ **No empty conditional branches?**
+8. ✅ **All function calls updated with new parameters?**
+
+## 🎯 MEMORY LAYOUT CONSTANTS
+
+- `GRAPH_POINTS_START`: 10000+
+- `CONTROL_DEFS_START`: 30000+
+- `AUDIO_BUFFERS_START`: 40000+
+
+Define all memory layout constants in config module (00_config.jsfx-inc).
+
+## 🔄 EXECUTION SECTIONS ORDER
+
+1. **@init** - Executes once on plugin load, samplerate change, and playback start
+2. **@slider** - Executes after @init and whenever slider parameters change
+3. **@block** - Executes before each audio block (use instead of @sample when possible)
+4. **@sample** - Executes for every single sample (most CPU intensive)
+5. **@serialize** - Handles preset save/load operations
+6. **@gfx** - Graphics rendering, runs ~30 times/second when UI is open
+
+## 🎨 GRAPHICS AND UI RULES
+
+### Graphics Functions
+- `gfx_set(r, g, b, [a])` - set draw color
+- `gfx_line(x, y, x2, y2, [aa])` - draw line
+- `gfx_rect(x, y, w, h)` - draw filled rectangle
+- `gfx_circle(x, y, r, fill, [aa])` - draw circle
+- `gfx_drawstr("text", [flags, right, bottom])` - draw text
+
+### Mouse Interaction
+- `mouse_x`, `mouse_y`, `mouse_cap` - mouse interaction in @gfx
+- `mouse_cap & 1` - Left button
+- `mouse_cap & 2` - Right button
+- `mouse_cap & 4` - Ctrl/Cmd
+- `mouse_cap & 8` - Shift
+- `mouse_cap & 16` - Alt
+- `mouse_cap & 64` - Middle button
+
+## 🚀 PERFORMANCE OPTIMIZATION
+
+### Calculation Placement
+- **@slider or @block**: Filter coefficients, envelope coefficients, cached constants
+- **@sample**: Only per-sample operations (filtering, envelope following, gain application)
+
+### Memory Efficiency
+- Use centralized allocation to track total usage
+- Reuse buffers where possible
+- Clear unused memory regions with `freembuf()`
+- FFT/MDCT operations must NOT cross 16,384 item boundaries
+
+### Processing Efficiency
+- Cache frequently-used calculations in @block
+- Use lookup tables for expensive operations (compression curve)
+- Minimize per-sample conditional logic
+- Use stage flags to bypass disabled processing
+
+## 🔍 DEBUG SYSTEM
+
+### Debug Logging Functions
+```jsfx
+debug_log(message)                    // 1 parameter: message string only
+```
+
+**CRITICAL**: The debug system only supports `debug_log(message)` with a single string parameter. For formatted messages, use `sprintf()` + `debug_log()`.
+
+### Debug Usage Pattern
+```jsfx
+// For simple messages
+debug_log("Processing started");
+
+// For formatted messages with variables, use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
+
+// For multiple values
+sprintf(#debug_temp_str, "Values: %.2f, %.2f", val1, val2);
+debug_log(#debug_temp_str);
+```
+
+### Common Debug Errors
+```jsfx
+// WRONG - debug_logf doesn't exist
+debug_logf("Value: %.2f", single_value);  // ERROR: undefined function
+
+// CORRECT - use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
 ```
 
 ## 🎛️ SLIDER DEFINITIONS

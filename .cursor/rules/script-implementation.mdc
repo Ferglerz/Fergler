@@ -358,14 +358,7 @@ ACCENT_R = 0.3; ACCENT_G = 0.5; ACCENT_B = 0.9;
 // 1 parameter: message string only
 debug_log(message)
 
-// 2 parameters: format string + 1 value
-debug_logf(format, value)
-
-// 3 parameters: format string + 2 values  
-debug_log2f(format, value1, value2)
-
-// 4 parameters: format string + 3 values
-debug_log3f(format, value1, value2, value3)
+// Only debug_log() is available - use sprintf + debug_log for formatted messages
 
 // Utility functions
 debug_separator()     // 0 parameters
@@ -374,32 +367,41 @@ debug_get_message_count()  // 0 parameters
 ```
 
 #### Parameter Requirements - EXACTLY:
-- `debug_log()` - **EXACTLY 1 parameter**: message string
-- `debug_logf()` - **EXACTLY 2 parameters**: format string + 1 value
-- `debug_log2f()` - **EXACTLY 3 parameters**: format string + 2 values
-- `debug_log3f()` - **EXACTLY 4 parameters**: format string + 3 values
+- `debug_log()` - **EXACTLY 1 parameter**: message string only
+
+#### Debug Usage Pattern:
+```jsfx
+// For simple messages
+debug_log("Processing started");
+
+// For formatted messages with variables, use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
+
+// For multiple values
+sprintf(#debug_temp_str, "Values: %.2f, %.2f", val1, val2);
+debug_log(#debug_temp_str);
+```
 
 #### Common Errors to Avoid:
 ```jsfx
-// WRONG - debug_log2f needs 3 parameters (format + 2 values)
-debug_log2f("Value: %.2f", single_value);  // ERROR: needs 3 parms
+// WRONG - debug_logf doesn't exist
+debug_logf("Value: %.2f", single_value);  // ERROR: undefined function
 
-// CORRECT - use debug_logf for 1 value
-debug_logf("Value: %.2f", single_value);   // OK: 2 parameters
-
-// WRONG - debug_logf only takes 2 parameters  
-debug_logf("Values: %.2f, %.2f", val1, val2);  // ERROR: needs 2 parms
-
-// CORRECT - use debug_log2f for 2 values
-debug_log2f("Values: %.2f, %.2f", val1, val2);  // OK: 3 parameters
+// CORRECT - use sprintf + debug_log
+sprintf(#debug_temp_str, "Value: %.2f", single_value);
+debug_log(#debug_temp_str);
 ```
 
 #### Usage Examples:
 ```jsfx
 debug_log("Processing started");
-debug_logf("Attack time: %.1f ms", attack_ms);
-debug_log2f("Slider %d value: %.3f", slider_index, slider_value);
-debug_log3f("Point %d at (%.1f, %.1f)", point_index, x, y);
+sprintf(#debug_temp_str, "Attack time: %.1f ms", attack_ms);
+debug_log(#debug_temp_str);
+sprintf(#debug_temp_str, "Slider %d value: %.3f", slider_index, slider_value);
+debug_log(#debug_temp_str);
+sprintf(#debug_temp_str, "Point %d at (%.1f, %.1f)", point_index, x, y);
+debug_log(#debug_temp_str);
 debug_separator();
 ```
 
@@ -514,8 +516,4 @@ function soft_clip(x) (
 8. **Circular dependencies** - Follow directory hierarchy
 9. **Forgetting @serialize** - Add if you want state preserved
 10. **Not checking stage flags** - Use to bypass disabled processing
-11. **Wrong debug function parameters** - Each debug function has FIXED parameter count
-    - `debug_log(msg)` - 1 param
-    - `debug_logf(format, val)` - 2 params  
-    - `debug_log2f(format, val1, val2)` - 3 params
-    - `debug_log3f(format, val1, val2, val3)` - 4 params
+11. **Wrong debug function usage** - Only `debug_log(msg)` exists, use `sprintf()` + `debug_log()` for formatted messages

@@ -10,6 +10,7 @@
 #value_str = 51;
 #temp_dropdown_option = 52;
 #empty_str = 53;
+#debug_temp_str = 54;  // For debug string concatenation
 
 // === AUDIO CONSTANTS ===
 

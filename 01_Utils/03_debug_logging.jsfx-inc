@@ -36,41 +36,12 @@ function debug_clear() (
   debug_scroll_offset = 0;
 );
 
+// CONSOLIDATED DEBUG FUNCTION
+// Single debug function that takes a pre-formatted string
+// Use sprintf to format strings before calling this function
 function debug_log(message) (
   debug_message_count < DEBUG_MAX_MESSAGES ? (
     strcpy(DEBUG_MESSAGES_BASE + debug_message_count, message);
-    debug_message_count += 1;
-    // Auto-scroll to bottom when new messages are added
-    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
-  );
-);
-
-// CRITICAL: This function takes EXACTLY 2 parameters (format + 1 value)
-// For multiple values, use debug_log2f() or debug_log3f() instead
-// Common error: debug_logf(format, val1, val2) will cause "needs 2 parms" error
-function debug_logf(format, value) (
-  debug_message_count < DEBUG_MAX_MESSAGES ? (
-    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value);
-    debug_message_count += 1;
-    // Auto-scroll to bottom when new messages are added
-    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
-  );
-);
-
-// For 2 values: debug_log2f(format, value1, value2)
-function debug_log2f(format, value1, value2) (
-  debug_message_count < DEBUG_MAX_MESSAGES ? (
-    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2);
-    debug_message_count += 1;
-    // Auto-scroll to bottom when new messages are added
-    debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
-  );
-);
-
-// For 3 values: debug_log3f(format, value1, value2, value3)
-function debug_log3f(format, value1, value2, value3) (
-  debug_message_count < DEBUG_MAX_MESSAGES ? (
-    sprintf(DEBUG_MESSAGES_BASE + debug_message_count, format, value1, value2, value3);
     debug_message_count += 1;
     // Auto-scroll to bottom when new messages are added
     debug_scroll_offset = max(0, debug_message_count - DEBUG_VISIBLE_LINES);
