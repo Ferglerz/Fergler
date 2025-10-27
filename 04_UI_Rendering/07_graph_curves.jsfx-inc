@@ -244,7 +244,7 @@ function draw_level_indicators() (
 
 function draw_threshold_lines_on_graph() (
   // Draw input level threshold line if visible
-  is_input_level_line_visible() ? (
+  prog_release_type == 1 || prog_release_type == 4 ? (
     line_y = input_level_db_to_graph_y(input_level_threshold_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
@@ -260,7 +260,7 @@ function draw_threshold_lines_on_graph() (
   );
   
   // Draw second input level threshold line if visible
-  is_input_level_2_line_visible() ? (
+  prog_release_type == 4 ? (
     line_y = input_level_2_db_to_graph_y(input_level_threshold_2_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL_2, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL_2, 
@@ -276,7 +276,7 @@ function draw_threshold_lines_on_graph() (
   );
   
   // Draw transient threshold line if visible
-  is_transient_line_visible() ? (
+  transient_detection > 0 ? (
     line_y = transient_db_to_graph_y(transient_threshold_db);
     set_threshold_line_color(THRESHOLD_TRANSIENT, 
       hovered_threshold_line == THRESHOLD_TRANSIENT, 

@@ -45,10 +45,10 @@ function update_pdc_delay_if_needed(param_index) (
 
 // Reset control to default value
 function reset_control_to_default(control_index) (
-  param_index = get_control_param(control_index);
-  min_val = get_control_min(control_index);
-  max_val = get_control_max(control_index);
-  control_type = get_control_type(control_index);
+  param_index = control_defs[control_index*11 + 5];
+  min_val = control_defs[control_index*11 + 6];
+  max_val = control_defs[control_index*11 + 7];
+  control_type = control_defs[control_index*11 + 0];
   
   // Calculate default value (middle for most, 0 for buttons)
   control_type == 1 ? (
@@ -78,8 +78,8 @@ function is_double_click_control(control_index) local(current_time, is_double) (
 
 // Handle control click based on control type
 function handle_control_click(control_index) (
-  control_type = get_control_type(control_index);
-  param_index = get_control_param(control_index);
+  control_type = control_defs[control_index*11 + 0];
+  param_index = control_defs[control_index*11 + 5];
   current_value = slider(param_index);
   
   // Debug logging removed per user request
@@ -130,16 +130,16 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
   
   ui_drag_control >= 0 ? (
     // Update dragged control
-    param_index = get_control_param(ui_drag_control);
-    control_type = get_control_type(ui_drag_control);
-    
+    param_index = control_defs[ui_drag_control*11 + 5];
+    control_type = control_defs[ui_drag_control*11 + 0];
+
     control_type == 0 ? ( // Slider - unified system
-      slider_config = get_control_slider_type(ui_drag_control);
+      slider_config = control_defs[ui_drag_control*11 + 8];
       slider_style = slider_config & 0xFF;
       format_options = (slider_config >> 24) & 0xFF;
-      
-      min_val = get_control_min(ui_drag_control);
-      max_val = get_control_max(ui_drag_control);
+
+      min_val = control_defs[ui_drag_control*11 + 6];
+      max_val = control_defs[ui_drag_control*11 + 7];
       current_value = slider(param_index);
       
       // Check if this slider supports bidirectional drag (knob-style)
@@ -151,7 +151,7 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
         // Combine X and Y movement for knob-style interaction
         mouse_delta = mouse_dx - mouse_dy; // Y movement is inverted for intuitive knob behavior
         
-        slider_w = get_control_w(ui_drag_control);
+        slider_w = control_defs[ui_drag_control*11 + 3];
         value_range = max_val - min_val;
         delta = (mouse_delta / slider_w) * value_range;
         new_value = clamp(current_value + delta, min_val, max_val);
@@ -161,7 +161,7 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
         MOUSE_CTRL_KEY ? (
           // Fine drag mode - use delta approach
           mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
-          slider_w = get_control_w(ui_drag_control);
+          slider_w = control_defs[ui_drag_control*11 + 3];
           value_range = max_val - min_val;
           delta = (mouse_dx / slider_w) * value_range;
           new_value = clamp(current_value + delta, min_val, max_val);
@@ -199,7 +199,7 @@ function handle_ui_mouse_input() (
       is_menu_button_clicked() ? (
           handle_menu_button_click();
           ui_drag_control = -2; // Special value to prevent further checks
-        ) : is_menu_visible() ? (
+        ) : menu_visible ? (
           // Check menu items if menu is visible
           hovered_item = get_hovered_menu_item();
           hovered_item >= 0 ? (

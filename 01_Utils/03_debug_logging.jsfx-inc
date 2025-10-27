@@ -176,9 +176,5 @@ function debug_render() (
   );
 );
 
-function debug_get_message_count() (
-  debug_message_count;
-);
-
 
 

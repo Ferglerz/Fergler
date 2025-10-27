@@ -358,14 +358,6 @@ function update_input_histogram_state(input_level_db) (
 // LARGE KNOB ACCESSOR FUNCTIONS
 //==============================================================================
 
-function get_large_knob_x(index) (large_knob_defs[index*8 + 0]);
-function get_large_knob_y(index) (large_knob_defs[index*8 + 1]);
-function get_large_knob_param(index) (large_knob_defs[index*8 + 2]);
-function get_large_knob_min(index) (large_knob_defs[index*8 + 3]);
-function get_large_knob_max(index) (large_knob_defs[index*8 + 4]);
-function get_large_knob_type(index) (large_knob_defs[index*8 + 5]);
-function get_large_knob_active(index) (large_knob_defs[index*8 + 6]);
-function get_large_knob_value(index) (large_knob_defs[index*8 + 7]);
 
 function set_large_knob_value(index, value) (
   large_knob_defs[index*8 + 7] = value;

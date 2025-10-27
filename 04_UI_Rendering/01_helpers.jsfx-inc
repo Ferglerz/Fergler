@@ -90,12 +90,12 @@ function draw_rounded_rect_outline(x, y, w, h, radius) local(i, segments, angle,
 //==============================================================================
 
 function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x) (
-  gx = get_group_x(group_index);
-  gy = get_group_y(group_index);
-  gw = get_group_w(group_index);
-  gh = get_group_h(group_index);
-  show_title = get_group_show_title(group_index);
-  title_ptr = get_group_title_ptr(group_index);
+  gx = group_defs[group_index*6 + 0];
+  gy = group_defs[group_index*6 + 1];
+  gw = group_defs[group_index*6 + 2];
+  gh = group_defs[group_index*6 + 3];
+  show_title = group_defs[group_index*6 + 4];
+  title_ptr = group_defs[group_index*6 + 5];
   
   // Draw main group background
   gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
