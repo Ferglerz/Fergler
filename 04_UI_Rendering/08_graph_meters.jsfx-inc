@@ -73,7 +73,7 @@ function draw_gain_reduction_meter() (
   );
   
   // Draw GR blend threshold line if visible
-  is_gr_blend_line_visible() ? (
+  prog_release_type == 2 ? (
     line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
     set_threshold_line_color(THRESHOLD_GR_BLEND, 
       hovered_threshold_line == THRESHOLD_GR_BLEND, 

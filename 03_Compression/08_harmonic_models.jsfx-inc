@@ -127,20 +127,18 @@ function apply_asymmetric_sharpening(input, sharpening_amount) local(
 
 // Power factor saturation - uses x^n where n varies for different harmonic content
 function apply_power_factor_saturation(input, power_factor, gain_scaling) local(
-  factor, x, result
+  factor, result
 ) (
-  factor = input;
-  x = 0;
-  while(x < power_factor) (
-    factor *= input;
-    x += 1;
-  );
-  
+  // OPTIMIZATION: Use native pow() instead of loop-based multiplication
+  // Previous: loop multiplied input by itself power_factor times
+  // New: Direct exponential calculation (much faster, especially for non-integer powers)
+  factor = pow(input, power_factor + 1);
+
   // Handle odd power factors for asymmetric behavior
   ((power_factor % 2 == 1) && (input != 0.0)) ? (
     factor = (factor / input) * abs(input)
   );
-  
+
   factor *= gain_scaling;
   result = input - factor;
   result;

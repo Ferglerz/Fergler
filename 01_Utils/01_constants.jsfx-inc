@@ -12,6 +12,13 @@
 #empty_str = 53;
 #debug_temp_str = 54;  // For debug string concatenation
 
+// Group title string slots (5 groups)
+#group_title_0 = 55;  // ENVELOPE
+#group_title_1 = 56;  // DETECTION  
+#group_title_2 = 57;  // COMPRESSION
+#group_title_3 = 58;  // HARMONICS
+#group_title_4 = 59;  // SOURCE
+
 // === AUDIO CONSTANTS ===
 
 EPS = 0.000000000000000000000000000001;
@@ -32,7 +39,6 @@ HISTORY_UPDATE = 0.001;
 
 // UI Controls
 NUM_CONTROLS = 25;  // Total number of UI controls (highest index is 24, so need at least 25)
-NUM_KNOBS = 3;      // Total number of knobs: 2 large (Attack, Release) + 1 small (Output in header)
 
 // Debug logging (string slots for debug messages)
 STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supports 0-63)

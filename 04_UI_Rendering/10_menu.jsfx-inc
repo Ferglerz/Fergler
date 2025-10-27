@@ -19,25 +19,9 @@ function handle_menu_button_click() (
   menu_hovered_item = -1; // Reset hover state
 );
 
-function is_menu_visible() (
-  menu_visible > 0.5
-);
-
-function get_menu_x() (
-  MENU_BUTTON_X
-);
-
-function get_menu_y() (
-  MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5
-);
-
-function get_menu_item_y(item_index) (
-  get_menu_y() + item_index * MENU_ITEM_HEIGHT
-);
-
 function is_mouse_in_menu() (
-  menu_x = get_menu_x();
-  menu_y = get_menu_y();
+  menu_x = MENU_BUTTON_X;
+  menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
   menu_visible > 0.5 && 
   mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
   mouse_y >= menu_y && mouse_y <= menu_y + (6 * MENU_ITEM_HEIGHT)
@@ -45,8 +29,8 @@ function is_mouse_in_menu() (
 
 function get_hovered_menu_item() (
   is_mouse_in_menu() ? (
-    menu_x = get_menu_x();
-    menu_y = get_menu_y();
+    menu_x = MENU_BUTTON_X;
+    menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
     item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
     item_index >= 0 && item_index < 6 ? item_index : -1;
   ) : (

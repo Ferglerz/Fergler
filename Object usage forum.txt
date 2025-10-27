@@ -1,0 +1,150 @@
+Hello, guys!
+
+How do we use namespaces and "instance" in JSFX to emulate objects, their constructors, destructors, methods and member variables?
+
+And can we create array of "objects"?
+
+For example - how to create array of simple buttons? (rectangle with text and mouse-click callback functions)
+
+I tried to read through some jsfx ui libraries, but they are too complicated for me to understand, and JSFX documentation is very small.
+kartalex is offline  Report Post  	Reply With Quote  Multi-Quote This Message
+Old 08-17-2025, 06:10 AM	  #2
+Sid
+Human being with feelings
+
+I suppose you had a look at this:
+https://www.reaper.fm/sdk/js/userfunc.php
+Sid is offline  Report Post  	Reply With Quote  Multi-Quote This Message
+Old 08-17-2025, 08:06 AM	  #3
+mschnell
+Human being with feelings
+
+mschnell's Avatar
+
+Location: Krefeld, Germany
+
+I did lots of eel programming and lots of OOP in other languages, but I never was able to grasp this explanation of pseudo-OOP in eel. 
+
+Seems a bit similar to the "array" [] use in eel, which of course I do understand, but maybe this is the wrong guess.
+__________________
+http://www.boa-sorte.de, http://www.boa-sorte.de/b, http://www.bitvibe.de
+mschnell is online now  Report Post  	Reply With Quote  Multi-Quote This Message
+Old 08-17-2025, 09:20 AM	  #4
+souk21
+Human being with feelings
+
+souk21's Avatar
+
+Quote:
+Originally Posted by kartalex  View Post
+How do we use namespaces and "instance" in JSFX to emulate objects, their constructors, destructors, methods and member variables?
+Hi! There are no proper member variables, methods or constructor in EEL2. You can sort of emulate it using "pseudo objects".
+Functions that use 'this' in their body or 'instance' in their signature can be thought of as methods. (Though nothing would prevent you from using said "method" on a completely unrelated "object".)
+Code:
+function write() (
+    // Writing to a "member"
+     this.foo = 10;
+);
+
+function read() (
+    // Reading a "member"
+     this.foo;
+);
+object.write(); // object.foo = 10
+value = object.read(); // value = object.foo = 10
+// If you use the function without an "object" prefix, the function name is used instead 
+value = read(); // value = read.foo = 0
+Constructors would just be a normal function:
+Code:
+// Constructor
+ function btn_init(x, y, w, h) (
+   this.active = 1;
+   this.held = 0;
+
+   this.clicked = 0;
+   this.hovered = 0;
+    this.x = x;
+   this.y = y;
+   [...]
+);
+Note that initializing the "members" to 0 is useless, but it can serve as a kind of documentation.
+
+
+Quote:
+Originally Posted by kartalex  View Post
+And can we create array of "objects"?
+Unfortunately, this is not possible. Well, with the pre-processor you sort of can in specific situations, but I wouldn't recommend it.
+
+
+Quote:
+how to create array of simple buttons? (rectangle with text and mouse-click callback functions)
+For example, using the 'btn_init' "constructor" from above:
+
+
+Code:
+ function btn_mouse_is_inside() (
+     mouse_x >= this.x && mouse_x < this.x + this.w [...]
+);
+
+function btn_update() (
+    this.active && this.btn_mouse_is_inside() ? (
+       this.hovered = 1;
+       mouse_cap == 1 ? (
+           this.clicked = !this.held;
+           this.held = 1;
+       ) : (
+           this.held = 0;
+       );
+    );
+ this.btn_draw();
+ this.clicked;
+);
+  
+function btn_draw() (
+    gfx_drawrect([...])
+);
+
+@init
+button1.btn_init(10, 10, 30, 50);
+button2.btn_init(100, 10, 30, 50);
+@gfx
+button1.update();
+button1.clicked ? (
+    // button1 was clicked
+);
+button2.update() ? (
+    // button2 was clicked
+);
+souk21 is offline  Report Post  	Reply With Quote  Multi-Quote This Message
+Old 08-18-2025, 06:03 AM	  #5
+whats_up
+Human being with feelings
+
+you can use arrays but have to handle them manually
+
+say you want to create a struct that has
+x, y, y members (you access members by offset rather than by name)
+then you want to create an array of this struct.
+Code:
+function array_set_members(index,x,y,z) (
+  myStruct = this.baseAddress+(index*this.Members);
+  myStruct[0] = x;
+  myStruct[1] = y;
+  myStruct[2] = z;
+);
+
+
+function array_initialize() (
+  this.baseAddress = malloc(this.arrayLength*this.Members); // malloc is a user function that handles memory allocation
+  i = 0;
+  loop (this.arrayLength,
+    this.array_set_members(i,-1,-1,-1);
+    i = i+1;
+  );
+);
+  
+
+//example use
+myArray.arrayLength = 10;
+myArray.Members = 3;
+myArray.array_initialize();

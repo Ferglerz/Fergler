@@ -14,7 +14,7 @@
 
 function process_mouse_input() (
   // Update menu hover state
-  is_menu_visible() ? (
+  menu_visible ? (
     menu_hovered_item = get_hovered_menu_item();
   );
 
@@ -24,8 +24,8 @@ function process_mouse_input() (
   // Handle threshold line interactions second (before graph interactions)
   handle_threshold_line_mouse();
 
-  // Only process graph mouse input if not interacting with UI controls, knobs, or threshold lines
-  ui_drag_control == -1 && ui_drag_knob == -1 && dragging_threshold_line == -1 ? (
+  // Only process graph mouse input if not interacting with UI controls or threshold lines
+  ui_drag_control == -1 && dragging_threshold_line == -1 ? (
     handle_graph_mouse_input();
   );
 );

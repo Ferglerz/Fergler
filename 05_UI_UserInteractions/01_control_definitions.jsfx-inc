@@ -14,21 +14,21 @@
 // [2] = width
 // [3] = height
 // [4] = show_title (1=show, 0=hide)
-// [5] = title_string_ptr (pointer to string in group_title_strings buffer)
+// [5] = title_string_slot (JSFX string slot index 55-59)
 
-function define_group(index, x, y, w, h, show_title, title) local(title_ptr, i, char) (
+function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
   group_defs[index*6 + 0] = x;
   group_defs[index*6 + 1] = y;
   group_defs[index*6 + 2] = w;
   group_defs[index*6 + 3] = h;
   group_defs[index*6 + 4] = show_title;
   
-  // Store title string pointer
-  title_ptr = group_title_strings + index * 50;
-  group_defs[index*6 + 5] = title_ptr;
+  // Store title in proper JSFX string slot (55-59)
+  title_slot = 55 + index;  // 55, 56, 57, 58, 59
+  group_defs[index*6 + 5] = title_slot;
   
-  // Copy title string (using JSFX string as character buffer)
-  strcpy(title_ptr, title);
+  // Copy title string to the string slot
+  strcpy(title_slot, title);
 );
 
 // Group accessor functions moved to 02_ui_utils.jsfx-inc to resolve circular dependency
@@ -58,74 +58,49 @@ function set_control_group(group_index) (
   current_control_group = group_index;
 );
 
-function define_control(index, type, x, y, w, h, param_index, min_val, max_val, label) (
-  control_defs[index*11 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
-  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
-  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
-  control_defs[index*11 + 3] = w;         // Width
-  control_defs[index*11 + 4] = h;         // Height
-  control_defs[index*11 + 5] = param_index; // Parameter index (0-28 for sliders)
-  control_defs[index*11 + 6] = min_val;   // Min value
-  control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = 0;         // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*11 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
-  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
-);
-
-function define_control_with_slider_type(index, type, x, y, w, h, param_index, min_val, max_val, label, slider_type) (
-  control_defs[index*11 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
-  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
-  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
-  control_defs[index*11 + 3] = w;         // Width
-  control_defs[index*11 + 4] = h;         // Height
-  control_defs[index*11 + 5] = param_index; // Parameter index
-  control_defs[index*11 + 6] = min_val;   // Min value
-  control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*11 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
-  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
-);
-
-function define_control_full(index, type, x, y, w, h, param_index, min_val, max_val, label, slider_type, display_mode) (
-  control_defs[index*11 + 0] = type;      // 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider
-  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
-  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
-  control_defs[index*11 + 3] = w;         // Width
-  control_defs[index*11 + 4] = h;         // Height
-  control_defs[index*11 + 5] = param_index; // Parameter index
-  control_defs[index*11 + 6] = min_val;   // Min value
-  control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*11 + 9] = display_mode; // Display mode: 0=right (default), 1=left, 2=hide
-  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
-);
-
-function define_slider(index, slider_type, x, y, w, h, param_index, min_val, max_val, label) (
+// Streamlined control definition functions
+function define_slider(index, x, y, w, h, param_index, min_val, max_val, label, slider_config) (
   control_defs[index*11 + 0] = 0;         // 0=slider
-  control_defs[index*11 + 1] = x;         // X position
-  control_defs[index*11 + 2] = y;         // Y position
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
   control_defs[index*11 + 3] = w;         // Width
   control_defs[index*11 + 4] = h;         // Height
   control_defs[index*11 + 5] = param_index; // Parameter index
   control_defs[index*11 + 6] = min_val;   // Min value
   control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = slider_type; // Slider subtype: 0=horizontal, 1=vertical, 2=reverse
-  control_defs[index*11 + 9] = 0;         // Display mode: 0=right (default), 1=left, 2=hide
+  control_defs[index*11 + 8] = slider_config; // Unified slider configuration
+  control_defs[index*11 + 9] = 0;         // Reserved for future use
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
-function define_knob(index, x, y, param_index, min_val, max_val, knob_type, knob_size) (
-  knob_defs[index*10 + 0] = x;            // X position (relative to group if group set)
-  knob_defs[index*10 + 1] = y;            // Y position (relative to group if group set)
-  knob_defs[index*10 + 2] = param_index;  // Parameter index
-  knob_defs[index*10 + 3] = min_val;      // Min value
-  knob_defs[index*10 + 4] = max_val;      // Max value
-  knob_defs[index*10 + 5] = knob_type;    // Knob type (for small: 0=angular, 1=rotary; for large: 0=LTR, 1=RTL, 2=bidirectional)
-  knob_defs[index*10 + 6] = knob_size;    // Size: 0=small (KNOB_SIZE), 1=large (LARGE_KNOB_SIZE)
-  knob_defs[index*10 + 7] = 1;            // Active (1=yes, 0=no)
-  knob_defs[index*10 + 8] = min_val;      // Current value (initialize to min)
-  knob_defs[index*10 + 9] = current_control_group; // Group index (-1 = no group)
+function define_button(index, x, y, w, h, param_index, min_val, max_val, label) (
+  control_defs[index*11 + 0] = 1;         // 1=button
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  control_defs[index*11 + 3] = w;         // Width
+  control_defs[index*11 + 4] = h;         // Height
+  control_defs[index*11 + 5] = param_index; // Parameter index
+  control_defs[index*11 + 6] = min_val;   // Min value
+  control_defs[index*11 + 7] = max_val;   // Max value
+  control_defs[index*11 + 8] = 0;         // Reserved
+  control_defs[index*11 + 9] = 0;         // Reserved
+  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
+
+function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label) (
+  control_defs[index*11 + 0] = 2;         // 2=dropdown
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  control_defs[index*11 + 3] = w;         // Width
+  control_defs[index*11 + 4] = h;         // Height
+  control_defs[index*11 + 5] = param_index; // Parameter index
+  control_defs[index*11 + 6] = min_val;   // Min value
+  control_defs[index*11 + 7] = max_val;   // Max value
+  control_defs[index*11 + 8] = 0;         // Reserved
+  control_defs[index*11 + 9] = 0;         // Reserved
+  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+);
+
 
 //==============================================================================
 // CONTROL LAYOUT AND INITIALIZATION
@@ -153,22 +128,22 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row = 0;
   
   // Attack slider (index 0, param 1) - ms suffix
-  define_control_full(0, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, get_slider_min(1), get_slider_max(1), "Attack", 0, DISPLAY_MODE_MS);
+  define_slider(0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, get_slider_min(1), get_slider_max(1), "Attack", create_horizontal_slider(DISPLAY_MS, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
   // Attack Curve: hide value display
-  define_control_full(1, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve", 0, DISPLAY_MODE_HIDE_VALUE);
+  define_slider(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, get_slider_min(2), get_slider_max(2), "Attack Curve", create_horizontal_slider(DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  
+
   // Release slider (index 2, param 3) - ms suffix
-  define_control_full(2, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, get_slider_min(3), get_slider_max(3), "Release", 0, DISPLAY_MODE_MS);
+  define_slider(2, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, get_slider_min(3), get_slider_max(3), "Release", create_horizontal_slider(DISPLAY_MS, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
   // Release Curve
-  define_control(3, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve");
+  define_slider(3, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, get_slider_min(4), get_slider_max(4), "Release Curve", create_horizontal_slider(DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
   
   // Progressive Release Type (moved from column 4) - center dropdown
   rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
-  define_control(4, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y - 10, DROPDOWN_W, DROPDOWN_H, 24, get_slider_min(24), get_slider_max(24), "Prog Release");
+  define_dropdown(4, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y - 10, DROPDOWN_W, DROPDOWN_H, 24, get_slider_min(24), get_slider_max(24), "Prog Release");
   
   //==============================================================================
   // GROUP 1: DETECTION
@@ -187,20 +162,24 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row = 0;
   
   // Time Unit selector (index 23, param 33) - moved to DETECTION group
-  define_control(23, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 33, get_slider_min(33), get_slider_max(33), "Time Unit");
+  define_dropdown(23, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 33, get_slider_min(33), get_slider_max(33), "Time Unit");
   row += 1;
   
-  define_control_full(5, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "RMS Window", 0, DISPLAY_MODE_MS);
+  // RMS Window with ms suffix
+  define_slider(5, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 6, get_slider_min(6), get_slider_max(6), "RMS Window", create_horizontal_slider(DISPLAY_MS, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  define_control(6, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 7, get_slider_min(7), get_slider_max(7), "RMS Norm");
+  define_button(6, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 7, get_slider_min(7), get_slider_max(7), "RMS Norm");
   row += 1;
-  define_control(7, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 8, get_slider_min(8), get_slider_max(8), "Det. Mode");
+  define_dropdown(7, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 8, get_slider_min(8), get_slider_max(8), "Det. Mode");
   row += 1;
-  define_control_full(8, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 9, get_slider_min(9), get_slider_max(9), "Max GR", 0, DISPLAY_MODE_DB);
+  // Max GR with dB suffix
+  define_slider(8, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 9, get_slider_min(9), get_slider_max(9), "Max GR", create_horizontal_slider(DISPLAY_DB, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  define_control_full(9, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead", 0, DISPLAY_MODE_MS);
+  // Lookahead with ms suffix
+  define_slider(9, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, get_slider_min(5), get_slider_max(5), "Lookahead", create_horizontal_slider(DISPLAY_MS, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  define_control_full(10, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 29, get_slider_min(29), get_slider_max(29), "Transient", 0, DISPLAY_MODE_PERCENT);
+  // Transient with percent suffix
+  define_slider(10, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 29, get_slider_min(29), get_slider_max(29), "Transient", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
   
   //==============================================================================
   // GROUP 2: COMPRESSION
@@ -216,9 +195,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  define_control(11, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Strength");
+  // Strength
+  define_slider(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, get_slider_min(18), get_slider_max(18), "Strength", create_horizontal_slider(DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  define_control_full(12, 0, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Offset", 0, DISPLAY_MODE_DB);
+  // Offset with dB suffix
+  define_slider(12, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, get_slider_min(19), get_slider_max(19), "Offset", create_horizontal_slider(DISPLAY_DB, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   
   //==============================================================================
   // GROUP 4: SOURCE (below COMPRESSION)
@@ -233,25 +214,21 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row = 0;
   
   // Sidechain button (moved from DETECTION group)
-  define_control(13, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 22, get_slider_min(22), get_slider_max(22), "Sidechain");
+  define_button(13, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 22, get_slider_min(22), get_slider_max(22), "Sidechain");
   row += 1;
   
   // Listen button (moved from DETECTION group, renamed from "Listen Det.")
-  define_control(14, 1, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Listen");
+  define_button(14, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 23, get_slider_min(23), get_slider_max(23), "Listen");
   row += 1;
   
-  // HP Filter (moved from FILTERS group)
-  define_control_full(15, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, 0, 6000, "Highpass", 0, 1);
+  // HP Filter with Hz display mode and left-to-right fill
+  define_slider(15, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, 0, 6000, "Highpass", create_horizontal_slider(DISPLAY_HZ, FILL_LEFT_TO_RIGHT, FORMAT_K, 0));
   set_slider_increment(15, 10);
-  set_slider_fill_direction(15, SLIDER_FILL_LEFT_TO_RIGHT);
-  set_slider_format_as_frequency(15, 1);
   row += 1;
   
-  // LP Filter (moved from FILTERS group)
-  define_control_full(16, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 20, 16000, "Lowpass", 2, 0);
+  // LP Filter with Hz display mode and right-to-left fill
+  define_slider(16, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 20, 16000, "Lowpass", create_horizontal_slider(DISPLAY_HZ, FILL_RIGHT_TO_LEFT, FORMAT_K, 0));
   set_slider_increment(16, 10);
-  set_slider_fill_direction(16, SLIDER_FILL_RIGHT_TO_LEFT);
-  set_slider_format_as_frequency(16, 1);
   
   //==============================================================================
   // GROUP 3: HARMONICS
@@ -268,15 +245,19 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  define_control(17, 2, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 12, get_slider_min(12), get_slider_max(12), "Type");
+  define_dropdown(17, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 12, get_slider_min(12), get_slider_max(12), "Type");
   row += 1;
-  define_control(18, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 14, get_slider_min(14), get_slider_max(14), "Drive");
+  // Drive
+  define_slider(18, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 14, get_slider_min(14), get_slider_max(14), "Drive", create_horizontal_slider(DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0));
   row += 1;
-  define_control_full(19, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Mix", 0, DISPLAY_MODE_PERCENT);
+  // Mix with percent suffix
+  define_slider(19, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 15, get_slider_min(15), get_slider_max(15), "Mix", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
   row += 1;
-  define_control_full(20, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Even", 0, DISPLAY_MODE_PERCENT);
+  // Even with percent suffix
+  define_slider(20, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 16, get_slider_min(16), get_slider_max(16), "Even", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
   row += 1;
-  define_control_full(21, 0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Odd", 0, DISPLAY_MODE_PERCENT);
+  // Odd with percent suffix
+  define_slider(21, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, get_slider_min(17), get_slider_max(17), "Odd", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
   
   // Compressor Type moved to header (will be defined in setup_header_controls)
 );
@@ -291,16 +272,17 @@ function setup_header_controls() (
     // Header controls are not in a group (absolute positioning)
     set_control_group(-1);
     
-    // Define output volume knob (index 2, param 20, small size)
+    // Define output volume knob as a knob-style slider (index 24, param 20)
+    // FIXED: Changed from index 2 to 24 to avoid conflict with Release slider (index 2, param 3)
     output_knob_x = gfx_w - 5 - KNOB_SIZE;
     output_knob_y = (HEADER_HEIGHT - KNOB_SIZE) / 2;
-    define_knob(2, output_knob_x, output_knob_y, 20, -20, 20, KNOB_TYPE_ANGULAR, 0);
+    define_slider(24, output_knob_x, output_knob_y, KNOB_SIZE, KNOB_SIZE, 20, -20, 20, "Output", create_knob_small(DISPLAY_DB, FORMAT_NORMAL, OPTION_BIDIRECTIONAL));
     
     // Define Compressor Type dropdown in header (control index 22, param 21)
     // Position to the left of the output knob
     compressor_type_x = output_knob_x - DROPDOWN_W - 20;
     compressor_type_y = (HEADER_HEIGHT - DROPDOWN_H) / 2;
-    define_control(22, 2, compressor_type_x, compressor_type_y, DROPDOWN_W, DROPDOWN_H, 21, get_slider_min(21), get_slider_max(21), "Comp Type");
+    define_dropdown(22, compressor_type_x, compressor_type_y, DROPDOWN_W, DROPDOWN_H, 21, get_slider_min(21), get_slider_max(21), "Comp Type");
   );
 );
 
@@ -322,15 +304,5 @@ function render_custom_ui_controls() (
   );
 );
 
-function render_all_knobs() (
-  // Draw all active knobs (both small and large)
-  i = 0;
-  while (i < NUM_KNOBS) (
-    get_knob_active(i) ? (
-      // Use appropriate drawing function based on size
-      get_knob_size(i) == 1 ? draw_large_knob(i) : draw_knob(i);
-    );
-    i += 1;
-  );
-);
+// OPTIMIZATION: Deleted render_all_knobs() dead code - was marked "kept for compatibility but does nothing"
 

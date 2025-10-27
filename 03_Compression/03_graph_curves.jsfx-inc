@@ -163,7 +163,9 @@ function generate_curve_segments_db() (
         );
         
         // Generate line segments along Bezier curve
+        // OPTIMIZATION: Pre-calculate t_step to avoid division in every iteration
         t = 0;
+        t_step = 1.0 / BEZIER_STEPS;
         while (t < 1 && segment_count < MAX_CURVE_SEGMENTS - 1) (
           // Calculate Bezier point at t
           u = 1 - t;
@@ -171,20 +173,20 @@ function generate_curve_segments_db() (
           uu = u * u;
           uuu = uu * u;
           ttt = tt * t;
-          
+
           current_x_db = uuu * p0_x_db + 3 * uu * t * p1_x_db + 3 * u * tt * p2_x_db + ttt * p3_x_db;
           current_y_db = uuu * p0_y_db + 3 * uu * t * p1_y_db + 3 * u * tt * p2_y_db + ttt * p3_y_db;
-          
+
           // Store line segment in dB space
           curve_segments_db[segment_count*4 + 0] = prev_x_db;
           curve_segments_db[segment_count*4 + 1] = prev_y_db;
           curve_segments_db[segment_count*4 + 2] = current_x_db;
           curve_segments_db[segment_count*4 + 3] = current_y_db;
-          
+
           segment_count += 1;
           prev_x_db = current_x_db;
           prev_y_db = current_y_db;
-          t += 1.0 / BEZIER_STEPS;
+          t += t_step;
         );
       ) : (
         // Straight line segment

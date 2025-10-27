@@ -46,9 +46,9 @@ function draw_menu_button() (
 );
 
 function draw_custom_menu() (
-  is_menu_visible() ? (
-    menu_x = get_menu_x();
-    menu_y = get_menu_y();
+  menu_visible ? (
+    menu_x = MENU_BUTTON_X;
+    menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
     menu_height = 6 * MENU_ITEM_HEIGHT;
     
     // Draw menu background

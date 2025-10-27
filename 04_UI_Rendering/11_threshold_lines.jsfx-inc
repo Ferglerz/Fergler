@@ -89,29 +89,6 @@ function clamp_transient_threshold(new_value) (
   clamped
 );
 
-//==============================================================================
-// THRESHOLD LINE VISIBILITY
-//==============================================================================
-
-function is_gr_blend_line_visible() (
-  // Visible when in GR dependent mode (type 2)
-  prog_release_type == 2
-);
-
-function is_input_level_line_visible() (
-  // Visible when in input-dependent mode (type 1) or Input-Dependent 2 (type 4)
-  prog_release_type == 1 || prog_release_type == 4
-);
-
-function is_input_level_2_line_visible() (
-  // Visible when in Input-Dependent 2 mode (type 4)
-  prog_release_type == 4
-);
-
-function is_transient_line_visible() (
-  // Visible when transient detection is enabled
-  transient_detection > 0
-);
 
 //==============================================================================
 // THRESHOLD LINE POSITION CONVERSION
@@ -177,7 +154,7 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
   found_line = check_threshold_line(
     mouse_x, mouse_y,
     THRESHOLD_GR_BLEND,
-    is_gr_blend_line_visible(),
+    prog_release_type == 2,
     gr_blend_db_to_meter_y(gr_blend_threshold_db),
     1  // is_on_meter = true
   );
@@ -187,7 +164,7 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
     found_line = check_threshold_line(
       mouse_x, mouse_y,
       THRESHOLD_INPUT_LEVEL,
-      is_input_level_line_visible(),
+      prog_release_type == 1 || prog_release_type == 4,
       db_to_graph_y(input_level_threshold_db),
       0  // is_on_meter = false
     );
@@ -198,7 +175,7 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
     found_line = check_threshold_line(
       mouse_x, mouse_y,
       THRESHOLD_INPUT_LEVEL_2,
-      is_input_level_2_line_visible(),
+      prog_release_type == 4,
       db_to_graph_y(input_level_threshold_2_db),
       0
     );
@@ -209,7 +186,7 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
     found_line = check_threshold_line(
       mouse_x, mouse_y,
       THRESHOLD_TRANSIENT,
-      is_transient_line_visible(),
+      transient_detection > 0,
       db_to_graph_y(transient_threshold_db),
       0
     );
