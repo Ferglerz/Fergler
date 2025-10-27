@@ -339,11 +339,11 @@ function get_decimal_places(increment) (
 function format_value_with_suffix(value, increment, display_mode) local(decimal_places, format_str) (
   decimal_places = get_decimal_places(increment);
   
-  display_mode == DISPLAY_MODE_PERCENT ? (
+  display_mode == DISPLAY_PERCENT ? (
     sprintf(#temp_display_str, "%%.%df %%", decimal_places, value);
-  ) : display_mode == DISPLAY_MODE_DB ? (
+  ) : display_mode == DISPLAY_DB ? (
     sprintf(#temp_display_str, "%%.%df dB", decimal_places, value);
-  ) : display_mode == DISPLAY_MODE_MS ? (
+  ) : display_mode == DISPLAY_MS ? (
     sprintf(#temp_display_str, "%%.%df ms", decimal_places, value);
   ) : (
     sprintf(#temp_display_str, "%%.%df", decimal_places, value);

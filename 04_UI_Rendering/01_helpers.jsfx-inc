@@ -21,7 +21,23 @@ function draw_rounded_rect(x, y, w, h, radius) local(i) (
   gfx_circle(x + w - radius, y + h - radius, radius, 1, 1);  // Bottom-right
 );
 
-function draw_rounded_rect_outline(x, y, w, h, radius) local(i, segments, angle, step, px, py, npx, npy) (
+// OPTIMIZATION: Helper function to draw a single corner arc
+// Eliminates 40+ lines of duplicated code across 4 corners
+function draw_corner_arc(center_x, center_y, radius, start_angle, segments) local(i, angle, step, px, py, npx, npy) (
+  step = ($pi / 2) / segments;
+  angle = start_angle;
+  i = 0;
+  loop(segments + 1,
+    px = center_x + cos(angle) * radius;
+    py = center_y + sin(angle) * radius;
+    i > 0 ? gfx_line(npx, npy, px, py, 1);
+    npx = px; npy = py;
+    angle += step;
+    i += 1;
+  );
+);
+
+function draw_rounded_rect_outline(x, y, w, h, radius) local(segments) (
   // Draw rounded rectangle outline
   // Top line
   gfx_line(x + radius, y, x + w - radius, y, 1);
@@ -31,58 +47,21 @@ function draw_rounded_rect_outline(x, y, w, h, radius) local(i, segments, angle,
   gfx_line(x, y + radius, x, y + h - radius, 1);
   // Right line
   gfx_line(x + w, y + radius, x + w, y + h - radius, 1);
-  
-  // Four corner arcs (simplified - draw as circles)
+
+  // Four corner arcs - now using reusable helper function
   segments = 8;  // Number of line segments per arc
-  step = ($pi / 2) / segments;
-  
-  // Top-left corner
-  angle = $pi;
-  i = 0;
-  loop(segments + 1,
-    px = x + radius + cos(angle) * radius;
-    py = y + radius + sin(angle) * radius;
-    i > 0 ? gfx_line(npx, npy, px, py, 1);
-    npx = px; npy = py;
-    angle += step;
-    i += 1;
-  );
-  
-  // Top-right corner
-  angle = $pi * 1.5;
-  i = 0;
-  loop(segments + 1,
-    px = x + w - radius + cos(angle) * radius;
-    py = y + radius + sin(angle) * radius;
-    i > 0 ? gfx_line(npx, npy, px, py, 1);
-    npx = px; npy = py;
-    angle += step;
-    i += 1;
-  );
-  
-  // Bottom-right corner
-  angle = 0;
-  i = 0;
-  loop(segments + 1,
-    px = x + w - radius + cos(angle) * radius;
-    py = y + h - radius + sin(angle) * radius;
-    i > 0 ? gfx_line(npx, npy, px, py, 1);
-    npx = px; npy = py;
-    angle += step;
-    i += 1;
-  );
-  
-  // Bottom-left corner
-  angle = $pi * 0.5;
-  i = 0;
-  loop(segments + 1,
-    px = x + radius + cos(angle) * radius;
-    py = y + h - radius + sin(angle) * radius;
-    i > 0 ? gfx_line(npx, npy, px, py, 1);
-    npx = px; npy = py;
-    angle += step;
-    i += 1;
-  );
+
+  // Top-left corner (starts at π, goes clockwise)
+  draw_corner_arc(x + radius, y + radius, radius, $pi, segments);
+
+  // Top-right corner (starts at 3π/2, goes clockwise)
+  draw_corner_arc(x + w - radius, y + radius, radius, $pi * 1.5, segments);
+
+  // Bottom-right corner (starts at 0, goes clockwise)
+  draw_corner_arc(x + w - radius, y + h - radius, radius, 0, segments);
+
+  // Bottom-left corner (starts at π/2, goes clockwise)
+  draw_corner_arc(x + radius, y + h - radius, radius, $pi * 0.5, segments);
 );
 
 //==============================================================================

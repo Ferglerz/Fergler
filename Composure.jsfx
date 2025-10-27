@@ -101,7 +101,6 @@ import 03_Compression/09_audio_processing_chain.jsfx-inc
 import 01_Utils/07_ui_constants.jsfx-inc
 import 01_Utils/08_ui_utils.jsfx-inc
 import 04_UI_Rendering/01_helpers.jsfx-inc
-import 04_UI_Rendering/02_knobs.jsfx-inc
 import 04_UI_Rendering/03_controls.jsfx-inc
 import 04_UI_Rendering/04_debug.jsfx-inc
 import 04_UI_Rendering/10_menu.jsfx-inc
