@@ -46,7 +46,7 @@ function draw_menu_button() (
 );
 
 function draw_custom_menu() (
-  is_menu_visible() ? (
+  menu_visible ? (
     menu_x = get_menu_x();
     menu_y = get_menu_y();
     menu_height = 6 * MENU_ITEM_HEIGHT;

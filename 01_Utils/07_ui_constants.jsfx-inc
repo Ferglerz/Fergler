@@ -16,6 +16,7 @@ DISPLAY_MODE_DB = 4;            // Display with dB suffix
 DISPLAY_MODE_MS = 5;            // Display with ms suffix
 DISPLAY_MODE_US = 6;            // Display with us (microseconds) suffix
 DISPLAY_MODE_S = 7;             // Display with s (seconds) suffix
+DISPLAY_MODE_HZ = 8;            // Display with Hz suffix (k for >999)
 
 // === HISTOGRAM CONFIGURATION ===
 HISTOGRAM_ENABLED = 1; // Set to 0 to disable histogram completely
@@ -184,13 +185,72 @@ GROUP_TITLE_TEXT_R = 0.85; GROUP_TITLE_TEXT_G = 0.85; GROUP_TITLE_TEXT_B = 0.85;
 //==============================================================================
 
 // Slider fill directions
-SLIDER_FILL_LEFT_TO_RIGHT = 0;    // Normal: fill from left to fader
-SLIDER_FILL_RIGHT_TO_LEFT = 1;    // Reverse: fill from right to fader  
-SLIDER_FILL_CENTER_OUT = 2;       // Centered: fill from middle to fader (both directions)
+FILL_LEFT_TO_RIGHT = 0;    // Normal: fill from left to fader
+FILL_RIGHT_TO_LEFT = 1;    // Reverse: fill from right to fader  
+FILL_CENTER_OUT = 2;       // Centered: fill from middle to fader (both directions)
 
 // Slider property structure (per control):
 // [0] = increment (0 = no rounding, > 0 = round to this increment)
 // [1] = fill_direction (0=left-to-right, 1=right-to-left, 2=center-out)
 // [2] = format_as_frequency (0=no, 1=yes - shows "k" suffix if > 999)
 // [3] = reserved for future use
+
+//==============================================================================
+// SLIDER CONFIGURATION SYSTEM - EXPLICIT EXCLUSIVE PARAMETERS
+//==============================================================================
+
+// Slider orientation - EXCLUSIVE (only one can be active)
+ORIENTATION_HORIZONTAL = 0;    // Standard horizontal slider
+ORIENTATION_VERTICAL = 1;      // Vertical slider  
+ORIENTATION_KNOB_SMALL = 2;    // Small knob style
+ORIENTATION_KNOB_LARGE = 3;    // Large knob style
+
+// Slider formatting - EXCLUSIVE (only one can be active)
+FORMAT_NORMAL = 0;             // Standard numeric formatting
+FORMAT_K = 1;                 // K suffix formatting (2.1k style)
+FORMAT_NONE = 2;              // No formatting (use display mode only)
+
+// Additional format options (can be combined with formatting)
+OPTION_ROUNDED = 0x01;         // Bit 0: Apply rounding to any format
+OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
+OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
+OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
+
+// Explicit slider configuration function - ALL PARAMETERS REQUIRED
+function create_slider_config(orientation, display_mode, fill_direction, formatting, format_options) (
+  orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
+);
+
+// Helper functions for common configurations - ALL PARAMETERS EXPLICIT
+function create_horizontal_slider(display_mode, fill_direction, formatting, format_options) (
+  create_slider_config(ORIENTATION_HORIZONTAL, display_mode, fill_direction, formatting, format_options);
+);
+
+function create_vertical_slider(display_mode, fill_direction, formatting, format_options) (
+  create_slider_config(ORIENTATION_VERTICAL, display_mode, fill_direction, formatting, format_options);
+);
+
+function create_reverse_horizontal_slider(display_mode, fill_direction, formatting, format_options) (
+  create_slider_config(ORIENTATION_HORIZONTAL, display_mode, fill_direction, formatting, format_options | OPTION_REVERSE);
+);
+
+function create_reverse_vertical_slider(display_mode, fill_direction, formatting, format_options) (
+  create_slider_config(ORIENTATION_VERTICAL, display_mode, fill_direction, formatting, format_options | OPTION_REVERSE);
+);
+
+function create_knob_small(display_mode, formatting, format_options) (
+  create_slider_config(ORIENTATION_KNOB_SMALL, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options);
+);
+
+function create_knob_large(display_mode, formatting, format_options) (
+  create_slider_config(ORIENTATION_KNOB_LARGE, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options);
+);
+
+function create_reverse_knob_small(display_mode, formatting, format_options) (
+  create_slider_config(ORIENTATION_KNOB_SMALL, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options | OPTION_REVERSE);
+);
+
+function create_reverse_knob_large(display_mode, formatting, format_options) (
+  create_slider_config(ORIENTATION_KNOB_LARGE, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options | OPTION_REVERSE);
+);
 
