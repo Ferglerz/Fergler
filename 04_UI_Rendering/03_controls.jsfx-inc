@@ -5,34 +5,186 @@
 @init
 
 //==============================================================================
-// GENERIC SLIDER RENDERING
+// STREAMLINED SLIDER SYSTEM
 //==============================================================================
+//
+// The streamlined slider system provides a single function call to create sliders
+// with configurable behavior. All slider types (horizontal, vertical, reverse)
+// are handled by the same unified function with different configuration parameters.
+//
+// USAGE EXAMPLES:
+//
+// 1. Basic slider with ms suffix:
+//    define_unified_slider(index, x, y, w, h, param, min, max, "Label", SLIDER_CONFIG_MS);
+//
+// 2. Frequency slider with k suffix and custom fill direction:
+//    config = create_slider_config(0, DISPLAY_MODE_NORMAL, SLIDER_FILL_RIGHT_TO_LEFT, FORMAT_OPTION_FREQUENCY);
+//    define_unified_slider(index, x, y, w, h, param, min, max, "Label", config);
+//
+// 3. Slider with rounded number formatting (2.1k style):
+//    define_unified_slider(index, x, y, w, h, param, min, max, "Label", SLIDER_CONFIG_ROUNDED);
+//
+// 4. Slider with hidden value display:
+//    define_unified_slider(index, x, y, w, h, param, min, max, "Label", SLIDER_CONFIG_HIDE_VALUE);
+//
+// AUTOMATIC FEATURES:
+// - Stepped behavior automatically applies to sliders with enumerated options
+// - Number formatting (2.1k instead of 2000) is configurable for any slider
+// - Fill direction is a parameter for all sliders
+// - Smart text positioning (left/right anchored based on slider position)
+// - Support for all display modes (ms, dB, %, etc.)
+//
+// CONFIGURATION CONSTANTS:
+// - SLIDER_CONFIG_NORMAL: Basic horizontal slider
+// - SLIDER_CONFIG_REVERSE: Reverse horizontal slider (right-to-left fill)
+// - SLIDER_CONFIG_VERTICAL: Vertical slider
+// - SLIDER_CONFIG_FREQUENCY: Frequency formatting (k suffix)
+// - SLIDER_CONFIG_ROUNDED: Rounded number formatting (2.1k style)
+// - SLIDER_CONFIG_HIDE_VALUE: Hide value display
+// - SLIDER_CONFIG_PERCENT: Percent suffix
+// - SLIDER_CONFIG_DB: dB suffix
+// - SLIDER_CONFIG_MS: ms suffix
+//
 
-// Get display mode for time controls based on time multiplier
-function get_time_display_mode(param_index, original_display_mode) (
-  // Check if this is the Attack control (param 1 only)
-  param_index == 1 ? (
-    // Get time multiplier setting
-    time_multiplier = slider(33);
-    // Debug: show what time_multiplier value we're getting
-    time_multiplier == 0 ? DISPLAY_MODE_US : (  // Microseconds
-    time_multiplier == 1 ? DISPLAY_MODE_MS : (  // Milliseconds  
-    DISPLAY_MODE_S                              // Seconds
-    ))
+// Get dynamic display mode for time controls
+function get_time_display_mode(param_index, display_mode) local(
+  time_unit
+) (
+  // Check if this is a time control that should use dynamic units
+  param_index == 1 || param_index == 3 || param_index == 5 || param_index == 6 ? ( // Attack, Release, Lookahead, RMS Window
+    time_unit = slider(33); // Time Unit selector (param 33)
+    time_unit == 0 ? DISPLAY_MODE_MS : ( // ms
+      time_unit == 1 ? DISPLAY_MODE_US : ( // us
+        time_unit == 2 ? DISPLAY_MODE_S : display_mode // s, or fallback to original
+      )
+    );
   ) : (
-    // Not the Attack control, use original display mode
-    original_display_mode
+    display_mode; // Not a time control, use original display mode
   );
 );
 
-function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_type, display_mode, param_index) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
-  // Calculate normalized position
-  normalized_pos = (value - min_val) / (max_val - min_val);
+// Unified value formatting function
+function format_slider_value_unified(param_index, value, display_mode, formatting, format_options) local(
+  decimal_places, formatted_str, freq_khz, dynamic_display_mode
+) (
+  // Calculate decimal places from slider increment
+  increment = get_slider_increment(param_index);
+  decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
   
-  // Draw label - center aligned for horizontal sliders
+  // Always round value to its increment
+  rounded_value = floor(value / increment + 0.5) * increment;
+  
+  // Apply formatting based on mutually exclusive formatting parameter
+  formatting == FORMAT_K ? ( // Format with k suffix (2.1k style)
+    rounded_value >= 1000 ? (
+      sprintf(#temp_display_str, "%.1fk", rounded_value / 1000);
+    ) : rounded_value >= 100 ? (
+      sprintf(#temp_display_str, "%.0f", rounded_value);
+    ) : (
+      sprintf(#temp_display_str, "%%.%df", decimal_places);
+      sprintf(#temp_display_str, #temp_display_str, rounded_value);
+    );
+  ) : formatting == FORMAT_NONE ? ( // No formatting (display raw value)
+    sprintf(#temp_display_str, "%g", rounded_value);
+  ) : ( // Default formatting (FORMAT_NORMAL)
+    sprintf(#temp_display_str, "%%.%df", decimal_places);
+    sprintf(#temp_display_str, #temp_display_str, rounded_value);
+  );
+  
+  // Apply additional format options (like rounding)
+  format_options & OPTION_ROUNDED ? (
+    // Apply additional rounding if requested
+    sprintf(#temp_display_str, "%%.%df", decimal_places);
+    sprintf(#temp_display_str, #temp_display_str, value);
+  );
+  
+  // Get dynamic display mode for time controls
+  dynamic_display_mode = get_time_display_mode(param_index, display_mode);
+  
+  // Add suffix based on display mode
+  dynamic_display_mode == DISPLAY_MODE_PERCENT ? (
+    sprintf(#temp_display_str, "%s %%", #temp_display_str)
+  ) : dynamic_display_mode == DISPLAY_MODE_DB ? (
+    sprintf(#temp_display_str, "%s dB", #temp_display_str)
+  ) : dynamic_display_mode == DISPLAY_MODE_MS ? (
+    sprintf(#temp_display_str, "%s ms", #temp_display_str)
+  ) : dynamic_display_mode == DISPLAY_MODE_US ? (
+    sprintf(#temp_display_str, "%s us", #temp_display_str)
+  ) : dynamic_display_mode == DISPLAY_MODE_S ? (
+    sprintf(#temp_display_str, "%s s", #temp_display_str)
+  ) : dynamic_display_mode == DISPLAY_MODE_HZ ? (
+    // Handle Hz display mode with special logic for k suffix
+    value == 0 ? (
+      sprintf(#temp_display_str, "Off");
+    ) : value > 999 ? (
+      // Display as kHz (for values over 999)
+      freq_khz = value / 1000;
+      freq_khz == floor(freq_khz) ? (
+        sprintf(#temp_display_str, "%.0fk", freq_khz);
+      ) : (
+        sprintf(#temp_display_str, "%.1fk", freq_khz);
+      );
+    ) : (
+      // Display as Hz
+      sprintf(#temp_display_str, "%.0f Hz", value);
+    );
+  ) : (
+    0; // Satisfy syntax requirement
+  );
+  
+  #temp_display_str; // Return formatted string
+);
+
+// Unified slider function that handles all slider types with configurable behavior
+function draw_unified_slider(x, y, w, h, value, min_val, max_val, label, param_index, slider_config) local(
+  label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str, 
+  normalized_pos, fill_w, handle_x, handle_y, center_x, fader_x, fill_start_x, fill_width,
+  decimal_places, dynamic_display_mode, option_count, value_index, freq_value,
+  reverse_mode, step_size, stepped_value, display_value, slider_orientation, knob_size,
+  knob_center_x, knob_center_y, knob_radius, knob_angle, knob_indicator_x, knob_indicator_y, formatting
+) (
+  // Extract configuration parameters
+  slider_orientation = slider_config & 0xFF;             // Bits 0-7: slider orientation (0=horizontal, 1=vertical, 2=small knob, 3=large knob)
+  display_mode = (slider_config >> 8) & 0xFF;           // Bits 8-15: display mode
+  fill_direction = (slider_config >> 16) & 0xFF;        // Bits 16-23: fill direction
+  formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting (0=normal, 1=k, 2=none)
+  format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options (rounded, auto-step, bidirectional, reverse)
+  
+  // Check if this slider has enumerated options (stepped behavior)
+  option_count = get_dropdown_option_count(param_index);
+  
+  // Calculate stepped value if slider has enumerated options
+  option_count > 0 ? (
+    // Get the index from our cached reverse lookup table (O(1) lookup)
+    value_index = get_freq_list_index(param_index, value);
+    
+    // Get the actual discrete value from our cached enumerated list
+    stepped_value = get_dropdown_option_value(param_index, value_index);
+    
+    // Calculate normalized position based on index in enumerated list
+    reverse_mode = (format_options & OPTION_REVERSE);
+    reverse_mode ? (
+      // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
+      normalized_pos = 1.0 - (value_index / (option_count - 1));
+    ) : (
+      // For normal sliders, first option is at left (0.0), last option is at right (1.0)
+      normalized_pos = value_index / (option_count - 1);
+    );
+    
+    // Use stepped value for display
+    display_value = stepped_value;
+  ) : (
+    // No enumerated options, use continuous range
+    normalized_pos = (value - min_val) / (max_val - min_val);
+    display_value = value;
+  );
+  
+  // Draw label - center aligned for horizontal sliders and knobs
   gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  slider_type == 1 ? ( // Vertical slider
+  slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
     gfx_x = x + w + 8; gfx_y = y;
+  ) : slider_orientation == ORIENTATION_KNOB_SMALL || slider_orientation == ORIENTATION_KNOB_LARGE ? ( // Knob style
+    gfx_x = x; gfx_y = y - LABEL_HEIGHT;
   ) : ( // Horizontal slider - center align
     gfx_measurestr(label, label_w, label_h);
     gfx_x = x + (w - label_w) / 2;
@@ -40,7 +192,36 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
   );
   gfx_drawstr(label);
 
-  slider_type == 1 ? ( // Vertical slider
+  slider_orientation == ORIENTATION_KNOB_SMALL || slider_orientation == ORIENTATION_KNOB_LARGE ? ( // Knob style
+    // Draw knob
+    knob_size = slider_orientation == ORIENTATION_KNOB_LARGE ? LARGE_KNOB_SIZE : KNOB_SIZE;
+    knob_center_x = x + knob_size / 2;
+    knob_center_y = y + knob_size / 2;
+    knob_radius = knob_size / 2;
+    
+    // Calculate knob angle based on normalized position
+    knob_angle = -135 * $pi / 180 + normalized_pos * 270 * $pi / 180; // -135° to +135°
+    
+    // Draw knob background
+    gfx_set(KNOB_BG_R, KNOB_BG_G, KNOB_BG_B, 1);
+    gfx_circle(knob_center_x, knob_center_y, knob_radius, 1);
+    
+    // Draw knob indicator
+    knob_indicator_x = knob_center_x + cos(knob_angle) * (knob_radius - 2);
+    knob_indicator_y = knob_center_y + sin(knob_angle) * (knob_radius - 2);
+    gfx_set(KNOB_INDICATOR_R, KNOB_INDICATOR_G, KNOB_INDICATOR_B, 1);
+    gfx_circle(knob_indicator_x, knob_indicator_y, KNOB_INDICATOR_SIZE, 1);
+    
+    // Draw value text (if not hidden)
+    display_mode != DISPLAY_MODE_HIDE_VALUE ? (
+      gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+      gfx_x = x; gfx_y = y + knob_size + 5;
+      
+      // Format the value with appropriate decimal places and formatting
+      formatted_str = format_slider_value_unified(param_index, display_value, display_mode, formatting, format_options);
+      gfx_drawstr(formatted_str);
+    );
+  ) : slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
     // Draw slider background
     gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
     gfx_rect(x, y, w, h);
@@ -59,88 +240,45 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
     display_mode != DISPLAY_MODE_HIDE_VALUE ? (
       gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
       gfx_x = x + w + 8; gfx_y = y + h/2;
-      // Calculate decimal places from slider increment
-      increment = get_slider_increment(param_index);
-      decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
       
-      // Temporary debug: force specific decimal places for testing
-      param_index == 1 ? decimal_places = 1 : (  // Attack: 0.1 increment
-      param_index == 3 ? decimal_places = 0 : (  // Release: 1 increment  
-      param_index == 5 ? decimal_places = 1 : (  // Lookahead: 0.1 increment
-      param_index == 6 ? decimal_places = 1 : (  // RMS Window: 0.1 increment
-      param_index == 9 ? decimal_places = 0 : (  // Max GR: 1 increment
-      param_index == 15 ? decimal_places = 0 : ( // Harmonic Mix: 1 increment
-      param_index == 16 ? decimal_places = 0 : ( // Even: 1 increment
-      param_index == 17 ? decimal_places = 0 : ( // Odd: 1 increment
-      param_index == 18 ? decimal_places = 1 : ( // Strength: 0.1 increment
-      param_index == 19 ? decimal_places = 2 : ( // Global Offset: 0.25 increment
-      decimal_places = 2;  // Default fallback
-      ))))))))));
-      
-      // Format the value with calculated decimal places
-      sprintf(#temp_display_str, "%%.%df", decimal_places);
-      sprintf(#temp_display_str, #temp_display_str, value);
-      
-      // Get dynamic display mode for time controls
-      dynamic_display_mode = get_time_display_mode(param_index, display_mode);
-      
-      // Add suffix at drawstr stage
-      dynamic_display_mode == DISPLAY_MODE_PERCENT ? (
-        gfx_drawstr(#temp_display_str);
-        gfx_drawstr(" %")
-      ) : dynamic_display_mode == DISPLAY_MODE_DB ? (
-        gfx_drawstr(#temp_display_str);
-        gfx_drawstr(" dB")
-      ) : dynamic_display_mode == DISPLAY_MODE_MS ? (
-        gfx_drawstr(#temp_display_str);
-        gfx_drawstr(" ms")
-      ) : dynamic_display_mode == DISPLAY_MODE_US ? (
-        gfx_drawstr(#temp_display_str);
-        gfx_drawstr(" us")
-      ) : dynamic_display_mode == DISPLAY_MODE_S ? (
-        gfx_drawstr(#temp_display_str);
-        gfx_drawstr(" s")
-      ) : (
-        gfx_drawstr(#temp_display_str)
-      );
+      // Format the value with appropriate decimal places and formatting
+      formatted_str = format_slider_value_unified(param_index, display_value, display_mode, formatting, format_options);
+      gfx_drawstr(formatted_str);
     );
-  ) : ( // Horizontal slider (includes both normal and reverse)
+  ) : ( // Horizontal slider (includes normal and reverse styles)
     // Draw slider background
     gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
     gfx_rect(x, y, w, h);
 
     // Draw slider fill based on fill direction
     fill_w = normalized_pos * w;
-    
-    // Get fill direction from slider properties (default to left-to-right for backward compatibility)
-    fill_direction = slider_type == 2 ? SLIDER_FILL_RIGHT_TO_LEFT : SLIDER_FILL_LEFT_TO_RIGHT;
-    
-    fill_direction == SLIDER_FILL_RIGHT_TO_LEFT ? (
-      // Fill from RIGHT edge to fader position
-      fill_start_x = x + fill_w;
-      fill_width = w - fill_w;
+
+    fill_direction == FILL_LEFT_TO_RIGHT ? (
+      // Fill from LEFT edge to fader position
       gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-      gfx_rect(fill_start_x, y, fill_width, h);
-    ) : fill_direction == SLIDER_FILL_CENTER_OUT ? (
+      gfx_rect(x, y, fill_w, h);
+    ) : fill_direction == FILL_CENTER_OUT ? (
       // Fill from center to fader position (both directions)
       center_x = x + w * 0.5;
       fader_x = x + fill_w;
-      
+
       // Fill left side (from center to fader if fader is right of center)
       fader_x > center_x ? (
         gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
         gfx_rect(center_x, y, fader_x - center_x, h);
       );
-      
+
       // Fill right side (from center to fader if fader is left of center)
       fader_x < center_x ? (
         gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
         gfx_rect(fader_x, y, center_x - fader_x, h);
       );
     ) : (
-      // Default: Fill from LEFT edge to fader position
+      // Default (RIGHT_TO_LEFT): Fill from RIGHT edge to fader position
+      fill_start_x = x + fill_w;
+      fill_width = w - fill_w;
       gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-      gfx_rect(x, y, fill_w, h);
+      gfx_rect(fill_start_x, y, fill_width, h);
     );
 
     // Draw handle
@@ -150,47 +288,9 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
 
     // Draw value text (if not hidden)
     display_mode != DISPLAY_MODE_HIDE_VALUE ? (
-      // Calculate decimal places from slider increment
-      increment = get_slider_increment(param_index);
-      decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
-      
-      // Temporary debug: force specific decimal places for testing
-      param_index == 1 ? decimal_places = 1 : (  // Attack: 0.1 increment
-      param_index == 3 ? decimal_places = 0 : (  // Release: 1 increment  
-      param_index == 5 ? decimal_places = 1 : (  // Lookahead: 0.1 increment
-      param_index == 6 ? decimal_places = 1 : (  // RMS Window: 0.1 increment
-      param_index == 9 ? decimal_places = 0 : (  // Max GR: 1 increment
-      param_index == 15 ? decimal_places = 0 : ( // Harmonic Mix: 1 increment
-      param_index == 16 ? decimal_places = 0 : ( // Even: 1 increment
-      param_index == 17 ? decimal_places = 0 : ( // Odd: 1 increment
-      param_index == 18 ? decimal_places = 1 : ( // Strength: 0.1 increment
-      param_index == 19 ? decimal_places = 2 : ( // Global Offset: 0.25 increment
-      decimal_places = 2;  // Default fallback
-      ))))))))));
-      
-      // Format the value with calculated decimal places
-      sprintf(#value_str, "%%.%df", decimal_places);
-      sprintf(#value_str, #value_str, value);
-      
-      // Get dynamic display mode for time controls
-      dynamic_display_mode = get_time_display_mode(param_index, display_mode);
-      
-      // Add suffix at drawstr stage
-      dynamic_display_mode == DISPLAY_MODE_PERCENT ? (
-        sprintf(#value_str, "%s %%", #value_str)
-      ) : dynamic_display_mode == DISPLAY_MODE_DB ? (
-        sprintf(#value_str, "%s dB", #value_str)
-      ) : dynamic_display_mode == DISPLAY_MODE_MS ? (
-        sprintf(#value_str, "%s ms", #value_str)
-      ) : dynamic_display_mode == DISPLAY_MODE_US ? (
-        sprintf(#value_str, "%s us", #value_str)
-      ) : dynamic_display_mode == DISPLAY_MODE_S ? (
-        sprintf(#value_str, "%s s", #value_str)
-      ) : (
-        // No suffix for normal display - value_str already formatted
-        0; // Satisfy syntax requirement
-      );
-      gfx_measurestr(#value_str, value_str_w, value_str_h);
+      // Format the value with appropriate decimal places and formatting
+      formatted_str = format_slider_value_unified(param_index, display_value, display_mode, formatting, format_options);
+      gfx_measurestr(formatted_str, value_str_w, value_str_h);
       
       // Smart positioning: left-anchored when >50%, right-anchored when <50%
       normalized_pos > 0.5 ? (
@@ -203,213 +303,14 @@ function draw_generic_slider(x, y, w, h, value, min_val, max_val, label, slider_
         gfx_x = x + w - value_str_w - 3;
       );
       gfx_y = y + (h - value_str_h) / 2;  // Center vertically
-      gfx_drawstr(#value_str);
+      gfx_drawstr(formatted_str);
     );
   );
 );
 
 //==============================================================================
-// FREQUENCY SLIDER RENDERING (with property system)
+// HELPER FUNCTIONS
 //==============================================================================
-
-function draw_frequency_slider(x, y, w, h, value, min_val, max_val, label, control_index, slider_type, display_mode) local(label_w, label_h, value_str_w, value_str_h, fill_direction, formatted_str) (
-  // Calculate normalized position
-  normalized_pos = (value - min_val) / (max_val - min_val);
-  
-  // Draw label - center aligned for horizontal sliders
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_measurestr(label, label_w, label_h);
-  gfx_x = x + (w - label_w) / 2;
-  gfx_y = y - LABEL_HEIGHT;
-  gfx_drawstr(label);
-
-  // Draw slider background
-  gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
-  gfx_rect(x, y, w, h);
-
-  // Draw slider fill based on fill direction from properties
-  fill_w = normalized_pos * w;
-  fill_direction = get_slider_fill_direction(control_index);
-  
-  fill_direction == SLIDER_FILL_RIGHT_TO_LEFT ? (
-    // Fill from RIGHT edge to fader position
-    fill_start_x = x + fill_w;
-    fill_width = w - fill_w;
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-    gfx_rect(fill_start_x, y, fill_width, h);
-  ) : fill_direction == SLIDER_FILL_CENTER_OUT ? (
-    // Fill from center to fader position (both directions)
-    center_x = x + w * 0.5;
-    fader_x = x + fill_w;
-    
-    // Fill left side (from center to fader if fader is right of center)
-    fader_x > center_x ? (
-      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-      gfx_rect(center_x, y, fader_x - center_x, h);
-    );
-    
-    // Fill right side (from center to fader if fader is left of center)
-    fader_x < center_x ? (
-      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-      gfx_rect(fader_x, y, center_x - fader_x, h);
-    );
-  ) : (
-    // Default: Fill from LEFT edge to fader position
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-    gfx_rect(x, y, fill_w, h);
-  );
-
-  // Draw handle
-  handle_x = x + fill_w - 3;
-  gfx_set(1, 1, 1, 1);
-  gfx_rect(handle_x, y - 2, 6, h + 4);
-
-  // Draw value text (if not hidden)
-  display_mode != 2 ? (
-    // Use property-based formatting
-    formatted_str = format_slider_value(control_index, value);
-    gfx_measurestr(formatted_str, value_str_w, value_str_h);
-    
-    // Smart positioning: left-anchored when >50%, right-anchored when <50%
-    normalized_pos > 0.5 ? (
-      // >50%: Anchor left, black text
-      gfx_set(0, 0, 0, 1);  // Black
-      gfx_x = x + 3;
-    ) : (
-      // <50%: Anchor right, white text
-      gfx_set(1, 1, 1, 1);  // White
-      gfx_x = x + w - value_str_w - 3;
-    );
-    gfx_y = y + (h - value_str_h) / 2;  // Center vertically
-    gfx_drawstr(formatted_str);
-  );
-);
-
-//==============================================================================
-// FREQUENCY LIST SLIDER RENDERING (legacy - will be removed)
-//==============================================================================
-
-function draw_freq_list_slider(x, y, w, h, value, min_val, max_val, label, param_index, slider_type, display_mode) local(option_count, value_index, normalized_pos, reverse_mode, cache_key, label_w, label_h, value_str_w, value_str_h) (
-  // Frequency list slider - looks like a slider but snaps to discrete frequency values
-  // Supports both left-to-right (normal) and right-to-left (reverse) rendering
-  
-  // Draw label - center aligned
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_measurestr(label, label_w, label_h);
-  gfx_x = x + (w - label_w) / 2;
-  gfx_y = y - LABEL_HEIGHT;
-  gfx_drawstr(label);
-
-  // Get enumerated options to calculate correct position
-  option_count = get_dropdown_option_count(param_index);
-  
-  option_count > 0 ? (
-    // Get the index from our cached reverse lookup table (O(1) lookup)
-    value_index = get_freq_list_index(param_index, value);
-    
-    // Get the actual discrete frequency value from our cached enumerated list
-    // This ensures we ONLY display values from the list we cached at init
-    freq_value = get_dropdown_option_value(param_index, value_index);
-    
-    // Calculate normalized position based on index in enumerated list
-    reverse_mode = (slider_type == 2);
-    reverse_mode ? (
-      // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
-      normalized_pos = 1.0 - (value_index / (option_count - 1));
-    ) : (
-      // For normal sliders, first option is at left (0.0), last option is at right (1.0)
-      normalized_pos = value_index / (option_count - 1);
-    );
-  ) : (
-    // Fallback: no enumerated options, use continuous range
-    normalized_pos = (value - min_val) / (max_val - min_val);
-    freq_value = value;
-  );
-
-  // Check if this is a reverse slider (slider_type == 2)
-  slider_type == 2 ? (
-    // REVERSE SLIDER - grey background with yellow/ochre fill from RIGHT to fader
-    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
-    gfx_rect(x, y, w, h);
-
-    // Draw slider fill from RIGHT to fader position
-    fill_w = normalized_pos * w;
-    fill_start_x = x + fill_w;
-    fill_width = w - fill_w;
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-    gfx_rect(fill_start_x, y, fill_width, h);
-
-    // Draw handle
-    handle_x = x + fill_w - 3;
-    gfx_set(1, 1, 1, 1);
-    gfx_rect(handle_x, y - 2, 6, h + 4);
-  ) : (
-    // NORMAL SLIDER - fills from left, gray background
-    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
-    gfx_rect(x, y, w, h);
-
-    // Draw slider fill
-    fill_w = normalized_pos * w;
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
-    gfx_rect(x, y, fill_w, h);
-
-    // Draw handle
-    handle_x = x + fill_w - 3;
-    gfx_set(1, 1, 1, 1);
-    gfx_rect(handle_x, y - 2, 6, h + 4);
-  );
-
-  // Format frequency for display
-  // Both HP and LP: 0 = Off
-  freq_value == 0 ? (
-    sprintf(#freq_display_str, "Off");
-  ) : freq_value > 999 ? (
-    // Display as kHz (for values over 999)
-    freq_khz = freq_value / 1000;
-    freq_khz == floor(freq_khz) ? (
-      sprintf(#freq_display_str, "%.0fk", freq_khz);
-    ) : (
-      sprintf(#freq_display_str, "%.1fk", freq_khz);
-    );
-  ) : (
-    // Display as Hz
-    sprintf(#freq_display_str, "%.0f", freq_value);
-  );
-  
-  // Draw formatted frequency text (if not hidden)
-  // Smart positioning: left-anchored when >50%, right-anchored when <50%
-  // For normal sliders: Black text when left-anchored, white when right-anchored
-  // For reverse sliders: White text when left-anchored, black when right-anchored (inverted)
-  display_mode != 2 ? (
-    gfx_measurestr(#freq_display_str, value_str_w, value_str_h);
-    
-    slider_type == 2 ? (
-      // REVERSE SLIDER: Inverted color logic
-      normalized_pos > 0.5 ? (
-        // >50%: Anchor left, white text (inverted)
-        gfx_set(1, 1, 1, 1);  // White
-        gfx_x = x + 3;
-      ) : (
-        // <50%: Anchor right, black text (inverted)
-        gfx_set(0, 0, 0, 1);  // Black
-        gfx_x = x + w - value_str_w - 3;
-      );
-    ) : (
-      // NORMAL SLIDER: Standard color logic
-      normalized_pos > 0.5 ? (
-        // >50%: Anchor left, black text
-        gfx_set(0, 0, 0, 1);  // Black
-        gfx_x = x + 3;
-      ) : (
-        // <50%: Anchor right, white text
-        gfx_set(1, 1, 1, 1);  // White
-        gfx_x = x + w - value_str_w - 3;
-      );
-    );
-    gfx_y = y + (h - value_str_h) / 2;  // Center vertically
-    gfx_drawstr(#freq_display_str);
-  );
-);
 
 //==============================================================================
 // BUTTON RENDERING
@@ -481,40 +382,35 @@ function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) (
 //==============================================================================
 
 function draw_control(index) local(group_idx) (
-  type = get_control_type(index);
-  x = get_control_x(index);
-  y = get_control_y(index);
-  w = get_control_w(index);
-  h = get_control_h(index);
-  param_index = get_control_param(index);
-  min_val = get_control_min(index);
-  max_val = get_control_max(index);
-  slider_type = get_control_slider_type(index);
-  display_mode = get_control_display_mode(index);
-  group_idx = get_control_group(index);
-  
+  type = control_defs[index*11 + 0];
+  x = control_defs[index*11 + 1];
+  y = control_defs[index*11 + 2];
+  w = control_defs[index*11 + 3];
+  h = control_defs[index*11 + 4];
+  param_index = control_defs[index*11 + 5];
+  min_val = control_defs[index*11 + 6];
+  max_val = control_defs[index*11 + 7];
+  group_idx = control_defs[index*11 + 10];
+
   // Add group offset if control is in a group
   group_idx >= 0 ? (
-    x += get_group_x(group_idx);
-    y += get_group_y(group_idx);
+    x += group_defs[group_idx*6 + 0];
+    y += group_defs[group_idx*6 + 1];
   );
-  
+
   // Get current parameter value
   current_value = slider(param_index);
-  
-  // No stage enable buttons currently defined, so render all controls
-  // Check if this is a frequency slider (HP/LP filters) that should use special rendering
-  (index == 15 || index == 16) ? (
-      // HP and LP filters use frequency slider with property system
-      draw_frequency_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), index, slider_type, display_mode)
-    ) : (
-      // All other controls use standard rendering
-      type == 0 ? draw_generic_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), slider_type, display_mode, param_index) :
-      type == 1 ? draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index)) :
-      type == 2 ? draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index) :
-      type == 3 ? draw_generic_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index)) :
-      type == 4 ? draw_freq_list_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_type, display_mode) :
-      0;
-    );
+
+  // Handle different control types
+  type == 0 ? ( // Slider - use unified system (includes knob-style sliders)
+    slider_config = control_defs[index*11 + 8];
+    draw_unified_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_config);
+  ) : type == 1 ? ( // Button
+    draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index));
+  ) : type == 2 ? ( // Dropdown
+    draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index);
+  ) : (
+    0; // Unknown control type
+  );
 );
 

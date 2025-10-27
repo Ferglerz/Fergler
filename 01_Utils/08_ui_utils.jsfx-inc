@@ -9,118 +9,94 @@
 
 @init
 
-//==============================================================================
-// CONTROL ACCESSOR FUNCTIONS
-//==============================================================================
 
-function get_control_type(index) ( control_defs[index*11 + 0]; );
-function get_control_x(index) ( control_defs[index*11 + 1]; );
-function get_control_y(index) ( control_defs[index*11 + 2]; );
-function get_control_w(index) ( control_defs[index*11 + 3]; );
-function get_control_h(index) ( control_defs[index*11 + 4]; );
-function get_control_param(index) ( control_defs[index*11 + 5]; );
-function get_control_min(index) ( control_defs[index*11 + 6]; );
-function get_control_max(index) ( control_defs[index*11 + 7]; );
-function get_control_slider_type(index) ( control_defs[index*11 + 8]; );
-function get_control_display_mode(index) ( control_defs[index*11 + 9]; ); // 0=right (default), 1=left, 2=hide
-function get_control_group(index) ( control_defs[index*11 + 10]; ); // Group index (-1 = no group)
-
-// Unified knob accessor functions (works for both small and large knobs)
-function get_knob_x(index) ( knob_defs[index*10 + 0]; );
-function get_knob_y(index) ( knob_defs[index*10 + 1]; );
-function get_knob_param(index) ( knob_defs[index*10 + 2]; );
-function get_knob_min(index) ( knob_defs[index*10 + 3]; );
-function get_knob_max(index) ( knob_defs[index*10 + 4]; );
-function get_knob_type(index) ( knob_defs[index*10 + 5]; );
-function get_knob_size(index) ( knob_defs[index*10 + 6]; ); // 0=small, 1=large
-function get_knob_active(index) ( knob_defs[index*10 + 7]; );
-function get_knob_value(index) ( knob_defs[index*10 + 8]; );
-function get_knob_group(index) ( knob_defs[index*10 + 9]; ); // Group index (-1 = no group)
-
-// Helper functions to get size-specific properties
-function get_knob_radius(index) (
-  get_knob_size(index) == 1 ? LARGE_KNOB_RADIUS : KNOB_RADIUS;
+// Get slider property for a control
+function get_slider_property(control_index, property_index) (
+  array_index = control_index * 4 + property_index;
+  array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
+    slider_properties_base[array_index]
+  ) : 0;
 );
 
-function get_knob_pixel_size(index) (
-  get_knob_size(index) == 1 ? LARGE_KNOB_SIZE : KNOB_SIZE;
+// Slider property accessor functions
+function get_slider_increment(control_index) (
+  get_slider_property(control_index, 0);
 );
 
-//==============================================================================
-// GROUP ACCESSOR FUNCTIONS
-//==============================================================================
+function get_slider_fill_direction(control_index) (
+  get_slider_property(control_index, 1);
+);
 
-// Group accessor functions (moved from ui_controls to resolve circular dependency)
-function get_group_x(index) ( group_defs[index*6 + 0]; );
-function get_group_y(index) ( group_defs[index*6 + 1]; );
-function get_group_w(index) ( group_defs[index*6 + 2]; );
-function get_group_h(index) ( group_defs[index*6 + 3]; );
-function get_group_show_title(index) ( group_defs[index*6 + 4]; );
-function get_group_title_ptr(index) ( group_defs[index*6 + 5]; );
+function get_slider_format_as_frequency(control_index) (
+  get_slider_property(control_index, 2) > 0;
+);
+
 
 //==============================================================================
 // BASIC UI UTILITIES
 //==============================================================================
 
 function is_point_in_control(x, y, control_index) local(group_idx) (
-  ctrl_x = get_control_x(control_index);
-  ctrl_y = get_control_y(control_index);
-  ctrl_w = get_control_w(control_index);
-  ctrl_h = get_control_h(control_index);
-  group_idx = get_control_group(control_index);
-  
+  ctrl_x = control_defs[control_index*11 + 1];
+  ctrl_y = control_defs[control_index*11 + 2];
+  ctrl_w = control_defs[control_index*11 + 3];
+  ctrl_h = control_defs[control_index*11 + 4];
+  group_idx = control_defs[control_index*11 + 10];
+
   // Add group offset if control is in a group
   group_idx >= 0 ? (
-    ctrl_x += get_group_x(group_idx);
-    ctrl_y += get_group_y(group_idx);
+    ctrl_x += group_defs[group_idx*6 + 0];
+    ctrl_y += group_defs[group_idx*6 + 1];
   );
   
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
 function is_point_in_knob(x, y, knob_index) local(group_idx) (
-  knob_x = get_knob_x(knob_index);
-  knob_y = get_knob_y(knob_index);
-  knob_size = get_knob_pixel_size(knob_index);
-  group_idx = get_knob_group(knob_index);
-  
+  knob_x = knob_defs[knob_index*10 + 0];
+  knob_y = knob_defs[knob_index*10 + 1];
+  knob_size = knob_defs[knob_index*10 + 6] == 1 ? LARGE_KNOB_SIZE : KNOB_SIZE;
+  group_idx = knob_defs[knob_index*10 + 9];
+
   // Add group offset if knob is in a group
   group_idx >= 0 ? (
-    knob_x += get_group_x(group_idx);
-    knob_y += get_group_y(group_idx);
+    knob_x += group_defs[group_idx*6 + 0];
+    knob_y += group_defs[group_idx*6 + 1];
   );
   
   x >= knob_x && x <= knob_x + knob_size && y >= knob_y && y <= knob_y + knob_size;
 );
 
-function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val) (
-  slider_type = get_control_slider_type(control_index);
-  min_val = get_control_min(control_index);
-  max_val = get_control_max(control_index);
-  group_idx = get_control_group(control_index);
-  control_type = get_control_type(control_index);
-  param_index = get_control_param(control_index);
-  
-  slider_type == 1 ? ( // Vertical slider
-    ctrl_y = get_control_y(control_index);
-    ctrl_h = get_control_h(control_index);
-    
+function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options) (
+  slider_config = control_defs[control_index*11 + 8];
+  slider_orientation = slider_config & 0xFF;  // Extract slider orientation from config
+  format_options = (slider_config >> 32) & 0xFF;  // Extract format options
+  min_val = control_defs[control_index*11 + 6];
+  max_val = control_defs[control_index*11 + 7];
+  group_idx = control_defs[control_index*11 + 10];
+  control_type = control_defs[control_index*11 + 0];
+  param_index = control_defs[control_index*11 + 5];
+
+  slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
+    ctrl_y = control_defs[control_index*11 + 2];
+    ctrl_h = control_defs[control_index*11 + 4];
+
     // Add group offset if control is in a group
     group_idx >= 0 ? (
-      ctrl_y += get_group_y(group_idx);
+      ctrl_y += group_defs[group_idx*6 + 1];
     );
-    
+
     normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
     normalized_pos = max(0, min(1, normalized_pos));
     // Invert for vertical slider (0 at top, 1 at bottom)
     normalized_pos = 1 - normalized_pos;
-  ) : ( // Horizontal slider (default)
-    ctrl_x_rel = get_control_x(control_index);
-    ctrl_w = get_control_w(control_index);
-    
+  ) : ( // Horizontal slider (normal or reverse)
+    ctrl_x_rel = control_defs[control_index*11 + 1];
+    ctrl_w = control_defs[control_index*11 + 3];
+
     // Add group offset if control is in a group
     group_idx >= 0 ? (
-      group_x_val = get_group_x(group_idx);
+      group_x_val = group_defs[group_idx*6 + 0];
       ctrl_x = ctrl_x_rel + group_x_val;
     ) : (
       ctrl_x = ctrl_x_rel;
@@ -128,6 +104,11 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
     
     normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
     normalized_pos = max(0, min(1, normalized_pos));
+    
+    // Handle reverse sliders - invert the normalized position
+    format_options & OPTION_REVERSE ? (
+      normalized_pos = 1.0 - normalized_pos;
+    );
   );
   
   // For freq_list_slider (type 4), map position to enumerated values
@@ -136,8 +117,8 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
     option_count = get_dropdown_option_count(param_index);
     
     option_count > 0 ? (
-      // Check if this is a reverse slider (type 2)
-      reverse_mode = (slider_type == 2);
+      // Check if this is a reverse slider
+      reverse_mode = (format_options & OPTION_REVERSE);
       
       // Map normalized position (0.0 to 1.0) to option index (0 to option_count-1)
       // Use (option_count - 1) to ensure even distribution across all options
@@ -203,14 +184,6 @@ function set_slider_property(control_index, property_index, value) (
   );
 );
 
-// Get slider property for a control
-function get_slider_property(control_index, property_index) (
-  array_index = control_index * 4 + property_index;
-  array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
-    slider_properties_base[array_index]
-  ) : 0;
-);
-
 // Convenience functions for common properties
 function set_slider_increment(control_index, increment) (
   set_slider_property(control_index, 0, increment);
@@ -222,18 +195,6 @@ function set_slider_fill_direction(control_index, direction) (
 
 function set_slider_format_as_frequency(control_index, format_freq) (
   set_slider_property(control_index, 2, format_freq ? 1 : 0);
-);
-
-function get_slider_increment(control_index) (
-  get_slider_property(control_index, 0);
-);
-
-function get_slider_fill_direction(control_index) (
-  get_slider_property(control_index, 1);
-);
-
-function get_slider_format_as_frequency(control_index) (
-  get_slider_property(control_index, 2) > 0;
 );
 
 // Format value for display based on slider properties
@@ -272,10 +233,10 @@ function format_slider_value(control_index, value) local(increment, format_freq,
 );
 
 function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
-  param_index = get_knob_param(knob_index);
-  min_val = get_knob_min(knob_index);
-  max_val = get_knob_max(knob_index);
-  knob_size = get_knob_size(knob_index);
+  param_index = knob_defs[knob_index*10 + 2];
+  min_val = knob_defs[knob_index*10 + 3];
+  max_val = knob_defs[knob_index*10 + 4];
+  knob_size = knob_defs[knob_index*10 + 6];
   
   // Get current value
   current_value = slider(param_index);
@@ -298,10 +259,10 @@ function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
 );
 
 function update_knob_value_from_mouse_with_mult(knob_index, mouse_x, mouse_y, multiplier) (
-  param_index = get_knob_param(knob_index);
-  min_val = get_knob_min(knob_index);
-  max_val = get_knob_max(knob_index);
-  knob_size = get_knob_size(knob_index);
+  param_index = knob_defs[knob_index*10 + 2];
+  min_val = knob_defs[knob_index*10 + 3];
+  max_val = knob_defs[knob_index*10 + 4];
+  knob_size = knob_defs[knob_index*10 + 6];
   
   // Get current value
   current_value = slider(param_index);

@@ -46,18 +46,18 @@ function draw_knob_at_position(x, y, value, min_val, max_val, knob_type) (
 );
 
 function draw_knob(knob_index) local(group_idx) (
-  knob_x = get_knob_x(knob_index);
-  knob_y = get_knob_y(knob_index);
-  min_val = get_knob_min(knob_index);
-  max_val = get_knob_max(knob_index);
-  knob_type = get_knob_type(knob_index);
-  param_index = get_knob_param(knob_index);
-  group_idx = get_knob_group(knob_index);
-  
+  knob_x = knob_defs[knob_index*10 + 0];
+  knob_y = knob_defs[knob_index*10 + 1];
+  min_val = knob_defs[knob_index*10 + 3];
+  max_val = knob_defs[knob_index*10 + 4];
+  knob_type = knob_defs[knob_index*10 + 5];
+  param_index = knob_defs[knob_index*10 + 2];
+  group_idx = knob_defs[knob_index*10 + 9];
+
   // Add group offset if knob is in a group
   group_idx >= 0 ? (
-    knob_x += get_group_x(group_idx);
-    knob_y += get_group_y(group_idx);
+    knob_x += group_defs[group_idx*6 + 0];
+    knob_y += group_defs[group_idx*6 + 1];
   );
   
   // Get current value from slider, not from stored knob value
@@ -166,18 +166,18 @@ function draw_large_knob_at_position(x, y, value, min_val, max_val, knob_type) (
 );
 
 function draw_large_knob(knob_index) local(group_idx) (
-  knob_x = get_knob_x(knob_index);
-  knob_y = get_knob_y(knob_index);
-  min_val = get_knob_min(knob_index);
-  max_val = get_knob_max(knob_index);
-  knob_type = get_knob_type(knob_index);
-  param_index = get_knob_param(knob_index);
-  group_idx = get_knob_group(knob_index);
-  
+  knob_x = knob_defs[knob_index*10 + 0];
+  knob_y = knob_defs[knob_index*10 + 1];
+  min_val = knob_defs[knob_index*10 + 3];
+  max_val = knob_defs[knob_index*10 + 4];
+  knob_type = knob_defs[knob_index*10 + 5];
+  param_index = knob_defs[knob_index*10 + 2];
+  group_idx = knob_defs[knob_index*10 + 9];
+
   // Add group offset if knob is in a group
   group_idx >= 0 ? (
-    knob_x += get_group_x(group_idx);
-    knob_y += get_group_y(group_idx);
+    knob_x += group_defs[group_idx*6 + 0];
+    knob_y += group_defs[group_idx*6 + 1];
   );
   
   // Get current value from slider, not from stored knob value

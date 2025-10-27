@@ -10,7 +10,6 @@
 
 // Control States
 ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
-ui_drag_knob = -1;     // -1 = no knob, >= 0 = dragging knob index (unified system handles both small and large)
 
 // Mouse position tracking for delta calculations
 ui_prev_mouse_x = 0;
@@ -22,7 +21,6 @@ ui_fine_drag_accum = 0;
 // Double-click detection
 ui_last_click_time = 0;
 ui_last_clicked_control = -1;
-ui_last_clicked_knob = -1;
 ui_double_click_threshold = 0.3; // 300ms for double click
 
 
@@ -42,54 +40,15 @@ function update_pdc_delay_if_needed(param_index) (
 );
 
 //==============================================================================
-// KNOB INTERACTION
-//==============================================================================
-
-function find_clicked_knob() (
-  // Check all active knobs to see if mouse is over one (unified system handles both small and large)
-  found_knob = -1;
-  i = 0;
-  while (i < NUM_KNOBS && found_knob == -1) (
-    get_knob_active(i) && is_point_in_knob(mouse_x, mouse_y, i) ? (
-      found_knob = i; // Found it!
-    );
-    i += 1;
-  );
-  found_knob; // Return found knob index or -1
-);
-
-// Reset knob to default value
-function reset_knob_to_default(knob_index) (
-  param_index = get_knob_param(knob_index);
-  min_val = get_knob_min(knob_index);
-  max_val = get_knob_max(knob_index);
-  
-  // Default to middle
-  slider(param_index) = (min_val + max_val) / 2;
-  sliderchange(1 << (param_index - 1));
-  update_pdc_delay_if_needed(param_index);
-);
-
-// Check if this is a double-click on knob
-function is_double_click_knob(knob_index) local(current_time, is_double) (
-  current_time = time_precise();
-  is_double = (knob_index == ui_last_clicked_knob && 
-               (current_time - ui_last_click_time) < ui_double_click_threshold);
-  ui_last_clicked_knob = knob_index;
-  ui_last_click_time = current_time;
-  is_double;
-);
-
-//==============================================================================
-// HELPER FUNCTIONS (moved from later in file)
+// HELPER FUNCTIONS
 //==============================================================================
 
 // Reset control to default value
 function reset_control_to_default(control_index) (
-  param_index = get_control_param(control_index);
-  min_val = get_control_min(control_index);
-  max_val = get_control_max(control_index);
-  control_type = get_control_type(control_index);
+  param_index = control_defs[control_index*11 + 5];
+  min_val = control_defs[control_index*11 + 6];
+  max_val = control_defs[control_index*11 + 7];
+  control_type = control_defs[control_index*11 + 0];
   
   // Calculate default value (middle for most, 0 for buttons)
   control_type == 1 ? (
@@ -119,8 +78,8 @@ function is_double_click_control(control_index) local(current_time, is_double) (
 
 // Handle control click based on control type
 function handle_control_click(control_index) (
-  control_type = get_control_type(control_index);
-  param_index = get_control_param(control_index);
+  control_type = control_defs[control_index*11 + 0];
+  param_index = control_defs[control_index*11 + 5];
   current_value = slider(param_index);
   
   // Debug logging removed per user request
@@ -165,77 +124,44 @@ function handle_control_click(control_index) (
 );
 
 // Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult) (
+function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options) (
   // Apply fine drag multiplier when ctrl/cmd is held
   fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
   
   ui_drag_control >= 0 ? (
     // Update dragged control
-    param_index = get_control_param(ui_drag_control);
-    control_type = get_control_type(ui_drag_control);
-    
-    control_type == 3 ? (
-      // Small knob (control type 3) - use delta tracking
-      min_val = get_control_min(ui_drag_control);
-      max_val = get_control_max(ui_drag_control);
-      current_value = slider(param_index);
-      mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
-      new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, KNOB_SENSITIVITY, param_index);
-      slider(param_index) = new_value;
-      sliderchange(1 << (param_index - 1));
-    ) : (
-      // Sliders (types 0 and 4) - use position tracking with fine drag
-      min_val = get_control_min(ui_drag_control);
-      max_val = get_control_max(ui_drag_control);
+    param_index = control_defs[ui_drag_control*11 + 5];
+    control_type = control_defs[ui_drag_control*11 + 0];
+
+    control_type == 0 ? ( // Slider - unified system
+      slider_config = control_defs[ui_drag_control*11 + 8];
+      slider_style = slider_config & 0xFF;
+      format_options = (slider_config >> 24) & 0xFF;
+
+      min_val = control_defs[ui_drag_control*11 + 6];
+      max_val = control_defs[ui_drag_control*11 + 7];
       current_value = slider(param_index);
       
-      // Calculate delta with fine drag multiplier
-      control_type == 4 ? (
-        // Freq list slider - ALWAYS use position-based snapping to enumerated values
-        // Fine drag mode makes it less sensitive but still snaps to discrete values
-        MOUSE_CTRL_KEY ? (
-          // Fine drag mode - accumulate movement and step through enumerated values
-          option_count = get_dropdown_option_count(param_index);
-          option_count > 0 ? (
-            // Get current index in enumerated list
-            current_index = get_freq_list_index(param_index, current_value);
-            
-            // Calculate how much mouse moved and accumulate
-            mouse_dx = (mouse_x - ui_prev_mouse_x);
-            ui_fine_drag_accum += mouse_dx;
-            
-            slider_w = get_control_w(ui_drag_control);
-            
-            // Determine if we should step to next/previous option
-            // Need significant accumulated movement to step (20% of slider width per step in fine mode)
-            step_threshold = slider_w * 0.2;
-            
-            abs(ui_fine_drag_accum) > step_threshold ? (
-              // Step to next or previous option
-              ui_fine_drag_accum > 0 ? (
-                current_index = min(current_index + 1, option_count - 1);
-              ) : (
-                current_index = max(current_index - 1, 0);
-              );
-              // Get the discrete frequency value at this index
-              slider(param_index) = get_dropdown_option_value(param_index, current_index);
-              // Reset accumulator after stepping
-              ui_fine_drag_accum = 0;
-            );
-          ) : (
-            // Fallback: use position-based update
-            slider(param_index) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
-          );
-        ) : (
-          // Normal drag mode - use position-based snapping
-          slider(param_index) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
-        );
+      // Check if this slider supports bidirectional drag (knob-style)
+      format_options & FORMAT_OPTION_BIDIRECTIONAL ? (
+        // Bidirectional drag - use both X and Y movement
+        mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
+        mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
+        
+        // Combine X and Y movement for knob-style interaction
+        mouse_delta = mouse_dx - mouse_dy; // Y movement is inverted for intuitive knob behavior
+        
+        slider_w = control_defs[ui_drag_control*11 + 3];
+        value_range = max_val - min_val;
+        delta = (mouse_delta / slider_w) * value_range;
+        new_value = clamp(current_value + delta, min_val, max_val);
+        slider(param_index) = new_value;
       ) : (
-        // Regular slider (type 0) - use delta in fine mode, position in normal mode
+        // Standard slider - use position-based or delta-based depending on fine mode
         MOUSE_CTRL_KEY ? (
           // Fine drag mode - use delta approach
           mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
-          slider_w = get_control_w(ui_drag_control);
+          slider_w = control_defs[ui_drag_control*11 + 3];
           value_range = max_val - min_val;
           delta = (mouse_dx / slider_w) * value_range;
           new_value = clamp(current_value + delta, min_val, max_val);
@@ -248,10 +174,10 @@ function handle_drag_continuation() local(fine_drag_mult) (
       
       sliderchange(1 << (param_index - 1));
       update_pdc_delay_if_needed(param_index);
+    ) : (
+      // Other control types - no drag handling needed
+      0; // Empty statement to satisfy JSFX syntax
     );
-  ) : ui_drag_knob >= 0 ? (
-    // Update knob (unified system handles both small and large) with fine drag
-    update_knob_value_from_mouse_with_mult(ui_drag_knob, mouse_x, mouse_y, fine_drag_mult);
   ) : (
     // No drag operation in progress - no action needed
     0; // Empty statement to satisfy JSFX syntax
@@ -270,22 +196,10 @@ function handle_ui_mouse_input() (
       ui_prev_mouse_y = mouse_y;
       ui_fine_drag_accum = 0; // Reset accumulator
       
-      // Check knobs first (unified system handles both small and large)
-      clicked_knob = find_clicked_knob();
-      clicked_knob >= 0 ? (
-        // Check for double-click or alt-click to reset
-        (is_double_click_knob(clicked_knob) || MOUSE_ALT_KEY) ? (
-          reset_knob_to_default(clicked_knob);
-          ui_drag_control = -2; // Prevent drag
-        ) : (
-          ui_drag_knob = clicked_knob; // Store which knob is being dragged
-          ui_drag_control = -2; // Mark as dragging (prevents re-checking on next frame)
-          // Don't update on first click - just lock the knob
-        );
-      ) : is_menu_button_clicked() ? (
+      is_menu_button_clicked() ? (
           handle_menu_button_click();
           ui_drag_control = -2; // Special value to prevent further checks
-        ) : is_menu_visible() ? (
+        ) : menu_visible ? (
           // Check menu items if menu is visible
           hovered_item = get_hovered_menu_item();
           hovered_item >= 0 ? (
@@ -312,7 +226,6 @@ function handle_ui_mouse_input() (
   ) : (
     // Mouse released - reset drag state
     ui_drag_control = -1;
-    ui_drag_knob = -1;
     ui_fine_drag_accum = 0; // Reset accumulator
   );
   
