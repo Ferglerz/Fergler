@@ -66,7 +66,11 @@ function handle_menu_item_click(item_index) (
     histogram_pos = 0;
     histogram_pixel_pos = 0;
     histogram_pixel_idx = 0;
-    // Clear both buffers
+    input_histogram_pos = 0;
+    input_histogram_pixel_pos = 0;
+    input_histogram_pixel_idx = 0;
+    
+    // Clear GR histogram buffers
     i = 0;
     histogram_initialized ? (
       while (i < histogram_max_samples) (
@@ -78,6 +82,22 @@ function handle_menu_item_click(item_index) (
     histogram_pixel_initialized ? (
       while (i < GRAPH_SIZE) (
         histogram_pixel_buffer[i] = 0;
+        i += 1;
+      );
+    );
+    
+    // Clear input histogram buffers
+    i = 0;
+    input_histogram_initialized ? (
+      while (i < input_histogram_max_samples) (
+        input_histogram_buffer[i] = GRAPH_MIN_DB;
+        i += 1;
+      );
+    );
+    i = 0;
+    input_histogram_pixel_initialized ? (
+      while (i < GRAPH_SIZE) (
+        input_histogram_pixel_buffer[i] = GRAPH_MIN_DB;
         i += 1;
       );
     );

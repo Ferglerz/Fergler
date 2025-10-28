@@ -221,7 +221,7 @@ function draw_input_histogram() (
       input_histogram_pixel_initialized ? (
         draw_histogram_line_generic(
           input_histogram_pixel_buffer,
-          histogram_pixel_idx,
+          input_histogram_pixel_idx,
           0,
           INPUT_HISTOGRAM_COLOR_R,
           INPUT_HISTOGRAM_COLOR_G,
