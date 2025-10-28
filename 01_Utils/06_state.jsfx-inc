@@ -249,7 +249,7 @@ function init_state_variables() (
   
   // Dot trail state
   trail_buffer = 0; // Will be allocated in memory
-  trail_max_dots = 0; // Calculated based on fade duration and interval
+  // trail_max_dots is set in allocate_memory() and should not be reset here
   trail_count = 0; // Current number of active trail dots
   trail_write_pos = 0; // Position in circular buffer
   trail_last_creation_time = 0; // Last time a trail dot was created (in samples)
