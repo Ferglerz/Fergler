@@ -63,7 +63,7 @@ slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
 slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 
 // Time multiplier for attack display (33)
-slider33:time_multiplier=1<0,2,1{Microseconds,Milliseconds,Seconds}>-Time Unit
+slider33:time_multiplier=1<0,2,1{Milliseconds,Microseconds,Seconds}>-Time Unit
 
 // SEARCH STOP
 
@@ -190,8 +190,7 @@ slider_initialized = 0;
 // Initialize makeup gain to unity (will be recalculated in @slider)
 makeup_gain_linear = 1.0;
 
-// Initialize strength multiplier (will be recalculated in @slider)
-strength_actual = strength * strength;
+// Strength multiplier removed - using strength slider directly
 
 // Calculate limiter normalization constant (pre-calculated to avoid per-sample division)
 LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
@@ -283,18 +282,12 @@ pdc_delay > 0 ? (
 );
 
 // --- Strength and Global Offset parameters ---
-(slider19 != strength_prev || slider20 != global_offset_db_prev || !slider_initialized) ? (
-  strength_prev = slider19;
-  global_offset_db_prev = slider20;
-  
-  // Apply logarithmic/exponential transformation to strength for more pronounced effect
-  // Using power of 2: strength=1 -> actual=1, strength=3 -> actual=9, strength=10 -> actual=100
-  strength_actual = strength * strength;
+(global_offset_db != global_offset_db_prev || !slider_initialized) ? (
+  global_offset_db_prev = global_offset_db;
   
   param_changed = 1;
   
-  // Note: Strength is applied AFTER curve lookup in calculate_gain_reduction(),
-  // so it doesn't affect the curve shape itself. No need to invalidate curve cache.
+  // Note: Strength is now used directly in gain reduction calculation
   // Global offset is applied at lookup time (shifts input level before curve lookup).
 );
 
@@ -344,12 +337,12 @@ update_filter_coefficients();
 
 // Update attack and release coefficients every block for real-time response
 // Cache coefficients to avoid redundant calculations
-attack_coeff = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
+attack_coeff = attack_ms > 0 ? exp(-1000 / (convert_attack_time_to_ms(attack_ms, time_multiplier) * srate)) : 0;
 release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
 
 // Cache frequently used calculations
 srate_inv = 1.0 / srate;
-attack_ms_srate = attack_ms * srate;
+attack_ms_srate = convert_attack_time_to_ms(attack_ms, time_multiplier) * srate;
 release_ms_srate = release_ms * srate;
 
 // Apply curves with S-curve and exponential algorithms
@@ -434,9 +427,15 @@ MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
 current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
 
+// OPTIMIZATION: Cache audio active state (play_state 1=playing, 5=recording)
+// This avoids recalculating it 3+ times per frame across different render functions
+is_audio_active = (play_state == 1) || (play_state == 5);
+
 // Update histograms with block-max values (most efficient and smooth)
 HISTOGRAM_ENABLED ? update_histogram_state(gr_db_for_histogram);
 INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
+
+// Strength now used directly - no need for strength_actual
 
 // Render main interface
 render_complete_interface();
