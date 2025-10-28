@@ -166,12 +166,40 @@ function init_state_variables() (
     // Clear input histogram buffer
     i = 0;
     while (i < input_histogram_max_samples) (
-      input_histogram_buffer[i] = 0;
+      input_histogram_buffer[i] = GRAPH_MIN_DB;  // Initialize to minimum dB
       i += 1;
     );
     
     input_histogram_pos = 0;
     input_histogram_initialized = 1;
+  );
+
+  // Per-pixel input histogram buffer state (for histogram buffer mode)
+  input_histogram_pixel_buffer = 0; // Will be allocated in memory
+  input_histogram_pixel_samples_per_pixel = 0; // Calculated based on srate and graph width
+  input_histogram_pixel_pos = 0; // Current sample position within current pixel
+  input_histogram_pixel_idx = 0; // Current pixel index
+  input_histogram_pixel_initialized = 0; // Flag to track initialization
+
+  // Initialize per-pixel input histogram buffer if enabled
+  INPUT_HISTOGRAM_ENABLED ? (
+    // Allocate buffer for GRAPH_SIZE pixels (300 pixels)
+    input_histogram_pixel_buffer = freemem;
+    freemem += GRAPH_SIZE;
+    
+    // Clear per-pixel input histogram buffer
+    i = 0;
+    while (i < GRAPH_SIZE) (
+      input_histogram_pixel_buffer[i] = GRAPH_MIN_DB;  // Initialize to minimum dB
+      i += 1;
+    );
+    
+    // Calculate samples per pixel for histogram window
+    // HISTOGRAM_WINDOW_SECONDS worth of samples divided by GRAPH_SIZE pixels
+    input_histogram_pixel_samples_per_pixel = ceil((HISTOGRAM_WINDOW_SECONDS * srate) / GRAPH_SIZE);
+    input_histogram_pixel_pos = 0;
+    input_histogram_pixel_idx = 0;
+    input_histogram_pixel_initialized = 1;
   );
 
   // Menu toggle states (persistent across @init)
@@ -339,12 +367,20 @@ function update_input_histogram_state(input_level_db) (
       // Each pixel accumulates the max input level across multiple samples
       input_histogram_pixel_initialized ? (
         // Accumulate max input level for current pixel
-        input_level_db > input_histogram_pixel_buffer[histogram_pixel_idx] ? (
-          input_histogram_pixel_buffer[histogram_pixel_idx] = input_level_db;
+        input_level_db > input_histogram_pixel_buffer[input_histogram_pixel_idx] ? (
+          input_histogram_pixel_buffer[input_histogram_pixel_idx] = input_level_db;
         );
         
-        // Note: We use the same pixel timing as GR histogram for synchronization
-        // The pixel advancement is handled by update_histogram_state()
+        // Advance sample counter
+        input_histogram_pixel_pos += 1;
+        
+        // When we've accumulated enough samples for this pixel, move to next
+        input_histogram_pixel_pos >= input_histogram_pixel_samples_per_pixel ? (
+          input_histogram_pixel_pos = 0;
+          input_histogram_pixel_idx = (input_histogram_pixel_idx + 1) % GRAPH_SIZE;
+          // Reset next pixel's accumulator to minimum
+          input_histogram_pixel_buffer[input_histogram_pixel_idx] = GRAPH_MIN_DB;
+        );
       );
     ) : (
       // CIRCULAR BUFFER MODE: Store input level in circular buffer with rate control and smoothing
