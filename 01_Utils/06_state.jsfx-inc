@@ -308,52 +308,43 @@ function init_state_variables() (
 //==============================================================================
 
 function update_histogram_state(gr_value) (
-  // Early exit optimization: Skip histogram updates when GR processing was skipped
-  gr_processing_skipped ? (
-    // GR processing was skipped - no need to update histogram
-    // This saves CPU when signal is below compression threshold
-    0  // Return 0 (no-op)
-  ) : (
-    menu_histogram_buffer_mode > 0.5 ? (
-      // PER-PIXEL BUFFER MODE: Accumulate max GR per pixel for scalability
-      // Each pixel accumulates the max absolute GR value across multiple samples
-      histogram_pixel_initialized ? (
-        // Accumulate max GR for current pixel (using absolute value for comparison)
-        abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
-          histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
-        );
-        
-        // Advance sample counter
-        histogram_pixel_pos += 1;
-        
-        // When we've accumulated enough samples for this pixel, move to next
-        histogram_pixel_pos >= histogram_pixel_samples_per_pixel ? (
-          histogram_pixel_pos = 0;
-          histogram_pixel_idx = (histogram_pixel_idx + 1) % GRAPH_SIZE;
-          // Reset next pixel's accumulator
-          histogram_pixel_buffer[histogram_pixel_idx] = 0;
-        );
+  menu_histogram_buffer_mode > 0.5 ? (
+    // PER-PIXEL BUFFER MODE: Always advance timeline, accumulate GR when present
+    histogram_pixel_initialized ? (
+      // Only update value if GR processing wasn't skipped AND we have GR
+      !gr_processing_skipped && abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+        histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
       );
-    ) : (
-      // ORIGINAL MODE: Store block-level max GR value in circular buffer with rate control
-      // Note: smoothing removed - block-level max already provides smooth values
-      histogram_initialized ? (
-        // Frame rate control - only update every N frames
-        histogram_frame_counter += 1;
-        (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-          histogram_frame_counter = 0;
-          
-          // Optimization: only increment debug counter when actual GR occurs
-          abs(gr_value) > 0.0001 ? (
-            debug_counter_ui_histogram += 1;
-          );
-          
-          // Store block-level max directly (no smoothing needed)
-          histogram_buffer[histogram_pos] = gr_value;
-          
-          // Always advance buffer position to keep histogram rolling
-          histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+      
+      // ALWAYS advance sample counter to keep timeline moving
+      histogram_pixel_pos += 1;
+      
+      // When we've accumulated enough samples for this pixel, move to next
+      histogram_pixel_pos >= histogram_pixel_samples_per_pixel ? (
+        histogram_pixel_pos = 0;
+        histogram_pixel_idx = (histogram_pixel_idx + 1) % GRAPH_SIZE;
+        // Reset next pixel's accumulator
+        histogram_pixel_buffer[histogram_pixel_idx] = 0;
+      );
+    );
+  ) : (
+    // CIRCULAR BUFFER MODE: Store block-level max GR value in circular buffer with rate control
+    histogram_initialized ? (
+      // Frame rate control - only update every N frames
+      histogram_frame_counter += 1;
+      (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+        histogram_frame_counter = 0;
+        
+        // Optimization: only increment debug counter when actual GR occurs
+        abs(gr_value) > 0.0001 ? (
+          debug_counter_ui_histogram += 1;
         );
+        
+        // Store block-level max directly (no smoothing needed)
+        histogram_buffer[histogram_pos] = gr_value;
+        
+        // Always advance buffer position to keep histogram rolling
+        histogram_pos = (histogram_pos + 1) % histogram_max_samples;
       );
     );
   );
