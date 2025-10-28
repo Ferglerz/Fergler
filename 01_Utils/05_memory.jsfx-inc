@@ -28,19 +28,11 @@ function allocate_memory() (
   !control_defs ? control_defs = freemem;
   freemem += NUM_CONTROLS * 11;
 
-  // Allocate unified knob definitions memory (10 values per knob: added group_index field)
-  // size: 0=small (KNOB_SIZE), 1=large (LARGE_KNOB_SIZE)
-  !knob_defs ? knob_defs = freemem;
-  freemem += NUM_KNOBS * 10;
 
-  // Allocate group definitions memory (6 values per group: x, y, w, h, show_title, title_string_ptr)
-  // title_string_ptr points to a string buffer (allocated separately below)
+  // Allocate group definitions memory (6 values per group: x, y, w, h, show_title, title_string_slot)
+  // title_string_slot is a JSFX string slot index (55-59)
   !group_defs ? group_defs = freemem;
   freemem += NUM_GROUPS * 6;
-  
-  // Allocate string buffer for group titles (50 chars per group max)
-  !group_title_strings ? group_title_strings = freemem;
-  freemem += NUM_GROUPS * 50;
 
   // Always allocate audio buffers (these can be reallocated safely)
   // Allocate based on lookahead slider's maximum value (slider5)

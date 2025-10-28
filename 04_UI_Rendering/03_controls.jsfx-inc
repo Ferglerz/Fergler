@@ -65,8 +65,8 @@
 function get_time_display_mode(param_index, display_mode) local(
   time_unit
 ) (
-  // Check if this is a time control that should use dynamic units
-  param_index == 1 || param_index == 3 || param_index == 5 || param_index == 6 ? ( // Attack, Release, Lookahead, RMS Window
+  // Check if this is the Attack control that should use dynamic units
+  param_index == 1 ? ( // Attack only
     time_unit = slider(33); // Time Unit selector (param 33)
     time_unit == 0 ? DISPLAY_MS : ( // ms
       time_unit == 1 ? DISPLAY_US : ( // us
@@ -74,7 +74,7 @@ function get_time_display_mode(param_index, display_mode) local(
       )
     );
   ) : (
-    display_mode; // Not a time control, use original display mode
+    display_mode; // Not Attack control, use original display mode
   );
 );
 

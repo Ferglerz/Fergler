@@ -74,11 +74,12 @@ function release_dual_threshold(input_level_db) local(
 //==============================================================================
 
 //--- Program-Dependent Release Coefficient Selection ---
-function select_program_release_coef(target_gr_db, detector_level_db) local(
-  gr_amount, det_delta, input_level_db
+// OPTIMIZATION: Pass pre-calculated abs(target_gr_db) to avoid redundant abs() call
+function select_program_release_coef(target_gr_abs, detector_level_db) local(
+  det_delta, input_level_db
 ) (
   debug_counter_prog_release += 1;
-  
+
   // Cache release coefficients when timing or sample rate changes
   (cached_release_ms != release_ms || cached_srate_env != srate) ? (
     cached_release_ms = release_ms;
@@ -90,30 +91,34 @@ function select_program_release_coef(target_gr_db, detector_level_db) local(
   );
 
   // Initialize common variables used by strategy functions
-  gr_amount = abs(target_gr_db);
+  // OPTIMIZATION: Use passed-in pre-calculated abs value
   det_delta = prev_detector_db - detector_level_db;
   input_level_db = detector_level_db;
 
   // Dispatch to appropriate release strategy
   prog_release_type == 0 ? rel_med_cached :
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
-  prog_release_type == 2 ? release_gr_dependent(gr_amount) :
+  prog_release_type == 2 ? release_gr_dependent(target_gr_abs) :
   prog_release_type == 3 ? release_rate_of_change(det_delta) :
   prog_release_type == 4 ? release_dual_threshold(input_level_db) :
   rel_med_cached  // Default fallback
 );
 
 //--- Single-Stage Envelope Following (modularized) ---
-function process_single_stage_envelope(target_gr_db, detector_level_db) (
+// OPTIMIZATION: Calculate abs(target_gr_db) once and reuse
+function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs) (
   debug_counter_single_envelope += 1;
-  
+
+  // OPTIMIZATION: Calculate abs() once for reuse in comparison and release calculation
+  target_gr_abs = abs(target_gr_db);
+
   global_attack_coef = attack_coeff;
   // Attack when target is "more extreme" than current (closer to zero = less extreme)
-  abs(target_gr_db) > abs(global_smoothed_gain_db) ? (
+  target_gr_abs > abs(global_smoothed_gain_db) ? (
     global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
   ) : (
     prog_release_type > 0 ? (
-      rel_coef_use = select_program_release_coef(target_gr_db, detector_level_db);
+      rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db);
       global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
     ) : (
       fixed_rel_coef = release_coeff;

@@ -14,21 +14,21 @@
 // [2] = width
 // [3] = height
 // [4] = show_title (1=show, 0=hide)
-// [5] = title_string_ptr (pointer to string in group_title_strings buffer)
+// [5] = title_string_slot (JSFX string slot index 55-59)
 
-function define_group(index, x, y, w, h, show_title, title) local(title_ptr, i, char) (
+function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
   group_defs[index*6 + 0] = x;
   group_defs[index*6 + 1] = y;
   group_defs[index*6 + 2] = w;
   group_defs[index*6 + 3] = h;
   group_defs[index*6 + 4] = show_title;
   
-  // Store title string pointer
-  title_ptr = group_title_strings + index * 50;
-  group_defs[index*6 + 5] = title_ptr;
+  // Store title in proper JSFX string slot (55-59)
+  title_slot = 55 + index;  // 55, 56, 57, 58, 59
+  group_defs[index*6 + 5] = title_slot;
   
-  // Copy title string (using JSFX string as character buffer)
-  strcpy(title_ptr, title);
+  // Copy title string to the string slot
+  strcpy(title_slot, title);
 );
 
 // Group accessor functions moved to 02_ui_utils.jsfx-inc to resolve circular dependency
@@ -101,18 +101,6 @@ function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
-function define_knob(index, x, y, param_index, min_val, max_val, knob_type, knob_size) (
-  knob_defs[index*10 + 0] = x;            // X position (relative to group if group set)
-  knob_defs[index*10 + 1] = y;            // Y position (relative to group if group set)
-  knob_defs[index*10 + 2] = param_index;  // Parameter index
-  knob_defs[index*10 + 3] = min_val;      // Min value
-  knob_defs[index*10 + 4] = max_val;      // Max value
-  knob_defs[index*10 + 5] = knob_type;    // Knob type (for small: 0=angular, 1=rotary; for large: 0=LTR, 1=RTL, 2=bidirectional)
-  knob_defs[index*10 + 6] = knob_size;    // Size: 0=small (KNOB_SIZE), 1=large (LARGE_KNOB_SIZE)
-  knob_defs[index*10 + 7] = 1;            // Active (1=yes, 0=no)
-  knob_defs[index*10 + 8] = min_val;      // Current value (initialize to min)
-  knob_defs[index*10 + 9] = current_control_group; // Group index (-1 = no group)
-);
 
 //==============================================================================
 // CONTROL LAYOUT AND INITIALIZATION
@@ -316,9 +304,5 @@ function render_custom_ui_controls() (
   );
 );
 
-function render_all_knobs() (
-  // Knobs are now handled by the unified slider system
-  // This function is kept for compatibility but does nothing
-  0;
-);
+// OPTIMIZATION: Deleted render_all_knobs() dead code - was marked "kept for compatibility but does nothing"
 

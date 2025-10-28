@@ -46,8 +46,8 @@ function calculate_gain_reduction_from_db(input_level_db) (
     gr_processing_skipped = 0;  // Flag that we did processing
     target_gr_db = calculate_gr_from_curve(input_level_db);
 
-    // Apply strength (using transformed logarithmic value)
-    target_gr_db *= strength_actual;
+    // Apply strength (using slider value directly)
+    target_gr_db *= strength;
 
     target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
     

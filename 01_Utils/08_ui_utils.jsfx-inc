@@ -52,20 +52,6 @@ function is_point_in_control(x, y, control_index) local(group_idx) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-function is_point_in_knob(x, y, knob_index) local(group_idx) (
-  knob_x = knob_defs[knob_index*10 + 0];
-  knob_y = knob_defs[knob_index*10 + 1];
-  knob_size = knob_defs[knob_index*10 + 6] == 1 ? LARGE_KNOB_SIZE : KNOB_SIZE;
-  group_idx = knob_defs[knob_index*10 + 9];
-
-  // Add group offset if knob is in a group
-  group_idx >= 0 ? (
-    knob_x += group_defs[group_idx*6 + 0];
-    knob_y += group_defs[group_idx*6 + 1];
-  );
-  
-  x >= knob_x && x <= knob_x + knob_size && y >= knob_y && y <= knob_y + knob_size;
-);
 
 function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options) (
   slider_config = control_defs[control_index*11 + 8];
@@ -232,57 +218,6 @@ function format_slider_value(control_index, value) local(increment, format_freq,
   #formatted_str;
 );
 
-function update_knob_value_from_mouse(knob_index, mouse_x, mouse_y) (
-  param_index = knob_defs[knob_index*10 + 2];
-  min_val = knob_defs[knob_index*10 + 3];
-  max_val = knob_defs[knob_index*10 + 4];
-  knob_size = knob_defs[knob_index*10 + 6];
-  
-  // Get current value
-  current_value = slider(param_index);
-  
-  // Calculate mouse delta from previous position
-  mouse_dy = mouse_y - ui_prev_mouse_y;
-  
-  // Get sensitivity based on knob size (large knobs = finer control)
-  sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
-  
-  // Update value based on mouse movement
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index);
-  
-  // Update knob value and slider
-  knob_defs[knob_index*9 + 8] = new_value;
-  slider(param_index) = new_value;
-  sliderchange(1 << (param_index - 1));
-  
-  new_value;
-);
-
-function update_knob_value_from_mouse_with_mult(knob_index, mouse_x, mouse_y, multiplier) (
-  param_index = knob_defs[knob_index*10 + 2];
-  min_val = knob_defs[knob_index*10 + 3];
-  max_val = knob_defs[knob_index*10 + 4];
-  knob_size = knob_defs[knob_index*10 + 6];
-  
-  // Get current value
-  current_value = slider(param_index);
-  
-  // Calculate mouse delta from previous position with multiplier
-  mouse_dy = (mouse_y - ui_prev_mouse_y) * multiplier;
-  
-  // Get sensitivity based on knob size (large knobs = finer control)
-  sensitivity = knob_size == 1 ? LARGE_KNOB_SENSITIVITY : KNOB_SENSITIVITY;
-  
-  // Update value based on mouse movement
-  new_value = update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index);
-  
-  // Update knob value and slider
-  knob_defs[knob_index*9 + 8] = new_value;
-  slider(param_index) = new_value;
-  sliderchange(1 << (param_index - 1));
-  
-  new_value;
-);
 
 
 //==============================================================================
@@ -345,6 +280,8 @@ function format_value_with_suffix(value, increment, display_mode) local(decimal_
     sprintf(#temp_display_str, "%%.%df dB", decimal_places, value);
   ) : display_mode == DISPLAY_MS ? (
     sprintf(#temp_display_str, "%%.%df ms", decimal_places, value);
+  ) : display_mode == DISPLAY_HZ ? (
+    sprintf(#temp_display_str, "%%.%df Hz", decimal_places, value);
   ) : (
     sprintf(#temp_display_str, "%%.%df", decimal_places, value);
   );

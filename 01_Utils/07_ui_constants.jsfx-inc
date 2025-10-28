@@ -58,6 +58,9 @@ GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85;  // After panel + gap (moved right 40px)
 GRAPH_Y = UI_PANEL_Y + 15;  // Aligned with panel (moved down 15px)
 GRAPH_SIZE = 263;  // 350 * 0.75 = 262.5 rounded up
 
+// OPTIMIZATION: Pre-calculated histogram step size (max(1, floor(GRAPH_SIZE / 200)))
+HISTOGRAM_STEP_SIZE = 1;  // For GRAPH_SIZE=263: floor(263/200) = 1
+
 // Note: Graph range constants (GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
 // are defined in graph_data_core.jsfx-inc
 
