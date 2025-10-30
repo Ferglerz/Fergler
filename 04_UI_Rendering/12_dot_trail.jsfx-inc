@@ -35,10 +35,6 @@ function create_trail_dot() (
 // Update all trail dots (age them and remove expired ones)
 function update_trail_dots() (
   trail_initialized ? (
-    // Calculate frame increment (convert from samples to frames)
-    // Assuming 60 Hz GFX rate: samples_per_frame = srate / 60
-    samples_per_frame = srate / 60;
-
     // Age all existing dots
     i = 0;
     while (i < trail_count) (
@@ -47,11 +43,11 @@ function update_trail_dots() (
       dot_y = trail_buffer[i * 4 + 1];
       dot_age = trail_buffer[i * 4 + 2];
       dot_max_age = trail_buffer[i * 4 + 3];
-
-      // Age the dot by samples per frame
-      dot_age += samples_per_frame;
+      
+      // Age the dot
+      dot_age += 1;
       trail_buffer[i * 4 + 2] = dot_age;
-
+      
       // Check if dot has expired
       dot_age >= dot_max_age ? (
         // Remove expired dot by shifting remaining dots left
@@ -69,11 +65,11 @@ function update_trail_dots() (
         i += 1;
       );
     );
-
-    // OPTIMIZATION: Use pre-calculated trail_interval_samples from @block
+    
     // Check if it's time to create a new trail dot
-    trail_last_creation_time += samples_per_frame;
-
+    trail_interval_samples = trail_interval_ms * 0.001 * srate;
+    trail_last_creation_time += 1;
+    
     trail_last_creation_time >= trail_interval_samples ? (
       create_trail_dot();
     );
@@ -115,8 +111,9 @@ function render_trail_dots() (
 
 // Main function to update and render trail dots (called from graph display)
 function update_and_render_trail_dots() (
-  // OPTIMIZATION: Use pre-calculated is_audio_active from @gfx (cached once per frame)
   // Only update when audio is active
+  is_audio_active = (play_state == 1) || (play_state == 5);
+  
   is_audio_active ? (
     update_trail_dots();
     render_trail_dots();
