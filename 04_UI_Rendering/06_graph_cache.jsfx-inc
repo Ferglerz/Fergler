@@ -40,7 +40,7 @@ function calculate_curve_hash() (
   
   // Hash global parameters that affect the curve
   // Note: global_offset_db is NOT included because it's applied at lookup time, not in the curve
-  hash = hash * 31 + strength * 1000;
+  hash = hash * 31 + strength_actual * 1000;
   hash = hash * 31 + num_points;
   
   // Ensure positive hash

@@ -18,8 +18,8 @@ function draw_debug_performance_counters() (
   start_y = 390;
   
   // === RIGHT STACK: UI, MATH, PROGRAM RELEASE ===
-  // Position moved left to make room: GRAPH_X (695) + GRAPH_SIZE (263) + gap (15) = 973
-  right_stack_x = 973;
+  // Position after graph: GRAPH_X (695) + GRAPH_SIZE (263) - gap (70) = 888
+  right_stack_x = 888;
   
   // --- UI Functions Panel ---
   ui_panel_x = right_stack_x;
@@ -169,8 +169,8 @@ function draw_debug_performance_counters() (
   // Only show when debug is enabled
   menu_debug_enabled ? (
     // --- COLUMN 1: Detection & Analysis ---
-    // Position moved left to make room
-    detect_panel_x = 715;
+    // Position to the left of UI rendering boxes (which start at x=888)
+    detect_panel_x = 630;
     detect_panel_y = start_y;
     detect_panel_w = 200;
     detect_panel_h = 28 + (3 * line_height); // Title + 3 functions
@@ -218,7 +218,7 @@ function draw_debug_performance_counters() (
     gfx_printf("%d", debug_display_lut_lookup);
   
     // --- COLUMN 2: Envelope & Dynamics ---
-    env_panel_x = 715;
+    env_panel_x = 630;
     env_panel_y = detect_panel_y + detect_panel_h + panel_gap_y;
     env_panel_w = 200;
     env_panel_h = 28 + (3 * line_height); // Title + 3 functions
@@ -266,7 +266,7 @@ function draw_debug_performance_counters() (
     gfx_printf("%d", debug_display_audio_chain);
   
     // --- COLUMN 3: Effects & Output ---
-    fx_panel_x = 715;
+    fx_panel_x = 630;
     fx_panel_y = env_panel_y + env_panel_h + panel_gap_y;
     fx_panel_w = 200;
     fx_panel_h = 28 + (3 * line_height); // Title + 3 functions
