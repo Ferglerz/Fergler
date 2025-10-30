@@ -301,9 +301,12 @@ pdc_delay > 0 ? (
   trail_fade_samples = trail_fade_duration_ms * 0.001 * srate;
   new_trail_max_dots = ceil(trail_fade_samples / trail_interval_samples) + 10;
   
-  // Only reallocate if size changed significantly
+  // Clamp to allocated size to prevent buffer overflow
+  new_trail_max_dots = min(new_trail_max_dots, trail_max_dots_allocated);
+  
+  // Only update if size changed significantly
   abs(new_trail_max_dots - trail_max_dots) > 5 ? (
-    // Update buffer size (memory is already allocated, just update the limit)
+    // Update buffer size limit (memory is already allocated)
     trail_max_dots = new_trail_max_dots;
     // Clear existing trail dots when parameters change
     trail_count = 0;

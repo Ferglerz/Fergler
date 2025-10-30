@@ -16,18 +16,8 @@ lut_viz_cache_size = 0;
 // COORDINATE CONVERSION FUNCTIONS
 //==============================================================================
 
-// Specific threshold line conversion functions
-function input_level_db_to_graph_y(db) (
-  db_to_graph_y(db);
-);
-
-function input_level_2_db_to_graph_y(db) (
-  db_to_graph_y(db);
-);
-
-function transient_db_to_graph_y(db) (
-  db_to_graph_y(db);
-);
+// OPTIMIZATION: Removed middleman wrapper functions (input_level_db_to_graph_y,
+// input_level_2_db_to_graph_y, transient_db_to_graph_y) - now call db_to_graph_y directly
 
 // Helper functions for converting linear audio levels to graph coordinates
 // Note: These perform necessary conversions (linear → dB → pixel) - not redundant
@@ -224,9 +214,7 @@ function draw_graph_points() (
 );
 
 function draw_level_indicators() (
-  // Check if audio is active (playback state 1 = playing, 5 = recording)
-  is_audio_active = (play_state == 1) || (play_state == 5);
-
+  // OPTIMIZATION: Use pre-calculated is_audio_active from @gfx (cached once per frame)
   // Only show level indicators when audio is active
   is_audio_active ? (
     // Draw input level dot on unity line (green)
@@ -245,7 +233,7 @@ function draw_level_indicators() (
 function draw_threshold_lines_on_graph() (
   // Draw input level threshold line if visible
   prog_release_type == 1 || prog_release_type == 4 ? (
-    line_y = input_level_db_to_graph_y(input_level_threshold_db);
+    line_y = db_to_graph_y(input_level_threshold_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
       dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
@@ -261,7 +249,7 @@ function draw_threshold_lines_on_graph() (
   
   // Draw second input level threshold line if visible
   prog_release_type == 4 ? (
-    line_y = input_level_2_db_to_graph_y(input_level_threshold_2_db);
+    line_y = db_to_graph_y(input_level_threshold_2_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL_2, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL_2, 
       dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2);
@@ -277,7 +265,7 @@ function draw_threshold_lines_on_graph() (
   
   // Draw transient threshold line if visible
   transient_detection > 0 ? (
-    line_y = transient_db_to_graph_y(transient_threshold_db);
+    line_y = db_to_graph_y(transient_threshold_db);
     set_threshold_line_color(THRESHOLD_TRANSIENT, 
       hovered_threshold_line == THRESHOLD_TRANSIENT, 
       dragging_threshold_line == THRESHOLD_TRANSIENT);
