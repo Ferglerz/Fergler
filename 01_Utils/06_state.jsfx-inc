@@ -280,22 +280,16 @@ function init_state_variables() (
 //==============================================================================
 
 function update_histogram_state(gr_value) (
-  // Early exit optimization: Skip histogram updates when GR processing was skipped
-  gr_processing_skipped ? (
-    // GR processing was skipped - no need to update histogram
-    // This saves CPU when signal is below compression threshold
-    0  // Return 0 (no-op)
-  ) : (
     menu_histogram_buffer_mode > 0.5 ? (
-      // PER-PIXEL BUFFER MODE: Accumulate max GR per pixel for scalability
-      // Each pixel accumulates the max absolute GR value across multiple samples
+      // PER-PIXEL BUFFER MODE: Always advance timeline, accumulate GR when present
       histogram_pixel_initialized ? (
         // Accumulate max GR for current pixel (using absolute value for comparison)
-        abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+        // Only update value if GR processing wasn't skipped AND we have GR
+        !gr_processing_skipped && abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
           histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
         );
         
-        // Advance sample counter
+        // ALWAYS advance sample counter to keep timeline moving
         histogram_pixel_pos += 1;
         
         // When we've accumulated enough samples for this pixel, move to next
@@ -307,8 +301,7 @@ function update_histogram_state(gr_value) (
         );
       );
     ) : (
-      // ORIGINAL MODE: Store block-level max GR value in circular buffer with rate control
-      // Note: smoothing removed - block-level max already provides smooth values
+      // CIRCULAR BUFFER MODE: Store block-level max GR value in circular buffer with rate control
       histogram_initialized ? (
         // Frame rate control - only update every N frames
         histogram_frame_counter += 1;
@@ -328,43 +321,27 @@ function update_histogram_state(gr_value) (
         );
       );
     );
-  );
 );
 
 function update_input_histogram_state(input_level_db) (
-  // Store current input level in dB (post-filter, post-RMS) with rate control and smoothing
+  // Store current input level in dB (post-filter, post-RMS) in circular buffer with rate control and smoothing
   input_histogram_initialized ? (
-    menu_histogram_buffer_mode > 0.5 ? (
-      // PER-PIXEL BUFFER MODE: Accumulate max input level per pixel for scalability
-      // Each pixel accumulates the max input level across multiple samples
-      input_histogram_pixel_initialized ? (
-        // Accumulate max input level for current pixel
-        input_level_db > input_histogram_pixel_buffer[histogram_pixel_idx] ? (
-          input_histogram_pixel_buffer[histogram_pixel_idx] = input_level_db;
-        );
-        
-        // Note: We use the same pixel timing as GR histogram for synchronization
-        // The pixel advancement is handled by update_histogram_state()
+    // Frame rate control - only update every N frames
+    input_histogram_frame_counter += 1;
+    (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      input_histogram_frame_counter = 0;
+      
+      // Apply smoothing if enabled
+      smoothed_level = HISTOGRAM_SMOOTHING ? (
+        // Simple exponential smoothing: 70% new value, 30% previous
+        0.7 * input_level_db + 0.3 * input_histogram_prev_level
+      ) : (
+        input_level_db
       );
-    ) : (
-      // CIRCULAR BUFFER MODE: Store input level in circular buffer with rate control and smoothing
-      // Frame rate control - only update every N frames
-      input_histogram_frame_counter += 1;
-      (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-        input_histogram_frame_counter = 0;
-        
-        // Apply smoothing if enabled
-        smoothed_level = HISTOGRAM_SMOOTHING ? (
-          // Simple exponential smoothing: 70% new value, 30% previous
-          0.7 * input_level_db + 0.3 * input_histogram_prev_level
-        ) : (
-          input_level_db
-        );
-        
-        input_histogram_buffer[input_histogram_pos] = smoothed_level;
-        input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
-        input_histogram_prev_level = smoothed_level;
-      );
+      
+      input_histogram_buffer[input_histogram_pos] = smoothed_level;
+      input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
+      input_histogram_prev_level = smoothed_level;
     );
   );
 );
