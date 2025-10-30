@@ -221,12 +221,6 @@ function draw_level_indicators() (
     input_x = db_to_graph_x(current_input_db);
     input_y_on_unity = db_to_graph_y(current_input_db);
     draw_indicator_circle(input_x, input_y_on_unity, 4, 0, 1, 0, 0.8, 1);
-
-    // Draw output level dot on compression curve (red)
-    // Apply offset to input to match what the compressor actually sees
-    offset_input_db = current_input_db + global_offset_db;
-    input_y_on_curve = db_to_graph_y(interpolate_compression_curve(offset_input_db));
-    draw_indicator_circle(input_x, input_y_on_curve, 4, 1, 0, 0, 0.8, 1);
   );
 );
 
