@@ -245,6 +245,13 @@ function draw_indicator_circle(x, y, radius, r, g, b, alpha, filled) (
   gfx_circle(x, y, radius, filled, 1); 
 );
 
+// Draw formatted text at position with color
+function draw_text_at(r, g, b, a, x, y, format_str, value) (
+  gfx_set(r, g, b, a);
+  gfx_x = x;
+  gfx_y = y;
+  gfx_printf(format_str, value);
+);
 
 function draw_curve_segment(end_x, end_y, is_first_point) (
   is_first_point ? (

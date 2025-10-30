@@ -91,14 +91,9 @@ function draw_cached_mixed_curves() (
     x2 = curve_cache_points[i*4 + 2];
     y2 = curve_cache_points[i*4 + 3];
     
-    // Draw line segment
-    i == 0 ? (
-      gfx_x = x1;
-      gfx_y = y1;
-    ) : (
-      gfx_x = x1;
-      gfx_y = y1;
-    );
+    // Draw line segment (set position once, then draw line)
+    gfx_x = x1;
+    gfx_y = y1;
     gfx_lineto(x2, y2, 1);
     
     i += 1;
@@ -110,28 +105,37 @@ function draw_debug_invisible_points(point_index, curve_factor) (
   menu_debug_enabled ? (
     gfx_set(1, 0, 0, 0.8); // Red debug circles
     
+    // Cache current point coordinates (reduces array access)
+    point_x_db = graph_points[point_index*2];
+    point_y_db = graph_points[point_index*2 + 1];
+    prev_x_db = graph_points[(point_index-1)*2];
+    prev_y_db = graph_points[(point_index-1)*2 + 1];
+    next_x_db = graph_points[(point_index+1)*2];
+    next_y_db = graph_points[(point_index+1)*2 + 1];
+    
     // Invisible point toward previous neighbor
-    invisible1_x = graph_points[point_index*2] + (graph_points[(point_index-1)*2] - graph_points[point_index*2]) * curve_factor;
-    invisible1_y = graph_points[point_index*2 + 1] + (graph_points[(point_index-1)*2 + 1] - graph_points[point_index*2 + 1]) * curve_factor;
+    invisible1_x = point_x_db + (prev_x_db - point_x_db) * curve_factor;
+    invisible1_y = point_y_db + (prev_y_db - point_y_db) * curve_factor;
     invisible1_screen_x = db_to_graph_x(invisible1_x);
     invisible1_screen_y = db_to_graph_y(invisible1_y);
     gfx_circle(invisible1_screen_x, invisible1_screen_y, 1.5, 1, 1); // 3px diameter
     
     // Invisible point toward next neighbor
-    invisible2_x = graph_points[point_index*2] + (graph_points[(point_index+1)*2] - graph_points[point_index*2]) * curve_factor;
-    invisible2_y = graph_points[point_index*2 + 1] + (graph_points[(point_index+1)*2 + 1] - graph_points[point_index*2 + 1]) * curve_factor;
+    invisible2_x = point_x_db + (next_x_db - point_x_db) * curve_factor;
+    invisible2_y = point_y_db + (next_y_db - point_y_db) * curve_factor;
     invisible2_screen_x = db_to_graph_x(invisible2_x);
     invisible2_screen_y = db_to_graph_y(invisible2_y);
     gfx_circle(invisible2_screen_x, invisible2_screen_y, 1.5, 1, 1); // 3px diameter
   );
 );
 
+
 function draw_mixed_curves() (
   // Debug counter: track curve rendering
   debug_counter_ui_curves += 1;
   
   // Choose which curve to render based on debug mode
-  menu_debug_enabled > 0.5 ? (
+  menu_debug_enabled ? (
     // DEBUG MODE: Show compression LUT data (actual audio processing curve)
     draw_compression_lut_curve();
   ) : (
@@ -157,8 +161,12 @@ function draw_graph_points() (
   // Skip corner points (indices 0 and num_points-1) - they are invisible
   i = 1;
   while (i < num_points - 1) (
-    point_x = db_to_graph_x(graph_points[i*2]);
-    point_y = db_to_graph_y(graph_points[i*2 + 1]);
+    // Cache array access and coordinate conversions
+    point_index_base = i * 2;
+    input_db = graph_points[point_index_base];
+    output_db = graph_points[point_index_base + 1];
+    point_x = db_to_graph_x(input_db);
+    point_y = db_to_graph_y(output_db);
     is_hovered = (i == hovered_point);
     is_dragging = (i == dragging_point);
     curve_amount = get_curve_amount(i);
@@ -183,29 +191,19 @@ function draw_graph_points() (
     
     // Show dB values when dragging a point
     is_dragging && mouse_down ? (
-      input_db = graph_points[i*2];
-      output_db = graph_points[i*2 + 1];
+      // Use cached values (already calculated above)
       text_x = point_x + 15; // Position text to the right of the point
       text_y = point_y; // Center vertically with the point
       
       // Draw distance from 1:1 line (compression amount)
-      gfx_set(1, 1, 1, 1);
-      gfx_x = text_x;
-      gfx_y = text_y - 4;
-      gfx_printf("%.1f dB", output_db - input_db);
+      draw_text_at(1, 1, 1, 1, text_x, text_y - 4, "%.1f dB", output_db - input_db);
       
       // Draw total output dB value in light yellow (like the curve line)
-      gfx_set(1, 1, 0.6, 1);
-      gfx_x = text_x;
-      gfx_y = text_y + 8;
-      gfx_printf("%.1f dB", output_db);
+      draw_text_at(1, 1, 0.6, 1, text_x, text_y + 8, "%.1f dB", output_db);
       
       // Show curve amount if curved (moved down to make room)
       is_curved ? (
-        gfx_set(1, 1, 1, 1);
-        gfx_x = text_x;
-        gfx_y = text_y + 20;
-        gfx_printf("Curve: %.0f%%", curve_amount);
+        draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
       );
     );
     
@@ -225,6 +223,9 @@ function draw_level_indicators() (
 );
 
 function draw_threshold_lines_on_graph() (
+  // Cache graph boundary (used multiple times)
+  graph_right = GRAPH_X + GRAPH_SIZE;
+  
   // Draw input level threshold line if visible
   prog_release_type == 1 || prog_release_type == 4 ? (
     line_y = db_to_graph_y(input_level_threshold_db);
@@ -233,7 +234,7 @@ function draw_threshold_lines_on_graph() (
       dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
     
     // Draw line across graph
-    gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
+    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
     
     // Draw label
     gfx_x = GRAPH_X + 5;
@@ -249,7 +250,7 @@ function draw_threshold_lines_on_graph() (
       dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2);
     
     // Draw line across graph (dashed style to differentiate)
-    gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
+    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
     
     // Draw label
     gfx_x = GRAPH_X + 5;
@@ -265,10 +266,10 @@ function draw_threshold_lines_on_graph() (
       dragging_threshold_line == THRESHOLD_TRANSIENT);
     
     // Draw line across graph
-    gfx_line(GRAPH_X, line_y, GRAPH_X + GRAPH_SIZE, line_y, 1);
+    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
     
     // Draw label
-    gfx_x = GRAPH_X + GRAPH_SIZE - 110;
+    gfx_x = graph_right - 110;
     gfx_y = line_y - 15;
     gfx_printf("Transient: %.1f dB", transient_threshold_db);
   );
