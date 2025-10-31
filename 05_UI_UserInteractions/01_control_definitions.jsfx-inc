@@ -180,6 +180,9 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row += 1;
   // Transient with percent suffix
   define_slider(10, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 29, get_slider_min(29), get_slider_max(29), "Transient", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
+  row += 1;
+  // Input Dot Blend with percent suffix
+  define_slider(25, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 34, get_slider_min(34), get_slider_max(34), "Dot Blend", create_horizontal_slider(DISPLAY_PERCENT, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0));
   
   //==============================================================================
   // GROUP 2: COMPRESSION

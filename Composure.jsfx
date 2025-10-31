@@ -65,6 +65,9 @@ slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 // Time multiplier for attack display (33)
 slider33:time_multiplier=1<0,2,1{Milliseconds,Microseconds,Seconds}>-Time Unit
 
+// Input dot blend (34)
+slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
+
 // SEARCH STOP
 
 //==============================================================================
@@ -429,6 +432,19 @@ MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
 current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+
+// Get latest input histogram value (if available)
+input_histogram_db = current_input_db;  // Default to current input if histogram not available
+INPUT_HISTOGRAM_ENABLED && input_histogram_initialized ? (
+  // Get the most recent value from the input histogram buffer
+  // buffer_pos points to the next write position, so most recent is (pos - 1) wrapped
+  latest_idx = (input_histogram_pos - 1 + input_histogram_max_samples) % input_histogram_max_samples;
+  input_histogram_db = input_histogram_buffer[latest_idx];
+);
+
+// Calculate blended input dB value based on slider
+blend_amount = input_dot_blend / 100.0;  // Convert 0-100 to 0-1
+blended_input_db = current_input_db * (1.0 - blend_amount) + input_histogram_db * blend_amount;
 
 // OPTIMIZATION: Cache audio active state (play_state 1=playing, 5=recording)
 // This avoids recalculating it 3+ times per frame across different render functions

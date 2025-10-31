@@ -37,9 +37,9 @@ function render_complete_interface() (
   draw_mixed_curves();                // 05h
   draw_graph_points();                // 05h
   update_and_render_trail_dots();     // 05l - Trail dots (faded green dots)
-  // Draw input level indicator (green dot on unity line)
+  // Draw input level indicator (green dot on unity line) - uses blended input dB
   is_audio_active ? (
-    draw_indicator_circle(db_to_graph_x(current_input_db), db_to_graph_y(current_input_db), 4, 0, 1, 0, 0.8, 1);
+    draw_indicator_circle(db_to_graph_x(blended_input_db), db_to_graph_y(blended_input_db), 4, 0, 1, 0, 0.8, 1);
   );
   draw_threshold_lines_on_graph();    // 05h
   

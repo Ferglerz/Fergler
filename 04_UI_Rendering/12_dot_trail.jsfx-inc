@@ -11,9 +11,9 @@
 // Create a new trail dot at the current input level position
 function create_trail_dot() (
   trail_initialized && trail_count < trail_max_dots ? (
-    // Calculate current position in graph coordinates
-    input_x = db_to_graph_x(current_input_db);
-    input_y = db_to_graph_y(current_input_db);
+    // Calculate current position in graph coordinates - uses blended input dB
+    input_x = db_to_graph_x(blended_input_db);
+    input_y = db_to_graph_y(blended_input_db);
     
     // Store dot data: [x, y, age, max_age]
     trail_buffer[trail_write_pos * 4 + 0] = input_x;
