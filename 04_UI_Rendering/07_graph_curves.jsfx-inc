@@ -13,25 +13,12 @@ lut_viz_cache_points = 0;
 lut_viz_cache_size = 0;
 
 //==============================================================================
-// COORDINATE CONVERSION FUNCTIONS
+// CURVE RENDERING
 //==============================================================================
 
 // OPTIMIZATION: Removed middleman wrapper functions (input_level_db_to_graph_y,
-// input_level_2_db_to_graph_y, transient_db_to_graph_y) - now call db_to_graph_y directly
-
-// Helper functions for converting linear audio levels to graph coordinates
-// Note: These perform necessary conversions (linear → dB → pixel) - not redundant
-function input_level_linear_to_graph_y(linear) (
-  db_to_graph_y(linear_to_db(max(linear, MIN_DETECTOR_LEVEL)));
-);
-
-function input_level_linear_to_graph_x(linear) (
-  db_to_graph_x(linear_to_db(max(linear, MIN_DETECTOR_LEVEL)));
-);
-
-//==============================================================================
-// CURVE RENDERING
-//==============================================================================
+// input_level_2_db_to_graph_y, transient_db_to_graph_y, input_level_linear_to_graph_y/x)
+// - now call db_to_graph_y/x directly
 
 // Draw curve directly from compression lookup table
 // This visualizes the actual PRE-COMPUTED data used for audio processing
@@ -211,16 +198,6 @@ function draw_graph_points() (
   );
 );
 
-function draw_level_indicators() (
-  // OPTIMIZATION: Use pre-calculated is_audio_active from @gfx (cached once per frame)
-  // Only show level indicators when audio is active
-  is_audio_active ? (
-    // Draw input level dot on unity line (green)
-    input_x = db_to_graph_x(current_input_db);
-    input_y_on_unity = db_to_graph_y(current_input_db);
-    draw_indicator_circle(input_x, input_y_on_unity, 4, 0, 1, 0, 0.8, 1);
-  );
-);
 
 function draw_threshold_lines_on_graph() (
   // Cache graph boundary (used multiple times)

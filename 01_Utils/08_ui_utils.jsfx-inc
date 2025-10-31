@@ -23,14 +23,6 @@ function get_slider_increment(control_index) (
   get_slider_property(control_index, 0);
 );
 
-function get_slider_fill_direction(control_index) (
-  get_slider_property(control_index, 1);
-);
-
-function get_slider_format_as_frequency(control_index) (
-  get_slider_property(control_index, 2) > 0;
-);
-
 
 //==============================================================================
 // BASIC UI UTILITIES
@@ -175,18 +167,10 @@ function set_slider_increment(control_index, increment) (
   set_slider_property(control_index, 0, increment);
 );
 
-function set_slider_fill_direction(control_index, direction) (
-  set_slider_property(control_index, 1, direction);
-);
-
-function set_slider_format_as_frequency(control_index, format_freq) (
-  set_slider_property(control_index, 2, format_freq ? 1 : 0);
-);
-
 // Format value for display based on slider properties
 function format_slider_value(control_index, value) local(increment, format_freq, rounded_value) (
   increment = get_slider_increment(control_index);
-  format_freq = get_slider_format_as_frequency(control_index);
+  format_freq = get_slider_property(control_index, 2) > 0;
   
   // Apply rounding if increment is specified
   increment > 0 ? (
@@ -251,15 +235,6 @@ function draw_text_at(r, g, b, a, x, y, format_str, value) (
   gfx_x = x;
   gfx_y = y;
   gfx_printf(format_str, value);
-);
-
-function draw_curve_segment(end_x, end_y, is_first_point) (
-  is_first_point ? (
-    gfx_x = end_x;
-    gfx_y = end_y;
-  ) : (
-    gfx_lineto(end_x, end_y, 1); 
-  );
 );
 
 //==============================================================================
