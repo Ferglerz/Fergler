@@ -117,7 +117,7 @@ function draw_debug_invisible_points(point_index, curve_factor) (
 );
 
 
-function draw_mixed_curves() (
+function draw_mixed_curves() local(i) (
   // Debug counter: track curve rendering
   debug_counter_ui_curves += 1;
   
@@ -127,7 +127,28 @@ function draw_mixed_curves() (
     draw_compression_lut_curve();
   ) : (
     // NORMAL MODE: Show UI cached curve (optimized rendering version)
-    draw_cached_mixed_curves();
+    // OPTIMIZATION: Inlined draw_cached_mixed_curves() logic to reduce call depth
+    // Ensure curve is cached
+    cache_curve_if_needed();
+    
+    // Draw all cached line segments
+    gfx_set(1, 0.8, 0.2, 1); // Yellow/Orange curve color
+    
+    i = 0;
+    while (i < curve_cache_size) (
+      // Get cached line segment
+      x1 = curve_cache_points[i*4 + 0];
+      y1 = curve_cache_points[i*4 + 1];
+      x2 = curve_cache_points[i*4 + 2];
+      y2 = curve_cache_points[i*4 + 3];
+      
+      // Draw line segment (set position once, then draw line)
+      gfx_x = x1;
+      gfx_y = y1;
+      gfx_lineto(x2, y2, 1);
+      
+      i += 1;
+    );
   );
   
   // Draw debug visualization if enabled
