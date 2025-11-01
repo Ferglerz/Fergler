@@ -298,11 +298,57 @@ function render_all_groups() (
   );
 );
 
-function render_custom_ui_controls() (
-  // Draw all controls
+function render_custom_ui_controls() local(
+  i, group_idx, type, x, y, w, h, param_index, min_val, max_val, slider_config,
+  slider_orientation, display_mode, fill_direction, formatting, format_options, current_value
+) (
+  // Draw all controls - OPTIMIZATION: Inlined render_control() logic to reduce call depth
   i = 0;
   while (i < NUM_CONTROLS) (
-    render_control(i);
+    type = control_defs[i*11 + 0];
+    x = control_defs[i*11 + 1];
+    y = control_defs[i*11 + 2];
+    w = control_defs[i*11 + 3];
+    h = control_defs[i*11 + 4];
+    param_index = control_defs[i*11 + 5];
+    min_val = control_defs[i*11 + 6];
+    max_val = control_defs[i*11 + 7];
+    group_idx = control_defs[i*11 + 10];
+
+    // Add group offset if control is in a group
+    group_idx >= 0 ? (
+      x += group_defs[group_idx*6 + 0];
+      y += group_defs[group_idx*6 + 1];
+    );
+
+    // Get current parameter value
+    current_value = slider(param_index);
+
+    // Handle different control types
+    type == 0 ? ( // Slider or knob - extract config and call renderer directly
+      slider_config = control_defs[i*11 + 8];
+      
+      // Extract configuration parameters
+      slider_orientation = slider_config & 0xFF;             // Bits 0-7: slider orientation
+      display_mode = (slider_config >> 8) & 0xFF;           // Bits 8-15: display mode
+      fill_direction = (slider_config >> 16) & 0xFF;        // Bits 16-23: fill direction
+      formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting
+      format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options
+      
+      // Call appropriate renderer directly
+      is_knob_orientation(slider_orientation) ? (
+        draw_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, display_mode, formatting, format_options);
+      ) : (
+        draw_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, display_mode, fill_direction, formatting, format_options);
+      );
+    ) : type == 1 ? ( // Button
+      draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index));
+    ) : type == 2 ? ( // Dropdown
+      draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index);
+    ) : (
+      0; // Unknown control type
+    );
+    
     i += 1;
   );
 );
