@@ -16,9 +16,6 @@ function render_complete_interface() (
   // Draw header elements
   draw_header();
   setup_header_controls();
-
-  // Draw main UI panel background
-  draw_ui_panel_background();
   
   // Draw all group backgrounds and titles
   render_all_groups();
@@ -55,7 +52,7 @@ function render_complete_interface() (
   // Draw custom menu (after graph elements to appear on top)
   draw_custom_menu();
   
-  // Draw debug performance counters (always visible during development)
+  // Draw debug performance counters (only visible when debug mode is enabled)
   draw_debug_performance_counters();
 
   // Handle all user interactions

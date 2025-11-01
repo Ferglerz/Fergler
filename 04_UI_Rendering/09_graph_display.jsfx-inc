@@ -50,22 +50,25 @@ function draw_labels_and_info() (
 function draw_compression_threshold_overlay() (
   // Display the current compression threshold in red text over the graph
   // This shows the early-exit optimization threshold from calculate_gain_reduction_from_db()
+  // Only shown when debug mode is enabled
   
-  gfx_set(1.0, 0.2, 0.2, 0.9); // Bright red with slight transparency
-  gfx_setfont(1, "Arial", 11); // Match standard UI font size
-  
-  // Position in top-right area of graph, below the points counter
-  gfx_x = GRAPH_X + GRAPH_SIZE - 130;
-  gfx_y = GRAPH_Y + 9;
-  
-  // Show threshold value and debug info
-  gfx_printf("Threshold: %.1f dB", comp_curve_min_threshold_db);
-  
-  // Debug: Show current input and skip state
-  gfx_x = GRAPH_X + GRAPH_SIZE - 130;
-  gfx_y = GRAPH_Y + 24;
-  gfx_set(0.8, 0.8, 0.8, 0.7);
-  gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
+  menu_debug_enabled ? (
+    gfx_set(1.0, 0.2, 0.2, 0.9); // Bright red with slight transparency
+    gfx_setfont(1, "Arial", 11); // Match standard UI font size
+    
+    // Position in top-right area of graph, below the points counter
+    gfx_x = GRAPH_X + GRAPH_SIZE - 130;
+    gfx_y = GRAPH_Y + 9;
+    
+    // Show threshold value and debug info
+    gfx_printf("Threshold: %.1f dB", comp_curve_min_threshold_db);
+    
+    // Debug: Show current input and skip state
+    gfx_x = GRAPH_X + GRAPH_SIZE - 130;
+    gfx_y = GRAPH_Y + 24;
+    gfx_set(0.8, 0.8, 0.8, 0.7);
+    gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
+  );
 );
 
 //==============================================================================

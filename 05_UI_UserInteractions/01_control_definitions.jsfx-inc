@@ -234,9 +234,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   set_slider_increment(16, 10);
   
   //==============================================================================
-  // GROUP 3: HARMONICS
+  // GROUP 3: HARMONICS (positioned to the right of graph and meter)
   //==============================================================================
-  group_x += group_w + group_spacing;
+  // Calculate position: graph right edge + meter width + indicator + spacing
+  // Indicator radius is 5, with 1px border = 6px total from center
+  group_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8 + 6 + 15;  // graph + meter + indicator + spacing
   group_w = 150;  // Increased from 125
   group_h = GRAPH_SIZE;  // Match graph height
   define_group(3, group_x, group_y, group_w, group_h, 1, "HARMONICS");

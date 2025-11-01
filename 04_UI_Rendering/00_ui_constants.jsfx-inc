@@ -54,7 +54,7 @@ UI_PANEL_W = 600;  // 800 * 0.75
 UI_PANEL_H = 263;  // 350 * 0.75 = 262.5 rounded up
 
 // Graph layout constants (now on RIGHT side, after panel)
-GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85;  // After panel + gap (moved right 40px)
+GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85 - 150;  // After panel + gap - offset for harmonics
 GRAPH_Y = UI_PANEL_Y + 15;  // Aligned with panel (moved down 15px)
 GRAPH_SIZE = 263;  // 350 * 0.75 = 262.5 rounded up
 
@@ -229,4 +229,30 @@ OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
 function create_ui_control(orientation, display_mode, fill_direction, formatting, format_options) (
   orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
 );
+
+//==============================================================================
+// DEBUG PANEL LAYOUT CONSTANTS
+//==============================================================================
+
+// Debug panel column positions
+DEBUG_PANEL_RIGHT_COLUMN_X = 573;  // Right stack: UI, Math, Program Release (moved 100px left)
+DEBUG_PANEL_LEFT_COLUMN_X = 820;   // Left stack: Detection, Envelope, Effects (moved 100px left)
+
+// Debug panel dimensions
+DEBUG_PANEL_WIDTH = 200;
+DEBUG_PANEL_LINE_HEIGHT = 16;
+DEBUG_PANEL_TITLE_HEIGHT = 28;
+DEBUG_PANEL_PADDING_X = 10;  // Horizontal padding for title
+DEBUG_PANEL_PADDING_Y = 8;   // Vertical padding for title
+DEBUG_PANEL_TEXT_OFFSET_X = 8;  // Text start offset from panel edge
+DEBUG_PANEL_VALUE_OFFSET_X = 70;  // Value offset from right edge
+DEBUG_PANEL_GAP_Y = 10;  // Vertical gap between panels
+
+// Debug panel colors
+DEBUG_PANEL_BG_R = 0.1; DEBUG_PANEL_BG_G = 0.1; DEBUG_PANEL_BG_B = 0.1; DEBUG_PANEL_BG_A = 0.85;
+DEBUG_PANEL_BORDER_R = 0.6; DEBUG_PANEL_BORDER_G = 0.6; DEBUG_PANEL_BORDER_B = 0.6;
+DEBUG_PANEL_TEXT_R = 0.9; DEBUG_PANEL_TEXT_G = 0.9; DEBUG_PANEL_TEXT_B = 0.9;
+
+// Debug panel start position
+DEBUG_PANEL_START_Y = 390;
 

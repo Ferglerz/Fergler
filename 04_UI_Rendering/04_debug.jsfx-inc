@@ -8,310 +8,133 @@
 // DEBUG PERFORMANCE COUNTERS RENDERING
 //==============================================================================
 
-function draw_debug_performance_counters() (
-  // Vertical stacked layout with proper categorization
-  line_height = 16;
-  panel_width = 200;
-  panel_gap_x = 15;
-  panel_gap_y = 10;
-  start_x = 50;
-  start_y = 390;
-  
-  // === RIGHT STACK: UI, MATH, PROGRAM RELEASE ===
-  // Position moved left to make room: GRAPH_X (695) + GRAPH_SIZE (263) + gap (15) = 973
-  right_stack_x = 973;
-  
-  // --- UI Functions Panel ---
-  ui_panel_x = right_stack_x;
-  ui_panel_y = start_y;
-  ui_panel_w = 200;
-  ui_panel_h = 28 + (4 * line_height); // Title + 4 functions
-  
+// Helper function: Draw a debug panel box (background and border)
+function draw_debug_panel_box(x, y, w, h) (
   // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(ui_panel_x, ui_panel_y, ui_panel_w, ui_panel_h, 1);
+  gfx_set(DEBUG_PANEL_BG_R, DEBUG_PANEL_BG_G, DEBUG_PANEL_BG_B, DEBUG_PANEL_BG_A);
+  gfx_rect(x, y, w, h, 1);
   
   // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(ui_panel_x, ui_panel_y, ui_panel_w, ui_panel_h, 0);
+  gfx_set(DEBUG_PANEL_BORDER_R, DEBUG_PANEL_BORDER_G, DEBUG_PANEL_BORDER_B, 1);
+  gfx_rect(x, y, w, h, 0);
+);
+
+// Helper function: Draw a debug panel title
+function draw_debug_panel_title(x, y, title, title_r, title_g, title_b) (
+  gfx_set(title_r, title_g, title_b, 1);
+  gfx_x = x + DEBUG_PANEL_PADDING_X;
+  gfx_y = y + DEBUG_PANEL_PADDING_Y;
+  gfx_drawstr(title);
+);
+
+// Helper function: Draw a single function entry with name and value
+function draw_debug_function_entry(x, y, name, value) (
+  gfx_set(DEBUG_PANEL_TEXT_R, DEBUG_PANEL_TEXT_G, DEBUG_PANEL_TEXT_B, 1);
+  gfx_x = x + DEBUG_PANEL_TEXT_OFFSET_X;
+  gfx_y = y;
+  gfx_drawstr(name);
+  gfx_x = x + DEBUG_PANEL_WIDTH - DEBUG_PANEL_VALUE_OFFSET_X;
+  gfx_y = y;
+  gfx_printf("%d", value);
+);
+
+// Helper function: Draw a complete debug panel
+// Parameters:
+//   x, y: Panel position
+//   title: Panel title string
+//   title_r, title_g, title_b: Title color
+//   num_functions: Number of function entries
+// Returns: Panel height
+function draw_debug_panel_start(x, y, title, title_r, title_g, title_b, num_functions) local(panel_h) (
+  // Calculate panel height
+  panel_h = DEBUG_PANEL_TITLE_HEIGHT + (num_functions * DEBUG_PANEL_LINE_HEIGHT);
   
-  // Title
-  gfx_set(1.0, 0.8, 0.5, 1); // Orange
-  gfx_x = ui_panel_x + 10;
-  gfx_y = ui_panel_y + 8;
-  gfx_drawstr("UI Rendering");
+  // Draw panel box
+  draw_debug_panel_box(x, y, DEBUG_PANEL_WIDTH, panel_h);
   
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = ui_panel_x + 8;
-  text_y = ui_panel_y + 28;
+  // Draw title
+  draw_debug_panel_title(x, y, title, title_r, title_g, title_b);
   
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("curves()");
-  gfx_x = ui_panel_x + ui_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_ui_curves);
+  // Return panel height and starting Y position for entries
+  panel_h;
+);
+
+function draw_debug_performance_counters() local(current_y, panel_h, text_y, right_max_y, left_max_y) (
+  // Initialize max Y position (used by debug log positioning)
+  debug_boxes_max_y = 0;
   
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("histogram()");
-  gfx_x = ui_panel_x + ui_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_ui_histogram);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("graph_bg()");
-  gfx_x = ui_panel_x + ui_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_graph_bg);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("grid()");
-  gfx_x = ui_panel_x + ui_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_grid);
-  
-  // --- Math Conversions Panel ---
-  math_panel_x = right_stack_x;
-  math_panel_y = ui_panel_y + ui_panel_h + panel_gap_y;
-  math_panel_w = 200;
-  math_panel_h = 28 + (3 * line_height); // Title + 3 functions
-  
-  // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(math_panel_x, math_panel_y, math_panel_w, math_panel_h, 1);
-  
-  // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(math_panel_x, math_panel_y, math_panel_w, math_panel_h, 0);
-  
-  // Title
-  gfx_set(0.5, 1.0, 0.5, 1); // Green
-  gfx_x = math_panel_x + 10;
-  gfx_y = math_panel_y + 8;
-  gfx_drawstr("Math Utils");
-  
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = math_panel_x + 8;
-  text_y = math_panel_y + 28;
-  
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("clamp()");
-  gfx_x = math_panel_x + math_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_clamp);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("db_to_linear()");
-  gfx_x = math_panel_x + math_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_db_to_linear);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("linear_to_db()");
-  gfx_x = math_panel_x + math_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_linear_to_db);
-  
-  // --- Program Release Panel ---
-  prog_panel_x = right_stack_x;
-  prog_panel_y = math_panel_y + math_panel_h + panel_gap_y;
-  prog_panel_w = 200;
-  prog_panel_h = 28 + (2 * line_height); // Title + 2 functions (reduced from 3)
-  
-  // Background
-  gfx_set(0.1, 0.1, 0.1, 0.85);
-  gfx_rect(prog_panel_x, prog_panel_y, prog_panel_w, prog_panel_h, 1);
-  
-  // Border
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_rect(prog_panel_x, prog_panel_y, prog_panel_w, prog_panel_h, 0);
-  
-  // Title
-  gfx_set(1.0, 0.5, 1.0, 1); // Magenta
-  gfx_x = prog_panel_x + 10;
-  gfx_y = prog_panel_y + 8;
-  gfx_drawstr("Prog Release");
-  
-  // Functions
-  gfx_set(0.9, 0.9, 0.9, 1);
-  text_x = prog_panel_x + 8;
-  text_y = prog_panel_y + 28;
-  
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("prog_release()");
-  gfx_x = prog_panel_x + prog_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_prog_release);
-  
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("single_env()");
-  gfx_x = prog_panel_x + prog_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_single_envelope);
-  
-  // === AUDIO PROCESSING COLUMNS (3 categories, 3 functions each) ===
-  // Only show when debug is enabled
+  // Only render when debug is enabled
   menu_debug_enabled ? (
-    // --- COLUMN 1: Detection & Analysis ---
-    // Position moved left to make room
-    detect_panel_x = 715;
-    detect_panel_y = start_y;
-    detect_panel_w = 200;
-    detect_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    // === FIRST COLUMN: RIGHT STACK ===
+    // Three panels stacked vertically: UI Rendering, Math Utils, Prog Release
+    current_y = DEBUG_PANEL_START_Y;
     
-    // Background
-    gfx_set(0.1, 0.1, 0.1, 0.85);
-    gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 1);
+    // --- Row 1: UI Functions Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_RIGHT_COLUMN_X, current_y, "UI Rendering", 1.0, 0.8, 0.5, 4);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "curves()", debug_display_ui_curves);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "histogram()", debug_display_ui_histogram);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "graph_bg()", debug_display_graph_bg);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "grid()", debug_display_grid);
+    current_y += panel_h + DEBUG_PANEL_GAP_Y;
     
-    // Border
-    gfx_set(0.6, 0.6, 0.6, 1);
-    gfx_rect(detect_panel_x, detect_panel_y, detect_panel_w, detect_panel_h, 0);
+    // --- Row 2: Math Conversions Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_RIGHT_COLUMN_X, current_y, "Math Utils", 0.5, 1.0, 0.5, 3);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "clamp()", debug_display_clamp);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "db_to_linear()", debug_display_db_to_linear);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "linear_to_db()", debug_display_linear_to_db);
+    current_y += panel_h + DEBUG_PANEL_GAP_Y;
     
-    // Title
-    gfx_set(0.5, 0.8, 1.0, 1); // Light blue
-    gfx_x = detect_panel_x + 10;
-    gfx_y = detect_panel_y + 8;
-    gfx_drawstr("Detection");
+    // --- Row 3: Program Release Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_RIGHT_COLUMN_X, current_y, "Prog Release", 1.0, 0.5, 1.0, 2);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "prog_release()", debug_display_prog_release);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "single_env()", debug_display_single_envelope);
+    right_max_y = current_y + panel_h;
     
-    // Functions
-    gfx_set(0.9, 0.9, 0.9, 1);
-    text_x = detect_panel_x + 8;
-    text_y = detect_panel_y + 28;
+    // === SECOND COLUMN: LEFT STACK ===
+    // Three panels stacked vertically: Detection, Envelope, Effects
+    current_y = DEBUG_PANEL_START_Y;
     
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("gain_red()");
-    gfx_x = detect_panel_x + detect_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_gain_reduction);
+    // --- Row 1: Detection & Analysis Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_LEFT_COLUMN_X, current_y, "Detection", 0.5, 0.8, 1.0, 3);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "gain_red()", debug_display_gain_reduction);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "curve_interp()", debug_display_curve_interp);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "lut_lookup()", debug_display_lut_lookup);
+    current_y += panel_h + DEBUG_PANEL_GAP_Y;
     
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("curve_interp()");
-    gfx_x = detect_panel_x + detect_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_curve_interp);
+    // --- Row 2: Envelope & Dynamics Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_LEFT_COLUMN_X, current_y, "Envelope", 0.8, 0.5, 1.0, 3);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "envelope()", debug_display_envelope);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "min_env()", debug_display_min_envelope);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "audio_chain()", debug_display_audio_chain);
+    current_y += panel_h + DEBUG_PANEL_GAP_Y;
     
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("lut_lookup()");
-    gfx_x = detect_panel_x + detect_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_lut_lookup);
-  
-    // --- COLUMN 2: Envelope & Dynamics ---
-    env_panel_x = 715;
-    env_panel_y = detect_panel_y + detect_panel_h + panel_gap_y;
-    env_panel_w = 200;
-    env_panel_h = 28 + (3 * line_height); // Title + 3 functions
+    // --- Row 3: Effects & Output Panel ---
+    panel_h = draw_debug_panel_start(DEBUG_PANEL_LEFT_COLUMN_X, current_y, "Effects", 1.0, 0.6, 0.3, 3);
+    text_y = current_y + DEBUG_PANEL_TITLE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "harmonics()", debug_display_harmonics);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "lookahead()", debug_display_lookahead);
+    text_y += DEBUG_PANEL_LINE_HEIGHT;
+    draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "limiter()", debug_display_limiter);
+    left_max_y = current_y + panel_h;
     
-    // Background
-    gfx_set(0.1, 0.1, 0.1, 0.85);
-    gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 1);
-    
-    // Border
-    gfx_set(0.6, 0.6, 0.6, 1);
-    gfx_rect(env_panel_x, env_panel_y, env_panel_w, env_panel_h, 0);
-    
-    // Title
-    gfx_set(0.8, 0.5, 1.0, 1); // Purple
-    gfx_x = env_panel_x + 10;
-    gfx_y = env_panel_y + 8;
-    gfx_drawstr("Envelope");
-    
-    // Functions
-    gfx_set(0.9, 0.9, 0.9, 1);
-    text_x = env_panel_x + 8;
-    text_y = env_panel_y + 28;
-    
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("envelope()");
-    gfx_x = env_panel_x + env_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_envelope);
-    
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("min_env()");
-    gfx_x = env_panel_x + env_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_min_envelope);
-    
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("audio_chain()");
-    gfx_x = env_panel_x + env_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_audio_chain);
-  
-    // --- COLUMN 3: Effects & Output ---
-    fx_panel_x = 715;
-    fx_panel_y = env_panel_y + env_panel_h + panel_gap_y;
-    fx_panel_w = 200;
-    fx_panel_h = 28 + (3 * line_height); // Title + 3 functions
-    
-    // Background
-    gfx_set(0.1, 0.1, 0.1, 0.85);
-    gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 1);
-    
-    // Border
-    gfx_set(0.6, 0.6, 0.6, 1);
-    gfx_rect(fx_panel_x, fx_panel_y, fx_panel_w, fx_panel_h, 0);
-    
-    // Title
-    gfx_set(1.0, 0.6, 0.3, 1); // Orange-red
-    gfx_x = fx_panel_x + 10;
-    gfx_y = fx_panel_y + 8;
-    gfx_drawstr("Effects");
-    
-    // Functions
-    gfx_set(0.9, 0.9, 0.9, 1);
-    text_x = fx_panel_x + 8;
-    text_y = fx_panel_y + 28;
-    
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("harmonics()");
-    gfx_x = fx_panel_x + fx_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_harmonics);
-    
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("lookahead()");
-    gfx_x = fx_panel_x + fx_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_lookahead);
-    
-    text_y += line_height;
-    gfx_x = text_x;
-    gfx_y = text_y;
-    gfx_drawstr("limiter()");
-    gfx_x = fx_panel_x + fx_panel_w - 70;
-    gfx_y = text_y;
-    gfx_printf("%d", debug_display_limiter);
+    // Store max Y position for debug log positioning (use the maximum of both columns)
+    debug_boxes_max_y = max(right_max_y, left_max_y);
   ); // End menu_debug_enabled check
 );
 
