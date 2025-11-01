@@ -219,41 +219,14 @@ OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
 OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
 OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
 
-// Explicit slider configuration function - ALL PARAMETERS REQUIRED
-function create_slider_config(orientation, display_mode, fill_direction, formatting, format_options) (
+// Single UI control configuration function - ALL PARAMETERS REQUIRED
+// Parameters:
+//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL, ORIENTATION_KNOB_SMALL, ORIENTATION_KNOB_LARGE
+//   display_mode: DISPLAY_NORMAL, DISPLAY_PERCENT, DISPLAY_DB, DISPLAY_MS, DISPLAY_HZ, DISPLAY_HIDE_VALUE, etc.
+//   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
+//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
+//   format_options: OPTION_ROUNDED, OPTION_AUTO_STEP, OPTION_BIDIRECTIONAL, OPTION_REVERSE (can be combined with |)
+function create_ui_control(orientation, display_mode, fill_direction, formatting, format_options) (
   orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
-);
-
-// Helper functions for common configurations - ALL PARAMETERS EXPLICIT
-function create_horizontal_slider(display_mode, fill_direction, formatting, format_options) (
-  create_slider_config(ORIENTATION_HORIZONTAL, display_mode, fill_direction, formatting, format_options);
-);
-
-function create_vertical_slider(display_mode, fill_direction, formatting, format_options) (
-  create_slider_config(ORIENTATION_VERTICAL, display_mode, fill_direction, formatting, format_options);
-);
-
-function create_reverse_horizontal_slider(display_mode, fill_direction, formatting, format_options) (
-  create_slider_config(ORIENTATION_HORIZONTAL, display_mode, fill_direction, formatting, format_options | OPTION_REVERSE);
-);
-
-function create_reverse_vertical_slider(display_mode, fill_direction, formatting, format_options) (
-  create_slider_config(ORIENTATION_VERTICAL, display_mode, fill_direction, formatting, format_options | OPTION_REVERSE);
-);
-
-function create_knob_small(display_mode, formatting, format_options) (
-  create_slider_config(ORIENTATION_KNOB_SMALL, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options);
-);
-
-function create_knob_large(display_mode, formatting, format_options) (
-  create_slider_config(ORIENTATION_KNOB_LARGE, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options);
-);
-
-function create_reverse_knob_small(display_mode, formatting, format_options) (
-  create_slider_config(ORIENTATION_KNOB_SMALL, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options | OPTION_REVERSE);
-);
-
-function create_reverse_knob_large(display_mode, formatting, format_options) (
-  create_slider_config(ORIENTATION_KNOB_LARGE, display_mode, FILL_LEFT_TO_RIGHT, formatting, format_options | OPTION_REVERSE);
 );
 

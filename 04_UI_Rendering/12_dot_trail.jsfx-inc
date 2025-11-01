@@ -1,6 +1,6 @@
 // UI Dot Trail Module
 // Fading dot trail visualization for the input level indicator
-// Depends on: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc, 01_Utils/08_ui_utils.jsfx-inc
+// Depends on: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc, 04_UI_Rendering/02_ui_utils.jsfx-inc
 
 @init
 

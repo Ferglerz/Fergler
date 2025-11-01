@@ -1,6 +1,6 @@
-// UI Rendering - Helpers Module
+// UI Rendering - Drawing Primitives Module
 // Rounded rectangles, groups, color helpers, and threshold line drawing
-// Dependencies: 01_Utils/01_constants.jsfx-inc, 04_UI/01_ui_constants.jsfx-inc
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 04_UI_Rendering/00_ui_constants.jsfx-inc
 
 @init
 

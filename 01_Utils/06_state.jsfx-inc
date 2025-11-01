@@ -201,10 +201,10 @@ function init_state_variables() (
   debug_counter_curve_interp = 0;             // interpolate_compression_curve()
   debug_counter_lut_lookup = 0;               // lookup_compression_lut()
   
-  // Math conversion functions
+  // Math utility functions
+  debug_counter_clamp = 0;                     // clamp()
   debug_counter_db_to_linear = 0;             // db_to_linear()
   debug_counter_linear_to_db = 0;             // linear_to_db()
-  debug_counter_clamp = 0;                    // clamp()
   
   // Program-dependent release functions
   debug_counter_prog_release = 0;             // select_program_release_coef()
@@ -227,8 +227,6 @@ function init_state_variables() (
   debug_display_limiter = 0;
   debug_display_curve_interp = 0;
   debug_display_lut_lookup = 0;
-  
-  // Math conversion functions
   debug_display_db_to_linear = 0;
   debug_display_linear_to_db = 0;
   debug_display_clamp = 0;

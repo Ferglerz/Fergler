@@ -101,9 +101,9 @@ import 03_Compression/08_harmonic_models.jsfx-inc
 import 03_Compression/09_audio_processing_chain.jsfx-inc
 
 // 04_UI_Rendering: UI rendering components (depends on 01_Utils)
-import 01_Utils/07_ui_constants.jsfx-inc
-import 01_Utils/08_ui_utils.jsfx-inc
-import 04_UI_Rendering/01_helpers.jsfx-inc
+import 04_UI_Rendering/00_ui_constants.jsfx-inc
+import 04_UI_Rendering/02_ui_utils.jsfx-inc
+import 04_UI_Rendering/01_drawing_primitives.jsfx-inc
 import 04_UI_Rendering/03_controls.jsfx-inc
 import 04_UI_Rendering/04_debug.jsfx-inc
 import 04_UI_Rendering/10_menu.jsfx-inc

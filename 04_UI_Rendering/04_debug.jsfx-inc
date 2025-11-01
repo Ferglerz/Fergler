@@ -104,6 +104,14 @@ function draw_debug_performance_counters() (
   
   gfx_x = text_x;
   gfx_y = text_y;
+  gfx_drawstr("clamp()");
+  gfx_x = math_panel_x + math_panel_w - 70;
+  gfx_y = text_y;
+  gfx_printf("%d", debug_display_clamp);
+  
+  text_y += line_height;
+  gfx_x = text_x;
+  gfx_y = text_y;
   gfx_drawstr("db_to_linear()");
   gfx_x = math_panel_x + math_panel_w - 70;
   gfx_y = text_y;
@@ -117,19 +125,11 @@ function draw_debug_performance_counters() (
   gfx_y = text_y;
   gfx_printf("%d", debug_display_linear_to_db);
   
-  text_y += line_height;
-  gfx_x = text_x;
-  gfx_y = text_y;
-  gfx_drawstr("clamp()");
-  gfx_x = math_panel_x + math_panel_w - 70;
-  gfx_y = text_y;
-  gfx_printf("%d", debug_display_clamp);
-  
   // --- Program Release Panel ---
   prog_panel_x = right_stack_x;
   prog_panel_y = math_panel_y + math_panel_h + panel_gap_y;
   prog_panel_w = 200;
-  prog_panel_h = 28 + (2 * line_height); // Title + 2 functions
+  prog_panel_h = 28 + (2 * line_height); // Title + 2 functions (reduced from 3)
   
   // Background
   gfx_set(0.1, 0.1, 0.1, 0.85);

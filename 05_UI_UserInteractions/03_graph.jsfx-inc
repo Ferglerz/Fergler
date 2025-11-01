@@ -75,25 +75,18 @@ function handle_point_movement() (
       new_output_db = new_input_db;  // Snap to 1:1 line
     );
 
-    // OPTIMIZATION: Use delete + re-insert instead of O(n²) bubble sort
-    // This maintains sorted order efficiently in O(n) time
-    // Save the point's curve data before deletion
-    temp_curve_amount = curve_amounts[dragging_point];
+    // Update point position
+    graph_points[dragging_point*2] = new_input_db;
+    graph_points[dragging_point*2 + 1] = new_output_db;
 
-    // Delete from old position (maintains sorted order via left-shift)
-    delete_point(dragging_point);
-
-    // Re-insert at correct sorted position (maintains sorted order via insertion)
-    dragging_point = add_point(new_input_db, new_output_db);
-
-    // Restore curve data to the re-inserted point
-    curve_amounts[dragging_point] = temp_curve_amount;
+    // Re-sort points to maintain order
+    sort_points();
 
     // Check if significant movement occurred and clean up displaced points
     abs(new_input_db - old_input_db) > 1.0 ? (
       remove_displaced_points(new_input_db, new_output_db);
     );
-
+    
     // Invalidate all caches since point movement affects curves and compression
     invalidate_all_graph_caches();
   );
