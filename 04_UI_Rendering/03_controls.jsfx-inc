@@ -99,7 +99,7 @@ function get_time_display_mode(param_index, display_mode) local(
 
 // Value formatting function
 function format_slider_value(param_index, value, display_mode, formatting, format_options) local(
-  decimal_places, formatted_str, freq_khz, dynamic_display_mode
+  decimal_places, formatted_str, freq_khz, dynamic_display_mode, time_unit
 ) (
   // Calculate decimal places from slider increment (inline: get from file_reading module)
   increment = get_slider_increment(param_index);  // Uses slider_num from file_reading.jsfx-inc
@@ -132,8 +132,18 @@ function format_slider_value(param_index, value, display_mode, formatting, forma
     sprintf(#temp_display_str, #temp_display_str, value);
   );
   
-  // Get dynamic display mode for time controls
-  dynamic_display_mode = get_time_display_mode(param_index, display_mode);
+  // OPTIMIZATION: Inlined get_time_display_mode() check to reduce call depth
+  // Check if this is the Attack control that should use dynamic units
+  param_index == 1 ? ( // Attack only
+    time_unit = slider(33); // Time Unit selector (param 33)
+    dynamic_display_mode = time_unit == 0 ? DISPLAY_MS : ( // ms
+      time_unit == 1 ? DISPLAY_US : ( // us
+        time_unit == 2 ? DISPLAY_S : display_mode // s, or fallback to original
+      )
+    );
+  ) : (
+    dynamic_display_mode = display_mode; // Not Attack control, use original display mode
+  );
   
   // Add suffix based on display mode
   dynamic_display_mode == DISPLAY_PERCENT ? (
