@@ -17,7 +17,7 @@ lut_viz_cache_size = 0;
 //==============================================================================
 
 // OPTIMIZATION: Removed middleman wrapper functions (input_level_db_to_graph_y,
-// input_level_2_db_to_graph_y, transient_db_to_graph_y, input_level_linear_to_graph_y/x)
+// transient_db_to_graph_y, input_level_linear_to_graph_y/x)
 // - now call db_to_graph_y/x directly
 
 // Draw curve directly from compression lookup table
@@ -225,7 +225,7 @@ function draw_threshold_lines_on_graph() (
   graph_right = GRAPH_X + GRAPH_SIZE;
   
   // Draw input level threshold line if visible
-  prog_release_type == 1 || prog_release_type == 4 ? (
+  prog_release_type == 1 ? (
     line_y = db_to_graph_y(input_level_threshold_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
@@ -238,22 +238,6 @@ function draw_threshold_lines_on_graph() (
     gfx_x = GRAPH_X + 5;
     gfx_y = line_y - 15;
     gfx_printf("Input: %.1f dB", input_level_threshold_db);
-  );
-  
-  // Draw second input level threshold line if visible
-  prog_release_type == 4 ? (
-    line_y = db_to_graph_y(input_level_threshold_2_db);
-    set_threshold_line_color(THRESHOLD_INPUT_LEVEL_2, 
-      hovered_threshold_line == THRESHOLD_INPUT_LEVEL_2, 
-      dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2);
-    
-    // Draw line across graph (dashed style to differentiate)
-    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
-    
-    // Draw label
-    gfx_x = GRAPH_X + 5;
-    gfx_y = line_y + 5; // Below the line to avoid overlap with first threshold
-    gfx_printf("Input 2: %.1f dB", input_level_threshold_2_db);
   );
   
   // Draw transient threshold line if visible

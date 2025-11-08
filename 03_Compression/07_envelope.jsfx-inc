@@ -26,17 +26,16 @@ function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(su
 //--- Type 1: Input-Dependent (single threshold) ---
 function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_slow) (
   level_above_threshold = input_level_db - input_level_threshold_db;
-  // Optimized: inline clamp to avoid function call overhead
-  blend_fast = max(0, min(1, 1 - level_above_threshold / 20));
-  blend_slow = max(0, min(1, level_above_threshold / 20));
+  blend_fast = max(0, min(1, 1 - level_above_threshold * 0.05));
+  blend_slow = max(0, min(1, level_above_threshold * 0.05));
   normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
 );
 
 //--- Type 2: GR-Dependent ---
-function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
-  // Optimized: inline clamp to avoid function call overhead
-  blend_fast = max(0, min(1, 1 - gr_amount / gr_blend_threshold_db));
-  blend_slow = max(0, min(1, gr_amount / gr_blend_threshold_db));
+function release_gr_dependent(gr_amount) local(blend_fast, blend_slow, blend_ratio) (
+  blend_ratio = gr_amount / (gr_blend_threshold_db + eps);
+  blend_fast = max(0, min(1, 1 - blend_ratio));
+  blend_slow = max(0, min(1, blend_ratio));
   normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
 );
 
@@ -45,28 +44,55 @@ function release_rate_of_change(det_delta) (
   det_delta > 3 ? rel_fast : rel_slow
 );
 
-//--- Type 4: Dual Threshold (three zones) ---
-function release_dual_threshold(input_level_db) local(
-  threshold_lower, threshold_upper, threshold_range, blend_factor, distance_above
+//==============================================================================
+// HOLD PROCESSING
+//==============================================================================
+
+//--- Process Hold Logic ---
+// Holds the largest gain reduction target for the specified hold_ms
+// Returns the effective target GR to use for envelope following
+function process_hold(target_gr_db) local(
+  target_gr_abs, hold_target_abs, hold_baseline_abs
 ) (
-  threshold_lower = min(input_level_threshold_db, input_level_threshold_2_db);
-  threshold_upper = max(input_level_threshold_db, input_level_threshold_2_db);
-  threshold_range = threshold_upper - threshold_lower;
-  
-  input_level_db < threshold_lower ? (
-    // Zone 1: Fast release
-    rel_fast_cached
-  ) : input_level_db < threshold_upper ? (
-    // Zone 2: Blend fast to medium
-    blend_factor = (input_level_db - threshold_lower) / (threshold_range + eps);
-    blend_two_coefficients(rel_fast_cached, rel_med_cached, blend_factor)
+  hold_ms <= 0 ? (
+    hold_counter_samples = 0;
+    hold_target_gr_db = 0;
+    hold_baseline_gr_db = 0;
   ) : (
-    // Zone 3: Blend medium to slow
-    distance_above = input_level_db - threshold_upper;
-    // Optimized: inline clamp to avoid function call overhead
-    blend_factor = max(0, min(1, distance_above / 20));
-    blend_two_coefficients(rel_med_cached, rel_slow_cached, blend_factor)
-  )
+    target_gr_abs = abs(target_gr_db);
+    hold_target_abs = abs(hold_target_gr_db);
+    hold_baseline_abs = abs(hold_baseline_gr_db);
+    
+    hold_counter_samples > 0 ? (
+      // Hold is active - extend if we see a more extreme value
+      target_gr_abs > hold_target_abs ? (
+        hold_target_gr_db = target_gr_db;
+        hold_target_abs = target_gr_abs;
+        hold_counter_samples = hold_samples;
+      );
+      
+      hold_counter_samples -= 1;
+      hold_counter_samples = max(0, hold_counter_samples);
+      target_gr_db = hold_target_gr_db;
+      
+      // When the hold finishes, set the baseline to the current (released) target
+      hold_counter_samples <= 0 ? (
+        hold_baseline_gr_db = target_gr_db;
+      );
+    ) : (
+      // Hold inactive - compare against baseline to detect new transient
+      target_gr_abs > hold_baseline_abs ? (
+        hold_target_gr_db = target_gr_db;
+        hold_counter_samples = hold_samples;
+        target_gr_db = hold_target_gr_db;
+        hold_baseline_gr_db = hold_target_gr_db;
+      ) : (
+        hold_baseline_gr_db = target_gr_db;
+        hold_target_gr_db = target_gr_db;
+      );
+    );
+  );
+  target_gr_db;
 );
 
 //==============================================================================
@@ -100,22 +126,21 @@ function select_program_release_coef(target_gr_abs, detector_level_db) local(
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
   prog_release_type == 2 ? release_gr_dependent(target_gr_abs) :
   prog_release_type == 3 ? release_rate_of_change(det_delta) :
-  prog_release_type == 4 ? release_dual_threshold(input_level_db) :
   rel_med_cached  // Default fallback
 );
 
 //--- Single-Stage Envelope Following (modularized) ---
 // OPTIMIZATION: Calculate abs(target_gr_db) once and reuse
-function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs) (
+function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs, global_smoothed_gain_abs) (
   debug_counter_single_envelope += 1;
 
   // OPTIMIZATION: Calculate abs() once for reuse in comparison and release calculation
   target_gr_abs = abs(target_gr_db);
+  global_smoothed_gain_abs = abs(global_smoothed_gain_db);
 
-  global_attack_coef = attack_coeff;
   // Attack when target is "more extreme" than current (closer to zero = less extreme)
-  target_gr_abs > abs(global_smoothed_gain_db) ? (
-    global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
+  target_gr_abs > global_smoothed_gain_abs ? (
+    global_smoothed_gain_db = attack_coeff * global_smoothed_gain_db + (1 - attack_coeff) * target_gr_db;
   ) : (
     prog_release_type > 0 ? (
       rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db);
@@ -132,6 +157,9 @@ function process_single_stage_envelope(target_gr_db, detector_level_db) local(ta
 function process_envelope_following(target_gr_db, detector_level_db) (
   // Debug counter: track envelope processing
   debug_counter_envelope += 1;
+  
+  // Process hold logic first - this modifies target_gr_db if hold is active
+  target_gr_db = process_hold(target_gr_db);
   
   // Use traditional single-stage envelope with program release
   global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);

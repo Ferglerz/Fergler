@@ -211,7 +211,6 @@ Envelope following with attack/release and program-dependent release.
 - `release_input_dependent_single(input_level_db)` (1 param) - Input-dependent release coefficient
 - `release_gr_dependent(gr_amount)` (1 param) - Gain reduction-dependent release coefficient
 - `release_rate_of_change(det_delta)` (1 param) - Rate-of-change-dependent release coefficient
-- `release_dual_threshold(input_level_db)` (1 param) - Dual threshold release coefficient
 - `select_program_release_coef(target_gr_abs, detector_level_db)` (2 params) - Select release coefficient based on program type
 
 **Envelope Processing:**
