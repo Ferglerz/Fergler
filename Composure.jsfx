@@ -68,6 +68,9 @@ slider33:time_multiplier=1<0,2,1{Milliseconds,Microseconds,Seconds}>-Time Unit
 // Input dot blend (34)
 slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
 
+// Hold parameter (35)
+slider35:hold_ms=0<0,1000,1>Hold
+
 // SEARCH STOP
 
 //==============================================================================
@@ -267,6 +270,12 @@ param_changed = 0;
   release_curve_prev = slider4;
 );
 
+// --- Hold Parameter (35) ---
+(slider35 != hold_ms_prev || !slider_initialized) ? (
+  hold_ms_prev = slider35;
+  param_changed = 1;
+);
+
 // --- Makeup Gain (21) ---
 (slider21 != makeup_gain_db_prev || !slider_initialized) ? (
   makeup_gain_linear = db_to_linear(makeup_gain_db);
@@ -350,6 +359,7 @@ release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
 srate_inv = 1.0 / srate;
 attack_ms_srate = convert_attack_time_to_ms(attack_ms, time_multiplier) * srate;
 release_ms_srate = release_ms * srate;
+hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
 
 // Apply curves with S-curve and exponential algorithms
 attack_curve != 0 ? (

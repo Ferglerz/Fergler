@@ -70,6 +70,49 @@ function release_dual_threshold(input_level_db) local(
 );
 
 //==============================================================================
+// HOLD PROCESSING
+//==============================================================================
+
+//--- Process Hold Logic ---
+// Holds the largest gain reduction target for the specified hold_ms
+// Returns the effective target GR to use for envelope following
+function process_hold(target_gr_db) local(target_gr_abs, hold_target_abs) (
+  // Only process hold if hold_ms > 0
+  hold_ms > 0 ? (
+    target_gr_abs = abs(target_gr_db);
+    hold_target_abs = abs(hold_target_gr_db);
+    
+    // Check if new target is larger (more extreme) than current hold target
+    // "More extreme" means further from zero (larger absolute value)
+    target_gr_abs > hold_target_abs ? (
+      // Larger target detected - reset hold counter and update hold target
+      hold_target_gr_db = target_gr_db;
+      hold_counter_samples = hold_samples;
+      target_gr_db = hold_target_gr_db;  // Use held value for envelope
+    ) : (
+      // Current target is not larger - check if hold is still active
+      hold_counter_samples > 0 ? (
+        // Hold is active - use held target and decrement counter
+        hold_counter_samples -= 1;
+        target_gr_db = hold_target_gr_db;  // Use held value for envelope
+      ) : (
+        // Hold expired - use current target (release will start from held value)
+        // The envelope is already at the held value, so release will naturally
+        // start from there when it receives a smaller target
+        target_gr_db;
+      );
+    );
+  ) : (
+    // Hold disabled - reset hold state and pass through target unchanged
+    hold_counter_samples = 0;
+    hold_target_gr_db = 0;
+    target_gr_db;
+  );
+  
+  target_gr_db;
+);
+
+//==============================================================================
 // MAIN PROGRAM RELEASE SELECTOR
 //==============================================================================
 
@@ -132,6 +175,9 @@ function process_single_stage_envelope(target_gr_db, detector_level_db) local(ta
 function process_envelope_following(target_gr_db, detector_level_db) (
   // Debug counter: track envelope processing
   debug_counter_envelope += 1;
+  
+  // Process hold logic first - this modifies target_gr_db if hold is active
+  target_gr_db = process_hold(target_gr_db);
   
   // Use traditional single-stage envelope with program release
   global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);
