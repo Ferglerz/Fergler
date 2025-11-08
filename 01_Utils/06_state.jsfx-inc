@@ -55,6 +55,10 @@ function init_state_variables() (
   base_slow_s = 1.0;   // 1000ms
   global_smoothed_gain_db = 0;
   
+  // Hold state variables
+  hold_counter_samples = 0;  // Counts down from hold_ms in samples
+  hold_target_gr_db = 0;     // The held gain reduction value
+  
   // Min() envelope mode state variables
   min_env_yR = 0;  // Release filter state
   min_env_yA = 0;  // Attack filter state
@@ -86,6 +90,9 @@ function init_state_variables() (
   
   // RMS tracking variables
   rms_size_ms_prev = -999;
+  
+  // Hold tracking variables
+  hold_ms_prev = -999;
   
   // Threshold line interaction state (persistent across @init)
   !threshold_lines_initialized ? (
