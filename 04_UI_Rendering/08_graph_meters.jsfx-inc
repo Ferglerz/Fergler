@@ -133,13 +133,23 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
 
 // Draw GR histogram line for negative values (reduction) - per-pixel buffer mode
 // Optimized to use pre-calculated GR_PIXELS_PER_DB constant
+// Reads from newest (right) to oldest (left), matching input histogram behavior
 function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
   
-  while (i < GRAPH_SIZE) (
-    gr_value = buffer[i];
+  // Map buffer samples to graph pixels (buffer may be larger than graph width)
+  width_pixels = GRAPH_SIZE;
+  buffer_size = histogram_pixel_max_samples;
+  
+  while (i < width_pixels) (
+    // Calculate buffer index: newest pixel is at histogram_pixel_idx, oldest is (idx - buffer_size + 1)
+    // For pixel i (0=left, width_pixels-1=right), age = floor((width_pixels - 1 - i) * (buffer_size - 1) / (width_pixels - 1))
+    // This matches the input histogram calculation for consistent scrolling
+    age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
+    buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
+    gr_value = buffer[buffer_idx];
     
     // Only draw negative values (reduction)
     gr_value < 0 ? (
@@ -203,13 +213,23 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
 
 // Draw GR histogram line for positive values (boost) - per-pixel buffer mode
 // Optimized to use pre-calculated GR_PIXELS_PER_DB constant
+// Reads from newest (right) to oldest (left), matching input histogram behavior
 function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
   
-  while (i < GRAPH_SIZE) (
-    gr_value = buffer[i];
+  // Map buffer samples to graph pixels (buffer may be larger than graph width)
+  width_pixels = GRAPH_SIZE;
+  buffer_size = histogram_pixel_max_samples;
+  
+  while (i < width_pixels) (
+    // Calculate buffer index: newest pixel is at histogram_pixel_idx, oldest is (idx - buffer_size + 1)
+    // For pixel i (0=left, width_pixels-1=right), age = floor((width_pixels - 1 - i) * (buffer_size - 1) / (width_pixels - 1))
+    // This matches the input histogram calculation for consistent scrolling
+    age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
+    buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
+    gr_value = buffer[buffer_idx];
     
     // Only draw positive values (boost)
     gr_value > 0 ? (

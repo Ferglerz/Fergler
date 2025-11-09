@@ -131,29 +131,29 @@ function init_state_variables() (
   
   // Per-pixel histogram buffer state (for histogram buffer mode)
   histogram_pixel_buffer = 0; // Will be allocated in memory
-  histogram_pixel_samples_per_pixel = 0; // Calculated based on srate and graph width
-  histogram_pixel_pos = 0; // Current sample position within current pixel
+  histogram_pixel_pos = 0; // Current sample position within current pixel (for accumulation)
   histogram_pixel_idx = 0; // Current pixel index
+  histogram_pixel_max_samples = 0; // Buffer size matching input histogram for same scroll speed
   histogram_pixel_initialized = 0; // Flag to track initialization
+  histogram_pixel_frame_counter = 0; // Frame counter for update rate control
   
   // Initialize per-pixel histogram buffer if enabled
   HISTOGRAM_ENABLED ? (
-    // Allocate buffer for GRAPH_SIZE pixels (300 pixels)
+    // Allocate buffer matching input histogram size for same scroll speed
+    // Use same size as input histogram: HISTOGRAM_WINDOW_SECONDS * 60 (60 Hz GFX rate)
+    histogram_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
     histogram_pixel_buffer = freemem;
-    freemem += GRAPH_SIZE;
+    freemem += histogram_pixel_max_samples;
     
     // Clear per-pixel histogram buffer
     i = 0;
-    while (i < GRAPH_SIZE) (
+    while (i < histogram_pixel_max_samples) (
       histogram_pixel_buffer[i] = 0;  // Initialize to 0 (no GR)
       i += 1;
     );
     
-    // Calculate samples per pixel for histogram window
-    // HISTOGRAM_WINDOW_SECONDS worth of samples divided by GRAPH_SIZE pixels
-    histogram_pixel_samples_per_pixel = ceil((HISTOGRAM_WINDOW_SECONDS * srate) / GRAPH_SIZE);
-    histogram_pixel_pos = 0;
     histogram_pixel_idx = 0;
+    histogram_pixel_frame_counter = 0;
     histogram_pixel_initialized = 1;
   );
 
@@ -185,7 +185,7 @@ function init_state_variables() (
   // Menu toggle states (persistent across @init)
   !menu_toggles_initialized ? (
     menu_toggles_initialized = 1;
-    menu_debug_enabled = 1;  // Default to enabled
+    menu_debug_enabled = 0;  // Default to disabled
     menu_histogram_enabled = 1;  // Default to enabled
     menu_gr_meter_enabled = 1;   // Default to enabled
     menu_brickwall_limiter_enabled = 1;  // Default to enabled
@@ -287,21 +287,21 @@ function init_state_variables() (
 
 function update_histogram_state(gr_value) (
     menu_histogram_buffer_mode > 0.5 ? (
-      // PER-PIXEL BUFFER MODE: Always advance timeline, accumulate GR when present
+      // PER-PIXEL BUFFER MODE: Advance timeline at frame rate (like input histogram)
       histogram_pixel_initialized ? (
         // Accumulate max GR for current pixel (using absolute value for comparison)
-        // Only update value if GR processing wasn't skipped AND we have GR
-        !gr_processing_skipped && abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+        // Always update to capture full data including zero values when compression is inactive
+        abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
           histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
         );
         
-        // ALWAYS advance sample counter to keep timeline moving
-        histogram_pixel_pos += 1;
-        
-        // When we've accumulated enough samples for this pixel, move to next
-        histogram_pixel_pos >= histogram_pixel_samples_per_pixel ? (
-          histogram_pixel_pos = 0;
-          histogram_pixel_idx = (histogram_pixel_idx + 1) % GRAPH_SIZE;
+        // Frame rate control - only advance every N frames (matching input histogram behavior)
+        histogram_pixel_frame_counter += 1;
+        (histogram_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+          histogram_pixel_frame_counter = 0;
+          
+          // Always advance to next pixel (one pixel per update, matching input histogram frame-based advancement)
+          histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
           // Reset next pixel's accumulator
           histogram_pixel_buffer[histogram_pixel_idx] = 0;
         );

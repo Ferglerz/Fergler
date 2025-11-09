@@ -194,6 +194,10 @@ function generate_curve_cache() (
   curve_cache_size = segment_count;
   curve_cache_dirty = 0;
   curve_cache_hash = calculate_curve_hash();
+  
+  // CRITICAL: Build compression LUT when curve cache is generated
+  // This ensures the LUT is available for audio processing even when debug mode is off
+  comp_lut_dirty ? build_compression_lut();
 );
 
 // Check if cache needs regeneration
