@@ -12,8 +12,10 @@
 function create_trail_dot() (
   trail_initialized && trail_count < trail_max_dots ? (
     // Calculate current position in graph coordinates - uses blended input dB
-    input_x = db_to_graph_x(blended_input_db);
-    input_y = db_to_graph_y(blended_input_db);
+    // Clamp to graph range to prevent trail dots from rendering outside
+    clamped_input_db = clamp(blended_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    input_x = db_to_graph_x(clamped_input_db);
+    input_y = db_to_graph_y(clamped_input_db);
     
     // Store dot data: [x, y, age, max_age]
     trail_buffer[trail_write_pos * 4 + 0] = input_x;
