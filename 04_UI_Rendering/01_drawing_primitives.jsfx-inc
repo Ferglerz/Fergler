@@ -152,12 +152,6 @@ function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
     ) : (
       gfx_set(0.2, 0.8, 1, 0.8);
     );
-  ) : threshold_type == THRESHOLD_TRANSIENT ? (
-    is_hovered || is_dragging ? (
-      gfx_set(1, 0.3, 0.3, 1);
-    ) : (
-      gfx_set(1, 0.5, 0, 0.8);
-    );
   ) : threshold_type == THRESHOLD_GR_BLEND ? (
     is_hovered || is_dragging ? (
       gfx_set(1, 1, 0.3, 1);

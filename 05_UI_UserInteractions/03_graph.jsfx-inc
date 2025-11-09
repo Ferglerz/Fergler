@@ -139,24 +139,27 @@ function handle_point_deletion() (
   target_point = find_point_at_mouse(mouse_x, mouse_y);
   
   target_point >= 0 ? (
-    // If trying to delete one of the last two points, reset them to 1:1 instead
-    num_points <= 2 ? (
-      // Reset both points to 1:1 (keep their x positions, set y to match x)
-      input_db_0 = graph_points[0];  // Keep x position
-      input_db_1 = graph_points[2];  // Keep x position
-      graph_points[0] = input_db_0;
-      graph_points[1] = input_db_0;  // Set y to match x (1:1)
-      graph_points[2] = input_db_1;
-      graph_points[3] = input_db_1;  // Set y to match x (1:1)
+    // If at minimum points (2 user points + 2 corner points), reset to 1:1 instead of deleting
+    num_points <= MIN_POINTS ? (
+      // Reset both user points to 1:1 (keep their x positions, set y to match x)
+      input_db_0 = graph_points[2];  // First user point x position (index 1)
+      input_db_1 = graph_points[4];  // Second user point x position (index 2)
+      graph_points[2] = input_db_0;
+      graph_points[3] = input_db_0;  // Set y to match x (1:1)
+      graph_points[4] = input_db_1;
+      graph_points[5] = input_db_1;  // Set y to match x (1:1)
       
       // Reset curve amounts to 0
-      set_curve_amount(0, 0);
       set_curve_amount(1, 0);
+      set_curve_amount(2, 0);
+      
+      // Update corner points based on new tangents
+      update_corner_points();
       
       // Invalidate all caches
       invalidate_all_graph_caches();
     ) : (
-      // Normal deletion - only if we have more than 2 points
+      // Normal deletion - only if we have more than MIN_POINTS
       delete_point(target_point);
       // Invalidate all caches since point deletion affects curves and compression
       invalidate_all_graph_caches();

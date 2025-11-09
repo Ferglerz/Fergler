@@ -1,5 +1,5 @@
 // UI Threshold Lines Module
-// Manages interactive threshold lines for GR blend and transient detection
+// Manages interactive threshold lines for GR blend and input level thresholds
 // Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
 
 @init
@@ -14,10 +14,12 @@ THRESHOLD_LINE_GRAB_RADIUS = 8; // Pixels for mouse grab detection
 // Line types
 THRESHOLD_GR_BLEND = 0;      // GR blend threshold (on meter)
 THRESHOLD_INPUT_LEVEL = 1;   // Input level threshold (on graph)
-THRESHOLD_TRANSIENT = 2;     // Transient detection threshold (on graph)
-THRESHOLD_SLIDER_GR_BLEND = 32;    // slider32: gr_blend_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 27; // slider27: input_level_threshold_db
-THRESHOLD_SLIDER_TRANSIENT = 30;   // slider30: transient_threshold_db
+THRESHOLD_INPUT_LEVEL_2 = 2; // Second input level threshold (on graph)
+
+// Slider mappings for each threshold line (for programmatic sliderchange calls)
+THRESHOLD_SLIDER_GR_BLEND = 32;      // slider32: gr_blend_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL = 27;   // slider27: input_level_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 28; // slider28: input_level_threshold_2_db
 
 // Interaction state
 dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)
@@ -41,25 +43,19 @@ function clamp_gr_blend_threshold(new_value) (
 );
 
 function clamp_input_level_threshold(new_value) (
-  // Clamp to graph range (-80 to -6 dB) and respect transient threshold
+  // Clamp to graph range (-80 to -6 dB)
   clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB - MIN_THRESHOLD_SPACING);
   
-  // Ensure spacing from transient threshold if both are active
-  transient_detection > 0 ? (
-    clamped = validate_threshold_spacing(clamped, transient_threshold_db);
-  );
+  // Clamp to valid range
   
   clamped
 );
 
-function clamp_transient_threshold(new_value) (
-  // Clamp to graph range and respect input level threshold
+function clamp_input_level_threshold_2(new_value) (
+  // Clamp to graph range and respect first input level threshold
   clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB);
   
-  // Ensure spacing from input level threshold if input-level mode active
-  prog_release_type == 1 ? (
-    clamped = validate_threshold_spacing(clamped, input_level_threshold_db);
-  );
+  // Clamp to valid range
   
   clamped
 );
@@ -144,17 +140,6 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
       0  // is_on_meter = false
     );
   );
-
-  // 3. Transient line (on graph)
-  found_line < 0 ? (
-    found_line = check_threshold_line(
-      mouse_x, mouse_y,
-      THRESHOLD_TRANSIENT,
-      transient_detection > 0,
-      db_to_graph_y(transient_threshold_db),
-      0
-    );
-  );
   
   found_line
 );
@@ -178,18 +163,18 @@ function update_input_level_threshold(mouse_y) (
 );
 
 // Update second input level threshold (on graph)
-// Update transient threshold (on graph)
-function update_transient_threshold(mouse_y) (
+function update_input_level_threshold_2(mouse_y) (
   new_value = graph_y_to_db(mouse_y);
-  transient_threshold_db = clamp_transient_threshold(new_value);
-  sliderchange(1 << (THRESHOLD_SLIDER_TRANSIENT - 1));
+  input_level_threshold_2_db = clamp_input_level_threshold_2(new_value);
+  sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL_2 - 1));
 );
+
 
 // Dispatch to the appropriate update function based on which line is being dragged
 function update_dragged_threshold_line(mouse_y) (
   dragging_threshold_line == THRESHOLD_GR_BLEND ? update_gr_blend_threshold(mouse_y) :
   dragging_threshold_line == THRESHOLD_INPUT_LEVEL ? update_input_level_threshold(mouse_y) :
-  dragging_threshold_line == THRESHOLD_TRANSIENT ? update_transient_threshold(mouse_y) :
+  dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2 ? update_input_level_threshold_2(mouse_y) :
   0  // No-op if invalid threshold type
 );
 

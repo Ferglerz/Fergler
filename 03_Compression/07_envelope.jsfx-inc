@@ -15,8 +15,13 @@ function blend_two_coefficients(coef1, coef2, blend_factor) (
 
 //--- Helper: Normalized blend using fast/slow weights ---
 function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(sum) (
-  sum = blend_fast + blend_slow + eps;
-  (blend_fast * coef_fast + blend_slow * coef_slow) / sum
+  sum = blend_fast + blend_slow;
+  // Safety check: if sum is zero (both blends are zero), return fast coefficient as default
+  sum > EPS ? (
+    (blend_fast * coef_fast + blend_slow * coef_slow) / sum
+  ) : (
+    coef_fast  // Default to fast coefficient if no blend weights
+  )
 );
 
 //==============================================================================
@@ -24,24 +29,30 @@ function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(su
 //==============================================================================
 
 //--- Type 1: Input-Dependent (single threshold) ---
-function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_slow) (
+// Below threshold: fast release (4x faster than user setting)
+// Above threshold: normal release (user's release_ms setting)
+function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_normal, fast_coeff) (
   level_above_threshold = input_level_db - input_level_threshold_db;
-  blend_fast = max(0, min(1, 1 - level_above_threshold * 0.05));
-  blend_slow = max(0, min(1, level_above_threshold * 0.05));
-  normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
+  // Calculate fast coefficient (4x faster than user's release setting)
+  fast_coeff = release_ms > 0 ? exp(-1000 / ((release_ms * 0.25) * srate)) : 0;
+  // Below threshold: blend towards fast, above threshold: blend towards normal
+  // Blend over 20 dB range: at threshold = 100% fast, 20 dB above = 100% normal
+  blend_fast = max(0, min(1, 1 - level_above_threshold / 20));
+  blend_normal = max(0, min(1, level_above_threshold / 20));
+  normalized_blend(blend_fast, blend_normal, fast_coeff, release_coeff)
 );
 
 //--- Type 2: GR-Dependent ---
-function release_gr_dependent(gr_amount) local(blend_fast, blend_slow, blend_ratio) (
-  blend_ratio = gr_amount / (gr_blend_threshold_db + eps);
-  blend_fast = max(0, min(1, 1 - blend_ratio));
-  blend_slow = max(0, min(1, blend_ratio));
-  normalized_blend(blend_fast, blend_slow, rel_fast, rel_slow)
+function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
+  // Optimized: inline clamp to avoid function call overhead
+  blend_fast = max(0, min(1, 1 - gr_amount / gr_blend_threshold_db));
+  blend_slow = max(0, min(1, gr_amount / gr_blend_threshold_db));
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
 //--- Type 3: Rate-of-Change ---
 function release_rate_of_change(det_delta) (
-  det_delta > 3 ? rel_fast : rel_slow
+  det_delta > 3 ? rel_fast_cached : rel_slow_cached
 );
 
 //==============================================================================
@@ -100,8 +111,10 @@ function process_hold(target_gr_db) local(
 //==============================================================================
 
 //--- Program-Dependent Release Coefficient Selection ---
-// OPTIMIZATION: Pass pre-calculated abs(target_gr_db) to avoid redundant abs() call
-function select_program_release_coef(target_gr_abs, detector_level_db) local(
+// OPTIMIZATION: Pass pre-calculated values to avoid redundant calculations
+// For GR-dependent mode, current_gr_abs should be abs(global_smoothed_gain_db) (current compression state)
+// For other modes, target_gr_abs can be used but is not required
+function select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs) local(
   det_delta, input_level_db
 ) (
   debug_counter_prog_release += 1;
@@ -124,26 +137,37 @@ function select_program_release_coef(target_gr_abs, detector_level_db) local(
   // Dispatch to appropriate release strategy
   prog_release_type == 0 ? rel_med_cached :
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
-  prog_release_type == 2 ? release_gr_dependent(target_gr_abs) :
+  prog_release_type == 2 ? release_gr_dependent(current_gr_abs) :
   prog_release_type == 3 ? release_rate_of_change(det_delta) :
   rel_med_cached  // Default fallback
 );
 
 //--- Single-Stage Envelope Following (modularized) ---
 // OPTIMIZATION: Calculate abs(target_gr_db) once and reuse
-function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs, global_smoothed_gain_abs) (
+function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs, current_gr_abs, hysteresis_threshold) (
   debug_counter_single_envelope += 1;
 
   // OPTIMIZATION: Calculate abs() once for reuse in comparison and release calculation
   target_gr_abs = abs(target_gr_db);
-  global_smoothed_gain_abs = abs(global_smoothed_gain_db);
+  current_gr_abs = abs(global_smoothed_gain_db);
 
+  // HYSTERESIS: Add small threshold to prevent rapid oscillation between attack/release
+  // This prevents fluttering when RMS detection fluctuates during signal decay
+  // Threshold scales with current GR to be more forgiving at higher compression levels
+  hysteresis_threshold = max(0.1, current_gr_abs * 0.05);  // 5% of current GR, minimum 0.1 dB
+
+  global_attack_coef = attack_coeff;
   // Attack when target is "more extreme" than current (closer to zero = less extreme)
-  target_gr_abs > global_smoothed_gain_abs ? (
-    global_smoothed_gain_db = attack_coeff * global_smoothed_gain_db + (1 - attack_coeff) * target_gr_db;
+  // Use hysteresis: require target to be significantly higher before switching to attack
+  target_gr_abs > (current_gr_abs + hysteresis_threshold) ? (
+    // Smooth transition: ensure attack is applied even when starting from zero
+    // This prevents clicking when compression first starts
+    global_smoothed_gain_db = global_attack_coef * global_smoothed_gain_db + (1 - global_attack_coef) * target_gr_db;
   ) : (
     prog_release_type > 0 ? (
-      rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db);
+      // For GR-dependent mode, pass current smoothed GR (actual compression state)
+      // For other modes, current_gr_abs is not used but passed for consistency
+      rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
       global_smoothed_gain_db = rel_coef_use * global_smoothed_gain_db + (1 - rel_coef_use) * target_gr_db;
     ) : (
       fixed_rel_coef = release_coeff;

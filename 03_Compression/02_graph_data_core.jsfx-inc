@@ -136,17 +136,98 @@ function clear_all_curves() (
 );
 
 //==============================================================================
+// DYNAMIC CORNER POINTS (TANGENT EXTENSION)
+//==============================================================================
+
+// Extends corner points as tangents from the outermost user points
+// Left: Stays on bottom edge (Y=-80), X adjusts to follow tangent
+// Right: Stays on right edge (X=0), Y adjusts to follow tangent
+function update_corner_points() (
+  //----------------------------------------------------------------------------
+  // LEFT CORNER (index 0) - Extends along bottom edge
+  //----------------------------------------------------------------------------
+  num_points >= 3 ? (
+    p1_x = graph_points[2];
+    p1_y = graph_points[3];
+    p2_x = graph_points[4];
+    p2_y = graph_points[5];
+    
+    dx = p2_x - p1_x;
+    abs(dx) > 0.001 ? (
+      slope = (p2_y - p1_y) / dx;
+      
+      // If first point above second, tangent can't reach Y=-80 going left
+      p1_y > p2_y ? (
+        graph_points[0] = GRAPH_MIN_DB;
+        graph_points[1] = GRAPH_MIN_DB;
+      ) : (
+        // Extend to Y=-80, solve for X
+        graph_points[1] = GRAPH_MIN_DB;
+        graph_points[0] = p1_x + (GRAPH_MIN_DB - p1_y) / slope;
+        
+        // If X goes right of -80, clamp X and adjust Y
+        graph_points[0] > GRAPH_MIN_DB ? (
+          graph_points[0] = GRAPH_MIN_DB;
+          graph_points[1] = p1_y + slope * (GRAPH_MIN_DB - p1_x);
+        );
+      );
+    ) : (
+      // Vertical alignment
+      graph_points[0] = GRAPH_MIN_DB;
+      graph_points[1] = GRAPH_MIN_DB;
+    );
+  ) : (
+    // Fallback: 1:1 line
+    graph_points[0] = GRAPH_MIN_DB;
+    graph_points[1] = GRAPH_MIN_DB;
+  );
+  
+  //----------------------------------------------------------------------------
+  // RIGHT CORNER (index num_points-1) - Extends along right edge
+  //----------------------------------------------------------------------------
+  num_points >= 3 ? (
+    last_idx = num_points - 1;
+    p1_x = graph_points[(last_idx - 2) * 2];
+    p1_y = graph_points[(last_idx - 2) * 2 + 1];
+    p2_x = graph_points[(last_idx - 1) * 2];
+    p2_y = graph_points[(last_idx - 1) * 2 + 1];
+    
+    dx = p2_x - p1_x;
+    abs(dx) > 0.001 ? (
+      slope = (p2_y - p1_y) / dx;
+      
+      // Extend to X=0, solve for Y (no clamping)
+      graph_points[last_idx * 2] = GRAPH_MAX_DB;
+      graph_points[last_idx * 2 + 1] = p2_y + slope * (GRAPH_MAX_DB - p2_x);
+    ) : (
+      // Vertical alignment
+      graph_points[last_idx * 2] = GRAPH_MAX_DB;
+      graph_points[last_idx * 2 + 1] = p2_y;
+    );
+  ) : (
+    // Fallback: 1:1 line
+    last_idx = num_points - 1;
+    graph_points[last_idx * 2] = GRAPH_MAX_DB;
+    graph_points[last_idx * 2 + 1] = GRAPH_MAX_DB;
+  );
+);
+
+//==============================================================================
 // GRAPH DATA MANAGEMENT
 //==============================================================================
 
 function init_graph_points() (
   // Initialize points on diagonal line (1:1 compression)
+  // Start with temporary positions - corner points will be calculated
   graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
   graph_points[2] = -60; graph_points[3] = -60;
   graph_points[4] = -40; graph_points[5] = -40;
   graph_points[6] = -20; graph_points[7] = -20;
   graph_points[8] = -10; graph_points[9] = -10;
   graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
+  
+  // Calculate dynamic corner points based on tangents
+  update_corner_points();
 );
 
 function sort_points() (
@@ -171,6 +252,9 @@ function sort_points() (
     );
     i += 1;
   );
+  
+  // Update corner points after sorting to maintain tangent extensions
+  update_corner_points();
 );
 
 function add_point(input_db, output_db) (
@@ -202,6 +286,10 @@ function add_point(input_db, output_db) (
     curve_amounts[insert_pos] = 0;
 
     num_points += 1;
+    
+    // Update corner points to reflect new tangents
+    update_corner_points();
+    
     // No need to sort since we inserted in the correct position
     // Return the insertion position as the new point index
     insert_pos;
@@ -221,6 +309,10 @@ function delete_point(point_index) (
     // Clear the curve amount for the last point
     curve_amounts[num_points - 1] = 0;
     num_points -= 1;
+    
+    // Update corner points to reflect new tangents
+    update_corner_points();
+    
     1;
   );
 );

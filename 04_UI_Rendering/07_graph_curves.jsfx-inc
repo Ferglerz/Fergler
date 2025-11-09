@@ -166,7 +166,35 @@ function draw_mixed_curves() local(i) (
 );
 
 function draw_graph_points() (
-  // Skip corner points (indices 0 and num_points-1) - they are invisible
+  // Debug mode: visualize corner points and tangent extensions
+  menu_debug_enabled ? (
+    // Draw left corner point (index 0)
+    corner_x = db_to_graph_x(graph_points[0]);
+    corner_y = db_to_graph_y(graph_points[1]);
+    gfx_set(0.5, 0.5, 1.0, 0.8); // Blue for corner points
+    gfx_circle(corner_x, corner_y, 3, 1, 1);
+    
+    // Draw tangent line from left corner to first user point
+    p1_x = db_to_graph_x(graph_points[2]);
+    p1_y = db_to_graph_y(graph_points[3]);
+    gfx_set(0.5, 0.5, 1.0, 0.4); // Semi-transparent blue
+    gfx_line(corner_x, corner_y, p1_x, p1_y, 1);
+    
+    // Draw right corner point (index num_points-1)
+    last_idx = num_points - 1;
+    corner_x = db_to_graph_x(graph_points[last_idx * 2]);
+    corner_y = db_to_graph_y(graph_points[last_idx * 2 + 1]);
+    gfx_set(0.5, 0.5, 1.0, 0.8); // Blue for corner points
+    gfx_circle(corner_x, corner_y, 3, 1, 1);
+    
+    // Draw tangent line from last user point to right corner
+    p_last_x = db_to_graph_x(graph_points[(last_idx - 1) * 2]);
+    p_last_y = db_to_graph_y(graph_points[(last_idx - 1) * 2 + 1]);
+    gfx_set(0.5, 0.5, 1.0, 0.4); // Semi-transparent blue
+    gfx_line(p_last_x, p_last_y, corner_x, corner_y, 1);
+  );
+  
+  // Draw user-controllable points (skip corner points at indices 0 and num_points-1)
   i = 1;
   while (i < num_points - 1) (
     // Cache array access and coordinate conversions
@@ -238,22 +266,6 @@ function draw_threshold_lines_on_graph() (
     gfx_x = GRAPH_X + 5;
     gfx_y = line_y - 15;
     gfx_printf("Input: %.1f dB", input_level_threshold_db);
-  );
-  
-  // Draw transient threshold line if visible
-  transient_detection > 0 ? (
-    line_y = db_to_graph_y(transient_threshold_db);
-    set_threshold_line_color(THRESHOLD_TRANSIENT, 
-      hovered_threshold_line == THRESHOLD_TRANSIENT, 
-      dragging_threshold_line == THRESHOLD_TRANSIENT);
-    
-    // Draw line across graph
-    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
-    
-    // Draw label
-    gfx_x = graph_right - 110;
-    gfx_y = line_y - 15;
-    gfx_printf("Transient: %.1f dB", transient_threshold_db);
   );
 );
 

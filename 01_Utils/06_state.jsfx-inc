@@ -81,10 +81,6 @@ function init_state_variables() (
   gr_db_block_max = 0;  // Track max absolute GR during block
   gr_processing_skipped = 0;  // Flag when GR calculation was skipped for optimization
   
-  // Transient detection state (used in audio processing)
-  transient_detector_prev_db = GRAPH_MIN_DB;
-  transient_gr_reduction = 0;
-  
   // Curve tracking variables
   attack_curve_prev = -999;
   release_curve_prev = -999;
@@ -189,7 +185,6 @@ function init_state_variables() (
     menu_histogram_enabled = 1;  // Default to enabled
     menu_gr_meter_enabled = 1;   // Default to enabled
     menu_brickwall_limiter_enabled = 1;  // Default to enabled
-    menu_true_rms_enabled = 0;  // Default to exponential smoothing (off)
     menu_histogram_buffer_mode = 1;  // Default to per-pixel buffer mode (on)
   );
 

@@ -1,6 +1,6 @@
 // Gain Reduction Calculation Module
 // Calculates gain reduction based on compression curve and input level
-// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 04a_compression_core.jsfx-inc, 04g_transient_detection.jsfx-inc
+// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 04a_compression_core.jsfx-inc
 
 @init
 
@@ -50,10 +50,6 @@ function calculate_gain_reduction_from_db(input_level_db) (
     target_gr_db *= strength;
 
     target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
-    
-    // Apply transient detection: reduce GR if transient detected
-    transient_reduction = detect_transients(input_level_db);
-    target_gr_db += transient_reduction;  // Add (reduces compression since GR is negative)
 
     // The compressor is unaware of the offset, so display shows the same GR values
     // current_gr_db will be set AFTER envelope processing in audio_processing_chain

@@ -55,8 +55,6 @@ slider25:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 slider26:gr_blend_threshold_db=6<1,24,0.1>-GR Blend Threshold (dB)
 slider27:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
 slider28:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider29:transient_detection=0<0,100,1>-Transient Detection
-slider30:transient_threshold_db=-6<-80,0,0.1>-Transient Threshold (dB)
 
 // Dot Trail parameters (31-32)
 slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
@@ -90,7 +88,6 @@ import 01_Utils/06_state.jsfx-inc
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
 import 02_InputProcessing/02_filters.jsfx-inc
-import 02_InputProcessing/04_transient_detection.jsfx-inc
 
 // 03_Compression: Core compression engine (depends on 01_Utils, 02_InputProcessing)
 import 03_Compression/01_compression_constants.jsfx-inc
@@ -214,6 +211,10 @@ setup_control_layout();
   init_graph_points();
   invalidate_compression_threshold(); // Mark threshold for recalculation
   graph_initialized = 1;
+) : (
+  // If graph was already initialized (loaded from preset), update corner points
+  // to ensure they follow the tangent of the loaded user points
+  update_corner_points();
 );
 
 // 7. Mark compression system as ready (prevents LUT race condition)
