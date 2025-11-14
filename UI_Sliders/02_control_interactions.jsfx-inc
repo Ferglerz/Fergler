@@ -1,6 +1,6 @@
 // User Interactions - Controls Module
 // UI controls and knobs interaction handling
-// Dependencies: 01_Utils/02_math_utils.jsfx-inc, 04_UI_Rendering/02_ui_utils.jsfx-inc, 05_UI_UserInteractions/01_control_definitions.jsfx-inc
+// Dependencies: 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_Sliders/01_control_definitions.jsfx-inc
 
 @init
 

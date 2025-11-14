@@ -1,6 +1,6 @@
 // UI Rendering - Controls Module
 // Generic control rendering (sliders, buttons, dropdowns) and dispatcher
-// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc, 04_UI_Rendering/00_ui_constants.jsfx-inc
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc, UI_General/00_ui_constants.jsfx-inc
 
 @init
 

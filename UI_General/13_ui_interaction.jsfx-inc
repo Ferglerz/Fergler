@@ -1,10 +1,10 @@
 // UI Interaction Module - Main Orchestrator
 // Coordinates all user interaction across the interface
 // Dependencies:
-//   - 05_UI_Rendering/10_menu.jsfx-inc
-//   - 06_UI_UserInteractions/02_control_interactions.jsfx-inc
-//   - 06_UI_UserInteractions/03_graph.jsfx-inc
-//   - 05_UI_Rendering/11_threshold_lines.jsfx-inc
+//   - UI_General/10_menu.jsfx-inc
+//   - UI_Sliders/02_control_interactions.jsfx-inc
+//   - UI_Graph/03_graph.jsfx-inc
+//   - UI_Graph/11_threshold_lines.jsfx-inc
 
 @init
 
