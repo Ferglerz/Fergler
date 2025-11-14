@@ -51,10 +51,6 @@ function allocate_memory() (
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
 
-  // RMS buffers: Stereo interleaved storage [L, R, L, R, ...]
-  max_rms_samples = ceil(0.1 * srate);
-  rms_buffer = freemem; freemem += max_rms_samples * 2; // *2 for stereo
-  
   // Slider properties buffer (4 properties per control)
   slider_properties_base = freemem;
   freemem += NUM_CONTROLS * 4;

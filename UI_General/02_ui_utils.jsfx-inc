@@ -223,3 +223,27 @@ function format_value_with_suffix(value, increment, display_mode) local(decimal_
   temp_display_str;
 );
 
+// Format frequency for display (e.g., "Off", "4k", "1.5k", "500")
+// Returns string via global variable for JSFX string handling
+function format_freq_display(freq) local(freq_khz) (
+  freq == 0 ? (
+    // Off
+    freq_display_str = "Off";
+  ) : freq >= 1000 ? (
+    // Display as kilohertz (e.g., 4k, 1.5k)
+    freq_khz = freq / 1000;
+    freq_khz == floor(freq_khz) ? (
+      // Whole number kHz (e.g., 4k, 5k)
+      sprintf(#freq_display_str, "%.0fk", freq_khz);
+    ) : (
+      // Fractional kHz (e.g., 1.25k, 1.5k)
+      sprintf(#freq_display_str, "%.2fk", freq_khz);
+    );
+  ) : (
+    // Display as Hz for frequencies below 1kHz
+    sprintf(#freq_display_str, "%.0f", freq);
+  );
+  
+  freq_display_str;
+);
+

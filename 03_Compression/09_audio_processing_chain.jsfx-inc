@@ -49,31 +49,13 @@ function process_complete_audio_chain() (
       detect_squared_l = detect_l * detect_l;
       detect_squared_r = detect_r * detect_r;
       
-      menu_true_rms_enabled > 0.5 ? (
-        // TRUE RMS: Stereo circular buffer with interleaved storage [L, R, L, R, ...]
-        // Returns max(L_rms, R_rms) for better transient response (Cockos approach)
-        buffer_idx = rms_pos * 2;
-        rms_sum_l -= rms_buffer[buffer_idx];
-        rms_sum_r -= rms_buffer[buffer_idx + 1];
-        rms_buffer[buffer_idx] = detect_squared_l;
-        rms_buffer[buffer_idx + 1] = detect_squared_r;
-        rms_sum_l += detect_squared_l;
-        rms_sum_r += detect_squared_r;
-        rms_sum_l < 0 ? rms_sum_l = 0;
-        rms_sum_r < 0 ? rms_sum_r = 0;
-        // OPTIMIZATION: Bit masking (3-5x faster than modulo)
-        rms_pos = (rms_pos + 1) & rms_mask;
-        // OPTIMIZATION: Use cached reciprocal (multiply) instead of division
-        rms_level = sqrt(max(rms_sum_l, rms_sum_r) * rms_samples_inv);
+      // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
+      rms_size_ms > 0 ? (
+        detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
+        rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
+        rms_level = sqrt(rms_smoothed_squared);
       ) : (
-        // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
-        rms_size_ms > 0 ? (
-          detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
-          rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
-          rms_level = sqrt(rms_smoothed_squared);
-        ) : (
-          rms_level = max(abs(detect_l), abs(detect_r));
-        );
+        rms_level = max(abs(detect_l), abs(detect_r));
       );
 
       rms_normalization > 0.5 ? (

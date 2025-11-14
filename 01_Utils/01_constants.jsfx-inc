@@ -11,6 +11,7 @@
 #temp_dropdown_option = 52;
 #empty_str = 53;
 #debug_temp_str = 54;  // For debug string concatenation
+#freq_display_str = 60;  // For frequency display formatting
 
 // Group title string slots (5 groups)
 #group_title_0 = 55;  // ENVELOPE
@@ -46,28 +47,4 @@ STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supp
 // Audio buffer sizes (calculated in memory allocation)
 max_lookahead_samples = 0;
 lookahead_mask = 0;  // Bit mask for efficient circular buffer indexing (size - 1)
-
-// Helper function to format frequency for display
-// Returns string via global variable for JSFX string handling
-function format_freq_display(freq) (
-  freq == 0 ? (
-    // Off
-    freq_display_str = "Off";
-  ) : freq >= 1000 ? (
-    // Display as kilohertz (e.g., 4k, 1.5k)
-    freq_khz = freq / 1000;
-    freq_khz == floor(freq_khz) ? (
-      // Whole number kHz (e.g., 4k, 5k)
-      sprintf(#freq_display_str, "%.0fk", freq_khz);
-    ) : (
-      // Fractional kHz (e.g., 1.25k, 1.5k)
-      sprintf(#freq_display_str, "%.2fk", freq_khz);
-    );
-  ) : (
-    // Display as Hz for frequencies below 1kHz
-    sprintf(#freq_display_str, "%.0f", freq);
-  );
-  
-  freq_display_str;
-);
 

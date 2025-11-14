@@ -4,10 +4,6 @@
 
 @init
 
-// Visualization mode - now controlled by debug mode
-// show_compression_lut_curve is automatically set based on menu_debug_enabled
-
-// Cache for LUT visualization curve
 lut_viz_cache_dirty = 1;
 lut_viz_cache_points = 0;
 lut_viz_cache_size = 0;
@@ -16,40 +12,26 @@ lut_viz_cache_size = 0;
 // CURVE RENDERING
 //==============================================================================
 
-// OPTIMIZATION: Removed middleman wrapper functions (input_level_db_to_graph_y,
-// transient_db_to_graph_y, input_level_linear_to_graph_y/x)
-// - now call db_to_graph_y/x directly
-
 // Draw curve directly from compression lookup table
 // This visualizes the actual PRE-COMPUTED data used for audio processing
 function draw_compression_lut_curve() (
-  // Ensure LUT is built (will only rebuild if dirty)
   comp_lut_dirty ? build_compression_lut();
   
-  // Draw the compression LUT curve
-  gfx_set(0.2, 0.8, 1.0, 1); // Cyan/blue color
-  
+  gfx_set(0.2, 0.8, 1.0, 1);
   first_point = 1;
   
-  // Iterate through LUT entries in the visible range
   // LUT goes from -80dB to +20dB, we want -80 to 0
-  start_index = 0; // -80dB is at index 0
-  end_index = floor((GRAPH_MAX_DB - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY); // 0dB index
+  start_index = 0;
+  end_index = floor((GRAPH_MAX_DB - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY);
   
   lut_idx = start_index;
   while (lut_idx <= end_index) (
-    // Calculate the input dB this LUT entry represents
     input_db = COMP_LUT_MIN_DB + (lut_idx * COMP_LUT_GRANULARITY);
-    
-    // Read the stored output value directly from LUT
-    // (the LUT stores the pure curve; offset is applied at lookup time, not here)
+    // LUT stores pure curve; offset applied at lookup time, not here
     output_db = comp_lut[lut_idx];
-    
-    // Convert to screen coordinates
     screen_x = db_to_graph_x(input_db);
     screen_y = db_to_graph_y(output_db);
     
-    // Draw
     first_point ? (
       gfx_x = screen_x;
       gfx_y = screen_y;
@@ -62,37 +44,27 @@ function draw_compression_lut_curve() (
   );
 );
 
-// Draw cached curve (maximum efficiency - just line drawing)
 function draw_cached_mixed_curves() (
-  // Ensure curve is cached
   cache_curve_if_needed();
-  
-  // Draw all cached line segments
-  gfx_set(1, 0.8, 0.2, 1); // Yellow/Orange curve color
+  gfx_set(1, 0.8, 0.2, 1);
   
   i = 0;
   while (i < curve_cache_size) (
-    // Get cached line segment
     x1 = curve_cache_points[i*4 + 0];
     y1 = curve_cache_points[i*4 + 1];
     x2 = curve_cache_points[i*4 + 2];
     y2 = curve_cache_points[i*4 + 3];
-    
-    // Draw line segment (set position once, then draw line)
     gfx_x = x1;
     gfx_y = y1;
     gfx_lineto(x2, y2, 1);
-    
     i += 1;
   );
 );
 
-// Helper function: Draw debug visualization circles at invisible control points
 function draw_debug_invisible_points(point_index, curve_factor) (
   menu_debug_enabled ? (
-    gfx_set(1, 0, 0, 0.8); // Red debug circles
+    gfx_set(1, 0, 0, 0.8);
     
-    // Cache current point coordinates (reduces array access)
     point_x_db = graph_points[point_index*2];
     point_y_db = graph_points[point_index*2 + 1];
     prev_x_db = graph_points[(point_index-1)*2];
@@ -100,60 +72,46 @@ function draw_debug_invisible_points(point_index, curve_factor) (
     next_x_db = graph_points[(point_index+1)*2];
     next_y_db = graph_points[(point_index+1)*2 + 1];
     
-    // Invisible point toward previous neighbor
     invisible1_x = point_x_db + (prev_x_db - point_x_db) * curve_factor;
     invisible1_y = point_y_db + (prev_y_db - point_y_db) * curve_factor;
     invisible1_screen_x = db_to_graph_x(invisible1_x);
     invisible1_screen_y = db_to_graph_y(invisible1_y);
-    gfx_circle(invisible1_screen_x, invisible1_screen_y, 1.5, 1, 1); // 3px diameter
+    gfx_circle(invisible1_screen_x, invisible1_screen_y, 1.5, 1, 1);
     
-    // Invisible point toward next neighbor
     invisible2_x = point_x_db + (next_x_db - point_x_db) * curve_factor;
     invisible2_y = point_y_db + (next_y_db - point_y_db) * curve_factor;
     invisible2_screen_x = db_to_graph_x(invisible2_x);
     invisible2_screen_y = db_to_graph_y(invisible2_y);
-    gfx_circle(invisible2_screen_x, invisible2_screen_y, 1.5, 1, 1); // 3px diameter
+    gfx_circle(invisible2_screen_x, invisible2_screen_y, 1.5, 1, 1);
   );
 );
 
 
 function draw_mixed_curves() local(i) (
-  // Debug counter: track curve rendering
   debug_counter_ui_curves += 1;
   
-  // Choose which curve to render based on debug mode
   menu_debug_enabled ? (
     // DEBUG MODE: Show compression LUT data (actual audio processing curve)
     draw_compression_lut_curve();
   ) : (
-    // NORMAL MODE: Show UI cached curve (optimized rendering version)
     // OPTIMIZATION: Inlined draw_cached_mixed_curves() logic to reduce call depth
-    // Ensure curve is cached
     cache_curve_if_needed();
-    
-    // Draw all cached line segments
-    gfx_set(1, 0.8, 0.2, 1); // Yellow/Orange curve color
+    gfx_set(1, 0.8, 0.2, 1);
     
     i = 0;
     while (i < curve_cache_size) (
-      // Get cached line segment
       x1 = curve_cache_points[i*4 + 0];
       y1 = curve_cache_points[i*4 + 1];
       x2 = curve_cache_points[i*4 + 2];
       y2 = curve_cache_points[i*4 + 3];
-      
-      // Draw line segment (set position once, then draw line)
       gfx_x = x1;
       gfx_y = y1;
       gfx_lineto(x2, y2, 1);
-      
       i += 1;
     );
   );
   
-  // Draw debug visualization if enabled
   menu_debug_enabled ? (
-    // Draw debug circles for curved points
     i = 1;
     while (i < num_points - 1) (
       curve_amount = get_curve_amount(i);
@@ -166,38 +124,32 @@ function draw_mixed_curves() local(i) (
 );
 
 function draw_graph_points() (
-  // Debug mode: visualize corner points and tangent extensions
   menu_debug_enabled ? (
-    // Draw left corner point (index 0)
     corner_x = db_to_graph_x(graph_points[0]);
     corner_y = db_to_graph_y(graph_points[1]);
-    gfx_set(0.5, 0.5, 1.0, 0.8); // Blue for corner points
+    gfx_set(0.5, 0.5, 1.0, 0.8);
     gfx_circle(corner_x, corner_y, 3, 1, 1);
     
-    // Draw tangent line from left corner to first user point
     p1_x = db_to_graph_x(graph_points[2]);
     p1_y = db_to_graph_y(graph_points[3]);
-    gfx_set(0.5, 0.5, 1.0, 0.4); // Semi-transparent blue
+    gfx_set(0.5, 0.5, 1.0, 0.4);
     gfx_line(corner_x, corner_y, p1_x, p1_y, 1);
     
-    // Draw right corner point (index num_points-1)
     last_idx = num_points - 1;
     corner_x = db_to_graph_x(graph_points[last_idx * 2]);
     corner_y = db_to_graph_y(graph_points[last_idx * 2 + 1]);
-    gfx_set(0.5, 0.5, 1.0, 0.8); // Blue for corner points
+    gfx_set(0.5, 0.5, 1.0, 0.8);
     gfx_circle(corner_x, corner_y, 3, 1, 1);
     
-    // Draw tangent line from last user point to right corner
     p_last_x = db_to_graph_x(graph_points[(last_idx - 1) * 2]);
     p_last_y = db_to_graph_y(graph_points[(last_idx - 1) * 2 + 1]);
-    gfx_set(0.5, 0.5, 1.0, 0.4); // Semi-transparent blue
+    gfx_set(0.5, 0.5, 1.0, 0.4);
     gfx_line(p_last_x, p_last_y, corner_x, corner_y, 1);
   );
   
-  // Draw user-controllable points (skip corner points at indices 0 and num_points-1)
+  // Skip corner points at indices 0 and num_points-1
   i = 1;
   while (i < num_points - 1) (
-    // Cache array access and coordinate conversions
     point_index_base = i * 2;
     input_db = graph_points[point_index_base];
     output_db = graph_points[point_index_base + 1];
@@ -208,7 +160,6 @@ function draw_graph_points() (
     curve_amount = get_curve_amount(i);
     is_curved = curve_amount > 0;
 
-    // Point appearance based on hover state and curve status
     is_hovered ? (
       point_radius = 6;
     ) : (
@@ -216,28 +167,18 @@ function draw_graph_points() (
     );
     
     set_point_color(is_hovered, is_curved);
-
-    gfx_circle(point_x, point_y, point_radius, 1, 1); // Antialiased
+    gfx_circle(point_x, point_y, point_radius, 1, 1);
     
-    // Draw curve indicator for curved points
     is_curved ? (
       gfx_set(1, 0.8, 0.2, 0.6);
-      gfx_circle(point_x, point_y, point_radius + 2, 0, 1); // Hollow circle outline
+      gfx_circle(point_x, point_y, point_radius + 2, 0, 1);
     );
     
-    // Show dB values when dragging a point
     is_dragging && mouse_down ? (
-      // Use cached values (already calculated above)
-      text_x = point_x + 15; // Position text to the right of the point
-      text_y = point_y; // Center vertically with the point
-      
-      // Draw distance from 1:1 line (compression amount)
+      text_x = point_x + 15;
+      text_y = point_y;
       draw_text_at(1, 1, 1, 1, text_x, text_y - 4, "%.1f dB", output_db - input_db);
-      
-      // Draw total output dB value in light yellow (like the curve line)
       draw_text_at(1, 1, 0.6, 1, text_x, text_y + 8, "%.1f dB", output_db);
-      
-      // Show curve amount if curved (moved down to make room)
       is_curved ? (
         draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
       );
@@ -249,20 +190,14 @@ function draw_graph_points() (
 
 
 function draw_threshold_lines_on_graph() (
-  // Cache graph boundary (used multiple times)
   graph_right = GRAPH_X + GRAPH_SIZE;
   
-  // Draw input level threshold line if visible
   prog_release_type == 1 ? (
     line_y = db_to_graph_y(input_level_threshold_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
       dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
-    
-    // Draw line across graph
     gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
-    
-    // Draw label
     gfx_x = GRAPH_X + 5;
     gfx_y = line_y - 15;
     gfx_printf("Input: %.1f dB", input_level_threshold_db);

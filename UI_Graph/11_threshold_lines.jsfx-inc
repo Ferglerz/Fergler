@@ -8,56 +8,40 @@
 // THRESHOLD LINE CONFIGURATION
 //==============================================================================
 
-MIN_THRESHOLD_SPACING = 6; // Minimum 6dB spacing between lines
-THRESHOLD_LINE_GRAB_RADIUS = 8; // Pixels for mouse grab detection
+MIN_THRESHOLD_SPACING = 6;
+THRESHOLD_LINE_GRAB_RADIUS = 8;
 
-// Line types
-THRESHOLD_GR_BLEND = 0;      // GR blend threshold (on meter)
-THRESHOLD_INPUT_LEVEL = 1;   // Input level threshold (on graph)
-THRESHOLD_INPUT_LEVEL_2 = 2; // Second input level threshold (on graph)
+THRESHOLD_GR_BLEND = 0;
+THRESHOLD_INPUT_LEVEL = 1;
+THRESHOLD_INPUT_LEVEL_2 = 2;
 
-// Slider mappings for each threshold line (for programmatic sliderchange calls)
-THRESHOLD_SLIDER_GR_BLEND = 32;      // slider32: gr_blend_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 27;   // slider27: input_level_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL_2 = 28; // slider28: input_level_threshold_2_db
+THRESHOLD_SLIDER_GR_BLEND = 32;
+THRESHOLD_SLIDER_INPUT_LEVEL = 27;
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 28;
 
-// Interaction state
-dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)
-hovered_threshold_line = -1;   // Which line is hovered (-1 = none)
+dragging_threshold_line = -1;
+hovered_threshold_line = -1;
 
 //==============================================================================
 // THRESHOLD LINE VALIDATION
 //==============================================================================
 
 function validate_threshold_spacing(value, other_value) (
-  // Ensure at least MIN_THRESHOLD_SPACING between values
   value > other_value ?
     max(value, other_value + MIN_THRESHOLD_SPACING) :
     min(value, other_value - MIN_THRESHOLD_SPACING)
 );
 
 function clamp_gr_blend_threshold(new_value) (
-  // Clamp to valid GR range (1-24 dB)
-  clamped = clamp(new_value, 1, 24);
-  clamped
+  clamp(new_value, 1, 24)
 );
 
 function clamp_input_level_threshold(new_value) (
-  // Clamp to graph range (-80 to -6 dB)
-  clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB - MIN_THRESHOLD_SPACING);
-  
-  // Clamp to valid range
-  
-  clamped
+  clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB - MIN_THRESHOLD_SPACING)
 );
 
 function clamp_input_level_threshold_2(new_value) (
-  // Clamp to graph range and respect first input level threshold
-  clamped = clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB);
-  
-  // Clamp to valid range
-  
-  clamped
+  clamp(new_value, GRAPH_MIN_DB, GRAPH_MAX_DB)
 );
 
 
@@ -65,33 +49,19 @@ function clamp_input_level_threshold_2(new_value) (
 // THRESHOLD LINE POSITION CONVERSION
 //==============================================================================
 
-// GR Blend Threshold (on GR meter)
+// GR Blend Threshold (on GR meter) - range: -40dB to +40dB
 function gr_blend_db_to_meter_y(gr_db) (
-  // GR meter range: -40dB to +40dB
-  // GR blend threshold range: 1-24 dB (of GR amount)
-  meter_center_y = GRAPH_Y + GRAPH_SIZE / 2;
-  max_range_db = 40;
-  
-  // Position from top (negative GR is reduction from top)
-  y_pos = GRAPH_Y + (gr_db / max_range_db) * GRAPH_SIZE;
-  y_pos
+  GRAPH_Y + (gr_db / 40) * GRAPH_SIZE
 );
 
 function meter_y_to_gr_blend_db(y) (
-  // Convert meter Y position back to GR threshold dB
-  max_range_db = 40;
-  gr_db = (y - GRAPH_Y) / GRAPH_SIZE * max_range_db;
-  gr_db
+  (y - GRAPH_Y) / GRAPH_SIZE * 40
 );
-
-// All graph-based thresholds use the same conversion
-// (Input level, Input level 2, and Transient all use graph Y axis)
 
 //==============================================================================
 // THRESHOLD LINE INTERACTION HELPERS
 //==============================================================================
 
-// Check if mouse is near a horizontal line on the meter
 function is_mouse_near_meter_line(mouse_x, mouse_y, line_y) local(meter_x, meter_w) (
   meter_x = GRAPH_X + GRAPH_SIZE + 20;
   meter_w = 30;
@@ -99,13 +69,11 @@ function is_mouse_near_meter_line(mouse_x, mouse_y, line_y) local(meter_x, meter
   abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS
 );
 
-// Check if mouse is near a horizontal line on the graph
 function is_mouse_near_graph_line(mouse_x, mouse_y, line_y) (
   is_point_in_graph(mouse_x, mouse_y) &&
   abs(mouse_y - line_y) < THRESHOLD_LINE_GRAB_RADIUS
 );
 
-// Generic threshold line checker
 function check_threshold_line(mouse_x, mouse_y, threshold_type, is_visible, line_y, is_on_meter) (
   is_visible ? (
     is_on_meter ? 
@@ -118,26 +86,23 @@ function check_threshold_line(mouse_x, mouse_y, threshold_type, is_visible, line
 // THRESHOLD LINE DETECTION
 //==============================================================================
 
-function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y) (
-  // Check each threshold line in priority order (first match wins)
-  
-  // 1. GR blend line (on meter)
+function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line) (
+  // Check in priority order (first match wins)
   found_line = check_threshold_line(
     mouse_x, mouse_y,
     THRESHOLD_GR_BLEND,
     prog_release_type == 2,
     gr_blend_db_to_meter_y(gr_blend_threshold_db),
-    1  // is_on_meter = true
+    1
   );
   
-  // 2. Input level line (on graph)
   found_line < 0 ? (
     found_line = check_threshold_line(
       mouse_x, mouse_y,
       THRESHOLD_INPUT_LEVEL,
       prog_release_type == 1,
       db_to_graph_y(input_level_threshold_db),
-      0  // is_on_meter = false
+      0
     );
   );
   
@@ -148,55 +113,38 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y) local(found_line, line_y
 // THRESHOLD LINE DRAGGING
 //==============================================================================
 
-// Update GR blend threshold (on meter)
-function update_gr_blend_threshold(mouse_y) (
-  new_value = meter_y_to_gr_blend_db(mouse_y);
-  gr_blend_threshold_db = clamp_gr_blend_threshold(new_value);
-  sliderchange(1 << (THRESHOLD_SLIDER_GR_BLEND - 1));
-);
-
-// Update input level threshold (on graph)
-function update_input_level_threshold(mouse_y) (
-  new_value = graph_y_to_db(mouse_y);
-  input_level_threshold_db = clamp_input_level_threshold(new_value);
-  sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL - 1));
-);
-
-// Update second input level threshold (on graph)
-function update_input_level_threshold_2(mouse_y) (
-  new_value = graph_y_to_db(mouse_y);
-  input_level_threshold_2_db = clamp_input_level_threshold_2(new_value);
-  sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL_2 - 1));
-);
-
-
-// Dispatch to the appropriate update function based on which line is being dragged
-function update_dragged_threshold_line(mouse_y) (
-  dragging_threshold_line == THRESHOLD_GR_BLEND ? update_gr_blend_threshold(mouse_y) :
-  dragging_threshold_line == THRESHOLD_INPUT_LEVEL ? update_input_level_threshold(mouse_y) :
-  dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2 ? update_input_level_threshold_2(mouse_y) :
-  0  // No-op if invalid threshold type
+function update_dragged_threshold_line(mouse_y) local(new_value) (
+  dragging_threshold_line == THRESHOLD_GR_BLEND ? (
+    new_value = meter_y_to_gr_blend_db(mouse_y);
+    gr_blend_threshold_db = clamp_gr_blend_threshold(new_value);
+    sliderchange(1 << (THRESHOLD_SLIDER_GR_BLEND - 1));
+  ) : dragging_threshold_line == THRESHOLD_INPUT_LEVEL ? (
+    new_value = graph_y_to_db(mouse_y);
+    input_level_threshold_db = clamp_input_level_threshold(new_value);
+    sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL - 1));
+  ) : dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2 ? (
+    new_value = graph_y_to_db(mouse_y);
+    input_level_threshold_2_db = clamp_input_level_threshold_2(new_value);
+    sliderchange(1 << (THRESHOLD_SLIDER_INPUT_LEVEL_2 - 1));
+  );
 );
 
 function handle_threshold_line_mouse() (
-  MOUSE_LEFT_BUTTON ? ( // Left mouse button
-    !mouse_down ? ( // Start of click
-      // Check if clicking on a threshold line
+  MOUSE_LEFT_BUTTON ? (
+    !mouse_down ? (
       found_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
       found_line >= 0 ? (
         dragging_threshold_line = found_line;
         mouse_down = 1;
       );
-    ) : ( // Continue drag
+    ) : (
       dragging_threshold_line >= 0 ? (
         update_dragged_threshold_line(mouse_y);
       );
     );
   ) : (
-    // Mouse released
     dragging_threshold_line = -1;
   );
   
-  // Update hover state
   hovered_threshold_line = find_threshold_line_at_mouse(mouse_x, mouse_y);
 );

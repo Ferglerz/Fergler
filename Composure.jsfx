@@ -258,13 +258,14 @@ param_changed = 0;
  slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
  slider4 != release_curve_prev || !slider_initialized) ? (
 
-  // Clear RMS buffer if window size changed
+  // Clear RMS state if window size changed
   slider7 != rms_size_ms_prev ? (
     clear_rms_state();
   );
 
-  // Calculate sample counts
-  rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+  // Calculate sample counts (for reference, not used in exponential smoothing)
+  rms_samples = floor(rms_size_ms * 0.001 * srate);
+  rms_samples < 1 ? rms_samples = 1;
   lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 
   param_changed = 1;
@@ -399,33 +400,19 @@ release_curve != 0 ? (
 );
 
 // Update RMS parameters every block for real-time response
-// Fix: Clear buffer when RMS window size changes to prevent stale data bug
-new_rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+// Reset exponential smoothing state when window size changes
+new_rms_samples = floor(rms_size_ms * 0.001 * srate);
+new_rms_samples < 1 ? new_rms_samples = 1;
 new_rms_samples != rms_samples ? (
   rms_samples = new_rms_samples;
-  // Clear RMS state when window size changes (fixes bug with stale buffer data)
-  menu_true_rms_enabled > 0.5 ? (
-    clear_rms_state();  // Clear circular buffer for True RMS mode
-  ) : (
-    rms_smoothed_squared = 0;  // Reset exponential smoothing state
-  );
+  rms_smoothed_squared = 0;  // Reset exponential smoothing state
 ) : (
   rms_samples = new_rms_samples;  // Update even if same (for safety)
 );
 
-// OPTIMIZATION: Cache RMS reciprocal to avoid per-sample division
-rms_samples_inv = 1.0 / max(rms_samples, 1);
-
-// OPTIMIZATION: Calculate power-of-2 size and bit mask for fast circular buffer (like lookahead)
-// Bit masking (x & mask) is 3-5x faster than modulo (x % size)
-// TEMPORARILY DISABLED: These variables are calculated but not used, and may cause performance issues
-// rms_samples_pow2 = 1;
-// while(rms_samples_pow2 < rms_samples) (rms_samples_pow2 *= 2);
-// rms_mask = rms_samples_pow2 - 1;
-
 // OPTIMIZATION: Pre-calculate RMS exponential smoothing coefficients (moved from @sample)
-// Only needed when NOT using True RMS mode and RMS window > 0
-menu_true_rms_enabled == 0 && rms_size_ms > 0 ? (
+// Only needed when RMS window > 0
+rms_size_ms > 0 ? (
   rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
   rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
 );

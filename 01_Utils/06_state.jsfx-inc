@@ -9,24 +9,14 @@
 // STATE VARIABLES INITIALIZATION
 //==============================================================================
 
-// Function to clear RMS buffer state when window size changes
+// Function to clear RMS state when window size changes
 function clear_rms_state() (
-  // Stereo RMS sums (separate L/R tracking)
-  rms_sum_l = 0;
-  rms_sum_r = 0;
-  rms_pos = 0;
-  
-  // Clear stereo interleaved RMS buffer [L, R, L, R, ...] up to max size
-  i = 0;
-  while (i < max_rms_samples * 2) ( // *2 for stereo
-    rms_buffer[i] = 0;
-    i += 1;
-  );
+  // Reset exponential smoothing state
+  rms_smoothed_squared = 0;
 );
 
 function init_state_variables() (
   // Audio processing state
-  clear_rms_state();
   lookahead_pos = 0;
 
   // Filter states
@@ -98,7 +88,8 @@ function init_state_variables() (
   );
   
   // Initialize RMS samples calculation (must be done after srate is available)
-  rms_samples = clamp(floor(rms_size_ms * 0.001 * srate), 1, max_rms_samples);
+  rms_samples = floor(rms_size_ms * 0.001 * srate);
+  rms_samples < 1 ? rms_samples = 1;
   lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 
   // Histogram state
