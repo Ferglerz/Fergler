@@ -107,6 +107,8 @@ import UI_General/01_drawing_primitives.jsfx-inc
 import UI_General/04_debug.jsfx-inc
 import UI_General/10_menu.jsfx-inc
 import UI_General/05_header.jsfx-inc
+// Threshold lines service (independent, used by graph and meter)
+import UI_General/11_threshold_lines.jsfx-inc
 
 // UI_Sliders: Slider control library (depends on UI_General)
 import UI_Sliders/01a_value_formatting.jsfx-inc
@@ -123,11 +125,9 @@ import UI_Sliders/02_control_interactions.jsfx-inc
 import UI_Sliders/05_Composure_Controls.jsfx-inc
 
 // UI_Graph: Graph rendering and interaction (depends on UI_General)
-// Note: 11_threshold_lines.jsfx-inc must come before 08_graph_meters.jsfx-inc because
-// 08_graph_meters.jsfx-inc calls gr_blend_db_to_meter_y() from 11_threshold_lines.jsfx-inc
+// threshold_lines is now in UI_General and independent
 import UI_Graph/06_graph_cache.jsfx-inc
 import UI_Graph/07_graph_curves.jsfx-inc
-import UI_Graph/11_threshold_lines.jsfx-inc
 import UI_Graph/08_graph_meters.jsfx-inc
 import UI_Graph/09_graph_display.jsfx-inc
 import UI_Graph/12_dot_trail.jsfx-inc

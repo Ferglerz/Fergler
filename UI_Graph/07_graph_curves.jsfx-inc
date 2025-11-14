@@ -190,17 +190,7 @@ function draw_graph_points() (
 
 
 function draw_threshold_lines_on_graph() (
-  graph_right = GRAPH_X + GRAPH_SIZE;
-  
-  prog_release_type == 1 ? (
-    line_y = db_to_graph_y(input_level_threshold_db);
-    set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
-      hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
-      dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
-    gfx_line(GRAPH_X, line_y, graph_right, line_y, 1);
-    gfx_x = GRAPH_X + 5;
-    gfx_y = line_y - 15;
-    gfx_printf("Input: %.1f dB", input_level_threshold_db);
-  );
+  // Use threshold_lines service to render input level threshold line
+  render_input_level_threshold_line(GRAPH_X, GRAPH_Y, GRAPH_SIZE);
 );
 

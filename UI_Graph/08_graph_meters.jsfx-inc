@@ -1,6 +1,9 @@
 // UI Graph Meters Module
 // Gain reduction meter and histogram visualization
-// Depends on: 00a_constants.jsfx-inc, 05a_ui_threshold_lines.jsfx-inc, 05c_ui_rendering.jsfx-inc
+// Depends on: 
+//   - 00a_constants.jsfx-inc
+//   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
+//   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, THRESHOLD_GR_BLEND, hovered_threshold_line, dragging_threshold_line)
 
 @init
 
@@ -72,21 +75,8 @@ function draw_gain_reduction_meter() (
     );
   );
   
-  // Draw GR blend threshold line if visible
-  prog_release_type == 2 ? (
-    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db);
-    set_threshold_line_color(THRESHOLD_GR_BLEND, 
-      hovered_threshold_line == THRESHOLD_GR_BLEND, 
-      dragging_threshold_line == THRESHOLD_GR_BLEND);
-    
-    // Draw line across meter
-    gfx_line(gr_meter_x, line_y, gr_meter_x + gr_meter_w, line_y, 1);
-    
-    // Draw label
-    gfx_x = gr_meter_x + gr_meter_w + 5;
-    gfx_y = line_y - 6;
-    gfx_printf("%.1f dB", gr_blend_threshold_db);
-  );
+  // Draw GR blend threshold line if visible (using threshold_lines service)
+  render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
   );
 );
 
