@@ -8,26 +8,19 @@
 // GRAPH CONFIGURATION
 //==============================================================================
 
-// Graph layout and behavior (GRAPH_X, GRAPH_Y, GRAPH_SIZE defined in 05_ui_core.jsfx-inc)
-GRAPH_RANGE_DB = 80; // -80 to 0
+GRAPH_RANGE_DB = 80;
 GRAPH_MIN_DB = -80;
 GRAPH_MAX_DB = 0;
 
 // Pre-calculated constants for coordinate conversion (optimization)
-// These eliminate repeated divisions in coordinate conversion functions
-// NOTE: These must be calculated AFTER GRAPH_SIZE/GRAPH_X/GRAPH_Y are defined
+// Eliminates repeated divisions - must be calculated AFTER GRAPH_SIZE/GRAPH_X/GRAPH_Y are defined
 // Call init_graph_optimization_constants() from main @init after all imports
-DB_TO_PIXEL_SCALE = 0;  // Will be: GRAPH_SIZE / GRAPH_RANGE_DB = 3.2875 pixels per dB
-PIXEL_TO_DB_SCALE = 0;  // Will be: GRAPH_RANGE_DB / GRAPH_SIZE = 0.304... dB per pixel
+DB_TO_PIXEL_SCALE = 0;
+PIXEL_TO_DB_SCALE = 0;
+HISTOGRAM_Y_OFFSET = 0;
+HISTOGRAM_X_OFFSET = 0;
+GR_PIXELS_PER_DB = 0;  // 40dB range for gain reduction display
 
-// Pre-calculated offsets for histogram rendering (optimization)
-HISTOGRAM_Y_OFFSET = 0;  // Will be: GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE
-HISTOGRAM_X_OFFSET = 0;  // Will be: GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE
-
-// GR histogram scale (40dB range for gain reduction display)
-GR_PIXELS_PER_DB = 0;  // Will be: GRAPH_SIZE / 40
-
-// Function to initialize optimization constants after GRAPH_SIZE is available
 function init_graph_optimization_constants() (
   DB_TO_PIXEL_SCALE = GRAPH_SIZE / GRAPH_RANGE_DB;
   PIXEL_TO_DB_SCALE = GRAPH_RANGE_DB / GRAPH_SIZE;
@@ -36,18 +29,16 @@ function init_graph_optimization_constants() (
   GR_PIXELS_PER_DB = GRAPH_SIZE / 40;
 );
 
-// Point management
 MIN_POINTS = 4;
 MAX_POINTS = 12;
 MOUSE_CLICK_RADIUS = 10;
 
 // Optimization: Cache leftmost non-1:1 point for early exit
-comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;  // Threshold below which no compression occurs (default: no compression)
-comp_curve_min_threshold_linear = 1.0;  // Threshold in linear domain (calculated from dB)
-comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
+comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;
+comp_curve_min_threshold_linear = 1.0;
+comp_curve_threshold_dirty = 1;
 
-// Graph state - these need to persist across @init calls
-// Use a special flag to track if these have been initialized
+// Graph state - persist across @init calls
 !persistent_vars_initialized ? (
   num_points = 6;
   selected_point = -1;
@@ -55,27 +46,20 @@ comp_curve_threshold_dirty = 1;  // Flag to recalculate threshold
   mouse_down = 0;
   mouse_x_prev = 0;
   mouse_y_prev = 0;
-  
-  // Curve adjustment state
   curve_drag_started = 0;
   curve_drag_start_x = 0;
   curve_drag_start_y = 0;
-  
   graph_initialized = 0;
   persistent_vars_initialized = 1;
-  
-  // Curve data - track which points have curves and their amounts (0-100%)
-  // curve_amounts[i] = 0 means point i has no curve, > 0 means curved with that percentage
-  curve_amounts = 0; // Will be allocated in memory
-  curve_mode = 0; // 0 = normal mode, 1 = curve mode
+  // curve_amounts[i] = 0 means no curve, > 0 means curved with that percentage
+  curve_amounts = 0;
+  curve_mode = 0;
 );
 
 //==============================================================================
 // COORDINATE CONVERSION FUNCTIONS
 //==============================================================================
 
-// Convert between dB values and graph screen coordinates
-// These functions depend on GRAPH constants defined above and in UI constants
 // Optimized to use pre-calculated scale factors (eliminates divisions)
 
 function db_to_graph_x(db) (
@@ -104,8 +88,6 @@ function is_point_in_graph(x, y) (
 //==============================================================================
 
 function init_curve_data() (
-  // Memory allocation now handled in 01a_memory.jsfx-inc
-  // Just initialize all curves to 0 (no curves)
   i = 0;
   while (i < MAX_POINTS) (
     curve_amounts[i] = 0;
@@ -139,13 +121,11 @@ function clear_all_curves() (
 // DYNAMIC CORNER POINTS (TANGENT EXTENSION)
 //==============================================================================
 
-// Extends corner points as tangents from the outermost user points
+// Extends corner points as tangents from outermost user points
 // Left: Stays on bottom edge (Y=-80), X adjusts to follow tangent
 // Right: Stays on right edge (X=0), Y adjusts to follow tangent
 function update_corner_points() (
-  //----------------------------------------------------------------------------
   // LEFT CORNER (index 0) - Extends along bottom edge
-  //----------------------------------------------------------------------------
   num_points >= 3 ? (
     p1_x = graph_points[2];
     p1_y = graph_points[3];
@@ -161,7 +141,6 @@ function update_corner_points() (
         graph_points[0] = GRAPH_MIN_DB;
         graph_points[1] = GRAPH_MIN_DB;
       ) : (
-        // Extend to Y=-80, solve for X
         graph_points[1] = GRAPH_MIN_DB;
         graph_points[0] = p1_x + (GRAPH_MIN_DB - p1_y) / slope;
         
@@ -172,19 +151,15 @@ function update_corner_points() (
         );
       );
     ) : (
-      // Vertical alignment
       graph_points[0] = GRAPH_MIN_DB;
       graph_points[1] = GRAPH_MIN_DB;
     );
   ) : (
-    // Fallback: 1:1 line
     graph_points[0] = GRAPH_MIN_DB;
     graph_points[1] = GRAPH_MIN_DB;
   );
   
-  //----------------------------------------------------------------------------
   // RIGHT CORNER (index num_points-1) - Extends along right edge
-  //----------------------------------------------------------------------------
   num_points >= 3 ? (
     last_idx = num_points - 1;
     p1_x = graph_points[(last_idx - 2) * 2];
@@ -195,17 +170,13 @@ function update_corner_points() (
     dx = p2_x - p1_x;
     abs(dx) > 0.001 ? (
       slope = (p2_y - p1_y) / dx;
-      
-      // Extend to X=0, solve for Y (no clamping)
       graph_points[last_idx * 2] = GRAPH_MAX_DB;
       graph_points[last_idx * 2 + 1] = p2_y + slope * (GRAPH_MAX_DB - p2_x);
     ) : (
-      // Vertical alignment
       graph_points[last_idx * 2] = GRAPH_MAX_DB;
       graph_points[last_idx * 2 + 1] = p2_y;
     );
   ) : (
-    // Fallback: 1:1 line
     last_idx = num_points - 1;
     graph_points[last_idx * 2] = GRAPH_MAX_DB;
     graph_points[last_idx * 2 + 1] = GRAPH_MAX_DB;
@@ -217,16 +188,12 @@ function update_corner_points() (
 //==============================================================================
 
 function init_graph_points() (
-  // Initialize points on diagonal line (1:1 compression)
-  // Start with temporary positions - corner points will be calculated
   graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
   graph_points[2] = -60; graph_points[3] = -60;
   graph_points[4] = -40; graph_points[5] = -40;
   graph_points[6] = -20; graph_points[7] = -20;
   graph_points[8] = -10; graph_points[9] = -10;
   graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
-  
-  // Calculate dynamic corner points based on tangents
   update_corner_points();
 );
 
@@ -252,20 +219,17 @@ function sort_points() (
     );
     i += 1;
   );
-  
-  // Update corner points after sorting to maintain tangent extensions
   update_corner_points();
 );
 
 function add_point(input_db, output_db) (
   num_points >= MAX_POINTS ? -1 : (
-    // Find the correct insertion position based on input_db value
-    insert_pos = num_points - 1; // Default to before last corner point
+    insert_pos = num_points - 1;
     i = 1;
     while (i < num_points - 1) (
       graph_points[i*2] > input_db ? (
         insert_pos = i;
-        i = num_points; // break
+        i = num_points;
       ) : (
         i += 1;
       );
@@ -275,23 +239,15 @@ function add_point(input_db, output_db) (
     while (i > insert_pos) (
       graph_points[i*2] = graph_points[(i-1)*2];
       graph_points[i*2 + 1] = graph_points[(i-1)*2 + 1];
-      // Shift curve amounts up as well
       curve_amounts[i] = curve_amounts[i-1];
       i -= 1;
     );
 
     graph_points[insert_pos*2] = input_db;
     graph_points[insert_pos*2 + 1] = output_db;
-    // New points start with no curve
     curve_amounts[insert_pos] = 0;
-
     num_points += 1;
-    
-    // Update corner points to reflect new tangents
     update_corner_points();
-    
-    // No need to sort since we inserted in the correct position
-    // Return the insertion position as the new point index
     insert_pos;
   );
 );
@@ -302,23 +258,17 @@ function delete_point(point_index) (
     while (i < num_points - 1) (
       graph_points[i*2] = graph_points[(i+1)*2];
       graph_points[i*2 + 1] = graph_points[(i+1)*2 + 1];
-      // Shift curve amounts down as well
       curve_amounts[i] = curve_amounts[i+1];
       i += 1;
     );
-    // Clear the curve amount for the last point
     curve_amounts[num_points - 1] = 0;
     num_points -= 1;
-    
-    // Update corner points to reflect new tangents
     update_corner_points();
-    
     1;
   );
 );
 
 function remove_displaced_points(moved_input_db, moved_output_db) (
-  // Count how many points are at approximately the same position as the moved point
   same_position_count = 0;
   i = 1;
   while (i < num_points - 1) (
@@ -328,18 +278,16 @@ function remove_displaced_points(moved_input_db, moved_output_db) (
     i += 1;
   );
 
-  // If more than 2 points are at the same position, remove the extras
   same_position_count > 2 ? (
     points_to_remove = same_position_count - 2;
     removal_count = 0;
-
-    // Remove points from the end backwards to avoid index shifting issues
-    i = num_points - 2; // Start from last non-corner point
+    // Remove from end backwards to avoid index shifting issues
+    i = num_points - 2;
     while (i > 0 && removal_count < points_to_remove && num_points > MIN_POINTS) (
       abs(graph_points[i*2] - moved_input_db) < 2.0 && abs(graph_points[i*2 + 1] - moved_output_db) < 2.0 ? (
         delete_point(i);
         removal_count += 1;
-        i -= 1; // Adjust index after deletion
+        i -= 1;
       ) : (
         i -= 1;
       );
@@ -348,17 +296,16 @@ function remove_displaced_points(moved_input_db, moved_output_db) (
 );
 
 function find_point_at_mouse(x, y) (
-  // Skip corner points (indices 0 and num_points-1) - they are invisible and non-interactive
+  // Skip corner points (indices 0 and num_points-1) - invisible and non-interactive
   found_point = -1;
   i = 1;
   while (i < num_points - 1) (
     point_x = db_to_graph_x(graph_points[i*2]);
     point_y = db_to_graph_y(graph_points[i*2 + 1]);
     dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
-
     dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
       found_point = i;
-      i = num_points; // Break out of loop
+      i = num_points;
     ) : (
       i += 1;
     );
@@ -371,40 +318,30 @@ function find_point_at_mouse(x, y) (
 //==============================================================================
 
 function calculate_compression_threshold() (
-  // Find the leftmost point where compression actually occurs (input != output)
-  // This lets us skip compression calculations when input is below this threshold
-  // Note: Global offset is NOT factored in here - it's applied when checking the threshold
+  // Find leftmost point where compression occurs (input != output) for early exit optimization
+  // Note: Global offset is NOT factored in here - applied when checking threshold
+  comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;
   
-  // Default: assume no compression anywhere (set threshold very high)
-  comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;  // Higher than any possible input
-  
-  // Scan from left to right to find first non-1:1 point
-  i = 1;  // Skip first corner point (index 0)
+  i = 1;
   while (i < num_points - 1) (
     input_db = graph_points[i*2];
     output_db = graph_points[i*2 + 1];
     
-    // Check if this point deviates from 1:1 (with small tolerance for floating point)
     abs(input_db - output_db) > 0.01 ? (
-      // Found the first compression point!
-      // The threshold should be the PREVIOUS point (last 1:1 point before compression starts)
+      // Threshold is PREVIOUS point (last 1:1 point before compression starts)
       i > 1 ? (
-        // Use the previous point's input value
         comp_curve_min_threshold_db = graph_points[(i-1)*2];
       ) : (
-        // First movable point is already compressing, use the corner point
-        comp_curve_min_threshold_db = graph_points[0];  // GRAPH_MIN_DB (-80)
+        comp_curve_min_threshold_db = graph_points[0];
       );
-      i = num_points;  // Break out of loop
+      i = num_points;
     ) : (
       i += 1;
     );
   );
   
-  // Convert threshold to linear domain ONCE (used for fast early exit checks in @sample)
-  // This avoids expensive log() conversion every sample
+  // Convert to linear domain ONCE (avoids expensive log() conversion every sample)
   comp_curve_min_threshold_linear = db_to_linear(comp_curve_min_threshold_db);
-  
   comp_curve_threshold_dirty = 0;
 );
 

@@ -93,7 +93,6 @@ import 02_InputProcessing/02_filters.jsfx-inc
 import 03_Compression/01_compression_constants.jsfx-inc
 import 03_Compression/02_graph_data_core.jsfx-inc
 import 03_Compression/03_graph_curves.jsfx-inc
-import 03_Compression/04_graph_cache.jsfx-inc
 import 03_Compression/05_compression_core.jsfx-inc
 import 03_Compression/06_gain_reduction.jsfx-inc
 import 03_Compression/07_envelope.jsfx-inc

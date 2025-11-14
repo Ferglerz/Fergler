@@ -11,108 +11,71 @@
 //==============================================================================
 
 function process_complete_audio_chain() (
-  // === INLINE AUDIO PROCESSING CHAIN ===
-  // This version reduces function call overhead by inlining critical paths
-  
-  // Debug counter: track calls to audio chain
   debug_counter_audio_chain += 1;
 
-  // === INPUT STAGE (inlined) ===
   input_l_orig = spl0;
   input_r_orig = spl1;
-
-  // Pre-calculate channel availability flags
   has_stereo = (num_ch >= 2);
   has_sidechain_l = (use_sidechain && num_ch >= 3);
   has_sidechain_r = (use_sidechain && num_ch >= 4);
 
-  // Set detection signals based on mode
   // Detect on CURRENT input (not delayed) for lookahead to work
   detect_l = spl0;
   detect_r = spl1;
 
-  // === DETECTION SOURCE SELECTION (inlined) ===
   stage_detection_source == 1 ? (
     detection_mode > 0.5 ? (
-      // FEEDFORWARD: Use input signal for detection
       detect_l = has_sidechain_l ? spl2 : spl0;
       detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
     ) : (
-      // FEEDBACK: Use previous sample's output for detection (one-sample delay)
+      // FEEDBACK: Use previous sample's output (one-sample delay)
       detect_l = has_sidechain_l ? spl2 : final_l_prev;
       detect_r = has_sidechain_r ? spl3 : final_r_prev;
     );
   );
 
-  // === DETECTION FILTERING (inlined) ===
-  // Skip if both filters are Off (saves CPU)
   (hp_filter_enabled || lp_filter_enabled) ? (
     apply_detection_filters(detect_l, detect_r);
     detect_l = filtered_l;
     detect_r = filtered_r;
   );
 
-  // === LISTEN MODE (early exit) ===
   should_listen = listen_to_sidechain && stage_detection_source == 1;
   should_listen ? (
     spl0 = detect_l;
     has_stereo ? spl1 = detect_r;
   ) : (
-    // === DETECTION AND ANALYSIS (inlined) ===
     stage_detection_analysis == 1 ? (
-      // Early exit optimization: Skip compression calculation if input is below threshold
-      // and we're not in an active release state (global_smoothed_gain_db near zero)
-      // Note: We still need to process if global_offset is non-zero as it shifts the curve
-      
-      // RMS calculation - supports both True RMS (buffer) and Exponential Smoothing
       detect_squared_l = detect_l * detect_l;
       detect_squared_r = detect_r * detect_r;
       
       menu_true_rms_enabled > 0.5 ? (
-        // TRUE RMS MODE: Stereo circular buffer with per-channel detection
-        // Uses interleaved storage [L, R, L, R, ...] for cache efficiency
+        // TRUE RMS: Stereo circular buffer with interleaved storage [L, R, L, R, ...]
         // Returns max(L_rms, R_rms) for better transient response (Cockos approach)
-        
-        // Calculate buffer index for stereo interleaved storage
         buffer_idx = rms_pos * 2;
-        
-        // Remove old samples from running sums
         rms_sum_l -= rms_buffer[buffer_idx];
         rms_sum_r -= rms_buffer[buffer_idx + 1];
-        
-        // Store new squared samples
         rms_buffer[buffer_idx] = detect_squared_l;
         rms_buffer[buffer_idx + 1] = detect_squared_r;
-        
-        // Add new samples to running sums
         rms_sum_l += detect_squared_l;
         rms_sum_r += detect_squared_r;
-        
-        // Prevent negative sums from floating point errors
         rms_sum_l < 0 ? rms_sum_l = 0;
         rms_sum_r < 0 ? rms_sum_r = 0;
-        
-        // Advance circular buffer pointer with bit masking (3-5x faster than modulo)
+        // OPTIMIZATION: Bit masking (3-5x faster than modulo)
         rms_pos = (rms_pos + 1) & rms_mask;
-        
-        // Use max of L/R channels for detection (not average)
-        // This provides better transient response and matches Cockos approach
         // OPTIMIZATION: Use cached reciprocal (multiply) instead of division
         rms_level = sqrt(max(rms_sum_l, rms_sum_r) * rms_samples_inv);
       ) : (
-        // EXPONENTIAL SMOOTHING MODE (default): No buffer, simple smoothing
-        // NOTE: Coefficients are pre-calculated in @block for performance
+        // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
         rms_size_ms > 0 ? (
           detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
           rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
           rms_level = sqrt(rms_smoothed_squared);
         ) : (
-          // Peak mode when RMS window = 0
           rms_level = max(abs(detect_l), abs(detect_r));
         );
       );
 
-      // Apply RMS normalization if enabled
       rms_normalization > 0.5 ? (
         rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
         normalized_rms = rms_level / (rms_max + eps);
@@ -122,17 +85,12 @@ function process_complete_audio_chain() (
         rms_size_ms > 0 ? (
           detector_level = rms_level;
         ) : (
-          // Ensure detection is sign-agnostic - use absolute values
           detector_level = max(abs(detect_l), abs(detect_r));
         );
       );
 
-      // OPTIMIZATION: Early exit check using linear comparison (avoids expensive log())
-      // Check if we can skip compression calculation:
-      // 1. Actual input must be below the minimum compression threshold (in linear domain)
-      //    (threshold is based on curve shape, not affected by global offset)
-      // 2. No active release state (envelope is near zero)
-      // OPTIMIZATION: Avoid abs() call by checking both positive and negative bounds
+      // OPTIMIZATION: Early exit using linear comparison (avoids expensive log())
+      // Skip if: 1) below threshold, 2) no active release state
       can_skip_compression = (
         detector_level < comp_curve_min_threshold_linear &&
         global_smoothed_gain_db > -0.01 &&
@@ -140,53 +98,40 @@ function process_complete_audio_chain() (
       );
       
       can_skip_compression ? (
-        // No compression needed - set target GR to 0
         target_gr_db = 0;
-        // Set flag for UI indicator
         gr_processing_skipped = 1;
       ) : (
-        // Above threshold - convert to dB and calculate compression
         detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
         target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
-        // gr_processing_skipped is set by calculate_gain_reduction_from_db
       );
       
-      // Track maximum input level for block-level histogram (in linear - convert in @block)
       detector_level > detector_level_block_max ? (
         detector_level_block_max = detector_level;
       );
     );
 
-    // === ENVELOPE FOLLOWING (inlined) ===
     stage_envelope == 1 ? (
-      // Optimization: Skip envelope processing if both target and current are near zero
-      // This avoids expensive exponential smoothing when no compression is happening
+      // OPTIMIZATION: Skip envelope processing when both target and current are near zero
       can_skip_envelope = (
         abs(target_gr_db) < 0.01 &&
         abs(global_smoothed_gain_db) < 0.01
       );
       
       can_skip_envelope ? (
-        // Both target and envelope are near zero - explicitly zero to prevent denormals
         global_smoothed_gain_db = 0;
       ) : (
-        // Normal envelope processing needed (passing pre-calculated dB)
         process_envelope_following(target_gr_db, detector_level_db);
       );
     );
     
-    // Get current GR to apply (BEFORE lookahead delay)
     current_gr_db = stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db;
     
-    // Track maximum absolute GR for block-level histogram
     abs(current_gr_db) > abs(gr_db_block_max) ? (
-      gr_db_block_max = current_gr_db;  // Store with sign (not absolute)
+      gr_db_block_max = current_gr_db;
     );
 
-    // === LOOKAHEAD ===
     // Cockos approach: Delay AUDIO, apply CURRENT gain to delayed audio
-    // This lets the envelope "see" transients before they arrive in delayed signal
-    // Optimization: Skip function call if lookahead is 0
+    // This lets the envelope "see" transients before they arrive
     lookahead_ms > 0 ? (
       process_lookahead_audio(input_l_orig, input_r_orig);
       audio_to_compress_l = lookahead_out_l;
@@ -196,10 +141,7 @@ function process_complete_audio_chain() (
       audio_to_compress_r = input_r_orig;
     );
 
-    // === GAIN REDUCTION APPLICATION (inlined) ===
-    // Apply CURRENT gain to (possibly delayed) audio
     stage_gain_reduction == 1 ? (
-      // Skip conversion and multiplication when GR is effectively 0 dB
       abs(current_gr_db) < 0.000001 ? (
         processed_l = audio_to_compress_l;
         processed_r = audio_to_compress_r;
@@ -213,12 +155,8 @@ function process_complete_audio_chain() (
       processed_r = input_r_orig;
     );
 
-    // === HARMONIC PROCESSING (inlined) ===
-    // Optimization: Skip if harmonic type is Off or no gain reduction
-    // This avoids function call overhead when no processing is needed
+    // OPTIMIZATION: Pre-calculate shared values once (not twice in L/R calls)
     harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
-      // OPTIMIZATION: Pre-calculate shared values once (not twice in L/R function calls)
-      // These calculations are identical for both channels and were being duplicated
       harmonic_envelope_amount = abs(global_smoothed_gain_db) / 30.0;
       harmonic_abs_gr = abs(target_gr_db);
       harmonic_gr_factor = harmonic_abs_gr * 0.3;
@@ -226,11 +164,10 @@ function process_complete_audio_chain() (
       harmonic_combined_factor = harmonic_gr_factor * harmonic_envelope_factor;
       harmonic_even_factor = 1 + harmonic_even_boost;
       harmonic_odd_factor = 1 + harmonic_odd_boost;
-      harmonic_amount = 1.0; // Hardcoded to max
+      harmonic_amount = 1.0;
       harmonic_base_intensity = harmonic_amount * harmonic_abs_gr * 0.15;
       harmonic_intensity = harmonic_base_intensity * (1 + harmonic_envelope_amount * 0.2);
       
-      // Process L and R with pre-calculated shared values
       processed_l = apply_harmonic_processing(processed_l, target_gr_db, harmonic_envelope_amount, detector_level,
                                              harmonic_type, harmonic_drive, harmonic_mix, 
                                              harmonic_even_boost, harmonic_odd_boost);
@@ -239,7 +176,6 @@ function process_complete_audio_chain() (
                                              harmonic_even_boost, harmonic_odd_boost);
     );
 
-    // === FINAL MIX (inlined) ===
     stage_final_mix == 1 ? (
       final_l = processed_l * makeup_gain_linear;
       final_r = processed_r * makeup_gain_linear;
@@ -247,10 +183,9 @@ function process_complete_audio_chain() (
       final_out_r = final_r;
     );
 
-    // === BRICKWALL LIMITER (inlined) ===
     brickwall_limiter > 0.5 ? (
       // OPTIMIZATION: Calculate abs() once and check both (avoids max() call)
-      // Only process limiter when output is -0.5dB or higher (0.944)
+      // Only process when output is -0.5dB or higher (0.944)
       abs_final_l = abs(final_l);
       abs_final_r = abs(final_r);
       (abs_final_l > 0.944 || abs_final_r > 0.944) ? (
@@ -261,20 +196,14 @@ function process_complete_audio_chain() (
       limiter_prev_r = final_r;
     );
 
-    // === OUTPUT STAGE (inlined) ===
     spl0 = final_l;
     spl1 = final_r;
-
-    // Store output for next sample's feedback detection
     final_l_prev = final_l;
     final_r_prev = final_r;
   );
   
-  // === DEBUG COUNTER UPDATE (every sample) ===
-  // Increment sample counter and update display values every second
   debug_counter_samples += 1;
   debug_counter_samples >= debug_counter_reset_interval ? (
-    // Copy all counter values to display variables
     debug_display_audio_chain = debug_counter_audio_chain;
     debug_display_gain_reduction = debug_counter_gain_reduction;
     debug_display_envelope = debug_counter_envelope;
@@ -294,7 +223,6 @@ function process_complete_audio_chain() (
     debug_display_graph_bg = debug_counter_graph_bg;
     debug_display_grid = debug_counter_grid;
     
-    // Reset all counters for next second
     debug_counter_audio_chain = 0;
     debug_counter_gain_reduction = 0;
     debug_counter_envelope = 0;

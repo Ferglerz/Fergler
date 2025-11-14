@@ -1,11 +1,9 @@
 // Compression Core Module
 // Basic gain reduction calculation, core compression logic, and compression curve interpolation
-// Location: Compression/compression_core.jsfx-inc
 // Dependencies: Utils/constants.jsfx-inc, Utils/math_utils.jsfx-inc, Compression/compression_constants.jsfx-inc, Compression/graph_data_core.jsfx-inc
 
 @init
 
-// Flag to prevent LUT building before initialization is complete
 compression_init_complete = 0;
 
 //==============================================================================
@@ -15,47 +13,35 @@ compression_init_complete = 0;
 function interpolate_compression_curve(input_db) (
   debug_counter_curve_interp += 1;
   
-  // Bounds checking
   input_db <= graph_points[0] ? graph_points[1] : (
     input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
-      // Find the segment
       i = 0;
       while (i < num_points - 1 && graph_points[(i+1)*2] < input_db) (
         i += 1;
       );
 
-      // Get the segment endpoints
       x1 = graph_points[i*2];
       y1 = graph_points[i*2 + 1];
       x2 = graph_points[(i+1)*2];
       y2 = graph_points[(i+1)*2 + 1];
-
-      // Check if this segment has a curve (only check the second point of the segment)
       curve_amount = get_curve_amount(i + 1);
       
       curve_amount > 0 && i + 1 < num_points - 1 ? (
-        // Use bezier interpolation for curved segments
         calculate_bezier_control_points(i + 1, curve_amount);
-        
-        // Get the four points for the bezier curve (using invisible endpoints)
-        p0_x = bezier_p0_x;  // Invisible point toward previous
+        p0_x = bezier_p0_x;
         p0_y = bezier_p0_y;
-        p1_x = bezier_control1_x;  // Control point (current point)
+        p1_x = bezier_control1_x;
         p1_y = bezier_control1_y;
-        p2_x = bezier_control2_x;  // Control point (current point)
+        p2_x = bezier_control2_x;
         p2_y = bezier_control2_y;
-        p3_x = bezier_p3_x;  // Invisible point toward next
+        p3_x = bezier_p3_x;
         p3_y = bezier_p3_y;
         
-        // Calculate bezier t parameter (0-1 across the curve between invisible points)
         // Optimized: inline clamp to avoid function call overhead
         bezier_t = max(0, min(1, (input_db - p0_x) / max(p3_x - p0_x, eps)));
-        
-        // Evaluate bezier curve
         evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
         bezier_result_y
       ) : (
-        // Use linear interpolation for straight segments
         // Optimized: inline clamp to avoid function call overhead
         t = max(0, min(1, (input_db - x1) / (x2 - x1)));
         y1 + t * (y2 - y1)
@@ -68,69 +54,39 @@ function interpolate_compression_curve(input_db) (
 // COMPRESSION LOOKUP TABLE
 //==============================================================================
 
-// Track whether LUT needs rebuilding
 comp_lut_dirty = 1;
 
-//==============================================================================
-// COMPRESSION LOOKUP TABLE FUNCTIONS
-//==============================================================================
-
 function build_compression_lut() (
-  // GUARD: Don't build until initialization is complete
   !compression_init_complete ? (
-    0; // Return without building
+    0;
   ) : (
-    // Build lookup table by sampling the dB curve segments
-    // Uses the single source of truth from 03_graph_curves.jsfx-inc
-    
-    // CRITICAL: Ensure curve segments are generated first!
+    // CRITICAL: Ensure curve segments are generated first (single source of truth)
     curve_segments_db_dirty ? generate_curve_segments_db();
   
     i = 0;
     while (i < COMP_LUT_SIZE) (
-      // Calculate dB value for this LUT index
       input_db = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
-      
-      // Sample the curve at this input dB
-      output_db = sample_curve_at_db(input_db);
-      
-      // Store in lookup table
-      comp_lut[i] = output_db;
-    
-    i += 1;
-  );
+      comp_lut[i] = sample_curve_at_db(input_db);
+      i += 1;
+    );
   
-    // Calculate compression threshold for optimization
     comp_curve_threshold_dirty ? calculate_compression_threshold();
-  
-    // Mark LUT as clean
     comp_lut_dirty = 0;
   );
 );
 
 function lookup_compression_lut(input_db) (
   debug_counter_lut_lookup += 1;
-  
-  // Rebuild LUT if dirty
   comp_lut_dirty ? build_compression_lut();
   
-  // Clamp input to valid range
   input_db < COMP_LUT_MIN_DB ? (
-    // Below minimum, use first entry
     comp_lut[0]
   ) : input_db > COMP_LUT_MAX_DB ? (
-    // Above maximum, use last entry
     comp_lut[COMP_LUT_SIZE - 1]
   ) : (
-    // Within range, lookup with optional linear interpolation between entries
     index_float = (input_db - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY;
-    index_int = floor(index_float);
+    index_int = max(0, min(COMP_LUT_SIZE - 2, floor(index_float)));
     index_frac = index_float - index_int;
-    
-    // Ensure index is within bounds
-    index_int = max(0, min(COMP_LUT_SIZE - 2, index_int));
-    
-    // Linear interpolation between two closest entries for smoother result
     value1 = comp_lut[index_int];
     value2 = comp_lut[index_int + 1];
     value1 + index_frac * (value2 - value1)
@@ -139,4 +95,16 @@ function lookup_compression_lut(input_db) (
 
 function invalidate_compression_lut() (
   comp_lut_dirty = 1;
+);
+
+//==============================================================================
+// CURVE CACHE MANAGEMENT
+//==============================================================================
+
+// Function to mark curve cache as dirty (call when parameters change)
+function invalidate_curve_cache() (
+  curve_cache_dirty = 1;
+  curve_segments_db_dirty = 1; // Invalidate dB curve (single source of truth)
+  comp_lut_dirty = 1; // Invalidate compression LUT - must rebuild from new curve!
+  lut_viz_cache_dirty = 1; // Also invalidate LUT visualization cache
 );

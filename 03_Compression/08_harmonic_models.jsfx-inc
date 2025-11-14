@@ -4,102 +4,79 @@
 
 @init
 
-// Enhanced harmonic algorithms integrated into apply_harmonic_processing() function
-
 //==============================================================================
-// HARMONIC PROCESSING HELPERS (Declared first for proper function ordering)
+// HARMONIC PROCESSING HELPERS
 //==============================================================================
 
-
-// Enhanced tape processing with asymmetric polynomial waveshaping - vintage, compressed character
 function apply_enhanced_tape_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
   scaled_saturation, x, x2, x3, x5, x7, even_boost_factor, odd_boost_factor, result, asymmetric_factor
 ) (
-  // Tape saturation with asymmetric polynomial waveshaping
   scaled_saturation = amount * combined_factor;
-  x = driven;  // Keep main signal unchanged
+  x = driven;
   
-  // Pre-calculate boost factors
   even_boost_factor = 1 + even_boost * 0.01;
   odd_boost_factor = 1 + odd_boost * 0.01;
+  asymmetric_factor = x > 0 ? 1.0 : 0.9;
   
-  // Asymmetric processing - different coefficients for positive/negative signals
-  asymmetric_factor = x > 0 ? 1.0 : 0.9;  // Slightly different for negative signals
+  x2 = x * x;
+  x3 = x2 * x;
+  x5 = x3 * x2;
+  x7 = x5 * x2;
   
-  // Polynomial waveshaping for tape character with asymmetry
-  x2 = x * x;  // x² (2nd harmonic)
-  x3 = x2 * x;  // x³ (3rd harmonic)
-  x5 = x3 * x2;  // x⁵ (5th harmonic)
-  x7 = x5 * x2;  // x⁷ (7th harmonic)
+  // Tape baseline: very subtle even harmonics, strong odd harmonics (odd-dominant)
+  result = x + x2 * scaled_saturation * 0.0005 * even_boost_factor * asymmetric_factor;
   
-  // Tape baseline: very subtle even harmonics with asymmetry - extremely subtle approach
-  result = x + x2 * scaled_saturation * 0.0005 * even_boost_factor * asymmetric_factor;  // Reduced even harmonics for tape
-  
-  // Add strong odd harmonics (tape's signature - 3rd, 5th, 7th) with asymmetry - tape is odd-dominant
   odd_boost > 0 ? (
-    result += x3 * scaled_saturation * 0.01 * odd_boost_factor * asymmetric_factor +   // Strong 3rd harmonic (tape signature)
-              x5 * scaled_saturation * 0.005 * odd_boost_factor * asymmetric_factor +   // Moderate 5th harmonic
-              x7 * scaled_saturation * 0.0025 * odd_boost_factor * asymmetric_factor    // Small 7th harmonic
+    result += x3 * scaled_saturation * 0.01 * odd_boost_factor * asymmetric_factor +
+              x5 * scaled_saturation * 0.005 * odd_boost_factor * asymmetric_factor +
+              x7 * scaled_saturation * 0.0025 * odd_boost_factor * asymmetric_factor
   );
   
   result;
 );
 
-// Enhanced tube processing with asymmetric polynomial waveshaping - warm, musical character
 function apply_enhanced_tube_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
   scaled_saturation, x, x2, x3, x5, odd_boost_factor, even_boost_factor, result, asymmetric_factor
 ) (
-  // combined_factor already scales by abs(gr_amount) from caller
   scaled_saturation = amount * combined_factor;
-  x = driven;  // Keep main signal unchanged
+  x = driven;
   
-  // Pre-calculate boost factors
   odd_boost_factor = 1 + odd_boost * 0.01;
   even_boost_factor = 1 + even_boost * 0.01;
+  asymmetric_factor = x > 0 ? 1.0 : 0.85;
   
-  // Asymmetric processing - different coefficients for positive/negative signals
-  asymmetric_factor = x > 0 ? 1.0 : 0.85;  // More different for negative signals (tube characteristic)
+  x2 = x * x;
+  x3 = x2 * x;
+  x5 = x3 * x2;
   
-  // Polynomial waveshaping for tube character with asymmetry
-  x2 = x * x;  // x² (2nd harmonic)
-  x3 = x2 * x;  // x³ (3rd harmonic)
-  x5 = x3 * x2;  // x⁵ (5th harmonic)
+  // Tube baseline: strong even harmonics (even-dominant)
+  result = x + x2 * scaled_saturation * 0.01 * even_boost_factor * asymmetric_factor;
   
-  // Tube baseline: strong even harmonics (2nd) with asymmetry - tube is even-dominant
-  result = x + x2 * scaled_saturation * 0.01 * even_boost_factor * asymmetric_factor;  // Strong even harmonics for tube
-  
-  // Add subtle odd harmonics when boosted (tube's signature - 3rd, 5th) - tube is even-dominant
   odd_boost > 0 ? (
-    result += x3 * scaled_saturation * 0.002 * odd_boost_factor * asymmetric_factor +   // Subtle 3rd harmonic
-              x5 * scaled_saturation * 0.001 * odd_boost_factor * asymmetric_factor    // Subtle 5th harmonic
+    result += x3 * scaled_saturation * 0.002 * odd_boost_factor * asymmetric_factor +
+              x5 * scaled_saturation * 0.001 * odd_boost_factor * asymmetric_factor
   );
   
   result;
 );
 
-// Optical compressor processing with polynomial waveshaping - smooth, transparent character
 function apply_optical_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
   scaled_saturation, x, x2, x3, x4, even_boost_factor, odd_boost_factor, result
 ) (
-  // Optical compressors with polynomial waveshaping
   scaled_saturation = amount * combined_factor;
-  x = driven;  // Keep main signal unchanged
+  x = driven;
   
-  // Polynomial waveshaping for optical character
-  // Very subtle harmonics for transparent character
-  x2 = x * x;  // x² (2nd harmonic)
-  x3 = x2 * x;  // x³ (3rd harmonic)
-  x4 = x2 * x2;  // x⁴ (4th harmonic)
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
   
-  // Pre-calculate boost factors
   even_boost_factor = 1 + even_boost * 0.01;
   odd_boost_factor = 1 + odd_boost * 0.01;
   
   // Optical baseline: VERY subtle harmonics - transparent character
-  result = x + x2 * scaled_saturation * 0.02 * even_boost_factor + 
+  result = x + x2 * scaled_saturation * 0.02 * even_boost_factor +
            x4 * scaled_saturation * 0.005 * even_boost_factor;
   
-  // Add minimal odd harmonics (optical has very little odd content)
   odd_boost > 0 ? (
     result += x3 * scaled_saturation * 0.01 * odd_boost_factor
   );
@@ -108,10 +85,9 @@ function apply_optical_processing(driven, amount, combined_factor, even_boost, o
 );
 
 //==============================================================================
-// VALVITY-STYLE TUBE TECHNIQUES (Helper Functions)
+// TUBE-STYLE TECHNIQUES (Helper Functions)
 //==============================================================================
 
-// Asymmetric sharpening function - creates different saturation curves for +/- signals
 function apply_asymmetric_sharpening(input, sharpening_amount) local(
   sharpen, result
 ) (
@@ -125,16 +101,12 @@ function apply_asymmetric_sharpening(input, sharpening_amount) local(
   result;
 );
 
-// Power factor saturation - uses x^n where n varies for different harmonic content
 function apply_power_factor_saturation(input, power_factor, gain_scaling) local(
   factor, result
 ) (
   // OPTIMIZATION: Use native pow() instead of loop-based multiplication
-  // Previous: loop multiplied input by itself power_factor times
-  // New: Direct exponential calculation (much faster, especially for non-integer powers)
   factor = pow(input, power_factor + 1);
 
-  // Handle odd power factors for asymmetric behavior
   ((power_factor % 2 == 1) && (input != 0.0)) ? (
     factor = (factor / input) * abs(input)
   );
@@ -144,7 +116,6 @@ function apply_power_factor_saturation(input, power_factor, gain_scaling) local(
   result;
 );
 
-// Soft clipping with compensation - prevents harsh clipping while maintaining level
 function apply_soft_clipping(input, clip_threshold, compensation_factor) local(
   result
 ) (
@@ -155,28 +126,16 @@ function apply_soft_clipping(input, clip_threshold, compensation_factor) local(
   result;
 );
 
-// Combined Valvity-style processing with level preservation
-function apply_valvity_processing(input, amount, power_factor, sharpening_amount, clip_threshold) local(
+// Combined tube-style processing with level preservation
+function apply_tube_processing(input, amount, power_factor, sharpening_amount, clip_threshold) local(
   harmonic_content, result
 ) (
-  // Apply extremely subtle Valvity techniques to generate harmonic content only
-  // without changing the overall signal level
-  
-  // 1. Generate harmonic content using power factor (extremely subtle)
+  // Apply extremely subtle tube techniques to generate harmonic content only
   harmonic_content = 0;
-  
-  // Apply power factor saturation to generate harmonics (very small amount)
   harmonic_content += apply_power_factor_saturation(input, power_factor, amount * 0.0001);
-  
-  // 2. Apply asymmetric sharpening (extremely subtle)
   harmonic_content += apply_asymmetric_sharpening(input, sharpening_amount * amount * 0.0001);
-  
-  // 3. Soft clipping on harmonic content only
   harmonic_content = apply_soft_clipping(harmonic_content, clip_threshold, 1.0);
-  
-  // 4. Add harmonic content to original signal (preserving level)
   result = input + harmonic_content;
-  
   result;
 );
 
@@ -185,48 +144,25 @@ function apply_valvity_processing(input, amount, power_factor, sharpening_amount
 //==============================================================================
 
 function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_level, type, drive, mix, even_boost, odd_boost) (
-  // Debug counter: track harmonic processing
   debug_counter_harmonics += 1;
   
-  // Early exit optimization - no processing if harmonic type is off
   type == 0 ? input : (
-    // Pre-calculate common values for efficiency
+    // OPTIMIZATION: Use pre-calculated global values (shared between L/R channels)
     dry_signal = input;
-    // Don't drive the input signal - only use drive for harmonic generation
     driven = input;
     
-    // OPTIMIZATION: Use pre-calculated global values (calculated once in audio chain)
-    // These were previously calculated twice (once for L, once for R)
-    // Now they're shared between both channels for ~50% reduction in harmonic calculations
-    // Values used: harmonic_abs_gr, harmonic_combined_factor, harmonic_even_factor, 
-    //              harmonic_odd_factor, harmonic_amount, harmonic_intensity
-    
-    // Modular harmonic processing system - 5 models with Even/Odd boost controls
-    // Scale harmonic amount by drive parameter for harmonic generation only
-    // Convert 0-100% slider to 0.0-1.0 range and apply half influence
     drive_factor = (drive / 100.0) * 0.5;
     harmonic_amount_driven = harmonic_amount * drive_factor;
     
     processed = type == 1 ? (
-      // Tape - vintage character with strong odd harmonics (3rd, 5th, 7th)
       apply_enhanced_tape_processing(driven, harmonic_amount_driven, harmonic_combined_factor, even_boost, odd_boost)
     ) : (
-      // Tube - warm, musical character with strong odd harmonics (3rd, 5th) - increased intensity
       apply_enhanced_tube_processing(driven, harmonic_amount_driven, harmonic_combined_factor, even_boost, odd_boost)
     );
 
-    // No drive compensation needed - drive only affects harmonic generation, not signal level
-
     // OPTIMIZATION: Use pre-calculated intensity (calculated once in audio chain)
-    // Efficient wet/dry blend calculation
     wet_signal = dry_signal + harmonic_intensity * (processed - dry_signal);
-
-    // Final dry/wet mix - optimized calculation
     mix * wet_signal + (1 - mix) * dry_signal
   )
 );
-
-//==============================================================================
-// HARMONIC UTILITIES
-//==============================================================================
 
