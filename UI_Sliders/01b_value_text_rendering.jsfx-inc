@@ -1,0 +1,55 @@
+// Slider Value Text Rendering Module
+// Handles rendering of value text for controls
+// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01a_value_formatting.jsfx-inc
+
+@init
+
+//==============================================================================
+// VALUE TEXT RENDERING FUNCTIONS
+//==============================================================================
+//
+// This module provides functions to render formatted value text for controls.
+// It handles:
+// - Generic value text rendering (for knobs, vertical sliders)
+// - Smart-positioned value text for horizontal sliders (anchored left/right)
+// - Text color selection based on position
+//
+// USAGE:
+//   draw_control_value_text(x, y, param_index, value, " ms", FORMAT_K, 0);
+//   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0);
+//
+
+//==============================================================================
+// VALUE TEXT RENDERING
+//==============================================================================
+
+// Helper function to draw value text for controls
+// suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+function draw_control_value_text(x, y, param_index, display_value, suffix_str, formatting, format_options) local(
+  formatted_str
+) (
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x;
+  gfx_y = y;
+  formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
+  gfx_drawstr(formatted_str);
+);
+
+// Helper function to draw value text for horizontal sliders with smart positioning
+// suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options) local(
+  formatted_str, value_str_w, value_str_h
+) (
+  formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
+  gfx_measurestr(formatted_str, value_str_w, value_str_h);
+  normalized_pos > 0.5 ? (
+    gfx_set(0, 0, 0, 1);  // Black
+    gfx_x = x + 3;
+  ) : (
+    gfx_set(1, 1, 1, 1);  // White
+    gfx_x = x + w - value_str_w - 3;
+  );
+  gfx_y = y + (h - value_str_h) / 2;
+  gfx_drawstr(formatted_str);
+);
+

@@ -1,0 +1,47 @@
+// Button Rendering Module
+// Handles rendering of button controls
+// Dependencies: 01_Utils/01_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// BUTTON RENDERING
+//==============================================================================
+//
+// This module provides button rendering for toggle/switch controls.
+// It handles:
+// - On/Off state visualization (different colors)
+// - Border rendering
+// - Label text rendering inside button
+//
+// USAGE:
+//   draw_generic_button(x, y, w, h, is_on, "Label");
+//
+// BUTTON STATES:
+//   is_on = 0 - Off state (darker color)
+//   is_on = 1 - On state (brighter color)
+//
+
+//==============================================================================
+// BUTTON RENDERING FUNCTION
+//==============================================================================
+
+function draw_generic_button(x, y, w, h, is_on, label) (
+  // Draw button background
+  is_on ? (
+    gfx_set(BUTTON_ON_R, BUTTON_ON_G, BUTTON_ON_B, 1);
+  ) : (
+    gfx_set(BUTTON_OFF_R, BUTTON_OFF_G, BUTTON_OFF_B, 1);
+  );
+  gfx_rect(x, y, w, h);
+
+  // Draw button border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(x, y, w, h, 0);
+
+  // Draw button text
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x + 5; gfx_y = y + 5;
+  gfx_drawstr(label);
+);
+

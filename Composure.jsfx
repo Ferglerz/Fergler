@@ -108,12 +108,19 @@ import UI_General/04_debug.jsfx-inc
 import UI_General/10_menu.jsfx-inc
 import UI_General/05_header.jsfx-inc
 
-// UI_Sliders: Slider control definitions and interactions (depends on UI_General)
-// Note: 03_controls.jsfx-inc must come before 01_control_definitions.jsfx-inc because
-// render_custom_ui_controls() in 01_control_definitions.jsfx-inc calls rendering functions from 03_controls.jsfx-inc
-import UI_Sliders/03_controls.jsfx-inc
+// UI_Sliders: Slider control library (depends on UI_General)
+import UI_Sliders/01a_value_formatting.jsfx-inc
+import UI_Sliders/01b_value_text_rendering.jsfx-inc
+import UI_Sliders/01c_slider_rendering.jsfx-inc
+import UI_Sliders/01d_knob_rendering.jsfx-inc
+import UI_Sliders/01e_button_rendering.jsfx-inc
+import UI_Sliders/01f_dropdown_rendering.jsfx-inc
+import UI_Sliders/01g_control_dispatcher.jsfx-inc
 import UI_Sliders/01_control_definitions.jsfx-inc
 import UI_Sliders/02_control_interactions.jsfx-inc
+
+// Composure-specific control layout (uses Sliders library)
+import UI_Sliders/05_Composure_Controls.jsfx-inc
 
 // UI_Graph: Graph rendering and interaction (depends on UI_General)
 // Note: 11_threshold_lines.jsfx-inc must come before 08_graph_meters.jsfx-inc because

@@ -1,0 +1,140 @@
+// Control Dispatcher Module
+// Main dispatcher that routes control rendering to appropriate functions
+// Dependencies: All slider rendering submodules (01a through 01f)
+
+@init
+
+//==============================================================================
+// CONTROL DISPATCHER
+//==============================================================================
+//
+// This module provides the main control rendering dispatcher.
+// It reads control definitions from the control_defs array and routes
+// rendering to the appropriate specialized function based on control type.
+//
+// CONTROL TYPES:
+//   0 = Slider/Knob (orientation determines which)
+//   1 = Button (toggle)
+//   2 = Dropdown (combobox)
+//
+// USAGE:
+//   render_control(control_index);
+//
+// The dispatcher:
+// 1. Reads control definition from control_defs array
+// 2. Applies group offset if control belongs to a group
+// 3. Reads current value from slider parameter
+// 4. Applies dynamic display_mode overrides (e.g., Attack time unit switching)
+// 5. Converts display_mode to suffix string
+// 6. Routes to appropriate rendering function based on type
+// 7. Handles enumerated vs continuous parameter logic
+//
+// CONTROL DEFINITION FORMAT (control_defs array):
+//   [index*11 + 0] = type (0=slider/knob, 1=button, 2=dropdown)
+//   [index*11 + 1] = x position
+//   [index*11 + 2] = y position
+//   [index*11 + 3] = width
+//   [index*11 + 4] = height
+//   [index*11 + 5] = param_index (slider number)
+//   [index*11 + 6] = min_val
+//   [index*11 + 7] = max_val
+//   [index*11 + 8] = config (for sliders: orientation, display_mode, fill_direction, formatting, format_options)
+//   [index*11 + 9] = (unused)
+//   [index*11 + 10] = group_idx (-1 if not in group)
+//
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Helper function to convert display_mode constant to suffix string
+// Writes result to #value_str string slot
+// Returns empty string for DISPLAY_NORMAL or DISPLAY_HIDE_VALUE
+function display_mode_to_suffix(display_mode) (
+  display_mode == DISPLAY_PERCENT ? strcpy(#value_str, " %") :
+  display_mode == DISPLAY_DB ? strcpy(#value_str, " dB") :
+  display_mode == DISPLAY_MS ? strcpy(#value_str, " ms") :
+  display_mode == DISPLAY_US ? strcpy(#value_str, " us") :
+  display_mode == DISPLAY_S ? strcpy(#value_str, " s") :
+  display_mode == DISPLAY_HZ ? strcpy(#value_str, " Hz") :
+  strcpy(#value_str, "");  // DISPLAY_NORMAL, DISPLAY_HIDE_VALUE, or unknown
+  #value_str;
+);
+
+//==============================================================================
+// MAIN DISPATCHER FUNCTION
+//==============================================================================
+
+// Helper function to render a control from the control_defs array
+function render_control(index) local(
+  group_idx, type, x, y, w, h, param_index, min_val, max_val, slider_config,
+  slider_orientation, display_mode, fill_direction, formatting, format_options, current_value,
+  option_count, suffix_str
+) (
+  type = control_defs[index*11 + 0];
+  x = control_defs[index*11 + 1];
+  y = control_defs[index*11 + 2];
+  w = control_defs[index*11 + 3];
+  h = control_defs[index*11 + 4];
+  param_index = control_defs[index*11 + 5];
+  min_val = control_defs[index*11 + 6];
+  max_val = control_defs[index*11 + 7];
+  group_idx = control_defs[index*11 + 10];
+
+  // Add group offset if control is in a group
+  group_idx >= 0 ? (
+    x += group_defs[group_idx*6 + 0];
+    y += group_defs[group_idx*6 + 1];
+  );
+
+  // Get current parameter value
+  current_value = slider(param_index);
+
+  // Handle different control types
+  type == 0 ? ( // Slider or knob - extract config and call renderer directly
+    slider_config = control_defs[index*11 + 8];
+    
+    // Extract configuration parameters
+    slider_orientation = slider_config & 0xFF;             // Bits 0-7: slider orientation
+    display_mode = (slider_config >> 8) & 0xFF;           // Bits 8-15: display mode
+    fill_direction = (slider_config >> 16) & 0xFF;        // Bits 16-23: fill direction
+    formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting
+    format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options
+    
+    // Dynamic display mode override for Attack slider (param_index 1)
+    // Time unit button (slider 33) switches between ms/us/s
+    param_index == 1 ? (
+      display_mode = slider(33) == 0 ? DISPLAY_MS : (slider(33) == 1 ? DISPLAY_US : DISPLAY_S);
+    );
+    
+    // Convert display_mode to suffix string
+    display_mode_to_suffix(display_mode);
+    suffix_str = #value_str;
+    
+    // For enumerated sliders, ignore min_val/max_val from control_defs
+    // They use option_count instead (0 to option_count-1)
+    option_count = get_dropdown_option_count(param_index);
+    option_count > 0 ? (
+      // Enumerated slider: use 0 and option_count-1 as min/max (ignored by draw_slider/draw_knob anyway)
+      is_knob_orientation(slider_orientation) ? (
+        draw_knob(x, y, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options);
+      ) : (
+        draw_slider(x, y, w, h, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options);
+      );
+    ) : (
+      // Continuous slider: use min_val/max_val from control_defs
+      is_knob_orientation(slider_orientation) ? (
+        draw_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options);
+      ) : (
+        draw_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options);
+      );
+    );
+  ) : type == 1 ? ( // Button
+    draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index));
+  ) : type == 2 ? ( // Dropdown
+    draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index);
+  ) : (
+    0; // Unknown control type
+  );
+);
+

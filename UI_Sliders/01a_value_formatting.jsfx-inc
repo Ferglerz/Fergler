@@ -1,0 +1,100 @@
+// Slider Value Formatting Module
+// Handles all value formatting logic for sliders, knobs, and controls
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc
+
+@init
+
+//==============================================================================
+// VALUE FORMATTING FUNCTIONS
+//==============================================================================
+//
+// This module provides value formatting for all control types (sliders, knobs,
+// buttons, dropdowns). It handles:
+// - Enumerated sliders with dropdown options (pre-formatted text from definitions)
+// - Continuous sliders with various number formatting
+// - Number formatting (FORMAT_K adds "k" suffix for thousands)
+// - Dynamic suffix application - caller provides suffix string directly
+// - Completely agnostic design - no knowledge of specific suffixes
+//
+// SUFFIX ARCHITECTURE:
+//   Suffixes are provided as STRINGS by the caller. This allows complete flexibility:
+//   - Any suffix can be used (e.g., " ms", " dB", " %", " Hz", " bananas")
+//   - Dynamic suffixes based on runtime state (e.g., Attack time unit switching)
+//   - Empty string ("") means no suffix
+//   - The formatting function has ZERO knowledge of what suffixes mean
+//
+// USAGE:
+//   // Basic usage with suffix string
+//   formatted_str = format_slider_value(param_index, value, " ms", FORMAT_K, 0);
+//   gfx_drawstr(formatted_str);
+//
+//   // Dynamic suffix example (handled by caller)
+//   time_unit = slider(33);
+//   suffix_str = time_unit == 0 ? " ms" : (time_unit == 1 ? " us" : " s");
+//   formatted_str = format_slider_value(1, attack_value, suffix_str, FORMAT_NORMAL, 0);
+//
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Helper function to check if orientation is a knob type
+function is_knob_orientation(orientation) (
+  orientation == ORIENTATION_KNOB_SMALL || orientation == ORIENTATION_KNOB_LARGE;
+);
+
+// Helper function to format value with decimal places (two-step sprintf pattern)
+function format_value_with_decimals(value, decimal_places) (
+  sprintf(#temp_display_str, "%%.%df", decimal_places);
+  sprintf(#temp_display_str, #temp_display_str, value);
+  #temp_display_str;
+);
+
+//==============================================================================
+// MAIN FORMATTING FUNCTION
+//==============================================================================
+
+// Value formatting function
+// suffix_str: String to append after the value (e.g., " ms", " dB", " %"). Empty string means no suffix.
+function format_slider_value(param_index, value, suffix_str, formatting, format_options) local(
+  decimal_places, option_count, option_index, actual_value, increment, rounded_value
+) (
+  // Check if this is an enumerated slider
+  option_count = get_dropdown_option_count(param_index);
+  option_count > 0 ? (
+    // Enumerated slider: check if it needs suffix formatting or uses pre-formatted text
+    option_index = floor(value);
+    
+    // If suffix_str is provided (not empty), format the actual numeric value with suffix
+    strlen(suffix_str) > 0 ? (
+      // Get actual numeric value and format with suffix
+      actual_value = get_dropdown_option_value(param_index, option_index);
+      sprintf(#temp_display_str, "%.2f%s", actual_value, suffix_str);
+    ) : (
+      // Use pre-formatted dropdown option text
+      strcpy(#temp_display_str, get_dropdown_option(param_index, option_index));
+    );
+  ) : (
+    // Continuous slider: format number and apply suffix
+    increment = get_slider_increment(param_index);
+    decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
+    rounded_value = floor(value / increment + 0.5) * increment;
+    
+    // Apply formatting based on mutually exclusive formatting parameter
+    formatting == FORMAT_K ? (
+      rounded_value >= 1000 ? sprintf(#temp_display_str, "%.1fk", rounded_value / 1000) :
+      rounded_value >= 100 ? sprintf(#temp_display_str, "%.0f", rounded_value) :
+      format_value_with_decimals(rounded_value, decimal_places);
+    ) : formatting == FORMAT_NONE ? (
+      sprintf(#temp_display_str, "%g", rounded_value);
+    ) : (
+      format_value_with_decimals(rounded_value, decimal_places);
+    );
+    
+    // Append suffix string if provided
+    strlen(suffix_str) > 0 ? sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str) : 0;
+  );
+  
+  #temp_display_str;
+);
+

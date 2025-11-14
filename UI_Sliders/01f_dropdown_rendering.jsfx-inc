@@ -1,0 +1,71 @@
+// Dropdown Rendering Module
+// Handles rendering of dropdown/combobox controls
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc
+
+@init
+
+//==============================================================================
+// DROPDOWN RENDERING
+//==============================================================================
+//
+// This module provides dropdown/combobox rendering.
+// It handles:
+// - Label rendering above dropdown
+// - Box with background and border
+// - Display of currently selected option
+// - Dropdown indicator arrow ("v")
+// - Option retrieval from enumerated parameter definitions
+//
+// USAGE:
+//   draw_generic_dropdown(x, y, w, h, current_value, "Label", param_index);
+//
+// VALUE HANDLING:
+//   current_value is the index of the selected option (0 to option_count-1)
+//   Option text is retrieved via get_dropdown_option(param_index, index)
+//
+
+//==============================================================================
+// DROPDOWN RENDERING FUNCTION
+//==============================================================================
+
+function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) local(
+  option_count, current_index
+) (
+  current_index = floor(current_value);
+  option_count = get_dropdown_option_count(param_index);
+  
+  // Draw label
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_drawstr(label);
+
+  // Draw dropdown background
+  gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+  gfx_rect(x, y, w, h);
+
+  // Draw dropdown border
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_rect(x, y, w, h, 0);
+
+  // Draw current selection text
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x + 5; gfx_y = y + 5;
+
+  // Display text using dynamic dropdown options
+  option_count > 0 ? (
+    // Use dynamically extracted dropdown options
+    current_index < option_count ? (
+      gfx_drawstr(get_dropdown_option(param_index, current_index));
+    ) : (
+      gfx_drawstr("Unknown");
+    );
+  ) : (
+    // Fallback for non-dropdown parameters
+    gfx_printf("%.0f", current_value);
+  );
+
+  // Draw dropdown arrow
+  gfx_x = x + w - 15; gfx_y = y + 8;
+  gfx_drawstr("v");
+);
+

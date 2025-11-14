@@ -20,10 +20,8 @@ function render_complete_interface() (
   // Draw all group backgrounds and titles
   render_all_groups();
 
-  // OPTIMIZATION: Removed render_all_knobs() dead code - knobs handled by unified control system
-
-  // Draw custom UI controls
-  render_custom_ui_controls();
+  // Draw all controls (uses unified control system)
+  render_all_controls();
 
   // Draw graph elements with proper clipping
   draw_graph_background();  // 05j

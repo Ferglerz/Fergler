@@ -1,0 +1,218 @@
+// Knob Rendering Module
+// Handles rendering of small and large knobs
+// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01a_value_formatting.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
+
+@init
+
+//==============================================================================
+// KNOB RENDERING
+//==============================================================================
+//
+// This module provides knob rendering for small and large knobs.
+// It handles:
+// - Small knobs with angular indicator (dot that rotates)
+// - Large knobs with arc fill and indicator bar
+// - Multiple knob types (LTR, RTL, bidirectional)
+// - Drop shadows for depth
+// - Enumerated and continuous knob types
+// - Label rendering above knob
+// - Value text rendering below knob
+//
+// USAGE:
+//   draw_knob(x, y, value, min_val, max_val, "Label", param_index,
+//             ORIENTATION_KNOB_SMALL, " dB", FORMAT_K, 0);
+//
+// KNOB TYPES:
+//   Small Knob:
+//     KNOB_TYPE_ANGULAR - Rotating dot indicator
+//     KNOB_TYPE_ROTARY - Arc fill (not currently used)
+//   Large Knob:
+//     LARGE_KNOB_TYPE_LTR - Left to right arc fill
+//     LARGE_KNOB_TYPE_RTL - Right to left arc fill
+//     LARGE_KNOB_TYPE_BIDIR - Bidirectional arc fill
+//
+
+//==============================================================================
+// SMALL KNOB RENDERING
+//==============================================================================
+
+// Enhanced small knob rendering with different knob types
+function draw_knob_at_position(x, y, value, min_val, max_val, knob_type) (
+  // Helper function to draw a knob at a specific position with given parameters
+  center_x = x + KNOB_RADIUS;
+  center_y = y + KNOB_RADIUS;
+
+  // Draw drop shadow first (offset down and right)
+  gfx_set(KNOB_SHADOW_R, KNOB_SHADOW_G, KNOB_SHADOW_B, 0.3);
+  gfx_circle(center_x + KNOB_SHADOW_OFFSET, center_y + KNOB_SHADOW_OFFSET, KNOB_RADIUS, 1);
+
+  // Draw knob background
+  gfx_set(KNOB_BG_R, KNOB_BG_G, KNOB_BG_B, 1);
+  gfx_circle(center_x, center_y, KNOB_RADIUS, 1);
+
+  // Calculate normalized value
+  normalized_value = (value - min_val) / (max_val - min_val);
+  normalized_value = max(0, min(1, normalized_value));
+
+  knob_type == KNOB_TYPE_ANGULAR ? (
+    // Angular knob - draw indicator based on angle
+    current_angle = KNOB_ANGLE_START + normalized_value * KNOB_ANGLE_RANGE;
+
+    // Calculate indicator position (8 pixels from center)
+    indicator_distance = 8;
+    indicator_x = center_x + cos(current_angle) * indicator_distance;
+    indicator_y = center_y + sin(current_angle) * indicator_distance;
+
+    // Draw indicator circle
+    gfx_set(KNOB_INDICATOR_R, KNOB_INDICATOR_G, KNOB_INDICATOR_B, 1);
+    gfx_circle(indicator_x, indicator_y, KNOB_INDICATOR_SIZE, 1);
+  ) : (
+    // Rotary knob - draw arc based on value
+    arc_angle = normalized_value * 2 * $pi;
+    gfx_set(KNOB_INDICATOR_R, KNOB_INDICATOR_G, KNOB_INDICATOR_B, 1);
+    gfx_arc(center_x, center_y, KNOB_RADIUS - 2, 0, arc_angle, 1);
+  );
+);
+
+//==============================================================================
+// LARGE KNOB RENDERING
+//==============================================================================
+
+// Enhanced large knob rendering with different knob types
+function draw_large_knob_at_position(x, y, value, min_val, max_val, knob_type) (
+  // Helper function to draw a large knob at a specific position with given parameters
+  center_x = x + LARGE_KNOB_RADIUS;
+  center_y = y + LARGE_KNOB_RADIUS;
+
+  // Draw drop shadow first (offset down and right)
+  gfx_set(LARGE_KNOB_SHADOW_R, LARGE_KNOB_SHADOW_G, LARGE_KNOB_SHADOW_B, 0.3);
+  gfx_circle(center_x + 1, center_y + 1, LARGE_KNOB_RADIUS, 1);
+
+  // Draw knob background (inner gray circle)
+  gfx_set(LARGE_KNOB_BG_R, LARGE_KNOB_BG_G, LARGE_KNOB_BG_B, 1);
+  gfx_circle(center_x, center_y, LARGE_KNOB_RADIUS, 1);
+
+  // Calculate normalized value
+  normalized_value = (value - min_val) / (max_val - min_val);
+  normalized_value = max(0, min(1, normalized_value));
+
+  // Calculate arc angles based on knob type
+  knob_type == LARGE_KNOB_TYPE_LTR ? (
+    start_angle = LARGE_KNOB_ANGLE_LTR_START;
+    end_angle = LARGE_KNOB_ANGLE_LTR_START + normalized_value * (LARGE_KNOB_ANGLE_LTR_END - LARGE_KNOB_ANGLE_LTR_START);
+    indicator_angle = end_angle;
+  ) : knob_type == LARGE_KNOB_TYPE_RTL ? (
+    start_angle = LARGE_KNOB_ANGLE_RTL_START;
+    end_angle = LARGE_KNOB_ANGLE_RTL_START + normalized_value * (LARGE_KNOB_ANGLE_RTL_END - LARGE_KNOB_ANGLE_RTL_START);
+    indicator_angle = end_angle;
+  ) : ( // LARGE_KNOB_TYPE_BIDIRECTIONAL
+    start_angle = LARGE_KNOB_ANGLE_BIDIR_START;
+    end_angle = LARGE_KNOB_ANGLE_BIDIR_START + normalized_value * (LARGE_KNOB_ANGLE_BIDIR_END - LARGE_KNOB_ANGLE_BIDIR_START);
+    indicator_angle = end_angle;
+  );
+
+  // Draw yellow arc from start to current value using gfx_arc()
+  gfx_set(LARGE_KNOB_ARC_R, LARGE_KNOB_ARC_G, LARGE_KNOB_ARC_B, 1);
+  inner_radius = LARGE_KNOB_RADIUS - LARGE_KNOB_ARC_DEPTH;
+  outer_radius = LARGE_KNOB_RADIUS;
+  // Draw arc as a thick ring by drawing multiple arcs at different radii
+  i = 0;
+  while (i <= LARGE_KNOB_ARC_DEPTH) (
+    current_radius = inner_radius + i;
+    gfx_arc(center_x, center_y, current_radius, start_angle, end_angle, 1);
+    i += 1;
+  );
+
+  // Draw white indicator bar
+  gfx_set(LARGE_KNOB_BAR_R, LARGE_KNOB_BAR_G, LARGE_KNOB_BAR_B, 1);
+
+  // Calculate bar endpoints
+  bar_inner_x = center_x + cos(indicator_angle) * inner_radius;
+  bar_inner_y = center_y + sin(indicator_angle) * inner_radius;
+  bar_outer_x = center_x + cos(indicator_angle) * (outer_radius + LARGE_KNOB_BAR_OVERHANG);
+  bar_outer_y = center_y + sin(indicator_angle) * (outer_radius + LARGE_KNOB_BAR_OVERHANG);
+
+  // Draw bar as a thick line (3 pixels wide for smaller knob)
+  bar_width = 3;
+  angle_perp = indicator_angle + $pi/2; // Perpendicular angle
+
+  // Calculate perpendicular offset for bar width
+  offset_x = cos(angle_perp) * bar_width/2;
+  offset_y = sin(angle_perp) * bar_width/2;
+
+  // Draw bar as a rectangle (simplified approach)
+  bar_mid_x = (bar_inner_x + bar_outer_x) / 2;
+  bar_mid_y = (bar_inner_y + bar_outer_y) / 2;
+  bar_length = sqrt((bar_outer_x - bar_inner_x)^2 + (bar_outer_y - bar_inner_y)^2);
+
+  // Draw thick line by drawing multiple parallel lines
+  i = -bar_width/2;
+  while (i <= bar_width/2) (
+    line_x1 = bar_inner_x + offset_x * i / (bar_width/2);
+    line_y1 = bar_inner_y + offset_y * i / (bar_width/2);
+    line_x2 = bar_outer_x + offset_x * i / (bar_width/2);
+    line_y2 = bar_outer_y + offset_y * i / (bar_width/2);
+
+    gfx_line(line_x1, line_y1, line_x2, line_y2, 1);
+    i += 1;
+  );
+);
+
+//==============================================================================
+// KNOB RENDERING WRAPPER
+//==============================================================================
+
+// Draw knob control (small or large)
+// suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+function draw_knob(x, y, value, min_val, max_val, label, param_index, knob_type, suffix_str, formatting, format_options) local(
+  normalized_pos, option_count, value_index, reverse_mode, stepped_value, display_value
+) (
+  // Check if this knob has enumerated options (stepped behavior)
+  option_count = get_dropdown_option_count(param_index);
+  
+  // Calculate stepped value if knob has enumerated options
+  option_count > 0 ? (
+    // Get the index from our cached reverse lookup table (O(1) lookup)
+    value_index = get_freq_list_index(param_index, value);
+    
+    // Get the actual discrete value from our cached enumerated list
+    stepped_value = get_dropdown_option_value(param_index, value_index);
+    
+    // Calculate normalized position based on index in enumerated list
+    reverse_mode = (format_options & OPTION_REVERSE);
+    reverse_mode ? (
+      // For reverse knobs, first option is at right (1.0), last option is at left (0.0)
+      normalized_pos = 1.0 - (value_index / (option_count - 1));
+    ) : (
+      // For normal knobs, first option is at left (0.0), last option is at right (1.0)
+      normalized_pos = value_index / (option_count - 1);
+    );
+    
+    // Use stepped value for display
+    display_value = stepped_value;
+  ) : (
+    // No enumerated options, use continuous range
+    normalized_pos = (value - min_val) / (max_val - min_val);
+    display_value = value;
+  );
+  
+  // Draw label - center aligned for knobs
+  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_drawstr(label);
+
+  knob_type == ORIENTATION_KNOB_LARGE ? (
+    // Large knob - use enhanced large knob rendering
+    draw_large_knob_at_position(x, y, display_value, min_val, max_val, LARGE_KNOB_TYPE_LTR);
+    
+    // Draw value text
+    draw_control_value_text(x, y + LARGE_KNOB_SIZE + 5, param_index, display_value, suffix_str, formatting, format_options);
+  ) : (
+    // Small knob - use enhanced small knob rendering
+    draw_knob_at_position(x, y, display_value, min_val, max_val, KNOB_TYPE_ANGULAR);
+    
+    // Draw value text
+    draw_control_value_text(x, y + KNOB_SIZE + 5, param_index, display_value, suffix_str, formatting, format_options);
+  );
+);
+
