@@ -25,10 +25,11 @@
 
 // Helper function to draw value text for controls
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
-function draw_control_value_text(x, y, param_index, display_value, suffix_str, formatting, format_options) local(
+// Color parameters: text_r, text_g, text_b
+function draw_control_value_text(x, y, param_index, display_value, suffix_str, formatting, format_options, text_r, text_g, text_b) local(
   formatted_str
 ) (
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_set(text_r, text_g, text_b, 1);
   gfx_x = x;
   gfx_y = y;
   formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);

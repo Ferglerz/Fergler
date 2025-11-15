@@ -1,14 +1,5 @@
-// UI Graph Curves Module  
-// Curve rendering functions for compression graph visualization
-// Depends on: 
-//   - UI_General/00_ui_constants.jsfx-inc
-//   - UI_General/02_ui_utils.jsfx-inc
-//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
-//   - 03_Compression/02_graph_data_core.jsfx-inc
-//   - 03_Compression/03_graph_curves.jsfx-inc
-//   - UI_General/01_drawing_primitives.jsfx-inc
-//   - UI_Graph/06_graph_cache.jsfx-inc
-//   - UI_General/11_threshold_lines.jsfx-inc (for render_input_level_threshold_line)
+// UI Graph Curves Module - Curve rendering functions for compression graph visualization
+// Depends on: UI_General/00_ui_constants.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_General/12_coordinate_conversion.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc, 03_Compression/03_graph_curves.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_Graph/06_graph_cache.jsfx-inc, UI_General/11_threshold_lines.jsfx-inc
 
 @init
 
@@ -16,26 +7,14 @@ lut_viz_cache_dirty = 1;
 lut_viz_cache_points = 0;
 lut_viz_cache_size = 0;
 
-//==============================================================================
-// CURVE RENDERING
-//==============================================================================
-
-// Draw curve directly from compression lookup table
-// This visualizes the actual PRE-COMPUTED data used for audio processing
 function draw_compression_lut_curve() (
   comp_lut_dirty ? build_compression_lut();
-  
   gfx_set(0.2, 0.8, 1.0, 1);
   first_point = 1;
-  
-  // LUT goes from -80dB to +20dB, we want -80 to 0
-  start_index = 0;
   end_index = floor((GRAPH_MAX_DB - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY);
-  
-  lut_idx = start_index;
+  lut_idx = 0;
   while (lut_idx <= end_index) (
     input_db = COMP_LUT_MIN_DB + (lut_idx * COMP_LUT_GRANULARITY);
-    // LUT stores pure curve; offset applied at lookup time, not here
     output_db = comp_lut[lut_idx];
     screen_x = db_to_graph_x(input_db);
     screen_y = db_to_graph_y(output_db);
@@ -55,16 +34,12 @@ function draw_compression_lut_curve() (
 function draw_cached_mixed_curves() (
   cache_curve_if_needed();
   gfx_set(1, 0.8, 0.2, 1);
-  
   i = 0;
   while (i < curve_cache_size) (
-    x1 = curve_cache_points[i*4 + 0];
-    y1 = curve_cache_points[i*4 + 1];
-    x2 = curve_cache_points[i*4 + 2];
-    y2 = curve_cache_points[i*4 + 3];
-    gfx_x = x1;
-    gfx_y = y1;
-    gfx_lineto(x2, y2, 1);
+    seg_idx = i * 4;
+    gfx_x = curve_cache_points[seg_idx];
+    gfx_y = curve_cache_points[seg_idx + 1];
+    gfx_lineto(curve_cache_points[seg_idx + 2], curve_cache_points[seg_idx + 3], 1);
     i += 1;
   );
 );
@@ -72,60 +47,42 @@ function draw_cached_mixed_curves() (
 function draw_debug_invisible_points(point_index, curve_factor) (
   menu_debug_enabled ? (
     gfx_set(1, 0, 0, 0.8);
-    
-    point_x_db = graph_points[point_index*2];
-    point_y_db = graph_points[point_index*2 + 1];
-    prev_x_db = graph_points[(point_index-1)*2];
-    prev_y_db = graph_points[(point_index-1)*2 + 1];
-    next_x_db = graph_points[(point_index+1)*2];
-    next_y_db = graph_points[(point_index+1)*2 + 1];
-    
-    invisible1_x = point_x_db + (prev_x_db - point_x_db) * curve_factor;
-    invisible1_y = point_y_db + (prev_y_db - point_y_db) * curve_factor;
-    invisible1_screen_x = db_to_graph_x(invisible1_x);
-    invisible1_screen_y = db_to_graph_y(invisible1_y);
-    gfx_circle(invisible1_screen_x, invisible1_screen_y, 1.5, 1, 1);
-    
-    invisible2_x = point_x_db + (next_x_db - point_x_db) * curve_factor;
-    invisible2_y = point_y_db + (next_y_db - point_y_db) * curve_factor;
-    invisible2_screen_x = db_to_graph_x(invisible2_x);
-    invisible2_screen_y = db_to_graph_y(invisible2_y);
-    gfx_circle(invisible2_screen_x, invisible2_screen_y, 1.5, 1, 1);
+    pt_idx = point_index * 2;
+    prev_idx = (point_index - 1) * 2;
+    next_idx = (point_index + 1) * 2;
+    point_x_db = graph_points[pt_idx];
+    point_y_db = graph_points[pt_idx + 1];
+    prev_x_db = graph_points[prev_idx];
+    prev_y_db = graph_points[prev_idx + 1];
+    next_x_db = graph_points[next_idx];
+    next_y_db = graph_points[next_idx + 1];
+    gfx_circle(db_to_graph_x(point_x_db + (prev_x_db - point_x_db) * curve_factor), db_to_graph_y(point_y_db + (prev_y_db - point_y_db) * curve_factor), 1.5, 1, 1);
+    gfx_circle(db_to_graph_x(point_x_db + (next_x_db - point_x_db) * curve_factor), db_to_graph_y(point_y_db + (next_y_db - point_y_db) * curve_factor), 1.5, 1, 1);
   );
 );
 
 
 function draw_mixed_curves() local(i) (
   debug_counter_ui_curves += 1;
-  
   menu_debug_enabled ? (
-    // DEBUG MODE: Show compression LUT data (actual audio processing curve)
     draw_compression_lut_curve();
   ) : (
-    // OPTIMIZATION: Inlined draw_cached_mixed_curves() logic to reduce call depth
     cache_curve_if_needed();
     gfx_set(1, 0.8, 0.2, 1);
-    
     i = 0;
     while (i < curve_cache_size) (
-      x1 = curve_cache_points[i*4 + 0];
-      y1 = curve_cache_points[i*4 + 1];
-      x2 = curve_cache_points[i*4 + 2];
-      y2 = curve_cache_points[i*4 + 3];
-      gfx_x = x1;
-      gfx_y = y1;
-      gfx_lineto(x2, y2, 1);
+      seg_idx = i * 4;
+      gfx_x = curve_cache_points[seg_idx];
+      gfx_y = curve_cache_points[seg_idx + 1];
+      gfx_lineto(curve_cache_points[seg_idx + 2], curve_cache_points[seg_idx + 3], 1);
       i += 1;
     );
   );
-  
   menu_debug_enabled ? (
     i = 1;
     while (i < num_points - 1) (
       curve_amount = get_curve_amount(i);
-      curve_amount > 0 ? (
-        draw_debug_invisible_points(i, curve_amount / 100.0);
-      );
+      curve_amount > 0 ? draw_debug_invisible_points(i, curve_amount * 0.01);
       i += 1;
     );
   );
@@ -137,68 +94,53 @@ function draw_graph_points() (
     corner_y = db_to_graph_y(graph_points[1]);
     gfx_set(0.5, 0.5, 1.0, 0.8);
     gfx_circle(corner_x, corner_y, 3, 1, 1);
-    
     p1_x = db_to_graph_x(graph_points[2]);
     p1_y = db_to_graph_y(graph_points[3]);
     gfx_set(0.5, 0.5, 1.0, 0.4);
     gfx_line(corner_x, corner_y, p1_x, p1_y, 1);
-    
     last_idx = num_points - 1;
-    corner_x = db_to_graph_x(graph_points[last_idx * 2]);
-    corner_y = db_to_graph_y(graph_points[last_idx * 2 + 1]);
+    last_idx2 = last_idx * 2;
+    corner_x = db_to_graph_x(graph_points[last_idx2]);
+    corner_y = db_to_graph_y(graph_points[last_idx2 + 1]);
     gfx_set(0.5, 0.5, 1.0, 0.8);
     gfx_circle(corner_x, corner_y, 3, 1, 1);
-    
-    p_last_x = db_to_graph_x(graph_points[(last_idx - 1) * 2]);
-    p_last_y = db_to_graph_y(graph_points[(last_idx - 1) * 2 + 1]);
+    prev_idx2 = (last_idx - 1) * 2;
+    p_last_x = db_to_graph_x(graph_points[prev_idx2]);
+    p_last_y = db_to_graph_y(graph_points[prev_idx2 + 1]);
     gfx_set(0.5, 0.5, 1.0, 0.4);
     gfx_line(p_last_x, p_last_y, corner_x, corner_y, 1);
   );
-  
-  // Skip corner points at indices 0 and num_points-1
   i = 1;
   while (i < num_points - 1) (
-    point_index_base = i * 2;
-    input_db = graph_points[point_index_base];
-    output_db = graph_points[point_index_base + 1];
+    pt_idx = i * 2;
+    input_db = graph_points[pt_idx];
+    output_db = graph_points[pt_idx + 1];
     point_x = db_to_graph_x(input_db);
     point_y = db_to_graph_y(output_db);
     is_hovered = (i == hovered_point);
     is_dragging = (i == dragging_point);
     curve_amount = get_curve_amount(i);
     is_curved = curve_amount > 0;
-
-    is_hovered ? (
-      point_radius = 6;
-    ) : (
-      point_radius = 4;
-    );
-    
+    point_radius = is_hovered ? 6 : 4;
     set_point_color(is_hovered, is_curved);
     gfx_circle(point_x, point_y, point_radius, 1, 1);
-    
     is_curved ? (
       gfx_set(1, 0.8, 0.2, 0.6);
       gfx_circle(point_x, point_y, point_radius + 2, 0, 1);
     );
-    
     is_dragging && mouse_down ? (
       text_x = point_x + 15;
       text_y = point_y;
       draw_text_at(1, 1, 1, 1, text_x, text_y - 4, "%.1f dB", output_db - input_db);
       draw_text_at(1, 1, 0.6, 1, text_x, text_y + 8, "%.1f dB", output_db);
-      is_curved ? (
-        draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
-      );
+      is_curved ? draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
     );
-    
     i += 1;
   );
 );
 
 
 function draw_threshold_lines_on_graph() (
-  // Use threshold_lines service to render input level threshold line
   render_input_level_threshold_line(GRAPH_X, GRAPH_Y, GRAPH_SIZE);
 );
 

@@ -1,89 +1,50 @@
-// UI Dot Trail Module
-// Fading dot trail visualization for the input level indicator
-// Depends on: 
-//   - 01_Utils/01_constants.jsfx-inc
-//   - 01_Utils/02_math_utils.jsfx-inc
-//   - UI_General/02_ui_utils.jsfx-inc
-//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
-//   - 03_Compression/02_graph_data_core.jsfx-inc (for GRAPH_MIN_DB, GRAPH_MAX_DB)
+// UI Dot Trail Module - Fading dot trail visualization for the input level indicator
+// Depends on: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_General/12_coordinate_conversion.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc
 
 @init
-
-//==============================================================================
-// TRAIL DOT MANAGEMENT
-//==============================================================================
-
-// Create a new trail dot at the current input level position
 function create_trail_dot() (
   trail_initialized && trail_count < trail_max_dots ? (
-    // Calculate current position in graph coordinates - uses blended input dB
-    // Clamp to graph range to prevent trail dots from rendering outside
     clamped_input_db = clamp(blended_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     input_x = db_to_graph_x(clamped_input_db);
     input_y = db_to_graph_y(clamped_input_db);
-    
-    // Store dot data: [x, y, age, max_age]
-    trail_buffer[trail_write_pos * 4 + 0] = input_x;
-    trail_buffer[trail_write_pos * 4 + 1] = input_y;
-    trail_buffer[trail_write_pos * 4 + 2] = 0; // age starts at 0
-    trail_buffer[trail_write_pos * 4 + 3] = trail_fade_duration_ms * 0.001 * srate; // max_age in samples
-    
-    // Update circular buffer position
+    idx = trail_write_pos * 4;
+    trail_buffer[idx] = input_x;
+    trail_buffer[idx + 1] = input_y;
+    trail_buffer[idx + 2] = 0;
+    trail_buffer[idx + 3] = trail_fade_duration_ms * 0.001 * srate;
     trail_write_pos = (trail_write_pos + 1) % trail_max_dots;
-    
-    // Update count (only increment if we're not overwriting)
     trail_count < trail_max_dots ? trail_count += 1;
-    
-    // Update last creation time
-    trail_last_creation_time = 0; // Reset to 0, will be incremented in update function
+    trail_last_creation_time = 0;
   );
 );
 
 // Update all trail dots (age them and remove expired ones)
 function update_trail_dots() (
   trail_initialized ? (
-    // Calculate frame increment (convert from samples to frames)
-    // Assuming 60 Hz GFX rate: samples_per_frame = srate / 60
     samples_per_frame = srate / 60;
-
-    // Age all existing dots
     i = 0;
     while (i < trail_count) (
-      // Get dot data
-      dot_x = trail_buffer[i * 4 + 0];
-      dot_y = trail_buffer[i * 4 + 1];
-      dot_age = trail_buffer[i * 4 + 2];
-      dot_max_age = trail_buffer[i * 4 + 3];
-
-      // Age the dot by samples per frame
-      dot_age += samples_per_frame;
-      trail_buffer[i * 4 + 2] = dot_age;
-
-      // Check if dot has expired
-      dot_age >= dot_max_age ? (
-        // Remove expired dot by shifting remaining dots left
+      dot_idx = i * 4;
+      dot_age = trail_buffer[dot_idx + 2] + samples_per_frame;
+      trail_buffer[dot_idx + 2] = dot_age;
+      dot_age >= trail_buffer[dot_idx + 3] ? (
         j = i;
         while (j < trail_count - 1) (
-          trail_buffer[j * 4 + 0] = trail_buffer[(j + 1) * 4 + 0];
-          trail_buffer[j * 4 + 1] = trail_buffer[(j + 1) * 4 + 1];
-          trail_buffer[j * 4 + 2] = trail_buffer[(j + 1) * 4 + 2];
-          trail_buffer[j * 4 + 3] = trail_buffer[(j + 1) * 4 + 3];
+          j_idx = j * 4;
+          next_idx = (j + 1) * 4;
+          trail_buffer[j_idx] = trail_buffer[next_idx];
+          trail_buffer[j_idx + 1] = trail_buffer[next_idx + 1];
+          trail_buffer[j_idx + 2] = trail_buffer[next_idx + 2];
+          trail_buffer[j_idx + 3] = trail_buffer[next_idx + 3];
           j += 1;
         );
         trail_count -= 1;
-        // Don't increment i since we shifted dots left
       ) : (
         i += 1;
       );
     );
-
-    // OPTIMIZATION: Use pre-calculated trail_interval_samples from @block
-    // Check if it's time to create a new trail dot
     trail_last_creation_time += samples_per_frame;
-
-    trail_last_creation_time >= trail_interval_samples ? (
-      create_trail_dot();
-    );
+    trail_last_creation_time >= trail_interval_samples ? create_trail_dot();
   );
 );
 
@@ -92,38 +53,22 @@ function render_trail_dots() (
   trail_initialized && trail_count > 0 ? (
     i = 0;
     while (i < trail_count) (
-      // Get dot data
-      dot_x = trail_buffer[i * 4 + 0];
-      dot_y = trail_buffer[i * 4 + 1];
-      dot_age = trail_buffer[i * 4 + 2];
-      dot_max_age = trail_buffer[i * 4 + 3];
-      
-      // Calculate fade alpha (linear fade from 0.5 to 0)
-      fade_progress = dot_age / dot_max_age;
-      alpha = 0.5 * (1 - fade_progress);
-      
-      // Only render if alpha is above minimum threshold
+      dot_idx = i * 4;
+      dot_x = trail_buffer[dot_idx];
+      dot_y = trail_buffer[dot_idx + 1];
+      dot_age = trail_buffer[dot_idx + 2];
+      dot_max_age = trail_buffer[dot_idx + 3];
+      alpha = 0.5 * (1 - dot_age / dot_max_age);
       alpha > 0.01 ? (
-        // Set color (green with fade)
         gfx_set(0, 1, 0, alpha);
-        
-        // Draw trail dot (smaller than main dot)
-        gfx_circle(dot_x, dot_y, 2, 1, 1); // 2px radius, filled, antialiased
+        gfx_circle(dot_x, dot_y, 2, 1, 1);
       );
-      
       i += 1;
     );
   );
 );
 
-//==============================================================================
-// TRAIL DOT INTEGRATION
-//==============================================================================
-
-// Main function to update and render trail dots (called from graph display)
 function update_and_render_trail_dots() (
-  // OPTIMIZATION: Use pre-calculated is_audio_active from @gfx (cached once per frame)
-  // Only update when audio is active
   is_audio_active ? (
     update_trail_dots();
     render_trail_dots();

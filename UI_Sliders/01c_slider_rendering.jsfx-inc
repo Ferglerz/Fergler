@@ -28,10 +28,21 @@
 //
 
 //==============================================================================
+// SLIDER STYLE CONFIGURATION (Module-level variables)
+//==============================================================================
+
+// Style configuration variables - set these before rendering
+slider_style_label_height = 11;
+slider_style_text_r = 1.0; slider_style_text_g = 1.0; slider_style_text_b = 1.0;
+slider_style_bg_r = 0.3; slider_style_bg_g = 0.3; slider_style_bg_b = 0.3;
+slider_style_fill_r = 0.8; slider_style_fill_g = 0.6; slider_style_fill_b = 0.2;
+slider_style_handle_r = 1.0; slider_style_handle_g = 1.0; slider_style_handle_b = 1.0;
+
+//==============================================================================
 // SLIDER RENDERING FUNCTION
 //==============================================================================
 
-// Draw slider control (horizontal or vertical)
+// Draw slider control (horizontal or vertical) - uses style configuration variables
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
 function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, orientation, suffix_str, fill_direction, formatting, format_options) local(
   label_w, label_h, normalized_pos, fill_w, handle_x, handle_y, center_x, fader_x, fill_start_x, fill_width,
@@ -67,39 +78,39 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
   );
   
   // Draw label
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_set(slider_style_text_r, slider_style_text_g, slider_style_text_b, 1);
   orientation == ORIENTATION_VERTICAL ? (
     gfx_x = x + w + 8; gfx_y = y;
   ) : (
     // Horizontal slider - center align
     gfx_measurestr(label, label_w, label_h);
     gfx_x = x + (w - label_w) / 2;
-    gfx_y = y - LABEL_HEIGHT;
+    gfx_y = y - slider_style_label_height;
   );
   gfx_drawstr(label);
 
   orientation == ORIENTATION_VERTICAL ? (
     // Vertical slider
     // Draw slider background
-    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 1);
     gfx_rect(x, y, w, h);
 
     // Draw slider fill from bottom
     fill_h = normalized_pos * h;
-    gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+    gfx_set(slider_style_fill_r, slider_style_fill_g, slider_style_fill_b, 1);
     gfx_rect(x, y + h - fill_h, w, fill_h);
 
     // Draw handle
     handle_y = y + h - fill_h - 3;
-    gfx_set(1, 1, 1, 1);
+    gfx_set(slider_style_handle_r, slider_style_handle_g, slider_style_handle_b, 1);
     gfx_rect(x - 2, handle_y, w + 4, 6);
 
     // Draw value text
-    draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options);
+    draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options, slider_style_text_r, slider_style_text_g, slider_style_text_b);
   ) : (
     // Horizontal slider
     // Draw slider background
-    gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 1);
     gfx_rect(x, y, w, h);
 
     // Draw slider fill based on fill direction
@@ -107,7 +118,7 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
 
     fill_direction == FILL_LEFT_TO_RIGHT ? (
       // Fill from LEFT edge to fader position
-      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_set(slider_style_fill_r, slider_style_fill_g, slider_style_fill_b, 1);
       gfx_rect(x, y, fill_w, h);
     ) : fill_direction == FILL_CENTER_OUT ? (
       // Fill from center to fader position (both directions)
@@ -116,26 +127,26 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
 
       // Fill left side (from center to fader if fader is right of center)
       fader_x > center_x ? (
-        gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+        gfx_set(slider_style_fill_r, slider_style_fill_g, slider_style_fill_b, 1);
         gfx_rect(center_x, y, fader_x - center_x, h);
       );
 
       // Fill right side (from center to fader if fader is left of center)
       fader_x < center_x ? (
-        gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+        gfx_set(slider_style_fill_r, slider_style_fill_g, slider_style_fill_b, 1);
         gfx_rect(fader_x, y, center_x - fader_x, h);
       );
     ) : (
       // Default (RIGHT_TO_LEFT): Fill from RIGHT edge to fader position
       fill_start_x = x + fill_w;
       fill_width = w - fill_w;
-      gfx_set(SLIDER_FILL_R, SLIDER_FILL_G, SLIDER_FILL_B, 1);
+      gfx_set(slider_style_fill_r, slider_style_fill_g, slider_style_fill_b, 1);
       gfx_rect(fill_start_x, y, fill_width, h);
     );
 
     // Draw handle
     handle_x = x + fill_w - 3;
-    gfx_set(1, 1, 1, 1);
+    gfx_set(slider_style_handle_r, slider_style_handle_g, slider_style_handle_b, 1);
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
     // Draw value text with smart positioning

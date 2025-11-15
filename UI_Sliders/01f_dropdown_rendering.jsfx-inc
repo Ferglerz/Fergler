@@ -25,9 +25,20 @@
 //
 
 //==============================================================================
+// DROPDOWN STYLE CONFIGURATION (Module-level variables)
+//==============================================================================
+
+// Style configuration variables - set these before rendering
+dropdown_style_text_r = 1.0; dropdown_style_text_g = 1.0; dropdown_style_text_b = 1.0;
+dropdown_style_bg_r = 0.3; dropdown_style_bg_g = 0.3; dropdown_style_bg_b = 0.3;
+dropdown_style_border_r = 0.6; dropdown_style_border_g = 0.6; dropdown_style_border_b = 0.6;
+dropdown_style_label_height = 11;
+
+//==============================================================================
 // DROPDOWN RENDERING FUNCTION
 //==============================================================================
 
+// Draw dropdown control - uses style configuration variables
 function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) local(
   option_count, current_index
 ) (
@@ -35,20 +46,20 @@ function draw_generic_dropdown(x, y, w, h, current_value, label, param_index) lo
   option_count = get_dropdown_option_count(param_index);
   
   // Draw label
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
-  gfx_x = x; gfx_y = y - LABEL_HEIGHT;
+  gfx_set(dropdown_style_text_r, dropdown_style_text_g, dropdown_style_text_b, 1);
+  gfx_x = x; gfx_y = y - dropdown_style_label_height;
   gfx_drawstr(label);
 
   // Draw dropdown background
-  gfx_set(SLIDER_BG_R, SLIDER_BG_G, SLIDER_BG_B, 1);
+  gfx_set(dropdown_style_bg_r, dropdown_style_bg_g, dropdown_style_bg_b, 1);
   gfx_rect(x, y, w, h);
 
   // Draw dropdown border
-  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_set(dropdown_style_border_r, dropdown_style_border_g, dropdown_style_border_b, 1);
   gfx_rect(x, y, w, h, 0);
 
   // Draw current selection text
-  gfx_set(TEXT_R, TEXT_G, TEXT_B, 1);
+  gfx_set(dropdown_style_text_r, dropdown_style_text_g, dropdown_style_text_b, 1);
   gfx_x = x + 5; gfx_y = y + 5;
 
   // Display text using dynamic dropdown options

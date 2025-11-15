@@ -22,14 +22,14 @@ function draw_graph_background() (
 
 function draw_grid() (
   debug_counter_grid += 1;
-  
   gfx_set(0.4, 0.4, 0.4, 1);
+  grid_step = GRAPH_SIZE / 6;
   i = 0;
   while (i <= 6) (
-    x_pos = GRAPH_X + i * GRAPH_SIZE / 6;
-    y_pos = GRAPH_Y + i * GRAPH_SIZE / 6;
-    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1); // Antialiased
-    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1); // Antialiased
+    x_pos = GRAPH_X + i * grid_step;
+    y_pos = GRAPH_Y + i * grid_step;
+    gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1);
+    gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1);
     i += 1;
   );
 );
@@ -39,32 +39,21 @@ function draw_grid() (
 //==============================================================================
 
 function draw_labels_and_info() (
-  // Points text in top left of graph area in light grey (75% scaled)
-  // Display moveable points only (exclude the two corner points)
   gfx_set(0.7, 0.7, 0.7, 1);
-  gfx_x = GRAPH_X + 8; gfx_y = GRAPH_Y + 9;  // 10 * 0.75 = 7.5 rounded up, 12 * 0.75 = 9
+  gfx_x = GRAPH_X + 8;
+  gfx_y = GRAPH_Y + 9;
   gfx_printf("%d/%d", num_points - 2, MAX_POINTS - 2);
-
 );
 
 function draw_compression_threshold_overlay() (
-  // Display the current compression threshold in red text over the graph
-  // This shows the early-exit optimization threshold from calculate_gain_reduction_from_db()
-  // Only shown when debug mode is enabled
-  
   menu_debug_enabled ? (
-    gfx_set(1.0, 0.2, 0.2, 0.9); // Bright red with slight transparency
-    gfx_setfont(1, "Arial", 11); // Match standard UI font size
-    
-    // Position in top-right area of graph, below the points counter
-    gfx_x = GRAPH_X + GRAPH_SIZE - 130;
+    gfx_set(1.0, 0.2, 0.2, 0.9);
+    gfx_setfont(1, "Arial", 11);
+    graph_right = GRAPH_X + GRAPH_SIZE;
+    gfx_x = graph_right - 130;
     gfx_y = GRAPH_Y + 9;
-    
-    // Show threshold value and debug info
     gfx_printf("Threshold: %.1f dB", comp_curve_min_threshold_db);
-    
-    // Debug: Show current input and skip state
-    gfx_x = GRAPH_X + GRAPH_SIZE - 130;
+    gfx_x = graph_right - 130;
     gfx_y = GRAPH_Y + 24;
     gfx_set(0.8, 0.8, 0.8, 0.7);
     gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
@@ -76,40 +65,22 @@ function draw_compression_threshold_overlay() (
 //==============================================================================
 
 function draw_mouse_hints() (
-  // Draw mouse hints in bottom right corner of graph area
-  // Position text area within graph boundaries with proper margins
-  hint_margin = 11; // 15 * 0.75 = 11.25 rounded down
-  hint_y = GRAPH_Y + GRAPH_SIZE - hint_margin; // Bottom edge with margin
-  line_height = 9; // 12 * 0.75 = 9 (scaled font size)
-  
-  // Set smaller font size (75% of original)
-  gfx_setfont(1, "Arial", 9); // 12 * 0.75 = 9
-  
-  // Set hint text color (light grey with slight transparency)
+  hint_margin = 11;
+  hint_y = GRAPH_Y + GRAPH_SIZE - hint_margin;
+  line_height = 9;
+  gfx_setfont(1, "Arial", 9);
   gfx_set(0.7, 0.7, 0.7, 0.8);
-  
-  // Approximate character width for 9pt Arial (roughly 5.25 pixels per character)
   char_width = 5;
-  
-  // Calculate right-aligned positions for each line
-  // "Cmd+drag point: Curve" = ~22 characters = ~154 pixels
-  // "Right-click/Alt+click point: Delete" = ~35 characters = ~245 pixels  
-  // "Click empty: Add" = ~17 characters = ~119 pixels
-  
-  // Position from bottom up to ensure all text fits within graph
-  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (22 * char_width);
+  graph_right = GRAPH_X + GRAPH_SIZE;
+  gfx_x = graph_right - hint_margin - (22 * char_width);
   gfx_y = hint_y - line_height * 2;
   gfx_drawstr("Cmd+drag point: Curve");
-  
-  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (35 * char_width);
+  gfx_x = graph_right - hint_margin - (35 * char_width);
   gfx_y = hint_y - line_height;
   gfx_drawstr("Right-click/Alt+click point: Delete");
-  
-  gfx_x = GRAPH_X + GRAPH_SIZE - hint_margin - (17 * char_width);
+  gfx_x = graph_right - hint_margin - (17 * char_width);
   gfx_y = hint_y;
   gfx_drawstr("Click empty: Add");
-  
-  // Reset font to default (75% of original)
-  gfx_setfont(1, "Arial", 11); // 14 * 0.75 = 10.5 rounded up
+  gfx_setfont(1, "Arial", 11);
 );
 
