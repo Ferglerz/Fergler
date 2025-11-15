@@ -47,17 +47,11 @@
 // HELPER FUNCTIONS
 //==============================================================================
 
-// Helper function to convert display_mode constant to suffix string
-// Writes result to #value_str string slot
-// Returns empty string for DISPLAY_NORMAL or DISPLAY_HIDE_VALUE
-function display_mode_to_suffix(display_mode) (
-  display_mode == DISPLAY_PERCENT ? strcpy(#value_str, " %") :
-  display_mode == DISPLAY_DB ? strcpy(#value_str, " dB") :
-  display_mode == DISPLAY_MS ? strcpy(#value_str, " ms") :
-  display_mode == DISPLAY_US ? strcpy(#value_str, " us") :
-  display_mode == DISPLAY_S ? strcpy(#value_str, " s") :
-  display_mode == DISPLAY_HZ ? strcpy(#value_str, " Hz") :
-  strcpy(#value_str, "");  // DISPLAY_NORMAL, DISPLAY_HIDE_VALUE, or unknown
+// Helper function to retrieve stored suffix string for a control
+// control_index: Index of the control (used to look up suffix in string slot 61 + control_index)
+// Returns: Suffix string stored for this control (empty string if none)
+function get_control_suffix(control_index) (
+  strcpy(#value_str, 61 + control_index);
   #value_str;
 );
 
@@ -101,9 +95,19 @@ function render_control(index) local(
     formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting
     format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options
     
-    // Convert display_mode to suffix string
-    display_mode_to_suffix(display_mode);
+    // Retrieve stored suffix string for this control
+    get_control_suffix(index);
     suffix_str = #value_str;
+    
+    // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
+    // Only Attack slider responds to the time unit selector (slider 33)
+    param_index == 1 ? (
+      time_unit = slider(33);
+      time_unit == 0 ? strcpy(#value_str, " ms") :
+      time_unit == 1 ? strcpy(#value_str, " us") :
+      strcpy(#value_str, " s");
+      suffix_str = #value_str;
+    );
     
     // For enumerated sliders, ignore min_val/max_val from control_defs
     // They use option_count instead (0 to option_count-1)
@@ -111,16 +115,16 @@ function render_control(index) local(
     option_count > 0 ? (
       // Enumerated slider: use 0 and option_count-1 as min/max (ignored by draw_slider/draw_knob anyway)
       is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options);
+        draw_knob(x, y, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
       ) : (
-        draw_slider(x, y, w, h, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options);
+        draw_slider(x, y, w, h, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
       );
     ) : (
       // Continuous slider: use min_val/max_val from control_defs
       is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options);
+        draw_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
       ) : (
-        draw_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options);
+        draw_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
       );
     );
   ) : type == 1 ? ( // Button

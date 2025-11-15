@@ -44,7 +44,8 @@ slider_style_handle_r = 1.0; slider_style_handle_g = 1.0; slider_style_handle_b 
 
 // Draw slider control (horizontal or vertical) - uses style configuration variables
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
-function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, orientation, suffix_str, fill_direction, formatting, format_options) local(
+// display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, orientation, suffix_str, fill_direction, formatting, format_options, display_mode) local(
   label_w, label_h, normalized_pos, fill_w, handle_x, handle_y, center_x, fader_x, fill_start_x, fill_width,
   option_count, value_index, reverse_mode, stepped_value, display_value, fill_h
 ) (
@@ -106,7 +107,7 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     gfx_rect(x - 2, handle_y, w + 4, 6);
 
     // Draw value text
-    draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options, slider_style_text_r, slider_style_text_g, slider_style_text_b);
+    draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options, display_mode, slider_style_text_r, slider_style_text_g, slider_style_text_b);
   ) : (
     // Horizontal slider
     // Draw slider background
@@ -150,7 +151,7 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
     // Draw value text with smart positioning
-    draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options);
+    draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode);
   );
 );
 

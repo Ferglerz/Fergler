@@ -12,7 +12,7 @@
 // buttons, dropdowns). It handles:
 // - Enumerated sliders with dropdown options (pre-formatted text from definitions)
 // - Continuous sliders with various number formatting
-// - Number formatting (FORMAT_K adds "k" suffix for thousands)
+// - Number formatting (FORMAT_K adds "k" suffix for thousands, e.g., "1.5k")
 // - Dynamic suffix application - caller provides suffix string directly
 // - Completely agnostic design - no knowledge of specific suffixes
 //
@@ -22,10 +22,20 @@
 //   - Dynamic suffixes based on runtime state (e.g., Attack time unit switching)
 //   - Empty string ("") means no suffix
 //   - The formatting function has ZERO knowledge of what suffixes mean
+//   - Suffix strings are stored per-control in string slots (61+) when using create_ui_control()
+//
+// FORMATTING OPTIONS:
+//   - FORMAT_NORMAL: Standard numeric formatting with appropriate decimal places
+//   - FORMAT_K: Adds "k" suffix for values >= 1000 (e.g., 1500 -> "1.5k", 500 -> "500")
+//   - FORMAT_NONE: Minimal formatting (uses %g format)
 //
 // USAGE:
 //   // Basic usage with suffix string
-//   formatted_str = format_slider_value(param_index, value, " ms", FORMAT_K, 0);
+//   formatted_str = format_slider_value(param_index, value, " ms", FORMAT_NORMAL, 0);
+//   gfx_drawstr(formatted_str);
+//
+//   // With k formatting and Hz suffix
+//   formatted_str = format_slider_value(param_index, value, " Hz", FORMAT_K, 0);
 //   gfx_drawstr(formatted_str);
 //
 //   // Dynamic suffix example (handled by caller)

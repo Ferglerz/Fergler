@@ -25,32 +25,40 @@
 
 // Helper function to draw value text for controls
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+// display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
 // Color parameters: text_r, text_g, text_b
-function draw_control_value_text(x, y, param_index, display_value, suffix_str, formatting, format_options, text_r, text_g, text_b) local(
+function draw_control_value_text(x, y, param_index, display_value, suffix_str, formatting, format_options, display_mode, text_r, text_g, text_b) local(
   formatted_str
 ) (
-  gfx_set(text_r, text_g, text_b, 1);
-  gfx_x = x;
-  gfx_y = y;
-  formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
-  gfx_drawstr(formatted_str);
+  // Skip drawing if display mode is HIDE_VALUE
+  display_mode == DISPLAY_HIDE_VALUE ? 0 : (
+    gfx_set(text_r, text_g, text_b, 1);
+    gfx_x = x;
+    gfx_y = y;
+    formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
+    gfx_drawstr(formatted_str);
+  );
 );
 
 // Helper function to draw value text for horizontal sliders with smart positioning
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
-function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options) local(
+// display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode) local(
   formatted_str, value_str_w, value_str_h
 ) (
-  formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
-  gfx_measurestr(formatted_str, value_str_w, value_str_h);
-  normalized_pos > 0.5 ? (
-    gfx_set(0, 0, 0, 1);  // Black
-    gfx_x = x + 3;
-  ) : (
-    gfx_set(1, 1, 1, 1);  // White
-    gfx_x = x + w - value_str_w - 3;
+  // Skip drawing if display mode is HIDE_VALUE
+  display_mode == DISPLAY_HIDE_VALUE ? 0 : (
+    formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
+    gfx_measurestr(formatted_str, value_str_w, value_str_h);
+    normalized_pos > 0.5 ? (
+      gfx_set(0, 0, 0, 1);  // Black
+      gfx_x = x + 3;
+    ) : (
+      gfx_set(1, 1, 1, 1);  // White
+      gfx_x = x + w - value_str_w - 3;
+    );
+    gfx_y = y + (h - value_str_h) / 2;
+    gfx_drawstr(formatted_str);
   );
-  gfx_y = y + (h - value_str_h) / 2;
-  gfx_drawstr(formatted_str);
 );
 
