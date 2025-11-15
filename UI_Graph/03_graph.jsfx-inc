@@ -1,8 +1,35 @@
 // User Interactions - Graph Module
 // Graph point interaction handling (dragging, adding, deleting, curve adjustment)
-// Dependencies: 01_Utils/02_math_utils.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc
+// Dependencies: 
+//   - 01_Utils/02_math_utils.jsfx-inc
+//   - 03_Compression/02_graph_data_core.jsfx-inc
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y, graph_x_to_db, graph_y_to_db, is_point_in_graph)
 
 @init
+
+//==============================================================================
+// GRAPH POINT FINDING
+//==============================================================================
+
+// Find which graph point is at the given mouse coordinates
+// Uses coordinate conversion functions to convert graph points (in dB) to screen coordinates
+function find_point_at_mouse(x, y) local(found_point, i, point_x, point_y, dist_sq) (
+  // Skip corner points (indices 0 and num_points-1) - invisible and non-interactive
+  found_point = -1;
+  i = 1;
+  while (i < num_points - 1) (
+    point_x = db_to_graph_x(graph_points[i*2]);
+    point_y = db_to_graph_y(graph_points[i*2 + 1]);
+    dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
+    dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
+      found_point = i;
+      i = num_points;
+    ) : (
+      i += 1;
+    );
+  );
+  found_point;
+);
 
 //==============================================================================
 // GRAPH INTERACTION STATE

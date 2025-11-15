@@ -4,7 +4,7 @@
 // Depends on: 
 //   - 01_Utils/02_math_utils.jsfx-inc (for clamp function)
 //   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
-// Note: Uses global conversion functions (db_to_graph_y, graph_y_to_db, is_point_in_graph) from graph module
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_y, graph_y_to_db, is_point_in_graph)
 
 @init
 

@@ -2,6 +2,7 @@
 // Main interface coordination and rendering orchestration
 // Coordinates all UI elements: header, controls, graph, interactions
 // Depends on: all other UI modules
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
 
 @init
 

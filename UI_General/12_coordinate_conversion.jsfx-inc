@@ -1,0 +1,81 @@
+// UI Coordinate Conversion Module - Independent Service
+// Handles coordinate conversion between dB values and graph pixel coordinates
+// Independent service used by graph, meters, and other UI modules
+// Depends on:
+//   - UI_General/00_ui_constants.jsfx-inc (for GRAPH_X, GRAPH_Y, GRAPH_SIZE)
+//   - 03_Compression/02_graph_data_core.jsfx-inc (for GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
+
+@init
+
+//==============================================================================
+// OPTIMIZATION CONSTANTS
+//==============================================================================
+
+// Pre-calculated constants for coordinate conversion (optimization)
+// Eliminates repeated divisions - must be calculated AFTER GRAPH_SIZE/GRAPH_X/GRAPH_Y are defined
+// Call init_graph_optimization_constants() from main @init after all imports
+DB_TO_PIXEL_SCALE = 0;
+PIXEL_TO_DB_SCALE = 0;
+HISTOGRAM_Y_OFFSET = 0;
+HISTOGRAM_X_OFFSET = 0;
+GR_PIXELS_PER_DB = 0;  // 40dB range for gain reduction display
+
+function init_graph_optimization_constants() (
+  DB_TO_PIXEL_SCALE = GRAPH_SIZE / GRAPH_RANGE_DB;
+  PIXEL_TO_DB_SCALE = GRAPH_RANGE_DB / GRAPH_SIZE;
+  HISTOGRAM_Y_OFFSET = GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
+  HISTOGRAM_X_OFFSET = GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
+  GR_PIXELS_PER_DB = GRAPH_SIZE / 40;
+);
+
+//==============================================================================
+// COORDINATE CONVERSION FUNCTIONS
+//==============================================================================
+
+// Optimized to use pre-calculated scale factors (eliminates divisions)
+// Note: These functions use GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB from compression module
+// and GRAPH_X, GRAPH_Y, GRAPH_SIZE from UI constants
+
+function db_to_graph_x(db) (
+  GRAPH_X + (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
+);
+
+function db_to_graph_y(db) (
+  GRAPH_Y + GRAPH_SIZE - (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
+);
+
+function graph_x_to_db(x) (
+  (x - GRAPH_X) * PIXEL_TO_DB_SCALE + GRAPH_MIN_DB
+);
+
+function graph_y_to_db(y) (
+  GRAPH_MAX_DB - (y - GRAPH_Y) * PIXEL_TO_DB_SCALE
+);
+
+function is_point_in_graph(x, y) (
+  x >= GRAPH_X && x <= GRAPH_X + GRAPH_SIZE &&
+  y >= GRAPH_Y && y <= GRAPH_Y + GRAPH_SIZE
+);
+
+//==============================================================================
+// METER POSITION CALCULATION
+//==============================================================================
+
+// Calculate gain reduction meter position relative to graph
+// Since JSFX functions return single values, we use separate functions for each property
+function get_meter_x() (
+  GRAPH_X + GRAPH_SIZE + 15  // 20 * 0.75
+);
+
+function get_meter_y() (
+  GRAPH_Y
+);
+
+function get_meter_w() (
+  23  // 30 * 0.75 = 22.5 rounded up
+);
+
+function get_meter_h() (
+  GRAPH_SIZE
+);
+

@@ -1,8 +1,9 @@
 // UI Graph Meters Module
 // Gain reduction meter and histogram visualization
 // Depends on: 
-//   - 00a_constants.jsfx-inc
+//   - UI_General/00_ui_constants.jsfx-inc
 //   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for DB_TO_PIXEL_SCALE, GR_PIXELS_PER_DB, HISTOGRAM_Y_OFFSET, get_meter_x, get_meter_y, get_meter_w, get_meter_h)
 //   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, THRESHOLD_GR_BLEND, hovered_threshold_line, dragging_threshold_line)
 
 @init
@@ -37,12 +38,13 @@ function draw_processing_state_indicator() (
 // GAIN REDUCTION METER
 //==============================================================================
 
-function draw_gain_reduction_meter() (
+function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
   menu_gr_meter_enabled ? (
-    gr_meter_x = GRAPH_X + GRAPH_SIZE + 15;  // 20 * 0.75
-    gr_meter_y = GRAPH_Y;
-    gr_meter_w = 23;  // 30 * 0.75 = 22.5 rounded up
-    gr_meter_h = GRAPH_SIZE;
+    // Use shared meter position calculation functions
+    gr_meter_x = get_meter_x();
+    gr_meter_y = get_meter_y();
+    gr_meter_w = get_meter_w();
+    gr_meter_h = get_meter_h();
     meter_center_y = gr_meter_y + gr_meter_h / 2;
 
     // Draw meter background

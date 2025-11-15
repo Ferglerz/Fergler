@@ -107,6 +107,8 @@ import UI_General/01_drawing_primitives.jsfx-inc
 import UI_General/04_debug.jsfx-inc
 import UI_General/10_menu.jsfx-inc
 import UI_General/05_header.jsfx-inc
+// Coordinate conversion service (independent, used by graph and meter)
+import UI_General/12_coordinate_conversion.jsfx-inc
 // Threshold lines service (independent, used by graph and meter)
 import UI_General/11_threshold_lines.jsfx-inc
 
@@ -185,6 +187,7 @@ allocate_memory();
 init_state_variables();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
+// Must be called after UI_General imports (specifically after 00_ui_constants.jsfx-inc)
 init_graph_optimization_constants();
 
 // 3. Initialize stage control variables

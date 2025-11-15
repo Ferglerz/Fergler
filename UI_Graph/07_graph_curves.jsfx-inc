@@ -1,6 +1,14 @@
 // UI Graph Curves Module  
 // Curve rendering functions for compression graph visualization
-// Depends on: 00a_constants.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data_core.jsfx-inc, 03b_graph_curves.jsfx-inc, 05c_ui_rendering.jsfx-inc, 05g_ui_graph_cache.jsfx-inc
+// Depends on: 
+//   - UI_General/00_ui_constants.jsfx-inc
+//   - UI_General/02_ui_utils.jsfx-inc
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
+//   - 03_Compression/02_graph_data_core.jsfx-inc
+//   - 03_Compression/03_graph_curves.jsfx-inc
+//   - UI_General/01_drawing_primitives.jsfx-inc
+//   - UI_Graph/06_graph_cache.jsfx-inc
+//   - UI_General/11_threshold_lines.jsfx-inc (for render_input_level_threshold_line)
 
 @init
 

@@ -4,6 +4,7 @@
 //   - UI_General/10_menu.jsfx-inc
 //   - UI_Sliders/02_control_interactions.jsfx-inc
 //   - UI_Graph/03_graph.jsfx-inc
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
 //   - UI_General/11_threshold_lines.jsfx-inc
 
 @init
@@ -18,11 +19,11 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
     menu_hovered_item = get_hovered_menu_item();
   );
 
-  // Calculate meter position (same calculation as in draw_gain_reduction_meter)
-  gr_meter_x = GRAPH_X + GRAPH_SIZE + 15;  // 20 * 0.75
-  gr_meter_y = GRAPH_Y;
-  gr_meter_w = 23;  // 30 * 0.75 = 22.5 rounded up
-  gr_meter_h = GRAPH_SIZE;
+  // Calculate meter position using shared functions
+  gr_meter_x = get_meter_x();
+  gr_meter_y = get_meter_y();
+  gr_meter_w = get_meter_w();
+  gr_meter_h = get_meter_h();
 
   // Handle custom UI controls first (they have priority)
   handle_ui_mouse_input();

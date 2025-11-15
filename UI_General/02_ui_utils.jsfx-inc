@@ -161,15 +161,18 @@ function set_slider_increment(control_index, increment) (
 //==============================================================================
 
 // Note: Graph coordinate conversion functions (db_to_graph_x, db_to_graph_y, etc.)
-// are now defined in 03_Compression/02_graph_data_core.jsfx-inc where they belong
+// are now defined in UI_General/12_coordinate_conversion.jsfx-inc
 
-
-function clamp_x_to_graph(x) (
-  max(GRAPH_X, min(GRAPH_X + GRAPH_SIZE, x))
+// Clamp x coordinate to graph bounds
+// Parameters: x (coordinate), graph_x (left edge), graph_size (graph size)
+function clamp_x_to_graph(x, graph_x, graph_size) (
+  max(graph_x, min(graph_x + graph_size, x))
 );
 
-function clamp_y_to_graph(y) (
-  max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, y))
+// Clamp y coordinate to graph bounds
+// Parameters: y (coordinate), graph_y (top edge), graph_size (graph size)
+function clamp_y_to_graph(y, graph_y, graph_size) (
+  max(graph_y, min(graph_y + graph_size, y))
 );
 
 //==============================================================================

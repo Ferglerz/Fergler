@@ -1,6 +1,11 @@
 // UI Graph Cache Module
 // Curve caching system for maximum rendering efficiency
-// Depends on: 00a_constants.jsfx-inc, 02d_ui_utils.jsfx-inc, 03a_graph_data_core.jsfx-inc, 03b_graph_curves.jsfx-inc
+// Depends on: 
+//   - UI_General/00_ui_constants.jsfx-inc
+//   - UI_General/02_ui_utils.jsfx-inc (for clamp_x_to_graph, clamp_y_to_graph)
+//   - UI_General/12_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
+//   - 03_Compression/02_graph_data_core.jsfx-inc
+//   - 03_Compression/03_graph_curves.jsfx-inc
 
 @init
 
@@ -63,8 +68,8 @@ function generate_curve_cache() (
   // Only process if we have at least 2 points
   num_points >= 2 ? (
     // Start from first point (clamp to ensure it's within graph bounds)
-    prev_x = clamp_x_to_graph(db_to_graph_x(graph_points[0]));
-    prev_y = clamp_y_to_graph(db_to_graph_y(graph_points[1]));
+    prev_x = clamp_x_to_graph(db_to_graph_x(graph_points[0]), GRAPH_X, GRAPH_SIZE);
+    prev_y = clamp_y_to_graph(db_to_graph_y(graph_points[1]), GRAPH_Y, GRAPH_SIZE);
 
     // Variable to store clamped junction point for consecutive curves
     clamped_junction_x = 0;
@@ -152,8 +157,8 @@ function generate_curve_cache() (
           current_y = uuu * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + ttt * p3_y;
           
           // Clamp to graph boundaries
-          current_x = clamp_x_to_graph(current_x);
-          current_y = clamp_y_to_graph(current_y);
+          current_x = clamp_x_to_graph(current_x, GRAPH_X, GRAPH_SIZE);
+          current_y = clamp_y_to_graph(current_y, GRAPH_Y, GRAPH_SIZE);
           
           // Store line segment (from prev to current)
           curve_cache_points[segment_count*4 + 0] = prev_x;
@@ -172,8 +177,8 @@ function generate_curve_cache() (
         end_y = db_to_graph_y(graph_points[(i+1)*2 + 1]);
         
         // Clamp to graph boundaries
-        end_x = clamp_x_to_graph(end_x);
-        end_y = clamp_y_to_graph(end_y);
+        end_x = clamp_x_to_graph(end_x, GRAPH_X, GRAPH_SIZE);
+        end_y = clamp_y_to_graph(end_y, GRAPH_Y, GRAPH_SIZE);
         
         // Store line segment
         curve_cache_points[segment_count*4 + 0] = prev_x;

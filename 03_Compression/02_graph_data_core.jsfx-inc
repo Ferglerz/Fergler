@@ -1,6 +1,8 @@
 // Graph Data Core Module
 // Graph point data management and point manipulation
-// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 02d_ui_utils.jsfx-inc
+// Depends on: 
+//   - 01_Utils/01_constants.jsfx-inc
+//   - 01_Utils/02_math_utils.jsfx-inc
 
 @init
 
@@ -11,23 +13,6 @@
 GRAPH_RANGE_DB = 80;
 GRAPH_MIN_DB = -80;
 GRAPH_MAX_DB = 0;
-
-// Pre-calculated constants for coordinate conversion (optimization)
-// Eliminates repeated divisions - must be calculated AFTER GRAPH_SIZE/GRAPH_X/GRAPH_Y are defined
-// Call init_graph_optimization_constants() from main @init after all imports
-DB_TO_PIXEL_SCALE = 0;
-PIXEL_TO_DB_SCALE = 0;
-HISTOGRAM_Y_OFFSET = 0;
-HISTOGRAM_X_OFFSET = 0;
-GR_PIXELS_PER_DB = 0;  // 40dB range for gain reduction display
-
-function init_graph_optimization_constants() (
-  DB_TO_PIXEL_SCALE = GRAPH_SIZE / GRAPH_RANGE_DB;
-  PIXEL_TO_DB_SCALE = GRAPH_RANGE_DB / GRAPH_SIZE;
-  HISTOGRAM_Y_OFFSET = GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
-  HISTOGRAM_X_OFFSET = GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
-  GR_PIXELS_PER_DB = GRAPH_SIZE / 40;
-);
 
 MIN_POINTS = 4;
 MAX_POINTS = 12;
@@ -54,33 +39,6 @@ comp_curve_threshold_dirty = 1;
   // curve_amounts[i] = 0 means no curve, > 0 means curved with that percentage
   curve_amounts = 0;
   curve_mode = 0;
-);
-
-//==============================================================================
-// COORDINATE CONVERSION FUNCTIONS
-//==============================================================================
-
-// Optimized to use pre-calculated scale factors (eliminates divisions)
-
-function db_to_graph_x(db) (
-  GRAPH_X + (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
-);
-
-function db_to_graph_y(db) (
-  GRAPH_Y + GRAPH_SIZE - (db - GRAPH_MIN_DB) * DB_TO_PIXEL_SCALE
-);
-
-function graph_x_to_db(x) (
-  (x - GRAPH_X) * PIXEL_TO_DB_SCALE + GRAPH_MIN_DB
-);
-
-function graph_y_to_db(y) (
-  GRAPH_MAX_DB - (y - GRAPH_Y) * PIXEL_TO_DB_SCALE
-);
-
-function is_point_in_graph(x, y) (
-  x >= GRAPH_X && x <= GRAPH_X + GRAPH_SIZE &&
-  y >= GRAPH_Y && y <= GRAPH_Y + GRAPH_SIZE
 );
 
 //==============================================================================
@@ -293,24 +251,6 @@ function remove_displaced_points(moved_input_db, moved_output_db) (
       );
     );
   );
-);
-
-function find_point_at_mouse(x, y) (
-  // Skip corner points (indices 0 and num_points-1) - invisible and non-interactive
-  found_point = -1;
-  i = 1;
-  while (i < num_points - 1) (
-    point_x = db_to_graph_x(graph_points[i*2]);
-    point_y = db_to_graph_y(graph_points[i*2 + 1]);
-    dist_sq = (x - point_x) * (x - point_x) + (y - point_y) * (y - point_y);
-    dist_sq < MOUSE_CLICK_RADIUS * MOUSE_CLICK_RADIUS ? (
-      found_point = i;
-      i = num_points;
-    ) : (
-      i += 1;
-    );
-  );
-  found_point;
 );
 
 //==============================================================================
