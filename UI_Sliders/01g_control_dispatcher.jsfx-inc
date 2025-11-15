@@ -1,6 +1,6 @@
 // Control Dispatcher Module
 // Main dispatcher that routes control rendering to appropriate functions
-// Dependencies: All slider rendering submodules (01a through 01f)
+// Dependencies: All slider rendering submodules (01a through 01f), 00_slider_constants.jsfx-inc
 
 @init
 
@@ -100,12 +100,6 @@ function render_control(index) local(
     fill_direction = (slider_config >> 16) & 0xFF;        // Bits 16-23: fill direction
     formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting
     format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options
-    
-    // Dynamic display mode override for Attack slider (param_index 1)
-    // Time unit button (slider 33) switches between ms/us/s
-    param_index == 1 ? (
-      display_mode = slider(33) == 0 ? DISPLAY_MS : (slider(33) == 1 ? DISPLAY_US : DISPLAY_S);
-    );
     
     // Convert display_mode to suffix string
     display_mode_to_suffix(display_mode);

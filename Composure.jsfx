@@ -113,6 +113,7 @@ import UI_General/12_coordinate_conversion.jsfx-inc
 import UI_General/11_threshold_lines.jsfx-inc
 
 // UI_Sliders: Slider control library (depends on UI_General)
+import UI_Sliders/00_slider_constants.jsfx-inc
 import UI_Sliders/01a_value_formatting.jsfx-inc
 import UI_Sliders/01b_value_text_rendering.jsfx-inc
 import UI_Sliders/01c_slider_rendering.jsfx-inc

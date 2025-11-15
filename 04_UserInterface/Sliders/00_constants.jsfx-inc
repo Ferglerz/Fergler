@@ -1,0 +1,176 @@
+// Sliders Constants Module
+// Control, slider, knob, button, dropdown, and group constants
+// Dependencies: None (independent module for library use)
+
+@init
+
+//==============================================================================
+// CONTROL DIMENSIONS
+//==============================================================================
+
+// Control Dimensions (75% of original)
+SLIDER_W = 101;  // 135 * 0.75 = 101.25 rounded down
+SLIDER_H = 15;   // 20 * 0.75
+SLIDER_W_VERTICAL = 15;  // 20 * 0.75
+SLIDER_H_VERTICAL = 101; // 135 * 0.75 = 101.25 rounded down
+BUTTON_W = 60;   // 80 * 0.75
+BUTTON_H = 19;   // 25 * 0.75 = 18.75 rounded up
+DROPDOWN_W = 90; // 120 * 0.75
+DROPDOWN_H = 19; // 25 * 0.75 = 18.75 rounded up
+
+// Spacing (75% of original)
+CONTROL_SPACING_Y = 48;  // Increased from 38 for better readability (50 * 0.75 = 37.5, now 64 * 0.75 = 48)
+CONTROL_SPACING_X = 135; // 180 * 0.75
+LABEL_HEIGHT = 11;       // 15 * 0.75 = 11.25 rounded down
+
+//==============================================================================
+// CONTROL COLORS
+//==============================================================================
+
+// Slider Colors
+SLIDER_BG_R = 0.3; SLIDER_BG_G = 0.3; SLIDER_BG_B = 0.3;
+SLIDER_FILL_R = 0.8; SLIDER_FILL_G = 0.6; SLIDER_FILL_B = 0.2;
+// Reverse slider colors (yellow fill for higher values)
+SLIDER_FILL_REVERSE_R = 1.0; SLIDER_FILL_REVERSE_G = 1.0; SLIDER_FILL_REVERSE_B = 0.0;
+SLIDER_BG_REVERSE_R = 0.8; SLIDER_BG_REVERSE_G = 0.8; SLIDER_BG_REVERSE_B = 0.2;
+
+// Button Colors
+BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
+BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
+
+//==============================================================================
+// KNOB CONFIGURATION
+//==============================================================================
+
+// Knob Configuration (75% of original)
+KNOB_SIZE = 17;  // 22 * 0.75 = 16.5 rounded up
+KNOB_RADIUS = 8;  // Half of size (17/2 = 8.5 rounded down)
+KNOB_INDICATOR_SIZE = 2;  // 2 pixel circle indicator (keep at 2 for visibility)
+KNOB_SHADOW_OFFSET = 2;  // Drop shadow offset (keep at 2 for visibility)
+SMALL_KNOB_SIZE = 17;  // Same as KNOB_SIZE (for control type 3 knobs)
+
+// Knob Colors
+KNOB_BG_R = 0.3; KNOB_BG_G = 0.3; KNOB_BG_B = 0.3;  // Dark gray
+KNOB_INDICATOR_R = 0.0; KNOB_INDICATOR_G = 0.0; KNOB_INDICATOR_B = 0.0;  // Pure black
+KNOB_SHADOW_R = 0.0; KNOB_SHADOW_G = 0.0; KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Knob Types
+KNOB_TYPE_ANGULAR = 0;  // Angular knob (like volume knobs)
+KNOB_TYPE_ROTARY = 1;   // Rotary knob (like pan knobs)
+
+// Knob Interaction Constants
+KNOB_ANGLE_START = -135 * $pi / 180;  // Start angle in radians
+KNOB_ANGLE_END = 135 * $pi / 180;     // End angle in radians
+KNOB_ANGLE_RANGE = KNOB_ANGLE_END - KNOB_ANGLE_START;
+
+// Mouse sensitivity for controls (affects how much mouse movement changes value)
+KNOB_SENSITIVITY = 0.5;        // Regular knobs (higher = more sensitive)
+LARGE_KNOB_SENSITIVITY = 0.3;  // Large knobs (lower = finer control)
+
+//==============================================================================
+// LARGE KNOB CONFIGURATION
+//==============================================================================
+
+// Large Knob Types
+LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
+LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
+LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
+
+// Large Knob Configuration (75% of original)
+LARGE_KNOB_SIZE = 38;         // Half of original: 75 / 2 = 37.5 rounded up
+LARGE_KNOB_RADIUS = 19;       // Half of original: 38 / 2 = 19
+LARGE_KNOB_ARC_DEPTH = 2;     // Half of original: 3 / 2 = 1.5 rounded up
+LARGE_KNOB_BAR_OVERHANG = 2;  // Half of original: 4 / 2 = 2
+
+// Large Knob Colors
+LARGE_KNOB_BG_R = 0.3; LARGE_KNOB_BG_G = 0.3; LARGE_KNOB_BG_B = 0.3;  // Dark gray background
+LARGE_KNOB_ARC_R = 0.8; LARGE_KNOB_ARC_G = 0.6; LARGE_KNOB_ARC_B = 0.2;  // Yellow arc (same as slider fill)
+LARGE_KNOB_BAR_R = 1.0; LARGE_KNOB_BAR_G = 1.0; LARGE_KNOB_BAR_B = 1.0;  // White indicator bar
+LARGE_KNOB_SHADOW_R = 0.0; LARGE_KNOB_SHADOW_G = 0.0; LARGE_KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Large Knob Interaction Constants
+LARGE_KNOB_ANGLE_LTR_START = 0 * $pi / 180;        // 0°
+LARGE_KNOB_ANGLE_LTR_END = 270 * $pi / 180;        // 270°
+LARGE_KNOB_ANGLE_RTL_START = 90 * $pi / 180;       // 90°
+LARGE_KNOB_ANGLE_RTL_END = 360 * $pi / 180;        // 360° (0°)
+LARGE_KNOB_ANGLE_BIDIR_START = -135 * $pi / 180;   // -135°
+LARGE_KNOB_ANGLE_BIDIR_END = 135 * $pi / 180;      // 135°
+
+//==============================================================================
+// GROUP CONFIGURATION
+//==============================================================================
+
+// Group Configuration
+NUM_GROUPS = 5;  // Total number of groups
+GROUP_BORDER_RADIUS = 5;  // Rounded corner radius
+GROUP_TITLE_HEIGHT = 22;  // Height of title area
+GROUP_TITLE_PADDING = 8;  // Horizontal padding around title text
+GROUP_PADDING = 10;  // Internal padding for controls
+
+// Group Colors
+GROUP_BG_R = 0.18; GROUP_BG_G = 0.18; GROUP_BG_B = 0.18;  // Slightly lighter than UI background
+GROUP_BORDER_R = 0.4; GROUP_BORDER_G = 0.4; GROUP_BORDER_B = 0.4;  // Gray border
+GROUP_TITLE_BG_R = 0.22; GROUP_TITLE_BG_G = 0.22; GROUP_TITLE_BG_B = 0.22;  // Slightly lighter for title area
+GROUP_TITLE_TEXT_R = 0.85; GROUP_TITLE_TEXT_G = 0.85; GROUP_TITLE_TEXT_B = 0.85;  // Light gray text
+
+//==============================================================================
+// DISPLAY MODE CONSTANTS
+//==============================================================================
+
+// Display mode constants (used by sliders for value formatting)
+DISPLAY_NORMAL = 0;        // Normal display (no suffix)
+DISPLAY_HIDE_VALUE = 2;    // Hide value display (e.g., Attack Curve)
+DISPLAY_PERCENT = 3;       // Display with % suffix
+DISPLAY_DB = 4;            // Display with dB suffix  
+DISPLAY_MS = 5;            // Display with ms suffix
+DISPLAY_US = 6;            // Display with us (microseconds) suffix
+DISPLAY_S = 7;             // Display with s (seconds) suffix
+DISPLAY_HZ = 8;            // Display with Hz suffix (k for >999)
+
+//==============================================================================
+// SLIDER PROPERTIES SYSTEM
+//==============================================================================
+
+// Slider fill directions
+FILL_LEFT_TO_RIGHT = 0;    // Normal: fill from left to fader
+FILL_RIGHT_TO_LEFT = 1;    // Reverse: fill from right to fader  
+FILL_CENTER_OUT = 2;       // Centered: fill from middle to fader (both directions)
+
+// Slider property structure (per control):
+// [0] = increment (0 = no rounding, > 0 = round to this increment)
+// [1] = fill_direction (0=left-to-right, 1=right-to-left, 2=center-out)
+// [2] = format_as_frequency (0=no, 1=yes - shows "k" suffix if > 999)
+// [3] = reserved for future use
+
+//==============================================================================
+// SLIDER CONFIGURATION SYSTEM - EXPLICIT EXCLUSIVE PARAMETERS
+//==============================================================================
+
+// Slider orientation - EXCLUSIVE (only one can be active)
+ORIENTATION_HORIZONTAL = 0;    // Standard horizontal slider
+ORIENTATION_VERTICAL = 1;      // Vertical slider  
+ORIENTATION_KNOB_SMALL = 2;    // Small knob style
+ORIENTATION_KNOB_LARGE = 3;    // Large knob style
+
+// Slider formatting - EXCLUSIVE (only one can be active)
+FORMAT_NORMAL = 0;             // Standard numeric formatting
+FORMAT_K = 1;                 // K suffix formatting (2.1k style)
+FORMAT_NONE = 2;              // No formatting (use display mode only)
+
+// Additional format options (can be combined with formatting)
+OPTION_ROUNDED = 0x01;         // Bit 0: Apply rounding to any format
+OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
+OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
+OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
+
+// Single UI control configuration function - ALL PARAMETERS REQUIRED
+// Parameters:
+//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL, ORIENTATION_KNOB_SMALL, ORIENTATION_KNOB_LARGE
+//   display_mode: DISPLAY_NORMAL, DISPLAY_PERCENT, DISPLAY_DB, DISPLAY_MS, DISPLAY_HZ, DISPLAY_HIDE_VALUE, etc.
+//   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
+//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
+//   format_options: OPTION_ROUNDED, OPTION_AUTO_STEP, OPTION_BIDIRECTIONAL, OPTION_REVERSE (can be combined with |)
+function create_ui_control(orientation, display_mode, fill_direction, formatting, format_options) (
+  orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
+);
+

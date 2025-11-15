@@ -1,6 +1,6 @@
 // Slider Rendering Module
 // Handles rendering of horizontal and vertical sliders
-// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01a_value_formatting.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
+// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/00_slider_constants.jsfx-inc, UI_Sliders/01a_value_formatting.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
 
 @init
 

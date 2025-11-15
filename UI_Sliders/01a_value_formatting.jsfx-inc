@@ -1,6 +1,6 @@
 // Slider Value Formatting Module
 // Handles all value formatting logic for sliders, knobs, and controls
-// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 01_Utils/04_file_reading.jsfx-inc, UI_Sliders/00_slider_constants.jsfx-inc
 
 @init
 

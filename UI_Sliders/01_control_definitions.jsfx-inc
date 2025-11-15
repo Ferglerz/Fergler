@@ -2,7 +2,7 @@
 // Generic control definition system for creating UI controls
 // This is a reusable library - no plugin-specific code
 // Dependencies: 
-//   - UI_General/00_ui_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*, layout constants)
+//   - UI_Sliders/00_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
 //   - UI_General/01_drawing_primitives.jsfx-inc (for draw_group)
 //
 // USAGE:

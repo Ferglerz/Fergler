@@ -1,0 +1,88 @@
+// Slider Library Constants
+// All constants required by the slider rendering system
+// This module defines constants independently of any host plugin
+// Dependencies: None
+
+@init
+
+//==============================================================================
+// DISPLAY MODE CONSTANTS
+//==============================================================================
+
+// Display modes control how values are formatted and displayed
+DISPLAY_NORMAL = 0;        // Normal display (no suffix)
+DISPLAY_HIDE_VALUE = 2;    // Hide value display (e.g., for curve sliders)
+DISPLAY_PERCENT = 3;       // Display with % suffix
+DISPLAY_DB = 4;            // Display with dB suffix  
+DISPLAY_MS = 5;            // Display with ms suffix
+DISPLAY_US = 6;            // Display with us (microseconds) suffix
+DISPLAY_S = 7;             // Display with s (seconds) suffix
+DISPLAY_HZ = 8;            // Display with Hz suffix (k for >999)
+
+//==============================================================================
+// ORIENTATION CONSTANTS
+//==============================================================================
+
+// Slider orientation - determines how the control is rendered
+ORIENTATION_HORIZONTAL = 0;    // Standard horizontal slider
+ORIENTATION_VERTICAL = 1;      // Vertical slider  
+ORIENTATION_KNOB_SMALL = 2;    // Small knob style
+ORIENTATION_KNOB_LARGE = 3;    // Large knob style
+
+//==============================================================================
+// FILL DIRECTION CONSTANTS
+//==============================================================================
+
+// Slider fill directions (horizontal sliders only)
+FILL_LEFT_TO_RIGHT = 0;    // Normal: fill from left to fader
+FILL_RIGHT_TO_LEFT = 1;    // Reverse: fill from right to fader  
+FILL_CENTER_OUT = 2;       // Centered: fill from middle to fader (both directions)
+
+//==============================================================================
+// FORMAT CONSTANTS
+//==============================================================================
+
+// Slider formatting - controls number formatting style
+FORMAT_NORMAL = 0;         // Standard numeric formatting
+FORMAT_K = 1;              // K suffix formatting (2.1k style)
+FORMAT_NONE = 2;           // No formatting (use display mode only)
+
+//==============================================================================
+// FORMAT OPTION CONSTANTS
+//==============================================================================
+
+// Format options (can be combined with bitwise OR: OPTION_ROUNDED | OPTION_BIDIRECTIONAL)
+OPTION_ROUNDED = 0x01;         // Bit 0: Apply rounding to any format
+OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
+OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
+OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
+
+//==============================================================================
+// KNOB TYPE CONSTANTS
+//==============================================================================
+
+// Small knob types
+KNOB_TYPE_ANGULAR = 0;     // Angular knob (like volume knobs) - rotating dot indicator
+KNOB_TYPE_ROTARY = 1;      // Rotary knob (like pan knobs) - arc fill
+
+// Large knob types
+LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
+LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
+LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
+
+//==============================================================================
+// UI CONTROL CONFIGURATION FUNCTION
+//==============================================================================
+
+// Single UI control configuration function - creates a bit-packed configuration value
+// Parameters:
+//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL, ORIENTATION_KNOB_SMALL, ORIENTATION_KNOB_LARGE
+//   display_mode: DISPLAY_NORMAL, DISPLAY_PERCENT, DISPLAY_DB, DISPLAY_MS, DISPLAY_HZ, DISPLAY_HIDE_VALUE, etc.
+//   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
+//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
+//   format_options: OPTION_ROUNDED, OPTION_AUTO_STEP, OPTION_BIDIRECTIONAL, OPTION_REVERSE (can be combined with |)
+// Returns: Bit-packed configuration value used in control_defs array
+function create_ui_control(orientation, display_mode, fill_direction, formatting, format_options) (
+  orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
+);
+

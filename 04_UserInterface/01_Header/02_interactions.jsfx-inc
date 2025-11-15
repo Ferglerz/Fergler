@@ -1,0 +1,84 @@
+// User Interactions - Menu Module
+// Menu button and custom menu interaction handling
+// Dependencies: 01_Utils/01_constants.jsfx-inc, 04_UserInterface/01_Header/00_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// MENU BUTTON INTERACTION
+//==============================================================================
+
+function is_menu_button_clicked() (
+  mouse_x >= MENU_BUTTON_X && mouse_x <= MENU_BUTTON_X + MENU_BUTTON_SIZE &&
+  mouse_y >= MENU_BUTTON_Y && mouse_y <= MENU_BUTTON_Y + MENU_BUTTON_SIZE
+);
+
+function handle_menu_button_click() (
+  // Toggle menu visibility
+  menu_visible = menu_visible > 0.5 ? 0 : 1;
+  menu_hovered_item = -1; // Reset hover state
+);
+
+function is_mouse_in_menu() (
+  menu_x = MENU_BUTTON_X;
+  menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
+  menu_visible > 0.5 && 
+  mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
+  mouse_y >= menu_y && mouse_y <= menu_y + (5 * MENU_ITEM_HEIGHT)
+);
+
+function get_hovered_menu_item() (
+  is_mouse_in_menu() ? (
+    menu_x = MENU_BUTTON_X;
+    menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
+    item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
+    item_index >= 0 && item_index < 5 ? item_index : -1;
+  ) : (
+    -1
+  );
+);
+
+function handle_menu_item_click(item_index) (
+  item_index == 0 ? (
+    // Toggle debug
+    menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
+  ) : item_index == 1 ? (
+    // Toggle histogram
+    menu_histogram_enabled = menu_histogram_enabled > 0.5 ? 0 : 1;
+  ) : item_index == 2 ? (
+    // Toggle GR meter
+    menu_gr_meter_enabled = menu_gr_meter_enabled > 0.5 ? 0 : 1;
+  ) : item_index == 3 ? (
+    // Toggle brickwall limiter (slider26)
+    menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
+    brickwall_limiter = menu_brickwall_limiter_enabled;
+    sliderchange(1 << (26 - 1)); // Update slider26
+  ) : item_index == 4 ? (
+    // Toggle History Buffer Histogram Mode
+    menu_histogram_buffer_mode = menu_histogram_buffer_mode > 0.5 ? 0 : 1;
+    // Reset histogram buffers when switching modes
+    histogram_pos = 0;
+    histogram_pixel_pos = 0;
+    histogram_pixel_idx = 0;
+    // Clear both buffers
+    i = 0;
+    histogram_initialized ? (
+      while (i < histogram_max_samples) (
+        histogram_buffer[i] = 0;
+        i += 1;
+      );
+    );
+    i = 0;
+    histogram_pixel_initialized ? (
+      while (i < GRAPH_SIZE) (
+        histogram_pixel_buffer[i] = 0;
+        i += 1;
+      );
+    );
+  );
+  
+  // Close menu after selection
+  menu_visible = 0;
+  menu_hovered_item = -1;
+);
+

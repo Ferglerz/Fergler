@@ -1,0 +1,89 @@
+// Histogram State Module
+// Generic histogram buffer initialization and state management
+// Depends on: 01_Utils/01_constants.jsfx-inc, 04_UserInterface/05_Histogram/00_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// HISTOGRAM STATE INITIALIZATION
+//==============================================================================
+
+function init_histogram_state() local(i) (
+  // Histogram state
+  histogram_buffer = 0; // Will be allocated in memory
+  histogram_max_samples = 0; // Calculated based on window seconds
+  histogram_pos = 0; // Current position in circular buffer
+  histogram_initialized = 0; // Flag to track initialization
+  histogram_frame_counter = 0; // Frame counter for update rate control
+
+  // Initialize histogram if enabled
+  HISTOGRAM_ENABLED ? (
+    histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate
+    histogram_buffer = freemem;
+    freemem += histogram_max_samples;
+    
+    // Clear histogram buffer
+    i = 0;
+    while (i < histogram_max_samples) (
+      histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pos = 0;
+    histogram_initialized = 1;
+  );
+  
+  // Per-pixel histogram buffer state (for histogram buffer mode)
+  histogram_pixel_buffer = 0; // Will be allocated in memory
+  histogram_pixel_pos = 0; // Current sample position within current pixel (for accumulation)
+  histogram_pixel_idx = 0; // Current pixel index
+  histogram_pixel_max_samples = 0; // Buffer size matching input histogram for same scroll speed
+  histogram_pixel_initialized = 0; // Flag to track initialization
+  histogram_pixel_frame_counter = 0; // Frame counter for update rate control
+  
+  // Initialize per-pixel histogram buffer if enabled
+  HISTOGRAM_ENABLED ? (
+    // Allocate buffer matching input histogram size for same scroll speed
+    // Use same size as input histogram: HISTOGRAM_WINDOW_SECONDS * 60 (60 Hz GFX rate)
+    histogram_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_pixel_buffer = freemem;
+    freemem += histogram_pixel_max_samples;
+    
+    // Clear per-pixel histogram buffer
+    i = 0;
+    while (i < histogram_pixel_max_samples) (
+      histogram_pixel_buffer[i] = 0;  // Initialize to 0
+      i += 1;
+    );
+    
+    histogram_pixel_idx = 0;
+    histogram_pixel_frame_counter = 0;
+    histogram_pixel_initialized = 1;
+  );
+
+  // Input histogram state
+  input_histogram_buffer = 0; // Will be allocated in memory
+  input_histogram_max_samples = 0; // Calculated based on window seconds
+  input_histogram_pos = 0; // Current position in circular buffer
+  input_histogram_initialized = 0; // Flag to track initialization
+  input_histogram_frame_counter = 0; // Frame counter for update rate control
+  input_histogram_prev_level = 0; // Previous level value for smoothing
+
+  // Initialize input histogram if enabled
+  INPUT_HISTOGRAM_ENABLED ? (
+    input_histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60); // 60 Hz GFX rate, same as GR histogram
+    input_histogram_buffer = freemem;
+    freemem += input_histogram_max_samples;
+    
+    // Clear input histogram buffer
+    i = 0;
+    while (i < input_histogram_max_samples) (
+      input_histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    input_histogram_pos = 0;
+    input_histogram_initialized = 1;
+  );
+);
+
