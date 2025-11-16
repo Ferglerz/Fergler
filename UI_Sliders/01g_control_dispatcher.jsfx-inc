@@ -63,7 +63,7 @@ function get_control_suffix(control_index) (
 function render_control(index) local(
   group_idx, type, x, y, w, h, param_index, min_val, max_val, slider_config,
   slider_orientation, display_mode, fill_direction, formatting, format_options, current_value,
-  option_count, suffix_str
+  option_count, suffix_str, label_slot
 ) (
   type = control_defs[index*11 + 0];
   x = control_defs[index*11 + 1];
@@ -73,6 +73,7 @@ function render_control(index) local(
   param_index = control_defs[index*11 + 5];
   min_val = control_defs[index*11 + 6];
   max_val = control_defs[index*11 + 7];
+  label_slot = control_defs[index*11 + 9];  // Label string slot (cached at setup time)
   group_idx = control_defs[index*11 + 10];
 
   // Add group offset if control is in a group
@@ -115,22 +116,22 @@ function render_control(index) local(
     option_count > 0 ? (
       // Enumerated slider: use 0 and option_count-1 as min/max (ignored by draw_slider/draw_knob anyway)
       is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
+        draw_knob(x, y, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
       ) : (
-        draw_slider(x, y, w, h, current_value, 0, option_count - 1, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
+        draw_slider(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
       );
     ) : (
       // Continuous slider: use min_val/max_val from control_defs
       is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
+        draw_knob(x, y, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
       ) : (
-        draw_slider(x, y, w, h, current_value, min_val, max_val, get_slider_name(param_index), param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
+        draw_slider(x, y, w, h, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
       );
     );
   ) : type == 1 ? ( // Button
-    draw_generic_button(x, y, w, h, current_value > 0.5, get_slider_name(param_index));
+    draw_generic_button(x, y, w, h, current_value > 0.5, label_slot);
   ) : type == 2 ? ( // Dropdown
-    draw_generic_dropdown(x, y, w, h, current_value, get_slider_name(param_index), param_index);
+    draw_generic_dropdown(x, y, w, h, current_value, label_slot, param_index);
   ) : (
     0; // Unknown control type
   );

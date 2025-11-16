@@ -1,0 +1,139 @@
+// Slider Objects (Namespace-based) Module
+// Provides per-slider "objects" using JSFX namespace pseudo-objects
+// Dependencies: 01_Utils/04_file_reading.jsfx-inc (for parsed slider metadata)
+// NOTE: This is a thin wrapper to cache slider metadata into namespaces so
+//       callers can use S1.min, S1.max, etc., rather than calling getters.
+//       It does not change the source of truth for slider values (still slider(N)).
+
+@init
+
+//------------------------------------------------------------------------------
+// Constructor for a slider "object"
+//------------------------------------------------------------------------------
+// Fields populated:
+//   this.param_index  - 1-based JSFX slider index
+//   this.default      - default value from definition
+//   this.min          - minimum value
+//   this.max          - maximum value
+//   this.inc          - increment
+//   this.has_options  - 1 if enumerated options exist, else 0
+//   this.opt_count    - number of options (0 if none)
+//   this.values_base  - base offset into dropdown_option_values_base (if any)
+//   this.name_slot    - string slot for name (or 0 if unavailable)
+//   this.label        - string slot for label (same as name_slot, exposed as property for consistency with min/max)
+function construct_from_param(param_index) instance(param_index default min max inc has_options opt_count values_base name_slot label)
+(
+  this.param_index = param_index;
+  // Pull data from existing parsed arrays (single read at init)
+  this.default = get_slider_default(param_index);
+  this.min = get_slider_min(param_index);
+  this.max = get_slider_max(param_index);
+  this.inc = get_slider_increment(param_index);
+  this.opt_count = get_dropdown_option_count(param_index);
+  this.has_options = this.opt_count > 0 ? 1 : 0;
+  // Compute base offset for option values once
+  values_base = get_dropdown_options_offset(param_index - 1);
+  this.values_base = values_base;
+  // Name slot reference (0 if not present)
+  name_slot = get_slider_name(param_index);
+  this.name_slot = name_slot;
+  // Expose label as property (same as name_slot, for consistency with min/max)
+  this.label = name_slot;
+);
+
+//------------------------------------------------------------------------------
+// Option helpers on the object
+//------------------------------------------------------------------------------
+// Return numeric value for an option index (0-based). 0 if out of range or no options.
+function option_value(option_index) instance(values_base opt_count)
+(
+  option_index >= 0 && option_index < this.opt_count ? (
+    dropdown_option_values_base[this.values_base + option_index];
+  ) : 0;
+);
+
+// Return current slider value (live) for this object's param
+function current_value() instance(param_index)
+(
+  slider(this.param_index);
+);
+
+//------------------------------------------------------------------------------
+// Bulk creation helpers
+//------------------------------------------------------------------------------
+// Create S1..S64 namespaces for convenience. Only those used will be accessed.
+function init_slider_objects() local(i)
+(
+  i = 1;
+  while (i <= 64) (
+    // Build namespace identifier S1, S2, ... explicitly via calls
+    // JSFX allows "S1.construct_from_param(1)" even if S1 was not previously declared
+    i == 1 ? S1.construct_from_param(1);
+    i == 2 ? S2.construct_from_param(2);
+    i == 3 ? S3.construct_from_param(3);
+    i == 4 ? S4.construct_from_param(4);
+    i == 5 ? S5.construct_from_param(5);
+    i == 6 ? S6.construct_from_param(6);
+    i == 7 ? S7.construct_from_param(7);
+    i == 8 ? S8.construct_from_param(8);
+    i == 9 ? S9.construct_from_param(9);
+    i == 10 ? S10.construct_from_param(10);
+    i == 11 ? S11.construct_from_param(11);
+    i == 12 ? S12.construct_from_param(12);
+    i == 13 ? S13.construct_from_param(13);
+    i == 14 ? S14.construct_from_param(14);
+    i == 15 ? S15.construct_from_param(15);
+    i == 16 ? S16.construct_from_param(16);
+    i == 17 ? S17.construct_from_param(17);
+    i == 18 ? S18.construct_from_param(18);
+    i == 19 ? S19.construct_from_param(19);
+    i == 20 ? S20.construct_from_param(20);
+    i == 21 ? S21.construct_from_param(21);
+    i == 22 ? S22.construct_from_param(22);
+    i == 23 ? S23.construct_from_param(23);
+    i == 24 ? S24.construct_from_param(24);
+    i == 25 ? S25.construct_from_param(25);
+    i == 26 ? S26.construct_from_param(26);
+    i == 27 ? S27.construct_from_param(27);
+    i == 28 ? S28.construct_from_param(28);
+    i == 29 ? S29.construct_from_param(29);
+    i == 30 ? S30.construct_from_param(30);
+    i == 31 ? S31.construct_from_param(31);
+    i == 32 ? S32.construct_from_param(32);
+    i == 33 ? S33.construct_from_param(33);
+    i == 34 ? S34.construct_from_param(34);
+    i == 35 ? S35.construct_from_param(35);
+    i == 36 ? S36.construct_from_param(36);
+    i == 37 ? S37.construct_from_param(37);
+    i == 38 ? S38.construct_from_param(38);
+    i == 39 ? S39.construct_from_param(39);
+    i == 40 ? S40.construct_from_param(40);
+    i == 41 ? S41.construct_from_param(41);
+    i == 42 ? S42.construct_from_param(42);
+    i == 43 ? S43.construct_from_param(43);
+    i == 44 ? S44.construct_from_param(44);
+    i == 45 ? S45.construct_from_param(45);
+    i == 46 ? S46.construct_from_param(46);
+    i == 47 ? S47.construct_from_param(47);
+    i == 48 ? S48.construct_from_param(48);
+    i == 49 ? S49.construct_from_param(49);
+    i == 50 ? S50.construct_from_param(50);
+    i == 51 ? S51.construct_from_param(51);
+    i == 52 ? S52.construct_from_param(52);
+    i == 53 ? S53.construct_from_param(53);
+    i == 54 ? S54.construct_from_param(54);
+    i == 55 ? S55.construct_from_param(55);
+    i == 56 ? S56.construct_from_param(56);
+    i == 57 ? S57.construct_from_param(57);
+    i == 58 ? S58.construct_from_param(58);
+    i == 59 ? S59.construct_from_param(59);
+    i == 60 ? S60.construct_from_param(60);
+    i == 61 ? S61.construct_from_param(61);
+    i == 62 ? S62.construct_from_param(62);
+    i == 63 ? S63.construct_from_param(63);
+    i == 64 ? S64.construct_from_param(64);
+    i += 1;
+  );
+);
+
+

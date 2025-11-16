@@ -124,6 +124,7 @@ import UI_Sliders/01c_slider_rendering.jsfx-inc
 import UI_Sliders/01d_knob_rendering.jsfx-inc
 import UI_Sliders/01e_button_rendering.jsfx-inc
 import UI_Sliders/01f_dropdown_rendering.jsfx-inc
+import UI_Sliders/01h_slider_objects.jsfx-inc
 import UI_Sliders/01g_control_dispatcher.jsfx-inc
 import UI_Sliders/01_control_definitions.jsfx-inc
 import UI_Sliders/02_control_interactions.jsfx-inc
@@ -224,6 +225,8 @@ LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
 init_curve_data();
 
 // 5. Set up control layout
+// Initialize slider objects (namespace-based) before layout uses them
+init_slider_objects();
 setup_control_layout();
 
 // 6. Initialize graph points (only on first load)

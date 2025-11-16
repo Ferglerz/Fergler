@@ -67,6 +67,7 @@ function set_control_group(group_index) (
 );
 
 // Streamlined control definition functions
+// Note: The label parameter should be passed directly from slider objects (e.g., S33.label)
 function define_slider(index, x, y, w, h, param_index, min_val, max_val, label, slider_config) (
   control_defs[index*11 + 0] = 0;         // 0=slider
   control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
@@ -77,7 +78,7 @@ function define_slider(index, x, y, w, h, param_index, min_val, max_val, label, 
   control_defs[index*11 + 6] = min_val;   // Min value
   control_defs[index*11 + 7] = max_val;   // Max value
   control_defs[index*11 + 8] = slider_config; // Unified slider configuration
-  control_defs[index*11 + 9] = 0;         // Reserved for future use
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
@@ -91,7 +92,7 @@ function define_button(index, x, y, w, h, param_index, min_val, max_val, label) 
   control_defs[index*11 + 6] = min_val;   // Min value
   control_defs[index*11 + 7] = max_val;   // Max value
   control_defs[index*11 + 8] = 0;         // Reserved
-  control_defs[index*11 + 9] = 0;         // Reserved
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
@@ -105,7 +106,7 @@ function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label
   control_defs[index*11 + 6] = min_val;   // Min value
   control_defs[index*11 + 7] = max_val;   // Max value
   control_defs[index*11 + 8] = 0;         // Reserved
-  control_defs[index*11 + 9] = 0;         // Reserved
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
 );
 
