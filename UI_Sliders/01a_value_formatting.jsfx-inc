@@ -98,11 +98,9 @@ function format_slider_value(param_index, value, suffix_str, formatting, format_
         ) : formatting == FORMAT_NONE ? (
           sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
         ) : (
-          // FORMAT_NORMAL: use appropriate decimal places
-          increment = get_slider_increment(param_index);
-          decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
-          format_value_with_decimals(actual_value, decimal_places);
-          strlen(suffix_str) > 0 ? sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str) : 0;
+          // FORMAT_NORMAL: for enumerated sliders, use %g to display full precision without rounding
+          // %g automatically chooses the best representation (no trailing zeros, preserves precision)
+          sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
         );
       );
     ) : (

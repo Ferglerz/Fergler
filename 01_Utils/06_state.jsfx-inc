@@ -101,6 +101,10 @@ function init_state_variables() (
   attack_curve_prev = -999;
   release_curve_prev = -999;
   
+  // Attack/Release index tracking variables (for enumerated sliders)
+  attack_ms_prev_index = -999;
+  release_ms_prev_index = -999;
+  
   // RMS tracking variables
   rms_size_ms_prev = -999;
   

@@ -14,9 +14,13 @@ desc:Advanced Multi-Model Compressor (Modular)
 
 
 // Time-related parameters (1-5)
-slider1:attack_ms=10<0.05,100,0.1>-Attack
+// Attack: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
+// Default: 10ms is at index 27
+slider1:attack_ms=27<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-slider3:release_ms=100<10,1000,1>-Release
+// Release: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
+// Default: 100ms is at index 40
+slider3:release_ms=40<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Release
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
@@ -61,7 +65,7 @@ slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
 slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 
 // Time multiplier for attack display (33)
-slider33:time_multiplier=1<0,2,1{Milliseconds,Microseconds,Seconds}>-Time Unit
+slider33:time_multiplier=1<0,1,1{Milliseconds,Microseconds}>-Time Unit
 
 // Input dot blend (34)
 slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
@@ -273,7 +277,13 @@ filter_params_changed || !slider_initialized ? (
 );
 
 // --- Timing Parameters (1-5) ---
-(slider1 != attack_ms_prev || slider3 != release_ms_prev ||
+// Attack and Release are now enumerated - get actual values from dropdown options
+attack_ms_index = floor(slider1);
+release_ms_index = floor(slider3);
+attack_ms = get_dropdown_option_value(1, attack_ms_index);
+release_ms = get_dropdown_option_value(3, release_ms_index);
+
+(attack_ms_index != attack_ms_prev_index || release_ms_index != release_ms_prev_index ||
  slider5 != lookahead_ms_prev ||
  slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
  slider4 != release_curve_prev || !slider_initialized) ? (
@@ -291,8 +301,8 @@ filter_params_changed || !slider_initialized ? (
   param_changed = 1;
 
   // Store for next comparison
-  attack_ms_prev = slider1;
-  release_ms_prev = slider3;
+  attack_ms_prev_index = attack_ms_index;
+  release_ms_prev_index = release_ms_index;
   lookahead_ms_prev = slider5;
   rms_size_ms_prev = slider7;
   attack_curve_prev = slider2;
@@ -380,6 +390,7 @@ gr_db_block_max = 0;
 update_filter_coefficients();
 
 // Update attack and release coefficients every block for real-time response
+// Use cached values from @slider (attack_ms and release_ms are set there)
 // Cache coefficients to avoid redundant calculations
 attack_coeff = attack_ms > 0 ? exp(-1000 / (convert_attack_time_to_ms(attack_ms, time_multiplier) * srate)) : 0;
 release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
