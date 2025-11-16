@@ -46,7 +46,7 @@ function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
 //==============================================================================
 
 // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
-// Type: 0=slider, 1=button, 2=dropdown, 3=knob, 4=freq_list_slider (discrete value slider)
+// Type: 0=slider, 1=button, 2=dropdown, 3=knob
 // NUM_CONTROLS is now defined in 00a_constants.jsfx-inc as 34
 
 // Control definitions memory is allocated in 01a_memory.jsfx-inc

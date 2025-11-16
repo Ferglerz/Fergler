@@ -140,13 +140,13 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row += 1;
   
   // HP Filter with Hz suffix and k formatting (left-to-right fill)
-  define_slider(15, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, 0, 6000, "Highpass", create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
-  set_slider_increment(15, 10);
+  // Enumerated slider: min=0, max=28 (29 options)
+  define_slider(15, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 10, get_slider_min(10), get_slider_max(10), "Highpass", create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
   row += 1;
   
   // LP Filter with Hz suffix and k formatting (right-to-left fill)
-  define_slider(16, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, 20, 16000, "Lowpass", create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
-  set_slider_increment(16, 10);
+  // Enumerated slider: min=0, max=31 (32 options)
+  define_slider(16, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, get_slider_min(11), get_slider_max(11), "Lowpass", create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
   
   //==============================================================================
   // GROUP 3: HARMONICS (positioned to the right of graph and meter)

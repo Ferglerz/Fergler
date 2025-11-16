@@ -16,7 +16,7 @@ desc:Advanced Multi-Model Compressor (Modular)
 // Time-related parameters (1-5)
 slider1:attack_ms=10<0.05,100,0.1>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-slider3:release_ms=100<10,1000,1>Release
+slider3:release_ms=100<10,1000,1>-Release
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
@@ -27,11 +27,11 @@ slider8:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider9:max_gr_db=-100<-100,0,1>-Max GR
 
 // Filtering parameters (10-11)
-// Sliders store actual frequency values - discrete steps
-// HP: 0=Off (displayed as "Off" in UI), then 20Hz to 6kHz
-// LP: 20Hz to 14kHz, then 0=Off (displayed as "Off" in UI, default)
-slider10:hp_freq=0<0,6000,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
-slider11:lp_freq=16000<0,14000,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
+// Sliders use enumerated values - index selects from available frequency options
+// HP: 29 options (0=Off, then 20Hz to 6kHz) - default index 0 (Off)
+// LP: 32 options (20Hz to 14kHz, then 0=Off) - default index 31 (Off)
+slider10:hp_freq=0<0,28,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
+slider11:lp_freq=31<0,31,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
 
 // Character & Harmonics parameters (12-17)
 slider12:harmonic_type=0<0,2,1{Off,Tape,Tube}>-Type
@@ -42,7 +42,7 @@ slider16:harmonic_even_boost=0<0,200,1>-Even
 slider17:harmonic_odd_boost=0<0,200,1>-Odd
 
 // Global parameters (18-24)
-slider18:strength=1<0.25,10,0.1>Strength
+slider18:strength=1<0.25,10,0.1>-Strength
 slider19:global_offset_db=0<-30,30,0.25>-Global Offset
 slider20:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 slider21:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
@@ -67,7 +67,7 @@ slider33:time_multiplier=1<0,2,1{Milliseconds,Microseconds,Seconds}>-Time Unit
 slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
 
 // Hold parameter (35)
-slider35:hold_ms=0<0,1000,1>Hold
+slider35:hold_ms=0<0,1000,1>-Hold
 
 // SEARCH STOP
 
@@ -247,21 +247,30 @@ compression_init_complete = 1;
 // Track which parameters actually changed
 param_changed = 0;
 
-// --- Filter Parameters (11-12) ---
-// Sliders store actual frequency values directly in Hz
-// hp_freq: 0 = Off, 1-6000 = filter frequency
-// lp_freq: 20000 = Off, 80-19999 = filter frequency
-(slider11 != hp_freq_prev || !slider_initialized) ? (
-  hp_freq_prev = slider11;
+// --- Filter Parameters (10-11) ---
+// Sliders use enumerated indices - get actual frequency value from option
+// hp_freq: index 0 = Off, other indices = filter frequency
+// lp_freq: index 31 = Off, other indices = filter frequency
+filter_params_changed = 0;
+// DEBUG: Read slider values directly using slider() function
+hp_slider_current = slider(10);
+lp_slider_current = slider(11);
+(hp_slider_current != hp_freq_prev || !slider_initialized) ? (
+  hp_freq_prev = hp_slider_current;
   param_changed = 1;
+  filter_params_changed = 1;
 );
 
-(slider12 != lp_freq_prev || !slider_initialized) ? (
-  lp_freq_prev = slider12;
+(lp_slider_current != lp_freq_prev || !slider_initialized) ? (
+  lp_freq_prev = lp_slider_current;
   param_changed = 1;
+  filter_params_changed = 1;
 );
 
-// Filter coefficients are updated in @block for real-time response
+// Update filter coefficients when parameters change (also updated in @block for real-time response)
+filter_params_changed || !slider_initialized ? (
+  update_filter_coefficients();
+);
 
 // --- Timing Parameters (1-5) ---
 (slider1 != attack_ms_prev || slider3 != release_ms_prev ||

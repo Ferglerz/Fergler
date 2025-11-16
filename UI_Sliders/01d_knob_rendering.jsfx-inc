@@ -207,27 +207,35 @@ knob_style_label_height = 11;
 // Draw knob control (small or large) - uses style configuration variables
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
 function draw_knob(x, y, value, min_val, max_val, label, param_index, knob_type, suffix_str, formatting, format_options, display_mode) local(
-  normalized_pos, option_count, value_index, reverse_mode, stepped_value, display_value
+  normalized_pos, option_count, value_index, reverse_mode, stepped_value, display_value, raw_value
 ) (
+  // Store raw value for enumerated sliders (format_slider_value needs the index, not the frequency)
+  raw_value = value;
   // Check if this knob has enumerated options (stepped behavior)
   option_count = get_dropdown_option_count(param_index);
   
   // Calculate stepped value if knob has enumerated options
   option_count > 0 ? (
-    // Get the index from our cached reverse lookup table (O(1) lookup)
-    value_index = get_freq_list_index(param_index, value);
+    // Slider value IS the index for enumerated sliders
+    value_index = floor(value);
+    value_index = max(0, min(option_count - 1, value_index));
     
     // Get the actual discrete value from our cached enumerated list
     stepped_value = get_dropdown_option_value(param_index, value_index);
     
     // Calculate normalized position based on index in enumerated list
     reverse_mode = (format_options & OPTION_REVERSE);
-    reverse_mode ? (
-      // For reverse knobs, first option is at right (1.0), last option is at left (0.0)
-      normalized_pos = 1.0 - (value_index / (option_count - 1));
+    option_count > 1 ? (
+      reverse_mode ? (
+        // For reverse knobs, first option is at right (1.0), last option is at left (0.0)
+        normalized_pos = 1.0 - (value_index / (option_count - 1));
+      ) : (
+        // For normal knobs, first option is at left (0.0), last option is at right (1.0)
+        normalized_pos = value_index / (option_count - 1);
+      );
     ) : (
-      // For normal knobs, first option is at left (0.0), last option is at right (1.0)
-      normalized_pos = value_index / (option_count - 1);
+      // Only one option - center it
+      normalized_pos = 0.5;
     );
     
     // Use stepped value for display
@@ -248,13 +256,25 @@ function draw_knob(x, y, value, min_val, max_val, label, param_index, knob_type,
     draw_large_knob_at_position(x, y, display_value, min_val, max_val, LARGE_KNOB_TYPE_LTR, knob_style_large_radius, knob_style_arc_depth, knob_style_bar_overhang, knob_style_angle_ltr_start, knob_style_angle_ltr_end, knob_style_angle_rtl_start, knob_style_angle_rtl_end, knob_style_angle_bidir_start, knob_style_angle_bidir_end, knob_style_shadow_r, knob_style_shadow_g, knob_style_shadow_b, knob_style_bg_r, knob_style_bg_g, knob_style_bg_b, knob_style_arc_r, knob_style_arc_g, knob_style_arc_b, knob_style_bar_r, knob_style_bar_g, knob_style_bar_b);
     
     // Draw value text
-    draw_control_value_text(x, y + knob_style_large_size + 5, param_index, display_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted frequency
+    // format_slider_value will handle the conversion and formatting
+    option_count > 0 ? (
+      draw_control_value_text(x, y + knob_style_large_size + 5, param_index, raw_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    ) : (
+      draw_control_value_text(x, y + knob_style_large_size + 5, param_index, display_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    );
   ) : (
     // Small knob - use enhanced small knob rendering
     draw_knob_at_position(x, y, display_value, min_val, max_val, KNOB_TYPE_ANGULAR, knob_style_small_radius, knob_style_shadow_offset, knob_style_indicator_size, knob_style_angle_start, knob_style_angle_range, knob_style_shadow_r, knob_style_shadow_g, knob_style_shadow_b, knob_style_bg_r, knob_style_bg_g, knob_style_bg_b, knob_style_indicator_r, knob_style_indicator_g, knob_style_indicator_b);
     
     // Draw value text
-    draw_control_value_text(x, y + knob_style_small_size + 5, param_index, display_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted frequency
+    // format_slider_value will handle the conversion and formatting
+    option_count > 0 ? (
+      draw_control_value_text(x, y + knob_style_small_size + 5, param_index, raw_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    ) : (
+      draw_control_value_text(x, y + knob_style_small_size + 5, param_index, display_value, suffix_str, formatting, format_options, display_mode, knob_style_text_r, knob_style_text_g, knob_style_text_b);
+    );
   );
 );
 

@@ -29,6 +29,32 @@ function init_state_variables() (
   hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
   lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
 
+  // Filter enabled flags
+  hp_filter_enabled = 0;
+  lp_filter_enabled = 0;
+  
+  // Filter debug variables (updated by filter functions)
+  filter_debug_hp_slider = 0;
+  filter_debug_hp_freq = 0;
+  filter_debug_hp_b0 = 0;
+  filter_debug_hp_b1 = 0;
+  filter_debug_hp_b2 = 0;
+  filter_debug_hp_a1 = 0;
+  filter_debug_hp_a2 = 0;
+  filter_debug_lp_slider = 0;
+  filter_debug_lp_freq = 0;
+  filter_debug_lp_b0 = 0;
+  filter_debug_lp_b1 = 0;
+  filter_debug_lp_b2 = 0;
+  filter_debug_lp_a1 = 0;
+  filter_debug_lp_a2 = 0;
+  filter_debug_input_l = 0;
+  filter_debug_input_r = 0;
+  filter_debug_hp_out_l = 0;
+  filter_debug_hp_out_r = 0;
+  filter_debug_final_l = 0;
+  filter_debug_final_r = 0;
+
   // Compressor character state (kept for potential future use)
   compression_history = 0;
   program_release_timer = 0;

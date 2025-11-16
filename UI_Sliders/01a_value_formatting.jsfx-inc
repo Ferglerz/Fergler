@@ -74,12 +74,37 @@ function format_slider_value(param_index, value, suffix_str, formatting, format_
   option_count > 0 ? (
     // Enumerated slider: check if it needs suffix formatting or uses pre-formatted text
     option_index = floor(value);
+    option_index = max(0, min(option_count - 1, option_index));
     
     // If suffix_str is provided (not empty), format the actual numeric value with suffix
     strlen(suffix_str) > 0 ? (
       // Get actual numeric value and format with suffix
       actual_value = get_dropdown_option_value(param_index, option_index);
-      sprintf(#temp_display_str, "%.2f%s", actual_value, suffix_str);
+      
+      // Special case: value 0 typically means "Off"
+      actual_value == 0 ? (
+        strcpy(#temp_display_str, "Off");
+      ) : (
+        // Apply formatting based on formatting parameter
+        formatting == FORMAT_K ? (
+          // Format_K: add "k" suffix for values >= 1000
+          actual_value >= 1000 ? (
+            sprintf(#temp_display_str, "%.1fk%s", actual_value / 1000, suffix_str);
+          ) : actual_value >= 100 ? (
+            sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
+          ) : (
+            sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
+          );
+        ) : formatting == FORMAT_NONE ? (
+          sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
+        ) : (
+          // FORMAT_NORMAL: use appropriate decimal places
+          increment = get_slider_increment(param_index);
+          decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
+          format_value_with_decimals(actual_value, decimal_places);
+          strlen(suffix_str) > 0 ? sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str) : 0;
+        );
+      );
     ) : (
       // Use pre-formatted dropdown option text
       strcpy(#temp_display_str, get_dropdown_option(param_index, option_index));

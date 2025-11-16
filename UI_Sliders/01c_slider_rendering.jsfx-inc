@@ -54,20 +54,26 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
   
   // Calculate stepped value if slider has enumerated options
   option_count > 0 ? (
-    // Get the index from our cached reverse lookup table (O(1) lookup)
-    value_index = get_freq_list_index(param_index, value);
+    // Slider value IS the index for enumerated sliders
+    value_index = floor(value);
+    value_index = max(0, min(option_count - 1, value_index));
     
     // Get the actual discrete value from our cached enumerated list
     stepped_value = get_dropdown_option_value(param_index, value_index);
     
     // Calculate normalized position based on index in enumerated list
     reverse_mode = (format_options & OPTION_REVERSE);
-    reverse_mode ? (
-      // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
-      normalized_pos = 1.0 - (value_index / (option_count - 1));
+    option_count > 1 ? (
+      reverse_mode ? (
+        // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
+        normalized_pos = 1.0 - (value_index / (option_count - 1));
+      ) : (
+        // For normal sliders, first option is at left (0.0), last option is at right (1.0)
+        normalized_pos = value_index / (option_count - 1);
+      );
     ) : (
-      // For normal sliders, first option is at left (0.0), last option is at right (1.0)
-      normalized_pos = value_index / (option_count - 1);
+      // Only one option - center it
+      normalized_pos = 0.5;
     );
     
     // Use stepped value for display
@@ -107,7 +113,13 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     gfx_rect(x - 2, handle_y, w + 4, 6);
 
     // Draw value text
-    draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options, display_mode, slider_style_text_r, slider_style_text_g, slider_style_text_b);
+    // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted frequency
+    // format_slider_value will handle the conversion and formatting
+    option_count > 0 ? (
+      draw_control_value_text(x + w + 8, y + h/2, param_index, value, suffix_str, formatting, format_options, display_mode, slider_style_text_r, slider_style_text_g, slider_style_text_b);
+    ) : (
+      draw_control_value_text(x + w + 8, y + h/2, param_index, display_value, suffix_str, formatting, format_options, display_mode, slider_style_text_r, slider_style_text_g, slider_style_text_b);
+    );
   ) : (
     // Horizontal slider
     // Draw slider background
@@ -151,7 +163,13 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     gfx_rect(handle_x, y - 2, 6, h + 4);
 
     // Draw value text with smart positioning
-    draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode);
+    // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted frequency
+    // format_slider_value will handle the conversion and formatting
+    option_count > 0 ? (
+      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, value, suffix_str, formatting, format_options, display_mode);
+    ) : (
+      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode);
+    );
   );
 );
 

@@ -12,7 +12,7 @@
 // Debug rendering is controlled by menu_debug_enabled (toggled via right-click menu)
 // Debug messages are always collected regardless of this setting
 DEBUG_MAX_MESSAGES = 200; // Increased from STRING_SLOTS_DEBUG (50) to 200 for more debug history
-DEBUG_START_Y = 450; // Fallback Y position (will be overridden by debug_boxes_max_y + gap)
+DEBUG_START_Y = 300; // Fallback Y position (moved up, will be overridden by debug_boxes_max_y + gap)
 DEBUG_LOG_GAP_Y = 15; // Gap between debug boxes and scroll panel
 DEBUG_LINE_HEIGHT = 15;
 DEBUG_TEXT_COLOR_R = 1.0;
@@ -24,9 +24,14 @@ DEBUG_TEXT_ALPHA = 0.8;
 debug_message_count = 0;
 DEBUG_MESSAGES_BASE = 0;
 
+// Fixed slots for consolidated filter debug (3 slots for status lines)
+DEBUG_FILTER_STATUS_SLOT = 200;  // First line: HP filter coefficients
+DEBUG_FILTER_STATUS_SLOT2 = 201; // Second line: LP filter coefficients
+DEBUG_FILTER_STATUS_SLOT3 = 202; // Third line: filter processing values
+
 // Debug scrolling
 debug_scroll_offset = 0;
-DEBUG_VISIBLE_LINES = 30; // Number of debug lines visible at once (increased for better debugging)
+DEBUG_VISIBLE_LINES = 15; // Number of debug lines visible at once (reduced height)
 
 //==============================================================================
 // DEBUG LOGGING FUNCTIONS
@@ -55,14 +60,46 @@ function debug_separator() (
   debug_log("----------------------------------------");
 );
 
+// Consolidated filter debug status (updates single slot with all current values)
+// Uses global variables set by update_filter_coefficients() and apply_detection_filters()
+function debug_update_filter_status() (
+  // Read slider values directly to see what they actually are
+  hp_slider_direct = slider(10);
+  lp_slider_direct = slider(11);
+  
+  // First line: HP filter - slider value, frequency, and all coefficients
+  sprintf(#debug_temp_str, "HP: slider(10)=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f", 
+          hp_slider_direct, filter_debug_hp_slider, filter_debug_hp_freq, 
+          filter_debug_hp_b0, filter_debug_hp_b1, filter_debug_hp_b2, 
+          filter_debug_hp_a1, filter_debug_hp_a2);
+  strcpy(DEBUG_FILTER_STATUS_SLOT, #debug_temp_str);
+  
+  // Second line: LP filter - slider value, frequency, and all coefficients
+  sprintf(#debug_temp_str, "LP: slider(11)=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f",
+          lp_slider_direct, filter_debug_lp_slider, filter_debug_lp_freq,
+          filter_debug_lp_b0, filter_debug_lp_b1, filter_debug_lp_b2,
+          filter_debug_lp_a1, filter_debug_lp_a2);
+  strcpy(DEBUG_FILTER_STATUS_SLOT + 1, #debug_temp_str);
+  
+  // Third line: Show actual filtering values (single sample value)
+  sprintf(#debug_temp_str, "PROCESS: in=%.4f | final=%.4f",
+          filter_debug_input_l,
+          filter_debug_final_l);
+  strcpy(DEBUG_FILTER_STATUS_SLOT + 2, #debug_temp_str);
+);
+
 function debug_handle_scroll() (
   menu_debug_enabled ? (
     // Calculate debug log start position (below debug boxes if they exist, otherwise use default)
     debug_log_start_y = debug_boxes_max_y > 0 ? (debug_boxes_max_y + DEBUG_LOG_GAP_Y) : DEBUG_START_Y;
     
-    // Check if mouse is in debug area (simple bounds check)
+    // Calculate filter status height (single line)
+    filter_status_height = DEBUG_LINE_HEIGHT;
+    
+    // Check if mouse is in debug area (includes both filter status and regular messages)
     mouse_in_debug_area = (mouse_x >= 10 && mouse_x <= 400 && 
-                          mouse_y >= debug_log_start_y && mouse_y <= debug_log_start_y + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT)) ? 1 : 0;
+                          mouse_y >= debug_log_start_y && 
+                          mouse_y <= debug_log_start_y + filter_status_height + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT)) ? 1 : 0;
     
     // Handle mouse wheel scrolling - JSFX mouse wheel is handled via mouse_cap
     mouse_in_debug_area ? (
@@ -90,22 +127,49 @@ function debug_handle_scroll() (
 );
 
 function debug_render() (
-  menu_debug_enabled && debug_message_count > 0 ? (
+  menu_debug_enabled ? (
     // Handle scrolling first
     debug_handle_scroll();
     
     // Calculate debug log start position (below debug boxes if they exist, otherwise use default)
     debug_log_start_y = debug_boxes_max_y > 0 ? (debug_boxes_max_y + DEBUG_LOG_GAP_Y) : DEBUG_START_Y;
     
+    // Update and draw consolidated filter status (updates every frame)
+    debug_update_filter_status();
+    gfx_set(0.0, 1.0, 0.0, DEBUG_TEXT_ALPHA); // Green for filter status
+    gfx_x = 10;
+    gfx_y = debug_log_start_y;
+    gfx_drawstr(DEBUG_FILTER_STATUS_SLOT);  // First line: HP coefficients
+    filter_y_pos = debug_log_start_y + DEBUG_LINE_HEIGHT;
+    gfx_x = 10;
+    gfx_y = filter_y_pos;
+    gfx_drawstr(DEBUG_FILTER_STATUS_SLOT2); // Second line: LP coefficients
+    filter_y_pos += DEBUG_LINE_HEIGHT;
+    gfx_x = 10;
+    gfx_y = filter_y_pos;
+    gfx_drawstr(DEBUG_FILTER_STATUS_SLOT3); // Third line: processing values
+    filter_y_pos += DEBUG_LINE_HEIGHT;
+    
+    // Draw separator if regular debug messages exist
+    debug_message_count > 0 ? (
+      gfx_set(0.5, 0.5, 0.5, DEBUG_TEXT_ALPHA);
+      gfx_x = 10;
+      gfx_y = filter_y_pos;
+      gfx_drawstr("--- Regular Debug ---");
+      filter_y_pos += DEBUG_LINE_HEIGHT;
+    );
+    
+    // Draw regular debug messages (if any)
+    debug_message_count > 0 ? (
     // Draw semi-transparent background for debugging (to see if it's behind controls)
     // Using very low opacity to confirm visibility without obscuring what's behind
     debug_log_height = DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT;
     debug_log_width = 400; // Approximate width of debug log area
     gfx_set(0.1, 0.1, 0.3, 0.1); // Very transparent blue background for debugging
-    gfx_rect(10, debug_log_start_y, debug_log_width, debug_log_height);
+      gfx_rect(10, filter_y_pos, debug_log_width, debug_log_height);
     
     gfx_set(DEBUG_TEXT_COLOR_R, DEBUG_TEXT_COLOR_G, DEBUG_TEXT_COLOR_B, DEBUG_TEXT_ALPHA);
-    y_pos = debug_log_start_y;
+      y_pos = filter_y_pos;
     
     // Calculate which messages to show based on scroll offset
     start_index = debug_scroll_offset;
@@ -126,12 +190,12 @@ function debug_render() (
     debug_message_count > DEBUG_VISIBLE_LINES ? (
       gfx_set(0.5, 0.5, 0.5, 0.8); // Gray color for scroll indicator
       gfx_x = 350;
-      gfx_y = debug_log_start_y + 10;
+      gfx_y = filter_y_pos + 10;
       gfx_drawstr("Scroll: Wheel or Click");
       
       // Draw scroll bar
       scroll_bar_x = 380;
-      scroll_bar_y = debug_log_start_y;
+      scroll_bar_y = filter_y_pos;
       scroll_bar_h = DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT;
       scroll_thumb_y = scroll_bar_y + (debug_scroll_offset * scroll_bar_h / debug_message_count);
       scroll_thumb_h = (DEBUG_VISIBLE_LINES * scroll_bar_h) / debug_message_count;
@@ -155,9 +219,9 @@ function debug_render() (
       
       // Add scroll up/down buttons
       scroll_up_x = 350;
-      scroll_up_y = debug_log_start_y;
+      scroll_up_y = filter_y_pos;
       scroll_down_x = 350;
-      scroll_down_y = debug_log_start_y + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT) - 20;
+      scroll_down_y = filter_y_pos + (DEBUG_VISIBLE_LINES * DEBUG_LINE_HEIGHT) - 20;
       
       gfx_set(0.6, 0.6, 0.6, 0.8);
       gfx_rect(scroll_up_x, scroll_up_y, 20, 15);
@@ -185,6 +249,7 @@ function debug_render() (
       
       mouse_in_scroll_down && mouse_cap & 1 ? (
         debug_scroll_offset = min(max(0, debug_message_count - DEBUG_VISIBLE_LINES), debug_scroll_offset + 1);
+      );
       );
     );
   );

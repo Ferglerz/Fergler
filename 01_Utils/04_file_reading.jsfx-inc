@@ -14,28 +14,12 @@
 
 SLIDER_NAMES_BASE = 100; // This will need to be changed to use non-string memory
 DROPDOWN_OPTIONS_BASE = 200; // This will need to be changed to use non-string memory
-MAX_OPTIONS_PER_SLIDER = 20;
+// No hardcoded max - using actual max value from slider definition (stored in slider_params_base)
 
-// Non-string memory for option counts (array of integers)
 dropdown_option_counts_base = 10000;
-
-// Dropdown option values (parsed numeric values)
-// Each slider can have up to MAX_OPTIONS_PER_SLIDER values
-// Layout: slider_index * MAX_OPTIONS_PER_SLIDER + option_index
 dropdown_option_values_base = 10100;
-
-// Reverse lookup table: frequency value → index (for fast rendering)
-// We need to support frequencies from 0 to 20000 Hz
-// Layout: slider_index * 20001 + frequency_hz = index
-// This allows O(1) lookup instead of O(n) search
-freq_to_index_base = 12000;
-MAX_FREQ_RANGE = 20001; // 0-20000 Hz inclusive
-
-// Slider parameter storage (default, min, max, increment)
-// Each slider has 4 values: [default, min, max, inc]
 slider_params_base = 11000;
 
-// File reading state
 slider_names_count = 0;
 slider_names_loaded = 0;
 
@@ -43,12 +27,10 @@ slider_names_loaded = 0;
 // CHARACTER SCANNING UTILITIES
 //==============================================================================
 
-// Helper: Scan for a specific character in string
 function scan_for_char(str, char, start_pos) (
   len = strlen(str);
   pos = -1;
   i = start_pos;
-  
   while (i < len && pos < 0) (
     str_getchar(str, i) == char ? pos = i;
     i += 1;
@@ -56,72 +38,58 @@ function scan_for_char(str, char, start_pos) (
   pos;
 );
 
-// Helper: Check if character is a digit
 function is_digit(char) (
-  char >= 48 && char <= 57  // ASCII 48-57 for '0'-'9'
+  char >= 48 && char <= 57
 );
 
-// Helper: Convert digit character to number
 function char_to_digit(char) (
   char - 48
 );
 
-// Helper: Check if line is a slider definition
 function is_slider_line(str) (
   strlen(str) >= 6 && strncmp(str, "slider", 6) == 0
 );
 
-// Helper: Check if line is the stop marker
 function is_stop_line(str) (
   strcmp(str, "// SEARCH STOP") == 0
 );
 
-// Helper: Parse integer from digit characters
 function parse_integer_from_digits(str, start_pos) (
   len = strlen(str);
   number = 0;
   i = start_pos;
-  
   while (i < len) (
     c = str_getchar(str, i);
     is_digit(c) ? (
       number = number * 10 + char_to_digit(c);
       i += 1;
     ) : (
-      i = len; // Break on non-digit
+      i = len;
     );
   );
-  
   number;
 );
 
-// Helper: Extract slider number from slider line (e.g., "slider36:..." -> 36)
 function extract_slider_number(str) (
-  parse_integer_from_digits(str, 6) // Start after "slider"
+  parse_integer_from_digits(str, 6)
 );
 
 //==============================================================================
 // STRING TO NUMBER CONVERSION HELPERS
 //==============================================================================
 
-// Helper functions moved to earlier in file to resolve declaration order
-
-// Helper: Parse sign from string
 function parse_sign(str_slot, start_pos) (
   len = strlen(str_slot);
-  
-  start_pos < len && str_getchar(str_slot, start_pos) == 45 ? ( // ASCII 45 = '-'
+  start_pos < len && str_getchar(str_slot, start_pos) == 45 ? (
     sign = -1;
     next_pos = start_pos + 1;
   ) : (
     sign = 1;
     next_pos = start_pos;
   );
-  
-  sign; // Return sign
+  sign;
 );
 
-// Helper: Parse a single digit and update result
 function process_digit(digit, result, decimal_place) (
   decimal_place > 0 ? (
     result + digit * pow(10, -decimal_place)
@@ -130,17 +98,14 @@ function process_digit(digit, result, decimal_place) (
   );
 );
 
-// Helper: Parse number from string starting at position
 function parse_number_from_position(str_slot, start_pos) (
   len = strlen(str_slot);
   result = 0;
   decimal_place = 0;
   i = start_pos;
-  
   while (i < len) (
     c = str_getchar(str_slot, i);
-    
-    c == 46 ? ( // ASCII 46 = '.'
+    c == 46 ? (
       decimal_place = 1;
       i += 1;
     ) : is_digit(c) ? (
@@ -149,11 +114,9 @@ function parse_number_from_position(str_slot, start_pos) (
       decimal_place > 0 ? decimal_place += 1;
       i += 1;
     ) : (
-      // Invalid character, stop parsing
       i = len;
     );
   );
-  
   result;
 );
 
@@ -162,13 +125,9 @@ function parse_number_from_position(str_slot, start_pos) (
 //==============================================================================
 
 function string_to_number(str_slot) (
-  // Parse sign and get starting position
   sign = parse_sign(str_slot, 0);
-  next_pos; // Set by parse_sign
-  
-  // Parse number from remaining string
+  next_pos;
   result = parse_number_from_position(str_slot, next_pos);
-  
   result * sign;
 );
 
@@ -176,65 +135,49 @@ function string_to_number(str_slot) (
 // SLIDER PARAMETER EXTRACTION HELPERS
 //==============================================================================
 
-// Helper: Find key positions in slider definition (=, <, >)
 function find_param_delimiters(line) (
-  pos_equals = scan_for_char(line, 61, 0);   // ASCII 61 = '='
-  pos_less = scan_for_char(line, 60, pos_equals);  // ASCII 60 = '<'
-  pos_greater = scan_for_char(line, 62, pos_less);  // ASCII 62 = '>'
-  
-  // Return success if all delimiters found
+  pos_equals = scan_for_char(line, 61, 0);
+  pos_less = scan_for_char(line, 60, pos_equals);
+  pos_greater = scan_for_char(line, 62, pos_less);
   (pos_equals >= 0 && pos_less > pos_equals && pos_greater > pos_less);
 );
 
-// Helper: Extract default value from slider line (between '=' and '<')
 function extract_default_value(line, pos_equals, pos_less) (
   default_start = pos_equals + 1;
   default_len = pos_less - default_start;
-  temp_slot = 50; // Temporary string slot
-  
+  temp_slot = 50;
   strcpy_substr(temp_slot, line, default_start, default_len);
   string_to_number(temp_slot);
 );
 
-// Helper: Find comma positions in parameter section
 function find_comma_positions(line, params_start) (
-  comma1_pos = scan_for_char(line, 44, params_start);  // ASCII 44 = ','
+  comma1_pos = scan_for_char(line, 44, params_start);
   comma2_pos = scan_for_char(line, 44, comma1_pos + 1);
-  
-  // Return success if both commas found
   (comma1_pos > params_start && comma2_pos > comma1_pos);
 );
 
-// Helper: Extract and parse min value
 function extract_min_value(line, params_start, comma1_pos) (
   min_len = comma1_pos - params_start;
   temp_slot = 51;
-  
   strcpy_substr(temp_slot, line, params_start, min_len);
   string_to_number(temp_slot);
 );
 
-// Helper: Extract and parse max value
 function extract_max_value(line, comma1_pos, comma2_pos) (
   max_len = comma2_pos - comma1_pos - 1;
   temp_slot = 52;
-  
   strcpy_substr(temp_slot, line, comma1_pos + 1, max_len);
   string_to_number(temp_slot);
 );
 
-// Helper: Extract and parse increment value
 function extract_inc_value(line, comma2_pos, pos_greater) (
   inc_len = pos_greater - comma2_pos - 1;
   temp_slot = 53;
-  
   strcpy_substr(temp_slot, line, comma2_pos + 1, inc_len);
   string_to_number(temp_slot);
 );
 
-// Helper: Store parsed parameters in memory
 function store_slider_params(slider_index, default_val, min_val, max_val, inc_val) (
-  // slider_index is already 0-based from process_slider_line
   base_offset = slider_index * 4;
   slider_params_base[base_offset + 0] = default_val;
   slider_params_base[base_offset + 1] = min_val;
@@ -242,33 +185,25 @@ function store_slider_params(slider_index, default_val, min_val, max_val, inc_va
   slider_params_base[base_offset + 3] = inc_val;
 );
 
-
 //==============================================================================
 // MAIN PARAMETER EXTRACTION
 //==============================================================================
 
 function extract_slider_params(line, slider_index) (
-  // Find delimiter positions
   find_param_delimiters(line) ? (
     params_start = pos_less + 1;
-    
-    // Find comma positions
     find_comma_positions(line, params_start) ? (
-      // Extract all values using focused helper functions
       default_val = extract_default_value(line, pos_equals, pos_less);
       min_val = extract_min_value(line, params_start, comma1_pos);
       max_val = extract_max_value(line, comma1_pos, comma2_pos);
       inc_val = extract_inc_value(line, comma2_pos, pos_greater);
-      
-      // Store in memory
       store_slider_params(slider_index, default_val, min_val, max_val, inc_val);
-      
-      1; // Success
+      1;
     ) : (
-      0; // Malformed parameter list
+      0;
     );
   ) : (
-    0; // Missing delimiters
+    0;
   );
 );
 
@@ -276,26 +211,23 @@ function extract_slider_params(line, slider_index) (
 // SLIDER NAME EXTRACTION HELPERS
 //==============================================================================
 
-// Helper: Skip optional '-' prefix in slider name
 function skip_hidden_prefix(line, start_pos) (
   len = strlen(line);
-  start_pos < len && str_getchar(line, start_pos) == 45 ? ( // ASCII 45 = '-'
+  start_pos < len && str_getchar(line, start_pos) == 45 ? (
     start_pos + 1
   ) : (
     start_pos
   );
 );
 
-// Helper: Extract name substring to string slot
 function extract_name_to_slot(line, name_start, target_slot) (
   len = strlen(line);
   name_len = len - name_start;
-  
   name_len > 0 ? (
     strcpy_substr(target_slot, line, name_start, name_len);
-    1; // Success
+    1;
   ) : (
-    0; // Empty name
+    0;
   );
 );
 
@@ -304,18 +236,13 @@ function extract_name_to_slot(line, name_start, target_slot) (
 //==============================================================================
 
 function extract_slider_name(line, index) (
-  // Find '>' character (ASCII 62)
   pos_greater = scan_for_char(line, 62, 0);
-  
   pos_greater >= 0 ? (
-    // Get name start position (skip optional '-' prefix)
     name_start = skip_hidden_prefix(line, pos_greater + 1);
-    
-    // Extract name to dedicated string slot
     target_slot = SLIDER_NAMES_BASE + index;
     extract_name_to_slot(line, name_start, target_slot);
   ) : (
-    0; // No '>' found
+    0;
   );
 );
 
@@ -323,64 +250,68 @@ function extract_slider_name(line, index) (
 // DROPDOWN OPTIONS EXTRACTION HELPERS
 //==============================================================================
 
-// Helper: Find dropdown delimiters (braces)
 function find_dropdown_delimiters(line) (
-  pos_open = scan_for_char(line, 123, 0);   // ASCII 123 = '{'
-  pos_close = scan_for_char(line, 125, pos_open);  // ASCII 125 = '}'
-  
-  // Return success if both braces found
+  pos_open = scan_for_char(line, 123, 0);
+  pos_close = scan_for_char(line, 125, pos_open);
   (pos_open >= 0 && pos_close > pos_open);
 );
 
-// Helper: Extract options string from line
 function extract_options_string(line, pos_open, pos_close) (
   strcpy_substr(#dropdown_temp, line, pos_open + 1, pos_close - pos_open - 1);
   strlen(#dropdown_temp);
 );
 
-// Helper: Extract single option from comma-separated list
+// Helper function to calculate memory offset for a slider's dropdown options
+// Uses cumulative option counts of all previous sliders with enumerated options
+// MUST be defined before extract_single_option uses it (JSFX requires functions to be defined before use)
+function get_dropdown_options_offset(slider_index) local(offset, i, opt_count) (
+  offset = 0;
+  i = 0;
+  while (i < slider_index) (
+    // Only count sliders that have enumerated options
+    opt_count = dropdown_option_counts_base[i];
+    opt_count > 0 ? (
+      // Add the actual option count to cumulative offset
+      offset += opt_count;
+    );
+    i += 1;
+  );
+  offset;
+);
+
 function extract_single_option(temp_str, option_start, option_end, target_slot, slider_index, option_index) (
   option_len = option_end - option_start;
-  
   option_len > 0 ? (
     strcpy_substr(target_slot, temp_str, option_start, option_len);
-    
-    // Parse and store numeric value for fast lookup
     numeric_value = string_to_number(target_slot);
-    dropdown_option_values_base[slider_index * MAX_OPTIONS_PER_SLIDER + option_index] = numeric_value;
-    
-    // Build reverse lookup table: frequency → index (for O(1) rendering)
-    freq_hz = floor(numeric_value);
-    freq_hz >= 0 && freq_hz < MAX_FREQ_RANGE ? (
-      freq_to_index_base[slider_index * MAX_FREQ_RANGE + freq_hz] = option_index;
-    );
-    
-    1; // Success
+    // Calculate offset using actual max values
+    values_offset = get_dropdown_options_offset(slider_index);
+    dropdown_option_values_base[values_offset + option_index] = numeric_value;
+    1;
   ) : (
-    0; // Empty option
+    0;
   );
 );
 
-// Helper: Parse comma-separated options
 function parse_comma_separated_options(options_str, options_len, slider_index) (
-  base_slot = DROPDOWN_OPTIONS_BASE + (slider_index * MAX_OPTIONS_PER_SLIDER);
+  // Calculate base slot using cumulative offset based on actual max values
+  base_offset = get_dropdown_options_offset(slider_index);
+  base_slot = DROPDOWN_OPTIONS_BASE + base_offset;
   opt_count = 0;
   option_start = 0;
   pos = 0;
   
-  // Loop through string finding commas
-  while (pos <= options_len && opt_count < MAX_OPTIONS_PER_SLIDER) (
+  // Parse all options (no hard limit - parse all available)
+  while (pos <= options_len) (
     current_char = str_getchar(options_str, pos);
-    
-    // At comma or end of string?
     (current_char == 44 || pos == options_len) ? (
-      // Extract option from option_start to pos
       len = pos - option_start;
       len > 0 ? (
         strcpy_substr(base_slot + opt_count, options_str, option_start, len);
-        // Parse and store numeric value for fast lookup
         numeric_value = string_to_number(base_slot + opt_count);
-        dropdown_option_values_base[slider_index * MAX_OPTIONS_PER_SLIDER + opt_count] = numeric_value;
+        // Calculate offset for values array using cumulative max values
+        values_offset = get_dropdown_options_offset(slider_index);
+        dropdown_option_values_base[values_offset + opt_count] = numeric_value;
         opt_count += 1;
         option_start = pos + 1;
       );
@@ -390,7 +321,6 @@ function parse_comma_separated_options(options_str, options_len, slider_index) (
   opt_count;
 );
 
-// Helper: Store dropdown option count
 function store_dropdown_count(slider_index, opt_count) (
   dropdown_option_counts_base[slider_index] = opt_count;
 );
@@ -400,20 +330,12 @@ function store_dropdown_count(slider_index, opt_count) (
 //==============================================================================
 
 function extract_dropdown_options(line, slider_index) (
-  // Find dropdown delimiters
   find_dropdown_delimiters(line) ? (
-    // Extract options string
     options_len = extract_options_string(line, pos_open, pos_close);
-    
-    // Parse comma-separated options
     opt_count = parse_comma_separated_options(#dropdown_temp, options_len, slider_index);
-    
-    // Store option count
     store_dropdown_count(slider_index, opt_count);
-    
     opt_count;
   ) : (
-    // No dropdown options (normal case)
     dropdown_option_counts_base[slider_index] = 0;
     0;
   );
@@ -423,45 +345,37 @@ function extract_dropdown_options(line, slider_index) (
 // MAIN FILE READING HELPERS
 //==============================================================================
 
-// Helper: Process a single slider line
 function process_slider_line(line, slider_num) (
   slider_num > 0 && slider_num <= 64 ? (
     slider_index = slider_num - 1;
-    
-    // Extract all slider components
     extract_slider_params(line, slider_index);
     extract_slider_name(line, slider_index);
     extract_dropdown_options(line, slider_index);
-    
-    slider_num; // Return slider number
+    slider_num;
   ) : (
-    0; // Invalid slider number
+    0;
   );
 );
 
-// Helper: Process a single line from file
 function process_file_line(line, line_count) (
   is_stop_line(line) ? (
-    -1; // Return -1 to signal stop
+    -1;
   ) : is_slider_line(line) ? (
-    // Extract and process slider
     slider_num = extract_slider_number(line);
     process_slider_line(line, slider_num) ? (
-      slider_num; // Return slider number if successful
+      slider_num;
     ) : (
-      0; // Invalid slider number
+      0;
     );
   ) : (
-    0; // Not a slider line
+    0;
   );
 );
 
-// Helper: Open and validate file
 function open_slider_file() (
   file_open("Composure.jsfx");
 );
 
-// Helper: Finalize reading and set state
 function finalize_slider_reading(max_slider_num, success) (
   success ? (
     slider_names_count = max_slider_num;
@@ -478,35 +392,23 @@ function finalize_slider_reading(max_slider_num, success) (
 //==============================================================================
 
 function read_slider_definitions() (
-  // Open file
   handle = open_slider_file();
-  
   handle != -1 ? (
     max_slider_num = 0;
     line_count = 0;
-    
-    // Process each line
     while (file_avail(handle) > 0) (
       file_string(handle, #line);
       line_count += 1;
-      
       result = process_file_line(#line, line_count);
-      
       result == -1 ? (
-        // Stop marker found
-        file_avail(handle) = 0; // Break loop
+        file_avail(handle) = 0;
       ) : result > 0 ? (
-        // Valid slider found, track highest number
         result > max_slider_num ? max_slider_num = result;
       );
     );
-    
     file_close(handle);
-    
-    // Finalize and return
     finalize_slider_reading(max_slider_num, 1);
   ) : (
-    // File open failed
     finalize_slider_reading(0, 0);
   );
 );
@@ -518,7 +420,7 @@ function read_slider_definitions() (
 function get_slider_name(slider_num) (
   slider_names_loaded && slider_num > 0 && slider_num <= slider_names_count ? (
     array_index = slider_num - 1;
-    SLIDER_NAMES_BASE + array_index; // Return string slot number
+    SLIDER_NAMES_BASE + array_index;
   ) : (
     #empty_str = "";
     #empty_str;
@@ -534,10 +436,11 @@ function get_dropdown_option_count(slider_num) (
 
 function get_dropdown_option(slider_num, option_index) (
   array_index = slider_num - 1;
-  array_index >= 0 && option_index >= 0 && 
+  array_index >= 0 && option_index >= 0 &&
   option_index < get_dropdown_option_count(slider_num) ? (
-    base_slot = DROPDOWN_OPTIONS_BASE + (array_index * MAX_OPTIONS_PER_SLIDER);
-    // Copy string from numeric slot to temporary string variable for return
+    // Calculate base slot using cumulative offset based on actual max values
+    base_offset = get_dropdown_options_offset(array_index);
+    base_slot = DROPDOWN_OPTIONS_BASE + base_offset;
     strcpy(#temp_dropdown_option, base_slot + option_index);
     #temp_dropdown_option;
   ) : (
@@ -546,26 +449,15 @@ function get_dropdown_option(slider_num, option_index) (
   );
 );
 
-// Get pre-parsed numeric value for dropdown option (fast, no string parsing)
 function get_dropdown_option_value(slider_num, option_index) (
   array_index = slider_num - 1;
-  array_index >= 0 && option_index >= 0 && 
+  array_index >= 0 && option_index >= 0 &&
   option_index < get_dropdown_option_count(slider_num) ? (
-    dropdown_option_values_base[array_index * MAX_OPTIONS_PER_SLIDER + option_index]
+    // Calculate offset using actual max values
+    values_offset = get_dropdown_options_offset(array_index);
+    dropdown_option_values_base[values_offset + option_index]
   ) : 0;
 );
-
-// Get index from frequency value using reverse lookup table (O(1) - instant!)
-// Returns the option index for a given frequency value
-function get_freq_list_index(slider_num, freq_value) (
-  array_index = slider_num - 1;
-  freq_hz = floor(freq_value);
-  
-  array_index >= 0 && freq_hz >= 0 && freq_hz < MAX_FREQ_RANGE ? (
-    freq_to_index_base[array_index * MAX_FREQ_RANGE + freq_hz]
-  ) : 0;
-);
-
 //==============================================================================
 // SLIDER PARAMETER ACCESSOR FUNCTIONS
 //==============================================================================

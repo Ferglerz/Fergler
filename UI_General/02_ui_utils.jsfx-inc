@@ -75,37 +75,33 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
     );
   );
   
-  // For freq_list_slider (type 4), map position to enumerated values
-  control_type == 4 ? (
-    // Get the number of enumerated options
-    option_count = get_dropdown_option_count(param_index);
+  // Check if this slider has enumerated options (for any slider type)
+  option_count = get_dropdown_option_count(param_index);
+  option_count > 0 ? (
+    // Enumerated slider: divide slider width by number of options
+    // Each option gets (slider_width / option_count) pixels
+    // Map mouse position to option index
     
-    option_count > 0 ? (
-      // Check if this is a reverse slider
-      reverse_mode = (format_options & OPTION_REVERSE);
-      
-      // Map normalized position (0.0 to 1.0) to option index (0 to option_count-1)
-      // Use (option_count - 1) to ensure even distribution across all options
-      reverse_mode ? (
-        // For reverse sliders, left = last option, right = first option
-        option_index = floor((1 - normalized_pos) * (option_count - 1) + 0.5);
-      ) : (
-        // For normal sliders, left = first option, right = last option
-        option_index = floor(normalized_pos * (option_count - 1) + 0.5);
-      );
-      
-      // Clamp to valid range (safety check)
-      option_index = max(0, min(option_count - 1, option_index));
-      
-      // Get the pre-parsed numeric value at this index (fast, no string conversion)
-      // This returns ONLY values from our cached enumerated list
-      get_dropdown_option_value(param_index, option_index);
+    // Calculate which option the mouse is over
+    // For horizontal sliders: mouse_x relative to slider start
+    slider_orientation == ORIENTATION_VERTICAL ? (
+      // Vertical slider: use normalized position directly
+      option_index = floor(normalized_pos * option_count);
     ) : (
-      // Fallback: no enumerated options, use continuous range
-      min_val + normalized_pos * (max_val - min_val);
+      // Horizontal slider: calculate option index from mouse position
+      // Each option occupies (ctrl_w / option_count) pixels
+      pixels_per_option = ctrl_w / option_count;
+      mouse_pos_in_slider = mouse_x - ctrl_x;
+      option_index = floor(mouse_pos_in_slider / pixels_per_option);
     );
+    
+    // Clamp to valid range
+    option_index = max(0, min(option_count - 1, option_index));
+    
+    // Return the option index (not the frequency value - slider stores index)
+    option_index;
   ) : (
-    // For normal sliders, use continuous range with increment snapping
+    // For normal sliders without enumerated options, use continuous range with increment snapping
     raw_value = min_val + normalized_pos * (max_val - min_val);
     // Inline get_slider_increment: slider_properties_base[control_index * 4 + 0]
     array_index = control_index * 4 + 0;
