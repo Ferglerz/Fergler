@@ -44,6 +44,13 @@ function process_complete_audio_chain() (
   should_listen ? (
     spl0 = detect_l;
     has_stereo ? spl1 = detect_r;
+    // Update histogram tracking even in listen mode (for input histogram)
+    detector_level = max(abs(detect_l), abs(detect_r));
+    detector_level > detector_level_block_max ? (
+      detector_level_block_max = detector_level;
+    );
+    // No gain reduction in listen mode
+    gr_db_block_max = 0;
   ) : (
     stage_detection_analysis == 1 ? (
       detect_squared_l = detect_l * detect_l;
