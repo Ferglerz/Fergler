@@ -1,5 +1,7 @@
 // File Reading Module  
 // Simplified slider definition parsing with robust string handling
+// This module is part of the UI_Sliders library and is isolated from Composure
+// Dependencies: None (standalone module)
 
 @init
 
@@ -372,8 +374,8 @@ function process_file_line(line, line_count) (
   );
 );
 
-function open_slider_file() (
-  file_open("Composure.jsfx");
+function open_slider_file(filename) (
+  file_open(filename);
 );
 
 function finalize_slider_reading(max_slider_num, success) (
@@ -391,8 +393,10 @@ function finalize_slider_reading(max_slider_num, success) (
 // MAIN FILE READING FUNCTION
 //==============================================================================
 
-function read_slider_definitions() (
-  handle = open_slider_file();
+// Read slider definitions from a JSFX file
+// filename: Name of the JSFX file to read (e.g., "Composure.jsfx")
+function read_slider_definitions(filename) (
+  handle = open_slider_file(filename);
   handle != -1 ? (
     max_slider_num = 0;
     line_count = 0;
@@ -414,7 +418,7 @@ function read_slider_definitions() (
 );
 
 //==============================================================================
-// ACCESSOR FUNCTIONS (for 02d_ui_utils.jsfx-inc)
+// ACCESSOR FUNCTIONS
 //==============================================================================
 
 function get_slider_name(slider_num) (
@@ -458,6 +462,7 @@ function get_dropdown_option_value(slider_num, option_index) (
     dropdown_option_values_base[values_offset + option_index]
   ) : 0;
 );
+
 //==============================================================================
 // SLIDER PARAMETER ACCESSOR FUNCTIONS
 //==============================================================================
@@ -489,7 +494,4 @@ function get_slider_increment(slider_num) (
     slider_params_base[array_index * 4 + 3]
   ) : 0.01
 );
-
-
-
 

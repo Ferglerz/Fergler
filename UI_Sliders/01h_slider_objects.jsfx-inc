@@ -1,6 +1,6 @@
 // Slider Objects (Namespace-based) Module
 // Provides per-slider "objects" using JSFX namespace pseudo-objects
-// Dependencies: 01_Utils/04_file_reading.jsfx-inc (for parsed slider metadata)
+// Dependencies: UI_Sliders/00_file_reading.jsfx-inc (for parsed slider metadata)
 // NOTE: This is a thin wrapper to cache slider metadata into namespaces so
 //       callers can use S1.min, S1.max, etc., rather than calling getters.
 //       It does not change the source of truth for slider values (still slider(N)).

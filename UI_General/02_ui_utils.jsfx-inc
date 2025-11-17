@@ -4,7 +4,7 @@
 //
 // Dependencies:
 // - 01_Utils/01_constants.jsfx-inc (for GRAPH_* and UI constants)
-// - 01_Utils/04_file_reading.jsfx-inc (for get_slider_name function)
+// - UI_Sliders/00_file_reading.jsfx-inc (for get_slider_name function)
 // - UI_General/00_ui_constants.jsfx-inc (for UI constants)
 // - 01_Utils/05_memory.jsfx-inc (for control_defs array)
 

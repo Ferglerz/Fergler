@@ -85,7 +85,10 @@ slider35:hold_ms=0<0,1000,1>-Hold
 import 01_Utils/01_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
 import 01_Utils/03_debug_logging.jsfx-inc
-import 01_Utils/04_file_reading.jsfx-inc
+
+// UI_Sliders/00_file_reading: File reading (standalone, needed by 01_Utils/05_memory, 02_InputProcessing, and UI_General)
+import UI_Sliders/00_file_reading.jsfx-inc
+
 import 01_Utils/05_memory.jsfx-inc
 import 01_Utils/06_state.jsfx-inc
 
@@ -186,7 +189,7 @@ while (i < num_points) (
 @init
 
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
-read_slider_definitions();
+read_slider_definitions("Composure.jsfx");
 
 // 2. Initialize all constants, memory, and state variables
 allocate_memory();
