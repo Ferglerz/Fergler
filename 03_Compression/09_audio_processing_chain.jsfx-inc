@@ -23,15 +23,13 @@ function process_complete_audio_chain() (
   detect_l = spl0;
   detect_r = spl1;
 
-  stage_detection_source == 1 ? (
-    detection_mode > 0.5 ? (
-      detect_l = has_sidechain_l ? spl2 : spl0;
-      detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
-    ) : (
-      // FEEDBACK: Use previous sample's output (one-sample delay)
-      detect_l = has_sidechain_l ? spl2 : final_l_prev;
-      detect_r = has_sidechain_r ? spl3 : final_r_prev;
-    );
+  detection_mode > 0.5 ? (
+    detect_l = has_sidechain_l ? spl2 : spl0;
+    detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
+  ) : (
+    // FEEDBACK: Use previous sample's output (one-sample delay)
+    detect_l = has_sidechain_l ? spl2 : final_l_prev;
+    detect_r = has_sidechain_r ? spl3 : final_r_prev;
   );
 
   (hp_filter_enabled || lp_filter_enabled) ? (
@@ -40,7 +38,7 @@ function process_complete_audio_chain() (
     detect_r = filtered_r;
   );
 
-  should_listen = listen_to_sidechain && stage_detection_source == 1;
+  should_listen = listen_to_sidechain;
   should_listen ? (
     spl0 = detect_l;
     has_stereo ? spl1 = detect_r;
@@ -52,68 +50,64 @@ function process_complete_audio_chain() (
     // No gain reduction in listen mode
     gr_db_block_max = 0;
   ) : (
-    stage_detection_analysis == 1 ? (
-      detect_squared_l = detect_l * detect_l;
-      detect_squared_r = detect_r * detect_r;
-      
-      // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
+    detect_squared_l = detect_l * detect_l;
+    detect_squared_r = detect_r * detect_r;
+    
+    // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
+    rms_size_ms > 0 ? (
+      detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
+      rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
+      rms_level = sqrt(rms_smoothed_squared);
+    ) : (
+      rms_level = max(abs(detect_l), abs(detect_r));
+    );
+
+    rms_normalization > 0.5 ? (
+      rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
+      normalized_rms = rms_level / (rms_max + eps);
+      peak_level = max(abs(detect_l), abs(detect_r));
+      detector_level = normalized_rms * peak_level;
+    ) : (
       rms_size_ms > 0 ? (
-        detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
-        rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
-        rms_level = sqrt(rms_smoothed_squared);
+        detector_level = rms_level;
       ) : (
-        rms_level = max(abs(detect_l), abs(detect_r));
-      );
-
-      rms_normalization > 0.5 ? (
-        rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
-        normalized_rms = rms_level / (rms_max + eps);
-        peak_level = max(abs(detect_l), abs(detect_r));
-        detector_level = normalized_rms * peak_level;
-      ) : (
-        rms_size_ms > 0 ? (
-          detector_level = rms_level;
-        ) : (
-          detector_level = max(abs(detect_l), abs(detect_r));
-        );
-      );
-
-      // OPTIMIZATION: Early exit using linear comparison (avoids expensive log())
-      // Skip if: 1) below threshold, 2) no active release state
-      can_skip_compression = (
-        detector_level < comp_curve_min_threshold_linear &&
-        global_smoothed_gain_db > -0.01 &&
-        global_smoothed_gain_db < 0.01
-      );
-      
-      can_skip_compression ? (
-        target_gr_db = 0;
-        gr_processing_skipped = 1;
-      ) : (
-        detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
-        target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
-      );
-      
-      detector_level > detector_level_block_max ? (
-        detector_level_block_max = detector_level;
+        detector_level = max(abs(detect_l), abs(detect_r));
       );
     );
 
-    stage_envelope == 1 ? (
-      // OPTIMIZATION: Skip envelope processing when both target and current are near zero
-      can_skip_envelope = (
-        abs(target_gr_db) < 0.01 &&
-        abs(global_smoothed_gain_db) < 0.01
-      );
-      
-      can_skip_envelope ? (
-        global_smoothed_gain_db = 0;
-      ) : (
-        process_envelope_following(target_gr_db, detector_level_db);
-      );
+    // OPTIMIZATION: Early exit using linear comparison (avoids expensive log())
+    // Skip if: 1) below threshold, 2) no active release state
+    can_skip_compression = (
+      detector_level < comp_curve_min_threshold_linear &&
+      global_smoothed_gain_db > -0.01 &&
+      global_smoothed_gain_db < 0.01
     );
     
-    current_gr_db = stage_envelope == 1 ? global_smoothed_gain_db : target_gr_db;
+    can_skip_compression ? (
+      target_gr_db = 0;
+      gr_processing_skipped = 1;
+    ) : (
+      detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+      target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
+    );
+    
+    detector_level > detector_level_block_max ? (
+      detector_level_block_max = detector_level;
+    );
+
+    // OPTIMIZATION: Skip envelope processing when both target and current are near zero
+    can_skip_envelope = (
+      abs(target_gr_db) < 0.01 &&
+      abs(global_smoothed_gain_db) < 0.01
+    );
+    
+    can_skip_envelope ? (
+      global_smoothed_gain_db = 0;
+    ) : (
+      process_envelope_following(target_gr_db, detector_level_db);
+    );
+    
+    current_gr_db = global_smoothed_gain_db;
     
     abs(current_gr_db) > abs(gr_db_block_max) ? (
       gr_db_block_max = current_gr_db;
@@ -130,18 +124,13 @@ function process_complete_audio_chain() (
       audio_to_compress_r = input_r_orig;
     );
 
-    stage_gain_reduction == 1 ? (
-      abs(current_gr_db) < 0.000001 ? (
-        processed_l = audio_to_compress_l;
-        processed_r = audio_to_compress_r;
-      ) : (
-        gain_reduction_linear = db_to_linear(current_gr_db);
-        processed_l = audio_to_compress_l * gain_reduction_linear;
-        processed_r = audio_to_compress_r * gain_reduction_linear;
-      );
+    abs(current_gr_db) < 0.000001 ? (
+      processed_l = audio_to_compress_l;
+      processed_r = audio_to_compress_r;
     ) : (
-      processed_l = input_l_orig;
-      processed_r = input_r_orig;
+      gain_reduction_linear = db_to_linear(current_gr_db);
+      processed_l = audio_to_compress_l * gain_reduction_linear;
+      processed_r = audio_to_compress_r * gain_reduction_linear;
     );
 
     // OPTIMIZATION: Pre-calculate shared values once (not twice in L/R calls)
@@ -165,12 +154,10 @@ function process_complete_audio_chain() (
                                              harmonic_even_boost, harmonic_odd_boost);
     );
 
-    stage_final_mix == 1 ? (
-      final_l = processed_l * makeup_gain_linear;
-      final_r = processed_r * makeup_gain_linear;
-      final_out_l = final_l;
-      final_out_r = final_r;
-    );
+    final_l = processed_l * makeup_gain_linear;
+    final_r = processed_r * makeup_gain_linear;
+    final_out_l = final_l;
+    final_out_r = final_r;
 
     brickwall_limiter > 0.5 ? (
       // OPTIMIZATION: Calculate abs() once and check both (avoids max() call)

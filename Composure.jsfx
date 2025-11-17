@@ -199,20 +199,6 @@ init_state_variables();
 // Must be called after UI_General imports (specifically after 00_ui_constants.jsfx-inc)
 init_graph_optimization_constants();
 
-// 3. Initialize stage control variables
-stage_input = 1;                    // Input stage (always needed)
-stage_detection_source = 1;         // Detection source selection
-stage_filtering = 1;                // Detection signal filtering (applies to active detection signal)
-stage_detection_analysis = 1;       // RMS detection and gain reduction calculation
-stage_character = 1;                // Character application
-stage_envelope = 1;                 // Envelope following
-stage_lookahead = 1;                // Lookahead processing
-stage_gain_reduction = 1;           // Gain reduction application
-stage_harmonics = 1;                // Harmonic processing
-stage_final_mix = 1;                // Final mix
-stage_limiter = 1;                  // Brickwall limiter
-stage_output = 1;                   // Output stage (always needed)
-
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
 
