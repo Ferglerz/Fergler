@@ -1,0 +1,63 @@
+// Envelope Hold Module
+// Hold processing and hold samples calculation
+// Depends on: 00_envelope_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// HOLD SAMPLES UPDATE
+//==============================================================================
+
+function update_hold_samples() (
+  // Update hold samples for real-time response
+  hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
+);
+
+//==============================================================================
+// HOLD PROCESSING
+//==============================================================================
+
+//--- Process Hold Logic ---
+// Holds the largest gain reduction target for the specified hold_ms
+// Returns the effective target GR to use for envelope following
+function process_hold(target_gr_db) local(
+  target_gr_abs, hold_target_abs, hold_baseline_abs
+) (
+  hold_ms <= 0 ? (
+    hold_counter_samples = 0;
+    hold_target_gr_db = 0;
+    hold_baseline_gr_db = 0;
+  ) : (
+    target_gr_abs = abs(target_gr_db);
+    hold_target_abs = abs(hold_target_gr_db);
+    hold_baseline_abs = abs(hold_baseline_gr_db);
+    
+    hold_counter_samples > 0 ? (
+      target_gr_abs > hold_target_abs ? (
+        hold_target_gr_db = target_gr_db;
+        hold_target_abs = target_gr_abs;
+        hold_counter_samples = hold_samples;
+      );
+      
+      hold_counter_samples -= 1;
+      hold_counter_samples = max(0, hold_counter_samples);
+      target_gr_db = hold_target_gr_db;
+      
+      hold_counter_samples <= 0 ? (
+        hold_baseline_gr_db = target_gr_db;
+      );
+    ) : (
+      target_gr_abs > hold_baseline_abs ? (
+        hold_target_gr_db = target_gr_db;
+        hold_counter_samples = hold_samples;
+        target_gr_db = hold_target_gr_db;
+        hold_baseline_gr_db = hold_target_gr_db;
+      ) : (
+        hold_baseline_gr_db = target_gr_db;
+        hold_target_gr_db = target_gr_db;
+      );
+    );
+  );
+  target_gr_db;
+);
+

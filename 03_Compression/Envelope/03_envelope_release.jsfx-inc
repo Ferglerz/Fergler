@@ -1,0 +1,163 @@
+// Envelope Release Module
+// Release coefficient calculation and program-dependent release strategies
+// Depends on: 00_envelope_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// RELEASE COEFFICIENT UPDATE
+//==============================================================================
+
+function update_release_coefficient() (
+  // Clamp release time to valid range
+  release_ms = max(0.01, min(5000, release_ms));
+  // Update cached sample rate calculations
+  release_ms_srate = release_ms * srate;
+  
+  // Calculate release coefficient using standard time constant formula
+  release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
+  
+  // Cache program-dependent release coefficients (calculated when release_ms or srate changes)
+  // These are used by program release modes and curve shaping functions
+  rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+  rel_fast_cached = exp(-1/(base_fast_s * rel_mult * srate));
+  rel_med_cached  = exp(-1/(base_med_s  * rel_mult * srate));
+  rel_slow_cached = exp(-1/(base_slow_s * rel_mult * srate));
+  
+  // Cache curve shaping coefficients (only recalculate when release_ms or srate changes)
+  // CURVE_FAST_MULTIPLIER and CURVE_SLOW_MULTIPLIER are defined in 00_envelope_utils.jsfx-inc
+  release_ms > 0 ? (
+    curve_fast_coeff_cached = exp(-1000 / ((release_ms / CURVE_FAST_MULTIPLIER) * srate));
+    curve_slow_coeff_cached = exp(-1000 / ((release_ms * CURVE_SLOW_MULTIPLIER) * srate));
+    // Clamp to valid range [0, 1] once during caching
+    curve_fast_coeff_cached = max(0, min(1, curve_fast_coeff_cached));
+    curve_slow_coeff_cached = max(0, min(1, curve_slow_coeff_cached));
+    
+    // Cache input-dependent fast coefficient (4x faster than user's release setting)
+    rel_input_fast_cached = exp(-1000 / ((release_ms * 0.25) * srate));
+    rel_input_fast_cached = max(0, min(1, rel_input_fast_cached));
+  ) : (
+    curve_fast_coeff_cached = 0;
+    curve_slow_coeff_cached = 0;
+    rel_input_fast_cached = 0;
+  );
+);
+
+//==============================================================================
+// PROGRAM RELEASE STRATEGIES
+//==============================================================================
+
+//--- Type 2: GR-Dependent ---
+function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
+  blend_fast = clamp_coeff(1 - gr_amount / gr_blend_threshold_db);
+  blend_slow = clamp_coeff(gr_amount / gr_blend_threshold_db);
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
+);
+
+//--- Type 1: Input-Dependent (single threshold) ---
+// Below threshold: fast release, above threshold: normal release
+// Blend over 20 dB range: at threshold = 100% fast, 20 dB above = 100% normal
+function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_normal) (
+  level_above_threshold = input_level_db - input_level_threshold_db;
+  blend_fast = clamp_coeff(1 - level_above_threshold / 20);
+  blend_normal = clamp_coeff(level_above_threshold / 20);
+  normalized_blend(blend_fast, blend_normal, rel_input_fast_cached, release_coeff)
+);
+
+//--- Type 3: Rate-of-Change ---
+function release_rate_of_change(det_delta) (
+  det_delta > 3 ? rel_fast_cached : rel_slow_cached
+);
+
+//==============================================================================
+// CURVE SHAPING FUNCTIONS
+//==============================================================================
+
+//--- Helper: Blend curve-shaped coefficient with base coefficient ---
+function blend_curve_with_base(curve_shape_factor, base_coeff, release_curve_is_positive) local(blended_coeff) (
+  release_curve_is_positive ? (
+    blended_coeff = blend_two_coefficients(curve_fast_coeff_cached, curve_slow_coeff_cached, curve_shape_factor)
+  ) : (
+    blended_coeff = blend_two_coefficients(curve_slow_coeff_cached, curve_fast_coeff_cached, curve_shape_factor)
+  );
+  clamp_coeff(blended_coeff)
+);
+
+//--- Helper: Apply curve amount blending to coefficient ---
+function apply_curve_amount_blending(base_coeff, curve_shaped_coeff, curve_amount) local(curve_blend) (
+  curve_blend = clamp_coeff(curve_amount / 2.0);
+  blend_two_coefficients(base_coeff, curve_shaped_coeff, curve_blend)
+);
+
+//--- Calculate Curve-Shaped Release Coefficient for Regular Mode ---
+// Modifies time constant based on distance from target GR
+// Positive curves: slow when far, fast when close
+// Negative curves: fast when far, slow when close
+function calculate_curve_shaped_release_coeff(current_gr_db, target_gr_db, release_curve) local(
+  distance, blend_factor, curve_amount, blended_coeff
+) (
+  abs(release_curve) < 0.001 ? (
+    release_coeff
+  ) : (
+    distance = abs(current_gr_db - target_gr_db);
+    blend_factor = min(1.0, distance / CURVE_CALIBRATION_DB);
+    curve_amount = abs(release_curve);
+    
+    blended_coeff = blend_curve_with_base(blend_factor, release_coeff, release_curve > 0);
+    apply_curve_amount_blending(release_coeff, blended_coeff, curve_amount)
+  )
+);
+
+//--- Calculate GR-Dependent Curve Release Coefficient ---
+// Uses GR threshold as inflection point in logistic/S-curve
+// Positive curves: slow far from threshold (high GR), speed up approaching threshold, slow down approaching 0 GR
+// Negative curves: fast far from threshold (high GR), slow down approaching threshold, speed up approaching 0 GR
+function calculate_gr_dependent_curve_release_coeff(current_gr_abs, release_curve, gr_threshold) local(
+  distance_from_threshold, normalized_pos, curve_shape, blended_coeff, curve_amount, base_gr_release
+) (
+  abs(release_curve) < 0.001 ? (
+    release_gr_dependent(current_gr_abs)
+  ) : (
+    distance_from_threshold = abs(current_gr_abs - gr_threshold);
+    
+    gr_threshold > EPS ? (
+      normalized_pos = min(2.0, distance_from_threshold / gr_threshold)
+    ) : (
+      normalized_pos = 0
+    );
+    
+    release_curve > 0 ? (
+      curve_shape = clamp_coeff((normalized_pos * 0.5) * (normalized_pos * 0.5))
+    ) : (
+      curve_shape = clamp_coeff(1.0 - (normalized_pos * 0.5) * (normalized_pos * 0.5))
+    );
+    
+    blended_coeff = blend_curve_with_base(curve_shape, release_coeff, release_curve > 0);
+    curve_amount = abs(release_curve);
+    base_gr_release = release_gr_dependent(current_gr_abs);
+    apply_curve_amount_blending(base_gr_release, blended_coeff, curve_amount)
+  )
+);
+
+//==============================================================================
+// PROGRAM RELEASE SELECTOR
+//==============================================================================
+
+//--- Program-Dependent Release Coefficient Selection ---
+// For GR-dependent mode, current_gr_abs should be abs(global_smoothed_gain_db)
+// NOTE: Cached coefficients are calculated in @slider in Composure.jsfx
+function select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs) local(
+  det_delta, input_level_db
+) (
+  debug_counter_prog_release += 1;
+
+  det_delta = prev_detector_db - detector_level_db;
+  input_level_db = detector_level_db;
+
+  prog_release_type == 0 ? rel_med_cached :
+  prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
+  prog_release_type == 2 ? release_gr_dependent(current_gr_abs) :
+  prog_release_type == 3 ? release_rate_of_change(det_delta) :
+  rel_med_cached
+);
+

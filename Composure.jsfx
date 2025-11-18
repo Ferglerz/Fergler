@@ -72,7 +72,7 @@ slider33:time_multiplier=1<0,1,1{Milliseconds,Microseconds}>-Time Unit
 slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
 
 // Hold parameter (35)
-slider35:hold_ms=0<0,1000,1>-Hold
+slider35:hold_ms=0<0,1000,1>Hold
 
 // SEARCH STOP
 
@@ -100,9 +100,21 @@ import 03_Compression/02_graph_data_core.jsfx-inc
 import 03_Compression/03_graph_curves.jsfx-inc
 import 03_Compression/05_compression_core.jsfx-inc
 import 03_Compression/06_gain_reduction.jsfx-inc
-import 03_Compression/07_envelope.jsfx-inc
 import 03_Compression/08_harmonic_models.jsfx-inc
+
+// 03_Compression/Envelope: Envelope processing modules (must be imported before 09_audio_processing_chain)
+// 05_envelope_parameters depends on clear_rms_state from 09_audio_processing_chain, but we handle this by importing utils first
+import 03_Compression/Envelope/00_envelope_utils.jsfx-inc
+import 03_Compression/Envelope/01_envelope_attack.jsfx-inc
+import 03_Compression/Envelope/02_envelope_hold.jsfx-inc
+import 03_Compression/Envelope/03_envelope_release.jsfx-inc
+import 03_Compression/Envelope/04_envelope_orchestration.jsfx-inc
+
+// 03_Compression/09_audio_processing_chain: Audio processing (depends on envelope modules for process_envelope_following)
 import 03_Compression/09_audio_processing_chain.jsfx-inc
+
+// 03_Compression/Envelope/05_envelope_parameters: Parameter updates (depends on clear_rms_state from 09_audio_processing_chain)
+import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 
 // UI_General: General UI components (constants, utils, drawing, debug, header, menu)
 // These are foundational and must be imported first
@@ -205,107 +217,6 @@ init_graph_optimization_constants();
 // Initialize limiter constants (must be called after math_utils import)
 init_limiter_constants();
 
-//==============================================================================
-// PARAMETER UPDATE FUNCTIONS
-//==============================================================================
-// These functions calculate coefficients from slider values and can be called
-// from both @init and @slider to ensure parameters are always correctly initialized
-
-function update_attack_coefficient() (
-  // Clamp attack time to valid range
-  attack_raw = max(0.01, min(5000, attack));
-  // Convert attack time from slider unit (microseconds/milliseconds) to final milliseconds
-  attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
-  // Update cached sample rate calculations
-  attack_ms_srate = attack_ms * srate;
-  
-  // Calculate attack coefficient using standard time constant formula (63% of target)
-  // Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
-  // After one time constant, envelope reaches 63.2% of the way from start to target
-  attack_coeff_base = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
-  
-  // Apply attack curve shaping
-  attack_coeff = attack_coeff_base;
-  attack_curve != 0 ? (
-    attack_curve > 0 ? (
-      // Positive curves (right): S-curve response - smooth, gradual onset
-      curve_amount = attack_curve;
-      s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
-      s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
-      attack_coeff = pow(attack_coeff_base, s_curve_factor);
-    ) : (
-      // Negative curves (left): steep exponential response - fast, aggressive onset
-      curve_amount = abs(attack_curve);
-      attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
-    );
-  );
-);
-
-function update_release_coefficient() (
-  // Clamp release time to valid range
-  release_ms = max(0.01, min(5000, release_ms));
-  // Update cached sample rate calculations
-  release_ms_srate = release_ms * srate;
-  
-  // Calculate release coefficient using standard time constant formula
-  release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
-  
-  // Cache program-dependent release coefficients (calculated when release_ms or srate changes)
-  // These are used by program release modes and curve shaping functions
-  rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
-  rel_fast_cached = exp(-1/(base_fast_s * rel_mult * srate));
-  rel_med_cached  = exp(-1/(base_med_s  * rel_mult * srate));
-  rel_slow_cached = exp(-1/(base_slow_s * rel_mult * srate));
-  
-  // Cache curve shaping coefficients (only recalculate when release_ms or srate changes)
-  // CURVE_FAST_MULTIPLIER and CURVE_SLOW_MULTIPLIER are defined in 07_envelope.jsfx-inc
-  release_ms > 0 ? (
-    curve_fast_coeff_cached = exp(-1000 / ((release_ms / CURVE_FAST_MULTIPLIER) * srate));
-    curve_slow_coeff_cached = exp(-1000 / ((release_ms * CURVE_SLOW_MULTIPLIER) * srate));
-    // Clamp to valid range [0, 1] once during caching
-    curve_fast_coeff_cached = max(0, min(1, curve_fast_coeff_cached));
-    curve_slow_coeff_cached = max(0, min(1, curve_slow_coeff_cached));
-    
-    // Cache input-dependent fast coefficient (4x faster than user's release setting)
-    rel_input_fast_cached = exp(-1000 / ((release_ms * 0.25) * srate));
-    rel_input_fast_cached = max(0, min(1, rel_input_fast_cached));
-  ) : (
-    curve_fast_coeff_cached = 0;
-    curve_slow_coeff_cached = 0;
-    rel_input_fast_cached = 0;
-  );
-);
-
-function update_rms_coefficient() (
-  // Clear RMS state if window size changed (check previous value before updating)
-  (rms_size_ms_prev == -999 || rms_size_ms != rms_size_ms_prev) ? (
-    rms_size_ms != rms_size_ms_prev ? (
-      clear_rms_state();
-    );
-    rms_size_ms_prev = rms_size_ms;
-  );
-  
-  // Calculate sample counts (for reference, not used in exponential smoothing)
-  rms_samples = floor(rms_size_ms * 0.001 * srate);
-  rms_samples < 1 ? rms_samples = 1;
-  
-  // Calculate RMS exponential smoothing coefficients
-  // Always initialize coefficients (even when RMS is 0, to avoid undefined values)
-  rms_size_ms > 0 ? (
-    rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
-    rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
-  ) : (
-    // Initialize to safe defaults when RMS is disabled
-    rms_smoothing_coeff = 0;
-    rms_smoothing_one_minus = 1;
-  );
-);
-
-function update_strength_multiplier() (
-  // Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-  strength_multiplier = strength / 100.0;
-);
-
 // 4. Initialize curve data
 init_curve_data();
 
@@ -329,14 +240,15 @@ setup_control_layout();
 
 // 7. Cache frequently used time calculations (sample rate dependent)
 srate_inv = 1.0 / srate;
-hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
 lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 
 // 8. Update all parameter coefficients using dedicated update functions
 // This ensures coefficients are correctly initialized even after samplerate changes
+// Update functions are defined in 03_Compression/Envelope/
 update_filter_coefficients();
 update_attack_coefficient();
 update_release_coefficient();
+update_hold_samples();
 update_rms_coefficient();
 update_strength_multiplier();
 
@@ -359,18 +271,16 @@ update_filter_coefficients();
 // --- Timing Parameters (1-5) ---
 // Update cached sample rate calculations
 srate_inv = 1.0 / srate;
-hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
 lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 
 // Update attack and release coefficients using dedicated functions
+// Update functions are defined in 03_Compression/Envelope/
 update_attack_coefficient();
 update_release_coefficient();
+update_hold_samples();
 
 // Update RMS coefficients using dedicated function
 update_rms_coefficient();
-
-// --- Hold Parameter (35) ---
-// Already handled above in timing parameters section
 
 // --- Makeup Gain (21) ---
 makeup_gain_linear = db_to_linear(makeup_gain_db);
@@ -434,9 +344,11 @@ gr_db_block_max = 0;
 
 // Update coefficients every block for real-time response
 // This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
+// Update functions are defined in 03_Compression/Envelope/
 update_filter_coefficients();
 update_attack_coefficient();
 update_release_coefficient();
+update_hold_samples();
 update_rms_coefficient();
 update_strength_multiplier();
 

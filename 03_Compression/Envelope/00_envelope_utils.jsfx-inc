@@ -1,0 +1,71 @@
+// Envelope Utilities Module
+// Shared utilities and constants for envelope processing
+// No dependencies
+
+@init
+
+//==============================================================================
+// ENVELOPE STATE INITIALIZATION
+//==============================================================================
+
+function init_envelope_state() (
+  // Hold state variables
+  hold_counter_samples = 0;  // Counts down from hold_ms in samples
+  hold_target_gr_db = 0;     // The held gain reduction value
+  hold_baseline_gr_db = 0;   // Baseline gain reduction used to detect new holds
+  
+  // Global smoothed gain reduction (envelope follower output)
+  global_smoothed_gain_db = 0;
+  
+  // Program release state
+  base_fast_s = 0.05;  // 50ms
+  base_med_s = 0.3;    // 300ms
+  base_slow_s = 1.0;   // 1000ms
+  
+  // Min() envelope mode state variables (currently unused - may be for future feature)
+  min_env_yR = 0;  // Release filter state
+  min_env_yA = 0;  // Attack filter state
+);
+
+//==============================================================================
+// CURVE SHAPING CONSTANTS
+//==============================================================================
+
+CURVE_CALIBRATION_DB = 10.0;
+CURVE_FAST_MULTIPLIER = 1.5;
+CURVE_SLOW_MULTIPLIER = 1.5;
+
+curve_fast_coeff_cached = 0;
+curve_slow_coeff_cached = 0;
+rel_input_fast_cached = 0;
+
+//==============================================================================
+// UTILITY FUNCTIONS
+//==============================================================================
+
+//--- Helper: Clamp coefficient to [0, 1] range ---
+function clamp_coeff(value) (
+  max(0, min(1, value))
+);
+
+//--- Helper: Blend between two coefficients based on normalized weights ---
+function blend_two_coefficients(coef1, coef2, blend_factor) (
+  coef1 * (1 - blend_factor) + coef2 * blend_factor
+);
+
+//--- Helper: Normalized blend using fast/slow weights ---
+function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(sum) (
+  sum = blend_fast + blend_slow;
+  sum > EPS ? (
+    (blend_fast * coef_fast + blend_slow * coef_slow) / sum
+  ) : (
+    coef_fast
+  )
+);
+
+//--- Helper: Apply exponential smoothing envelope update ---
+function apply_envelope_smoothing(coeff, target_value) (
+  global_smoothed_gain_db = coeff * global_smoothed_gain_db + (1 - coeff) * target_value;
+  global_smoothed_gain_db;
+);
+

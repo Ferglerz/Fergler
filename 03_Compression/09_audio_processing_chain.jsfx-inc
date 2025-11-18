@@ -48,6 +48,7 @@ function init_audio_processing_state() (
   gr_processing_skipped = 0;
   compression_history = 0;
   program_release_timer = 0;
+  prev_detector_db = GRAPH_MIN_DB;  // Initialize for rate-of-change release mode
 );
 
 //==============================================================================
@@ -131,6 +132,9 @@ function process_complete_audio_chain() (
     ) : (
       process_envelope_following(target_gr_db, detector_level_db);
     );
+    
+    // Update previous detector level for rate-of-change release mode
+    prev_detector_db = detector_level_db;
     
     current_gr_db = global_smoothed_gain_db;
     abs(current_gr_db) > abs(gr_db_block_max) ? (

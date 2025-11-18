@@ -71,7 +71,7 @@ lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_bas
 // to create groups and controls specific to this plugin.
 //
 // GROUPS:
-//   0: ENVELOPE - Attack, Release, Attack Curve, Release Curve, Prog Release
+//   0: ENVELOPE - Attack, Attack Curve, Hold, Release, Release Curve, Prog Release
 //   1: DETECTION - Time Unit, RMS Window, RMS Norm, Det. Mode, Max GR, Lookahead, Dot Blend
 //   2: COMPRESSION - Strength, Offset
 //   3: HARMONICS - Type, Drive, Mix, Even, Odd
@@ -108,6 +108,9 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row += 1;
   // Attack Curve: hide value display
   define_slider(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, S2.min, S2.max, S2.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 1));
+  row += 1;
+  // Hold slider (index 10, param 35) - ms suffix
+  define_slider(10, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 35, S35.min, S35.max, S35.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 10));
   row += 1;
 
   // Release slider (index 2, param 3) - ms suffix

@@ -15,7 +15,7 @@ function init_state_variables() (
   // Initialize filter state (02_InputProcessing/02_filters.jsfx-inc)
   init_filter_state();
   
-  // Initialize envelope state (03_Compression/07_envelope.jsfx-inc)
+  // Initialize envelope state (03_Compression/Envelope/00_envelope_utils.jsfx-inc)
   init_envelope_state();
   
   // Initialize RMS and audio processing state (03_Compression/09_audio_processing_chain.jsfx-inc)

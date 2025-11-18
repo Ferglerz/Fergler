@@ -1,0 +1,40 @@
+// Envelope Attack Module
+// Attack coefficient calculation and attack processing
+// Depends on: 00_envelope_utils.jsfx-inc
+
+@init
+
+//==============================================================================
+// ATTACK COEFFICIENT UPDATE
+//==============================================================================
+
+function update_attack_coefficient() (
+  // Clamp attack time to valid range
+  attack_raw = max(0.01, min(5000, attack));
+  // Convert attack time from slider unit (microseconds/milliseconds) to final milliseconds
+  attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
+  // Update cached sample rate calculations
+  attack_ms_srate = attack_ms * srate;
+  
+  // Calculate attack coefficient using standard time constant formula (63% of target)
+  // Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
+  // After one time constant, envelope reaches 63.2% of the way from start to target
+  attack_coeff_base = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
+  
+  // Apply attack curve shaping
+  attack_coeff = attack_coeff_base;
+  attack_curve != 0 ? (
+    attack_curve > 0 ? (
+      // Positive curves (right): S-curve response - smooth, gradual onset
+      curve_amount = attack_curve;
+      s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
+      s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
+      attack_coeff = pow(attack_coeff_base, s_curve_factor);
+    ) : (
+      // Negative curves (left): steep exponential response - fast, aggressive onset
+      curve_amount = abs(attack_curve);
+      attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
+    );
+  );
+);
+
