@@ -16,7 +16,8 @@ desc:Advanced Multi-Model Compressor (Modular)
 // Time-related parameters (1-5)
 // Attack: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
 // Default: 10ms is at index 27
-slider1:attack_ms=27<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Attack
+// Note: The slider variable is 'attack' (unit depends on time_multiplier), converted to 'attack_ms' (milliseconds) in @slider
+slider1:attack=27<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 // Release: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
 // Default: 100ms is at index 40
@@ -46,7 +47,7 @@ slider16:harmonic_even_boost=0<0,200,1>-Even
 slider17:harmonic_odd_boost=0<0,200,1>-Odd
 
 // Global parameters (18-24)
-slider18:strength=1<0.25,10,0.1>-Strength
+slider18:strength=100<0,400,5>-Strength
 slider19:global_offset_db=0<-30,30,0.25>-Global Offset
 slider20:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 slider21:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
@@ -258,22 +259,56 @@ lp_slider_current = slider(11);
   filter_params_changed = 1;
 );
 
-// Update filter coefficients when parameters change (also updated in @block for real-time response)
+// Update filter coefficients when parameters change
 filter_params_changed || !slider_initialized ? (
   update_filter_coefficients();
 );
 
 // --- Timing Parameters (1-5) ---
 // Attack and Release are now enumerated - get actual values from dropdown options
-attack_ms_index = floor(slider1);
+attack_index = floor(slider1);
 release_ms_index = floor(slider3);
-attack_ms = get_dropdown_option_value(1, attack_ms_index);
+attack_raw = get_dropdown_option_value(1, attack_index);
 release_ms = get_dropdown_option_value(3, release_ms_index);
 
-(attack_ms_index != attack_ms_prev_index || release_ms_index != release_ms_prev_index ||
+// Convert attack time from slider unit (microseconds/milliseconds) to final milliseconds
+// This conversion is done here in @slider so the rest of the codebase always uses milliseconds
+attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
+
+// Calculate attack and release coefficients in @slider
+// Using standard time constant formula (63% of target) - standard compressor definition
+// Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
+// After one time constant, envelope reaches 63.2% of the way from start to target
+attack_coeff_base = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
+release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
+
+// Apply attack curve shaping in @slider (since attack_curve is a slider parameter)
+attack_coeff = attack_coeff_base;
+attack_curve != 0 ? (
+  attack_curve > 0 ? (
+    // Positive curves (right): S-curve response - smooth, gradual onset
+    curve_amount = attack_curve;
+    s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
+    s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
+    attack_coeff = pow(attack_coeff_base, s_curve_factor);
+  ) : (
+    // Negative curves (left): steep exponential response - fast, aggressive onset
+    curve_amount = abs(attack_curve);
+    attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
+  );
+);
+
+// Cache frequently used time calculations in @slider (calculated unconditionally for sample rate changes)
+srate_inv = 1.0 / srate;
+attack_ms_srate = attack_ms * srate;
+release_ms_srate = release_ms * srate;
+hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
+lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+
+(attack_index != attack_prev_index || release_ms_index != release_ms_prev_index ||
  slider5 != lookahead_ms_prev ||
  slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
- slider4 != release_curve_prev || !slider_initialized) ? (
+ slider4 != release_curve_prev || slider33 != time_multiplier_prev || !slider_initialized) ? (
 
   // Clear RMS state if window size changed
   slider7 != rms_size_ms_prev ? (
@@ -283,17 +318,24 @@ release_ms = get_dropdown_option_value(3, release_ms_index);
   // Calculate sample counts (for reference, not used in exponential smoothing)
   rms_samples = floor(rms_size_ms * 0.001 * srate);
   rms_samples < 1 ? rms_samples = 1;
-  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+
+  // Calculate RMS exponential smoothing coefficients in @slider
+  // Only needed when RMS window > 0
+  rms_size_ms > 0 ? (
+    rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+    rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
+  );
 
   param_changed = 1;
 
   // Store for next comparison
-  attack_ms_prev_index = attack_ms_index;
+  attack_prev_index = attack_index;
   release_ms_prev_index = release_ms_index;
   lookahead_ms_prev = slider5;
   rms_size_ms_prev = slider7;
   attack_curve_prev = slider2;
   release_curve_prev = slider4;
+  time_multiplier_prev = slider33;
 );
 
 // --- Hold Parameter (35) ---
@@ -309,17 +351,33 @@ release_ms = get_dropdown_option_value(3, release_ms_index);
   param_changed = 1;
 );
 
+// --- Harmonic Drive (14) ---
+// Cache harmonic drive compensation reciprocal to avoid per-sample division
+(slider14 != harmonic_drive_prev || !slider_initialized) ? (
+  drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
+  harmonic_drive_prev = slider14;
+  param_changed = 1;
+);
+
 
 // --- Plugin Delay Compensation ---
 // Cockos pattern: Calculate and set unconditionally every @slider execution
 // This MUST run every time @slider executes (not just on change)
-pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
+// Use cached lookahead_samples instead of recalculating
+pdc_delay = min(lookahead_samples, max_lookahead_samples) | 0;
 pdc_delay > 0 ? (
   pdc_bot_ch = 0;
   pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
 );
 
 // --- Strength and Global Offset parameters ---
+// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
+(strength != strength_prev || !slider_initialized) ? (
+  strength_multiplier = strength / 100.0;  // Convert percentage to multiplier
+  strength_prev = strength;
+  param_changed = 1;
+);
+
 (global_offset_db != global_offset_db_prev || !slider_initialized) ? (
   global_offset_db_prev = global_offset_db;
   
@@ -373,73 +431,16 @@ gr_db_for_histogram = gr_db_block_max;
 detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
 
-// Update filter coefficients every block for real-time response
-update_filter_coefficients();
+// Filter coefficients, attack/release coefficients are now calculated in @slider (when sliders change)
+// Filter coefficients are updated in @slider when filter parameters change
+// attack_coeff, release_coeff, attack_ms_srate, release_ms_srate are all set in @slider
+// Attack curve shaping is also applied in @slider
 
-// Update attack and release coefficients every block for real-time response
-// Use cached values from @slider (attack_ms and release_ms are set there)
-// Cache coefficients to avoid redundant calculations
-// Note: Using standard time constant formula (63% of target) - standard compressor definition
-// Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
-// After one time constant, envelope reaches 63.2% of the way from start to target
-attack_coeff = attack_ms > 0 ? exp(-1000 / (convert_attack_time_to_ms(attack_ms, time_multiplier) * srate)) : 0;
-release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
+// Release curve shaping is now handled in the envelope follower based on distance from target
+// See 03_Compression/07_envelope.jsfx-inc for implementation
 
-// Cache frequently used calculations
-srate_inv = 1.0 / srate;
-attack_ms_srate = convert_attack_time_to_ms(attack_ms, time_multiplier) * srate;
-release_ms_srate = release_ms * srate;
-hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
-
-// Apply curves with S-curve and exponential algorithms
-attack_curve != 0 ? (
-  attack_curve > 0 ? (
-    // Positive curves (right): S-curve response - smooth, gradual onset
-    curve_amount = attack_curve;
-    s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
-    s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
-    attack_coeff = pow(attack_coeff, s_curve_factor);
-  ) : (
-    // Negative curves (left): steep exponential response - fast, aggressive onset
-    curve_amount = abs(attack_curve);
-    attack_coeff = pow(attack_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
-  );
-);
-
-release_curve != 0 ? (
-  release_curve > 0 ? (
-    // Positive curves (right): S-curve response - smooth, gradual recovery
-    curve_amount = release_curve;
-    s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
-    s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
-    release_coeff = pow(release_coeff, s_curve_factor);
-  ) : (
-    // Negative curves (left): steep exponential response - fast, aggressive recovery
-    curve_amount = abs(release_curve);
-    release_coeff = pow(release_coeff, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
-  );
-);
-
-// Update RMS parameters every block for real-time response
-// Reset exponential smoothing state when window size changes
-new_rms_samples = floor(rms_size_ms * 0.001 * srate);
-new_rms_samples < 1 ? new_rms_samples = 1;
-new_rms_samples != rms_samples ? (
-  rms_samples = new_rms_samples;
-  rms_smoothed_squared = 0;  // Reset exponential smoothing state
-) : (
-  rms_samples = new_rms_samples;  // Update even if same (for safety)
-);
-
-// OPTIMIZATION: Pre-calculate RMS exponential smoothing coefficients (moved from @sample)
-// Only needed when RMS window > 0
-rms_size_ms > 0 ? (
-  rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
-  rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
-);
-
-// OPTIMIZATION: Cache harmonic drive compensation reciprocal to avoid per-sample division
-drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
+// RMS samples, RMS smoothing coefficients, and harmonic drive compensation are now calculated in @slider
+// (when sliders change or sample rate changes)
 
 
 //==============================================================================
