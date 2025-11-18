@@ -113,8 +113,8 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Strength
-  define_slider(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 11));
+  // Strength with percent suffix
+  define_slider(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 11));
   row += 1;
   // Offset with dB suffix
   define_slider(12, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 19, S19.min, S19.max, S19.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 12));

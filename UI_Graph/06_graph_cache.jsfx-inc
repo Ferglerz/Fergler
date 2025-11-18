@@ -19,7 +19,7 @@ function calculate_curve_hash() (
     hash = hash * 31 + curve_amounts[i] * 100;
     i += 1;
   );
-  hash = hash * 31 + strength * 1000;
+  hash = hash * 31 + strength_multiplier * 1000;
   hash = hash * 31 + num_points;
   hash < 0 ? hash = -hash;
   hash;

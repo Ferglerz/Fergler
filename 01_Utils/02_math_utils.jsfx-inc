@@ -56,6 +56,15 @@ function convert_attack_time_to_ms(attack_value, time_unit) (
   )
 );
 
+//==============================================================================
+// CONSTANT INITIALIZATION FUNCTIONS
+//==============================================================================
+
+// Initialize limiter normalization constant (depends on tanh function)
+function init_limiter_constants() (
+  LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
+);
+
 
 
 

@@ -34,6 +34,7 @@ function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(su
 function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_normal, fast_coeff) (
   level_above_threshold = input_level_db - input_level_threshold_db;
   // Calculate fast coefficient (4x faster than user's release setting)
+  // Using standard time constant formula (matches main release_coeff calculation)
   fast_coeff = release_ms > 0 ? exp(-1000 / ((release_ms * 0.25) * srate)) : 0;
   // Below threshold: blend towards fast, above threshold: blend towards normal
   // Blend over 20 dB range: at threshold = 100% fast, 20 dB above = 100% normal

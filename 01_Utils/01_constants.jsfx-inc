@@ -28,7 +28,8 @@ DEFAULT_ENVELOPE = 1.0;
 
 // Limiter constants (pre-calculated to avoid per-sample division)
 LIMITER_SCALE = 0.95;                           // Limiter input scale factor
-LIMITER_TANH_NORM = 0;                          // Will be calculated in main @init
+// Note: LIMITER_TANH_NORM is calculated after math_utils import (see end of @init)
+LIMITER_TANH_NORM = 0;                          // Placeholder, calculated below
 
 // === PERFORMANCE CONSTANTS ===
 

@@ -111,6 +111,10 @@ function init_state_variables() (
   // Hold tracking variables
   hold_ms_prev = -999;
   
+  // Strength tracking variable
+  strength_prev = -999;
+  strength_multiplier = 1.0;  // Default: 100% = 1.0 multiplier
+  
   // Threshold line interaction state (persistent across @init)
   !threshold_lines_initialized ? (
     threshold_lines_initialized = 1;

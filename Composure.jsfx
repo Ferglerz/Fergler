@@ -202,13 +202,8 @@ init_graph_optimization_constants();
 // Initialize slider processing flag (ensures @slider calculations run on first load)
 slider_initialized = 0;
 
-// Initialize makeup gain to unity (will be recalculated in @slider)
-makeup_gain_linear = 1.0;
-
-// Strength multiplier removed - using strength slider directly
-
-// Calculate limiter normalization constant (pre-calculated to avoid per-sample division)
-LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
+// Initialize limiter constants (must be called after math_utils import)
+init_limiter_constants();
 
 // 4. Initialize curve data
 init_curve_data();
@@ -384,6 +379,9 @@ update_filter_coefficients();
 // Update attack and release coefficients every block for real-time response
 // Use cached values from @slider (attack_ms and release_ms are set there)
 // Cache coefficients to avoid redundant calculations
+// Note: Using standard time constant formula (63% of target) - standard compressor definition
+// Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
+// After one time constant, envelope reaches 63.2% of the way from start to target
 attack_coeff = attack_ms > 0 ? exp(-1000 / (convert_attack_time_to_ms(attack_ms, time_multiplier) * srate)) : 0;
 release_coeff = release_ms > 0 ? exp(-1000 / (release_ms * srate)) : 0;
 
