@@ -5,6 +5,64 @@
 @init
 
 //==============================================================================
+// STEP-POINT ARRAYS FOR SLIDERS
+//==============================================================================
+
+// Step-point definitions as comma-separated strings
+// Attack slider: 0.01ms to 5000ms (67 values)
+#attack_step_points_str = "0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000";
+
+// Release slider: same as attack (67 values)
+#release_step_points_str = "0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000";
+
+// HP Filter: 0=Off, then 20Hz to 6kHz (28 values)
+#hp_step_points_str = "0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000";
+
+// LP Filter: 20Hz to 14kHz, then 0=Off (32 values)
+#lp_step_points_str = "20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0";
+
+// Array base addresses are defined in UI_General/02_ui_utils.jsfx-inc for early access
+// Step-point counts will be set by parsing function below
+
+// Helper function to parse comma-separated step-point string into array
+// Returns the count of parsed values
+function parse_step_points_string(step_points_str, step_points_base) local(
+  str_len, opt_count, option_start, pos, current_char, len, temp_slot, numeric_value
+) (
+  str_len = strlen(step_points_str);
+  opt_count = 0;
+  option_start = 0;
+  pos = 0;
+  
+  // Parse all values (comma-separated)
+  while (pos <= str_len) (
+    current_char = str_getchar(step_points_str, pos);
+    (current_char == 44 || pos == str_len) ? (  // 44 = comma character
+      len = pos - option_start;
+      len > 0 ? (
+        // Extract substring and convert to number
+        temp_slot = 50;  // Use temp string slot
+        strcpy_substr(temp_slot, step_points_str, option_start, len);
+        numeric_value = string_to_number(temp_slot);
+        // Store in array
+        step_points_base[opt_count] = numeric_value;
+        opt_count += 1;
+        option_start = pos + 1;
+      );
+    );
+    pos += 1;
+  );
+  opt_count;
+);
+
+// Initialize step-point arrays from strings
+// Helper functions are defined in UI_General/02_ui_utils.jsfx-inc
+attack_step_count = parse_step_points_string(#attack_step_points_str, attack_step_points_base);
+release_step_count = parse_step_points_string(#release_step_points_str, release_step_points_base);
+hp_step_count = parse_step_points_string(#hp_step_points_str, hp_step_points_base);
+lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_base);
+
+//==============================================================================
 // COMPOSURE CONTROL LAYOUT
 //==============================================================================
 //

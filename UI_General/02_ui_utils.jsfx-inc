@@ -30,6 +30,37 @@ function is_point_in_control(x, y, control_index) local(group_idx) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
+// Step-point array base addresses (defined in 05_Composure_Controls.jsfx-inc)
+// These are declared here for early access by helper functions
+attack_step_points_base = 20000;
+release_step_points_base = 20100;
+hp_step_points_base = 20200;
+lp_step_points_base = 20300;
+
+// Step-point counts (initialized in 05_Composure_Controls.jsfx-inc)
+attack_step_count = 0;
+release_step_count = 0;
+hp_step_count = 0;
+lp_step_count = 0;
+
+// Helper functions to get step-point info for a slider parameter
+// Returns step-point count for the given parameter, or 0 if not a stepped slider
+function get_step_point_count(param_index) (
+  param_index == 1 ? attack_step_count :
+  param_index == 3 ? release_step_count :
+  param_index == 10 ? hp_step_count :
+  param_index == 11 ? lp_step_count :
+  0
+);
+
+// Returns step-point array base for the given parameter, or 0 if not a stepped slider
+function get_step_points_base(param_index) (
+  param_index == 1 ? attack_step_points_base :
+  param_index == 3 ? release_step_points_base :
+  param_index == 10 ? hp_step_points_base :
+  param_index == 11 ? lp_step_points_base :
+  0
+);
 
 function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options, array_index) (
   slider_config = control_defs[control_index*11 + 8];
@@ -75,31 +106,41 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
     );
   );
   
-  // Check if this slider has enumerated options (for any slider type)
+  // Check if this slider has enumerated options or step-points
   option_count = get_dropdown_option_count(param_index);
-  option_count > 0 ? (
-    // Enumerated slider: divide slider width by number of options
-    // Each option gets (slider_width / option_count) pixels
+  step_count = get_step_point_count(param_index);
+  total_options = option_count > 0 ? option_count : step_count;
+  
+  total_options > 0 ? (
+    // Stepped slider (enumerated or step-points): divide slider width by number of options
+    // Each option gets (slider_width / total_options) pixels
     // Map mouse position to option index
     
     // Calculate which option the mouse is over
     // For horizontal sliders: mouse_x relative to slider start
     slider_orientation == ORIENTATION_VERTICAL ? (
       // Vertical slider: use normalized position directly
-      option_index = floor(normalized_pos * option_count);
+      option_index = floor(normalized_pos * total_options);
     ) : (
       // Horizontal slider: calculate option index from mouse position
-      // Each option occupies (ctrl_w / option_count) pixels
-      pixels_per_option = ctrl_w / option_count;
+      // Each option occupies (ctrl_w / total_options) pixels
+      pixels_per_option = ctrl_w / total_options;
       mouse_pos_in_slider = mouse_x - ctrl_x;
       option_index = floor(mouse_pos_in_slider / pixels_per_option);
     );
     
     // Clamp to valid range
-    option_index = max(0, min(option_count - 1, option_index));
+    option_index = max(0, min(total_options - 1, option_index));
     
-    // Return the option index (not the frequency value - slider stores index)
-    option_index;
+    // Return value based on type
+    option_count > 0 ? (
+      // Enumerated slider: return the index (slider stores index)
+      option_index;
+    ) : (
+      // Step-point slider: return the step-point value at that index
+      step_points_base = get_step_points_base(param_index);
+      step_points_base[option_index];
+    );
   ) : (
     // For normal sliders without enumerated options, use continuous range with increment snapping
     raw_value = min_val + normalized_pos * (max_val - min_val);
@@ -115,24 +156,43 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, c
   );
 );
 
-// Shared function to update value from mouse delta
-function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index) local(array_index) (
-  // Vertical mouse movement controls value (down = increase, up = decrease)
-  value_range = max_val - min_val;
-  delta = -mouse_dy * sensitivity * value_range / 100; // Negative because down = increase
-  
-  new_value = current_value + delta;
-  new_value = max(min_val, min(max_val, new_value));
-  
-  // Apply increment snapping - inline get_slider_increment
-  // Get slider increment from file_reading module (uses slider_num, 1-indexed)
-  increment = get_slider_increment(param_index);
-  increment > 0 ? (
-    // Snap to nearest increment step
-    floor(new_value / increment + 0.5) * increment
-  ) : (
-    new_value
+
+// Find the index of the closest step-point for a given value
+// Returns the index (0-based) of the closest step-point
+function find_step_point_index(value, step_points_base, step_count) local(
+  closest_index, closest_diff, i, test_value, test_diff
+) (
+  closest_index = 0;
+  closest_diff = abs(step_points_base[0] - value);
+  i = 1;
+  while (i < step_count) (
+    test_value = step_points_base[i];
+    test_diff = abs(test_value - value);
+    test_diff < closest_diff ? (
+      closest_index = i;
+      closest_diff = test_diff;
+    );
+    i += 1;
   );
+  closest_index;
+);
+
+// Helper function to find closest step-point value
+// Used for sliders with step-point arrays (attack, release, hp_freq, lp_freq)
+function find_closest_step_point(value, step_points_base, step_count) local(closest_value, closest_diff, i, test_value, test_diff) (
+  closest_value = step_points_base[0];
+  closest_diff = abs(step_points_base[0] - value);
+  i = 1;
+  while (i < step_count) (
+    test_value = step_points_base[i];
+    test_diff = abs(test_value - value);
+    test_diff < closest_diff ? (
+      closest_value = test_value;
+      closest_diff = test_diff;
+    );
+    i += 1;
+  );
+  closest_value;
 );
 
 //==============================================================================
@@ -145,11 +205,6 @@ function set_slider_property(control_index, property_index, value) (
   array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
     slider_properties_base[array_index] = value;
   );
-);
-
-// Convenience functions for common properties
-function set_slider_increment(control_index, increment) (
-  set_slider_property(control_index, 0, increment);
 );
 
 //==============================================================================
@@ -201,48 +256,5 @@ function get_decimal_places(increment) (
       )
     )
   )
-);
-
-// Format value with appropriate decimal places and suffix
-function format_value_with_suffix(value, increment, display_mode) local(decimal_places, format_str) (
-  decimal_places = get_decimal_places(increment);
-  
-  display_mode == DISPLAY_PERCENT ? (
-    sprintf(#temp_display_str, "%%.%df %%", decimal_places, value);
-  ) : display_mode == DISPLAY_DB ? (
-    sprintf(#temp_display_str, "%%.%df dB", decimal_places, value);
-  ) : display_mode == DISPLAY_MS ? (
-    sprintf(#temp_display_str, "%%.%df ms", decimal_places, value);
-  ) : display_mode == DISPLAY_HZ ? (
-    sprintf(#temp_display_str, "%%.%df Hz", decimal_places, value);
-  ) : (
-    sprintf(#temp_display_str, "%%.%df", decimal_places, value);
-  );
-  
-  temp_display_str;
-);
-
-// Format frequency for display (e.g., "Off", "4k", "1.5k", "500")
-// Returns string via global variable for JSFX string handling
-function format_freq_display(freq) local(freq_khz) (
-  freq == 0 ? (
-    // Off
-    freq_display_str = "Off";
-  ) : freq >= 1000 ? (
-    // Display as kilohertz (e.g., 4k, 1.5k)
-    freq_khz = freq / 1000;
-    freq_khz == floor(freq_khz) ? (
-      // Whole number kHz (e.g., 4k, 5k)
-      sprintf(#freq_display_str, "%.0fk", freq_khz);
-    ) : (
-      // Fractional kHz (e.g., 1.25k, 1.5k)
-      sprintf(#freq_display_str, "%.2fk", freq_khz);
-    );
-  ) : (
-    // Display as Hz for frequencies below 1kHz
-    sprintf(#freq_display_str, "%.0f", freq);
-  );
-  
-  freq_display_str;
 );
 

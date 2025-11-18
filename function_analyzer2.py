@@ -55,10 +55,17 @@ class JSFXFunctionAnalyzer:
         self.function_calls: Dict[str, Set[str]] = {}  # filename -> set of called functions
         self.function_parameters: Dict[str, Dict[str, int]] = {}  # filename -> {function_name: param_count}
         self.function_call_parameters: Dict[str, Dict[str, int]] = {}  # filename -> {function_name: param_count}
+        
+        # Files to exclude from analysis (backup files, test files, etc.)
+        self.exclude_files = {
+            'backup_removed_functions.jsfx-inc',
+            'VUmeter.jsfx'
+        }
+        
         self.builtin_functions = {
             # JSFX built-in mathematical functions
             'abs', 'min', 'max', 'floor', 'ceil', 'round', 'exp', 'log', 'log10', 'sqrt', 'sin', 'cos', 'tan',
-            'pow', 'atan', 'tanh', 'atan2', 'sinh', 'cosh', 'asinh', 'acosh', 'atanh', 'asin', 'acos',
+            'pow', 'atan', 'atan2', 'sinh', 'cosh', 'asinh', 'acosh', 'atanh', 'asin', 'acos',
             'spline', 'loop', 'while', 'if', 'else', 'for', 'function', 'sign', 'rand', 'convolve_c', 'sqr',
             
             # JSFX memory functions
@@ -141,11 +148,18 @@ class JSFXFunctionAnalyzer:
         
         for file_path in jsfx_files:
             try:
+                # Store with relative path from base_path
+                relative_path = file_path.relative_to(self.base_path)
+                relative_path_str = str(relative_path)
+                
+                # Skip excluded files
+                if relative_path_str in self.exclude_files or relative_path.name in self.exclude_files:
+                    print(f"Excluded: {relative_path}")
+                    continue
+                
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    # Store with relative path from base_path
-                    relative_path = file_path.relative_to(self.base_path)
-                    self.modules[str(relative_path)] = content
+                    self.modules[relative_path_str] = content
                     print(f"Loaded: {relative_path}")
             except Exception as e:
                 print(f"Error loading {file_path}: {e}")
@@ -419,9 +433,11 @@ class JSFXFunctionAnalyzer:
                         if re.search(assignment_pattern, before_context):
                             continue
                     
-                    # Skip if it's part of a conditional or logical expression
-                    # Check for standalone operators before the function call (not compound operators like +=)
-                    if re.search(r'[+\-*/<>!&|]\s*$', before_context):
+                    # Skip if it's part of an arithmetic expression (but allow logical expressions)
+                    # Only skip if it's clearly an arithmetic operation, not a logical condition
+                    # Allow ! operator (negation) and && || operators (logical) as these are valid function call contexts
+                    # Skip only arithmetic operators that would be part of a larger expression
+                    if re.search(r'[+\-*/<>]\s*$', before_context):
                         continue
                     
                     # Skip if it's in a variable declaration context

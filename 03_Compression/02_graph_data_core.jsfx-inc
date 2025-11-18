@@ -63,18 +63,6 @@ function set_curve_amount(point_index, amount) (
   );
 );
 
-function has_curve(point_index) (
-  get_curve_amount(point_index) > 0;
-);
-
-function clear_all_curves() (
-  i = 0;
-  while (i < MAX_POINTS) (
-    curve_amounts[i] = 0;
-    i += 1;
-  );
-);
-
 //==============================================================================
 // DYNAMIC CORNER POINTS (TANGENT EXTENSION)
 //==============================================================================

@@ -6,6 +6,48 @@
 @init
 
 //==============================================================================
+// FILTER STATE INITIALIZATION
+//==============================================================================
+
+function init_filter_state() (
+  // Filter states
+  hp_x1_l=hp_x2_l=hp_y1_l=hp_y2_l=0;
+  hp_x1_r=hp_x2_r=hp_y1_r=hp_y2_r=0;
+  lp_x1_l=lp_x2_l=lp_y1_l=lp_y2_l=0;
+  lp_x1_r=lp_x2_r=lp_y1_r=lp_y2_r=0;
+
+  // Filter coefficients
+  hp_b0=hp_b1=hp_b2=hp_a1=hp_a2=0;
+  lp_b0=lp_b1=lp_b2=lp_a1=lp_a2=0;
+
+  // Filter enabled flags
+  hp_filter_enabled = 0;
+  lp_filter_enabled = 0;
+  
+  // Filter debug variables (updated by filter functions)
+  filter_debug_hp_slider = 0;
+  filter_debug_hp_freq = 0;
+  filter_debug_hp_b0 = 0;
+  filter_debug_hp_b1 = 0;
+  filter_debug_hp_b2 = 0;
+  filter_debug_hp_a1 = 0;
+  filter_debug_hp_a2 = 0;
+  filter_debug_lp_slider = 0;
+  filter_debug_lp_freq = 0;
+  filter_debug_lp_b0 = 0;
+  filter_debug_lp_b1 = 0;
+  filter_debug_lp_b2 = 0;
+  filter_debug_lp_a1 = 0;
+  filter_debug_lp_a2 = 0;
+  filter_debug_input_l = 0;
+  filter_debug_input_r = 0;
+  filter_debug_hp_out_l = 0;
+  filter_debug_hp_out_r = 0;
+  filter_debug_final_l = 0;
+  filter_debug_final_r = 0;
+);
+
+//==============================================================================
 // FILTER COEFFICIENT CALCULATIONS
 //==============================================================================
 
@@ -89,14 +131,11 @@ function apply_detection_filters(detect_l, detect_r) (
 
 function update_filter_coefficients() (
   // Update highpass filter coefficients (skip if Off)
-  // slider10: enumerated index - get actual frequency value
-  // DEBUG: Read slider value directly
-  hp_slider_raw = slider(10);
-  hp_freq_index = floor(hp_slider_raw);
-  hp_freq_value = get_dropdown_option_value(10, hp_freq_index);
+  // slider10: regular slider - read frequency value directly
+  hp_freq_value = hp_freq;  // Direct value from slider (0 = Off, otherwise frequency in Hz)
   
   // Store debug info for display - actual values used
-  filter_debug_hp_slider = hp_slider_raw;
+  filter_debug_hp_slider = hp_freq;
   filter_debug_hp_freq = hp_freq_value;
   
   hp_freq_value > 0 ? (
@@ -119,14 +158,11 @@ function update_filter_coefficients() (
   );
 
   // Update lowpass filter coefficients (skip if Off)
-  // slider11: enumerated index - get actual frequency value
-  // DEBUG: Read slider value directly
-  lp_slider_raw = slider(11);
-  lp_freq_index = floor(lp_slider_raw);
-  lp_freq_value = get_dropdown_option_value(11, lp_freq_index);
+  // slider11: regular slider - read frequency value directly
+  lp_freq_value = lp_freq;  // Direct value from slider (0 = Off, otherwise frequency in Hz)
   
   // Store debug info for display - actual values used
-  filter_debug_lp_slider = lp_slider_raw;
+  filter_debug_lp_slider = lp_freq;
   filter_debug_lp_freq = lp_freq_value;
   
   lp_freq_value > 0 ? (

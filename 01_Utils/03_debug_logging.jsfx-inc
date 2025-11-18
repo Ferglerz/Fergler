@@ -37,11 +37,6 @@ DEBUG_VISIBLE_LINES = 15; // Number of debug lines visible at once (reduced heig
 // DEBUG LOGGING FUNCTIONS
 //==============================================================================
 
-function debug_clear() (
-  debug_message_count = 0;
-  debug_scroll_offset = 0;
-);
-
 // CONSOLIDATED DEBUG FUNCTION
 // Single debug function that takes a pre-formatted string
 // Use sprintf to format strings before calling this function
@@ -55,10 +50,6 @@ function debug_log(message) (
 );
 
 // Note: debug_section removed - use debug_log() directly with formatted strings
-
-function debug_separator() (
-  debug_log("----------------------------------------");
-);
 
 // Consolidated filter debug status (updates single slot with all current values)
 // Uses global variables set by update_filter_coefficients() and apply_detection_filters()

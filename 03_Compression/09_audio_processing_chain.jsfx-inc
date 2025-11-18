@@ -1,13 +1,58 @@
 //==============================================================================
 // AUDIO PROCESSING CHAIN FUNCTIONS
 //==============================================================================
-// Modular audio processing functions for the compressor
-// Must be imported after utilities but before main processing
 
 @init
 
 //==============================================================================
-// COMPLETE AUDIO PROCESSING CHAIN (INLINE OPTIMIZED)
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Track maximum value for block-level statistics
+function update_block_max(value, max_var) (
+  value > max_var ? value : max_var
+);
+
+// Calculate peak level from stereo signals
+function calculate_peak_level(left, right) (
+  max(abs(left), abs(right))
+);
+
+//==============================================================================
+// RMS STATE INITIALIZATION
+//==============================================================================
+
+function init_rms_state() (
+  rms_max = 0.5;
+  rms_smoothed_squared = 0;
+  rms_size_ms_prev = -999;
+  rms_samples = floor(rms_size_ms * 0.001 * srate);
+  rms_samples < 1 ? rms_samples = 1;
+);
+
+function clear_rms_state() (
+  rms_smoothed_squared = 0;
+);
+
+//==============================================================================
+// AUDIO PROCESSING STATE INITIALIZATION
+//==============================================================================
+
+function init_audio_processing_state() (
+  final_l_prev = 0;
+  final_r_prev = 0;
+  current_input_db = GRAPH_MIN_DB;
+  current_gr_db = 0;
+  detector_level_block_max = MIN_DETECTOR_LEVEL;
+  gr_db_block_max = 0;
+  gr_processing_skipped = 0;
+  strength_multiplier = 1.0;
+  compression_history = 0;
+  program_release_timer = 0;
+);
+
+//==============================================================================
+// COMPLETE AUDIO PROCESSING CHAIN
 //==============================================================================
 
 function process_complete_audio_chain() (
@@ -19,15 +64,10 @@ function process_complete_audio_chain() (
   has_sidechain_l = (use_sidechain && num_ch >= 3);
   has_sidechain_r = (use_sidechain && num_ch >= 4);
 
-  // Detect on CURRENT input (not delayed) for lookahead to work
-  detect_l = spl0;
-  detect_r = spl1;
-
   detection_mode > 0.5 ? (
     detect_l = has_sidechain_l ? spl2 : spl0;
     detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
   ) : (
-    // FEEDBACK: Use previous sample's output (one-sample delay)
     detect_l = has_sidechain_l ? spl2 : final_l_prev;
     detect_r = has_sidechain_r ? spl3 : final_r_prev;
   );
@@ -42,41 +82,30 @@ function process_complete_audio_chain() (
   should_listen ? (
     spl0 = detect_l;
     has_stereo ? spl1 = detect_r;
-    // Update histogram tracking even in listen mode (for input histogram)
-    detector_level = max(abs(detect_l), abs(detect_r));
-    detector_level > detector_level_block_max ? (
-      detector_level_block_max = detector_level;
-    );
-    // No gain reduction in listen mode
+    detector_level = calculate_peak_level(detect_l, detect_r);
+    detector_level_block_max = update_block_max(detector_level, detector_level_block_max);
     gr_db_block_max = 0;
   ) : (
     detect_squared_l = detect_l * detect_l;
     detect_squared_r = detect_r * detect_r;
     
-    // EXPONENTIAL SMOOTHING MODE: Coefficients pre-calculated in @block
     rms_size_ms > 0 ? (
       detect_squared = (detect_squared_l + detect_squared_r) * 0.5;
       rms_smoothed_squared = rms_smoothed_squared * rms_smoothing_coeff + detect_squared * rms_smoothing_one_minus;
       rms_level = sqrt(rms_smoothed_squared);
     ) : (
-      rms_level = max(abs(detect_l), abs(detect_r));
+      rms_level = calculate_peak_level(detect_l, detect_r);
     );
 
     rms_normalization > 0.5 ? (
-      rms_level > rms_max ? (rms_max = rms_level) : (rms_max = rms_max * 0.9999);
+      rms_max = rms_level > rms_max ? rms_level : (rms_max * 0.9999);
       normalized_rms = rms_level / (rms_max + eps);
-      peak_level = max(abs(detect_l), abs(detect_r));
+      peak_level = calculate_peak_level(detect_l, detect_r);
       detector_level = normalized_rms * peak_level;
     ) : (
-      rms_size_ms > 0 ? (
-        detector_level = rms_level;
-      ) : (
-        detector_level = max(abs(detect_l), abs(detect_r));
-      );
+      detector_level = rms_size_ms > 0 ? rms_level : calculate_peak_level(detect_l, detect_r);
     );
 
-    // OPTIMIZATION: Early exit using linear comparison (avoids expensive log())
-    // Skip if: 1) below threshold, 2) no active release state
     can_skip_compression = (
       detector_level < comp_curve_min_threshold_linear &&
       global_smoothed_gain_db > -0.01 &&
@@ -91,11 +120,8 @@ function process_complete_audio_chain() (
       target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
     );
     
-    detector_level > detector_level_block_max ? (
-      detector_level_block_max = detector_level;
-    );
+    detector_level_block_max = update_block_max(detector_level, detector_level_block_max);
 
-    // OPTIMIZATION: Skip envelope processing when both target and current are near zero
     can_skip_envelope = (
       abs(target_gr_db) < 0.01 &&
       abs(global_smoothed_gain_db) < 0.01
@@ -108,13 +134,10 @@ function process_complete_audio_chain() (
     );
     
     current_gr_db = global_smoothed_gain_db;
-    
     abs(current_gr_db) > abs(gr_db_block_max) ? (
       gr_db_block_max = current_gr_db;
     );
 
-    // Cockos approach: Delay AUDIO, apply CURRENT gain to delayed audio
-    // This lets the envelope "see" transients before they arrive
     lookahead_ms > 0 ? (
       process_lookahead_audio(input_l_orig, input_r_orig);
       audio_to_compress_l = lookahead_out_l;
@@ -133,18 +156,12 @@ function process_complete_audio_chain() (
       processed_r = audio_to_compress_r * gain_reduction_linear;
     );
 
-    // OPTIMIZATION: Pre-calculate shared values once (not twice in L/R calls)
     harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
       harmonic_envelope_amount = abs(global_smoothed_gain_db) / 30.0;
       harmonic_abs_gr = abs(target_gr_db);
-      harmonic_gr_factor = harmonic_abs_gr * 0.3;
       harmonic_envelope_factor = 1 + harmonic_envelope_amount * 0.2;
-      harmonic_combined_factor = harmonic_gr_factor * harmonic_envelope_factor;
-      harmonic_even_factor = 1 + harmonic_even_boost;
-      harmonic_odd_factor = 1 + harmonic_odd_boost;
-      harmonic_amount = 1.0;
-      harmonic_base_intensity = harmonic_amount * harmonic_abs_gr * 0.15;
-      harmonic_intensity = harmonic_base_intensity * (1 + harmonic_envelope_amount * 0.2);
+      harmonic_combined_factor = harmonic_abs_gr * 0.3 * harmonic_envelope_factor;
+      harmonic_intensity = harmonic_abs_gr * 0.15 * (1 + harmonic_envelope_amount * 0.2);
       
       processed_l = apply_harmonic_processing(processed_l, target_gr_db, harmonic_envelope_amount, detector_level,
                                              harmonic_type, harmonic_drive, harmonic_mix, 
@@ -156,12 +173,8 @@ function process_complete_audio_chain() (
 
     final_l = processed_l * makeup_gain_linear;
     final_r = processed_r * makeup_gain_linear;
-    final_out_l = final_l;
-    final_out_r = final_r;
 
     brickwall_limiter > 0.5 ? (
-      // OPTIMIZATION: Calculate abs() once and check both (avoids max() call)
-      // Only process when output is -0.5dB or higher (0.944)
       abs_final_l = abs(final_l);
       abs_final_r = abs(final_r);
       (abs_final_l > 0.944 || abs_final_r > 0.944) ? (

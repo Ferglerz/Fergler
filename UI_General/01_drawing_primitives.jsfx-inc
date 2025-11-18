@@ -119,14 +119,6 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
 // INTERACTIVE COLOR HELPERS
 //==============================================================================
 
-function set_interactive_color(is_hovered, is_active, normal_r, normal_g, normal_b, highlight_r, highlight_g, highlight_b, alpha) (
-  is_hovered || is_active ? (
-    gfx_set(highlight_r, highlight_g, highlight_b, alpha);
-  ) : (
-    gfx_set(normal_r, normal_g, normal_b, alpha);
-  );
-);
-
 function set_point_color(is_hovered, is_curved) (
   is_hovered ? (
     // Hovered point - larger and brighter
@@ -159,24 +151,5 @@ function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
       gfx_set(0.9, 0.9, 0, 0.8);
     );
   );
-);
-
-//==============================================================================
-// THRESHOLD LINE DRAWING HELPERS
-//==============================================================================
-
-function draw_threshold_line_with_label(line_y, start_x, end_x, threshold_type, threshold_value, label_text, label_x, label_y) (
-  // Set color based on threshold type and state
-  set_threshold_line_color(threshold_type, 
-    hovered_threshold_line == threshold_type, 
-    dragging_threshold_line == threshold_type);
-  
-  // Draw line
-  gfx_line(start_x, line_y, end_x, line_y, 1);
-  
-  // Draw label
-  gfx_x = label_x;
-  gfx_y = label_y;
-  gfx_drawstr(label_text);
 );
 

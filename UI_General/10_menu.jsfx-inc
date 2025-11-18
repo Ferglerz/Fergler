@@ -5,6 +5,32 @@
 @init
 
 //==============================================================================
+// MENU STATE INITIALIZATION
+//==============================================================================
+
+function init_menu_state() (
+  // Menu toggle states (persistent across @init)
+  !menu_toggles_initialized ? (
+    menu_toggles_initialized = 1;
+    menu_debug_enabled = 0;  // Default to disabled
+    menu_histogram_enabled = 1;  // Default to enabled
+    menu_gr_meter_enabled = 1;   // Default to enabled
+    menu_brickwall_limiter_enabled = 1;  // Default to enabled
+    menu_histogram_buffer_mode = 1;  // Default to per-pixel buffer mode (on)
+  );
+
+  // Custom menu state
+  menu_visible = 0;
+  menu_hovered_item = -1;
+  
+  // Threshold line interaction state (persistent across @init)
+  !threshold_lines_initialized ? (
+    threshold_lines_initialized = 1;
+    // Default positions already set by sliders
+  );
+);
+
+//==============================================================================
 // MENU BUTTON INTERACTION
 //==============================================================================
 

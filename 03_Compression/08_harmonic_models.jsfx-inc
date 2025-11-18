@@ -60,30 +60,6 @@ function apply_enhanced_tube_processing(driven, amount, combined_factor, even_bo
   result;
 );
 
-function apply_optical_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
-  scaled_saturation, x, x2, x3, x4, even_boost_factor, odd_boost_factor, result
-) (
-  scaled_saturation = amount * combined_factor;
-  x = driven;
-  
-  x2 = x * x;
-  x3 = x2 * x;
-  x4 = x2 * x2;
-  
-  even_boost_factor = 1 + even_boost * 0.01;
-  odd_boost_factor = 1 + odd_boost * 0.01;
-  
-  // Optical baseline: VERY subtle harmonics - transparent character
-  result = x + x2 * scaled_saturation * 0.02 * even_boost_factor +
-           x4 * scaled_saturation * 0.005 * even_boost_factor;
-  
-  odd_boost > 0 ? (
-    result += x3 * scaled_saturation * 0.01 * odd_boost_factor
-  );
-  
-  result;
-);
-
 //==============================================================================
 // TUBE-STYLE TECHNIQUES (Helper Functions)
 //==============================================================================
@@ -123,19 +99,6 @@ function apply_soft_clipping(input, clip_threshold, compensation_factor) local(
   (result > clip_threshold) ? result = clip_threshold;
   (result < -clip_threshold) ? result = -clip_threshold;
   result *= compensation_factor;
-  result;
-);
-
-// Combined tube-style processing with level preservation
-function apply_tube_processing(input, amount, power_factor, sharpening_amount, clip_threshold) local(
-  harmonic_content, result
-) (
-  // Apply extremely subtle tube techniques to generate harmonic content only
-  harmonic_content = 0;
-  harmonic_content += apply_power_factor_saturation(input, power_factor, amount * 0.0001);
-  harmonic_content += apply_asymmetric_sharpening(input, sharpening_amount * amount * 0.0001);
-  harmonic_content = apply_soft_clipping(harmonic_content, clip_threshold, 1.0);
-  result = input + harmonic_content;
   result;
 );
 

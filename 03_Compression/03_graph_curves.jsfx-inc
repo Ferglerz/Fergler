@@ -1,6 +1,5 @@
 // Graph Curves Module
 // Bezier curve calculations for smooth curve rendering
-// Depends on: 03a_graph_data_core.jsfx-inc
 
 @init
 
@@ -11,33 +10,75 @@
 BEZIER_STEPS = 20;
 MAX_CURVE_SEGMENTS = 500;
 
-// Curve segment cache (in dB space - the single source of truth)
 curve_segments_db = 0;
 curve_segments_db_allocated = 0;
 curve_segments_db_count = 0;
 curve_segments_db_dirty = 1;
 
 //==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+// Get point coordinates from graph_points array
+function get_point_x(point_idx) (
+  graph_points[point_idx * 2]
+);
+
+function get_point_y(point_idx) (
+  graph_points[point_idx * 2 + 1]
+);
+
+// Check if point index is valid for curve calculations
+function is_valid_curve_point(point_idx) (
+  point_idx > 0 && point_idx < (num_points - 1)
+);
+
+// Store segment in curve_segments_db array
+function store_segment(seg_idx, x1, y1, x2, y2) (
+  curve_segments_db[seg_idx * 4 + 0] = x1;
+  curve_segments_db[seg_idx * 4 + 1] = y1;
+  curve_segments_db[seg_idx * 4 + 2] = x2;
+  curve_segments_db[seg_idx * 4 + 3] = y2
+);
+
+// Calculate Bezier basis coefficients (u, uu, uuu, tt, ttt)
+function calculate_bezier_coeffs(t) local(u) (
+  u = 1 - t;
+  bezier_u = u;
+  bezier_uu = u * u;
+  bezier_uuu = bezier_uu * u;
+  bezier_tt = t * t;
+  bezier_ttt = bezier_tt * t
+);
+
+// Evaluate cubic Bezier curve at parameter t
+function evaluate_bezier_at_t(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) local(result_x, result_y) (
+  calculate_bezier_coeffs(t);
+  result_x = bezier_uuu * p0_x + 3 * bezier_uu * t * p1_x + 3 * bezier_u * bezier_tt * p2_x + bezier_ttt * p3_x;
+  result_y = bezier_uuu * p0_y + 3 * bezier_uu * t * p1_y + 3 * bezier_u * bezier_tt * p2_y + bezier_ttt * p3_y;
+  bezier_result_x = result_x;
+  bezier_result_y = result_y
+);
+
+//==============================================================================
 // BEZIER CURVE CALCULATIONS
 //==============================================================================
 
 function calculate_bezier_control_points(point_index, curve_amount) (
-  prev_point_x = graph_points[(point_index-1)*2];
-  prev_point_y = graph_points[(point_index-1)*2 + 1];
-  curr_point_x = graph_points[point_index*2];
-  curr_point_y = graph_points[point_index*2 + 1];
-  next_point_x = graph_points[(point_index+1)*2];
-  next_point_y = graph_points[(point_index+1)*2 + 1];
+  prev_point_x = get_point_x(point_index - 1);
+  prev_point_y = get_point_y(point_index - 1);
+  curr_point_x = get_point_x(point_index);
+  curr_point_y = get_point_y(point_index);
+  next_point_x = get_point_x(point_index + 1);
+  next_point_y = get_point_y(point_index + 1);
   
   curve_factor = curve_amount / 100.0;
   
-  // Calculate invisible intermediate points (curve_factor % along lines) as Bezier endpoints
   invisible1_x = curr_point_x + (prev_point_x - curr_point_x) * curve_factor;
   invisible1_y = curr_point_y + (prev_point_y - curr_point_y) * curve_factor;
   invisible2_x = curr_point_x + (next_point_x - curr_point_x) * curve_factor;
   invisible2_y = curr_point_y + (next_point_y - curr_point_y) * curve_factor;
   
-  // Current point acts as control point, pulling curve toward it
   bezier_p0_x = invisible1_x;
   bezier_p0_y = invisible1_y;
   bezier_control1_x = curr_point_x;
@@ -49,34 +90,25 @@ function calculate_bezier_control_points(point_index, curve_amount) (
 );
 
 function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) (
-  u = 1 - t;
-  tt = t * t;
-  uu = u * u;
-  uuu = uu * u;
-  ttt = tt * t;
-  
-  bezier_result_x = uuu * p0_x + 3 * uu * t * p1_x + 3 * u * tt * p2_x + ttt * p3_x;
-  bezier_result_y = uuu * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + ttt * p3_y;
+  evaluate_bezier_at_t(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
 );
 
 //==============================================================================
-// CURVE SEGMENT GENERATION (dB Space) - SINGLE SOURCE OF TRUTH
+// CURVE SEGMENT GENERATION (dB Space) 
 //==============================================================================
 
-// Generate complete curve as line segments in dB space
-// This is the canonical curve representation used by both UI and compression LUT
 function generate_curve_segments_db() (
   !curve_segments_db_allocated ? (
     curve_segments_db = freemem;
-    freemem += MAX_CURVE_SEGMENTS * 4; // 4 values per segment (x1,y1,x2,y2)
+    freemem += MAX_CURVE_SEGMENTS * 4;
     curve_segments_db_allocated = 1;
   );
   
   segment_count = 0;
   
   num_points >= 2 ? (
-    prev_x_db = graph_points[0];
-    prev_y_db = graph_points[1];
+    prev_x_db = get_point_x(0);
+    prev_y_db = get_point_y(0);
     
     clamped_junction_x_db = 0;
     clamped_junction_y_db = 0;
@@ -84,15 +116,12 @@ function generate_curve_segments_db() (
     
     i = 0;
     while (i < num_points - 1) (
-      next_point_has_curve = 0;
-      (i + 1) > 0 && (i + 1) < (num_points - 1) ? (
-        curve_amount = get_curve_amount(i + 1);
-        next_point_has_curve = curve_amount > 0;
-      );
+      next_idx = i + 1;
+      next_point_has_curve = is_valid_curve_point(next_idx) && get_curve_amount(next_idx) > 0;
       
       next_point_has_curve ? (
-        curve_amt = get_curve_amount(i + 1);
-        calculate_bezier_control_points(i + 1, curve_amt);
+        curve_amt = get_curve_amount(next_idx);
+        calculate_bezier_control_points(next_idx, curve_amt);
         
         p0_x_db = bezier_p0_x;
         p0_y_db = bezier_p0_y;
@@ -109,15 +138,12 @@ function generate_curve_segments_db() (
           use_clamped_junction = 0;
         );
         
-        next_next_point_has_curve = 0;
-        (i + 2) > 0 && (i + 2) < (num_points - 1) ? (
-          next_curve_amount = get_curve_amount(i + 2);
-          next_next_point_has_curve = next_curve_amount > 0;
-        );
+        next_next_idx = i + 2;
+        next_next_point_has_curve = is_valid_curve_point(next_next_idx) && get_curve_amount(next_next_idx) > 0;
         
-        // Handle crossing invisible control points for consecutive curves
         next_next_point_has_curve ? (
-          calculate_bezier_control_points(i + 2, next_curve_amount);
+          next_curve_amount = get_curve_amount(next_next_idx);
+          calculate_bezier_control_points(next_next_idx, next_curve_amount);
           next_p0_x_db = bezier_p0_x;
           next_p0_y_db = bezier_p0_y;
           
@@ -132,23 +158,14 @@ function generate_curve_segments_db() (
           );
         );
         
-        // OPTIMIZATION: Pre-calculate t_step to avoid division in every iteration
         t = 0;
         t_step = 1.0 / BEZIER_STEPS;
         while (t < 1 && segment_count < MAX_CURVE_SEGMENTS - 1) (
-          u = 1 - t;
-          tt = t * t;
-          uu = u * u;
-          uuu = uu * u;
-          ttt = tt * t;
+          evaluate_bezier_at_t(t, p0_x_db, p0_y_db, p1_x_db, p1_y_db, p2_x_db, p2_y_db, p3_x_db, p3_y_db);
+          current_x_db = bezier_result_x;
+          current_y_db = bezier_result_y;
 
-          current_x_db = uuu * p0_x_db + 3 * uu * t * p1_x_db + 3 * u * tt * p2_x_db + ttt * p3_x_db;
-          current_y_db = uuu * p0_y_db + 3 * uu * t * p1_y_db + 3 * u * tt * p2_y_db + ttt * p3_y_db;
-
-          curve_segments_db[segment_count*4 + 0] = prev_x_db;
-          curve_segments_db[segment_count*4 + 1] = prev_y_db;
-          curve_segments_db[segment_count*4 + 2] = current_x_db;
-          curve_segments_db[segment_count*4 + 3] = current_y_db;
+          store_segment(segment_count, prev_x_db, prev_y_db, current_x_db, current_y_db);
 
           segment_count += 1;
           prev_x_db = current_x_db;
@@ -156,13 +173,10 @@ function generate_curve_segments_db() (
           t += t_step;
         );
       ) : (
-        end_x_db = graph_points[(i+1)*2];
-        end_y_db = graph_points[(i+1)*2 + 1];
+        end_x_db = get_point_x(next_idx);
+        end_y_db = get_point_y(next_idx);
         
-        curve_segments_db[segment_count*4 + 0] = prev_x_db;
-        curve_segments_db[segment_count*4 + 1] = prev_y_db;
-        curve_segments_db[segment_count*4 + 2] = end_x_db;
-        curve_segments_db[segment_count*4 + 3] = end_y_db;
+        store_segment(segment_count, prev_x_db, prev_y_db, end_x_db, end_y_db);
         
         segment_count += 1;
         prev_x_db = end_x_db;
@@ -177,10 +191,6 @@ function generate_curve_segments_db() (
   curve_segments_db_dirty = 0;
 );
 
-function invalidate_curve_segments_db() (
-  curve_segments_db_dirty = 1;
-);
-
 function sample_curve_at_db(input_db) (
   curve_segments_db_dirty ? generate_curve_segments_db();
   
@@ -191,26 +201,26 @@ function sample_curve_at_db(input_db) (
     input_db <= first_x ? (
       curve_segments_db[1]
     ) : (
-      last_x = curve_segments_db[(curve_segments_db_count-1)*4 + 2];
+      last_idx = curve_segments_db_count - 1;
+      last_x = curve_segments_db[last_idx * 4 + 2];
       input_db >= last_x ? (
-        curve_segments_db[(curve_segments_db_count-1)*4 + 3]
+        curve_segments_db[last_idx * 4 + 3]
       ) : (
         seg_idx = 0;
-        output_db = input_db; // Default to unity if not found
+        output_db = input_db;
         found = 0;
         
         while (seg_idx < curve_segments_db_count && !found) (
-          seg_x1_db = curve_segments_db[seg_idx*4 + 0];
-          seg_y1_db = curve_segments_db[seg_idx*4 + 1];
-          seg_x2_db = curve_segments_db[seg_idx*4 + 2];
-          seg_y2_db = curve_segments_db[seg_idx*4 + 3];
+          seg_base = seg_idx * 4;
+          seg_x1_db = curve_segments_db[seg_base + 0];
+          seg_y1_db = curve_segments_db[seg_base + 1];
+          seg_x2_db = curve_segments_db[seg_base + 2];
+          seg_y2_db = curve_segments_db[seg_base + 3];
           
-          // Check with tolerance for floating point precision
           (input_db >= seg_x1_db - 0.0001 && input_db <= seg_x2_db + 0.0001) ||
           (input_db >= seg_x2_db - 0.0001 && input_db <= seg_x1_db + 0.0001) ? (
             seg_width = seg_x2_db - seg_x1_db;
             abs(seg_width) > 0.0001 ? (
-              // Optimized: inline clamp to avoid function call overhead
               t = max(0, min(1, (input_db - seg_x1_db) / seg_width));
               output_db = seg_y1_db + t * (seg_y2_db - seg_y1_db);
             ) : (

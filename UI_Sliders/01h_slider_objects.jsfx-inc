@@ -42,23 +42,6 @@ function construct_from_param(param_index) instance(param_index default min max 
 );
 
 //------------------------------------------------------------------------------
-// Option helpers on the object
-//------------------------------------------------------------------------------
-// Return numeric value for an option index (0-based). 0 if out of range or no options.
-function option_value(option_index) instance(values_base opt_count)
-(
-  option_index >= 0 && option_index < this.opt_count ? (
-    dropdown_option_values_base[this.values_base + option_index];
-  ) : 0;
-);
-
-// Return current slider value (live) for this object's param
-function current_value() instance(param_index)
-(
-  slider(this.param_index);
-);
-
-//------------------------------------------------------------------------------
 // Bulk creation helpers
 //------------------------------------------------------------------------------
 // Create S1..S64 namespaces for convenience. Only those used will be accessed.

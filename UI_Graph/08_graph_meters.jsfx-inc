@@ -9,29 +9,149 @@
 @init
 
 //==============================================================================
+// HISTOGRAM STATE INITIALIZATION
+//==============================================================================
+
+function init_histogram_state() (
+  histogram_buffer = 0;
+  histogram_max_samples = 0;
+  histogram_pos = 0;
+  histogram_initialized = 0;
+  histogram_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_buffer = freemem;
+    freemem += histogram_max_samples;
+    
+    i = 0;
+    while (i < histogram_max_samples) (
+      histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pos = 0;
+    histogram_initialized = 1;
+  );
+  
+  histogram_pixel_buffer = 0;
+  histogram_pixel_pos = 0;
+  histogram_pixel_idx = 0;
+  histogram_pixel_max_samples = 0;
+  histogram_pixel_initialized = 0;
+  histogram_pixel_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_pixel_buffer = freemem;
+    freemem += histogram_pixel_max_samples;
+    
+    i = 0;
+    while (i < histogram_pixel_max_samples) (
+      histogram_pixel_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pixel_idx = 0;
+    histogram_pixel_frame_counter = 0;
+    histogram_pixel_initialized = 1;
+  );
+
+  input_histogram_buffer = 0;
+  input_histogram_max_samples = 0;
+  input_histogram_pos = 0;
+  input_histogram_initialized = 0;
+  input_histogram_frame_counter = 0;
+  input_histogram_prev_level = 0;
+
+  INPUT_HISTOGRAM_ENABLED ? (
+    input_histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    input_histogram_buffer = freemem;
+    freemem += input_histogram_max_samples;
+    
+    i = 0;
+    while (i < input_histogram_max_samples) (
+      input_histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    input_histogram_pos = 0;
+    input_histogram_initialized = 1;
+  );
+);
+
+//==============================================================================
+// HISTOGRAM UPDATE FUNCTIONS
+//==============================================================================
+
+function update_histogram_state(gr_value) (
+    menu_histogram_buffer_mode > 0.5 ? (
+      histogram_pixel_initialized ? (
+        abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+          histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
+        );
+        
+        histogram_pixel_frame_counter += 1;
+        (histogram_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+          histogram_pixel_frame_counter = 0;
+          histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
+          histogram_pixel_buffer[histogram_pixel_idx] = 0;
+        );
+      );
+    ) : (
+      histogram_initialized ? (
+        histogram_frame_counter += 1;
+        (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+          histogram_frame_counter = 0;
+          
+          abs(gr_value) > 0.0001 ? (
+            debug_counter_ui_histogram += 1;
+          );
+          
+          histogram_buffer[histogram_pos] = gr_value;
+          histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+        );
+      );
+    );
+);
+
+function update_input_histogram_state(input_level_db) (
+  input_histogram_initialized ? (
+    input_histogram_frame_counter += 1;
+    (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      input_histogram_frame_counter = 0;
+      
+      smoothed_level = HISTOGRAM_SMOOTHING ? (
+        0.7 * input_level_db + 0.3 * input_histogram_prev_level
+      ) : (
+        input_level_db
+      );
+      
+      input_histogram_buffer[input_histogram_pos] = smoothed_level;
+      input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
+      input_histogram_prev_level = smoothed_level;
+    );
+  );
+);
+
+//==============================================================================
 // PROCESSING STATE INDICATOR
 //==============================================================================
 
 function draw_processing_state_indicator() (
-  // Position to the right of the GR meter
-  indicator_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8;  // meter_x + meter_w + spacing
-  indicator_y = GRAPH_Y + GRAPH_SIZE / 2;  // Centered vertically with meter
+  indicator_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8;
+  indicator_y = GRAPH_Y + GRAPH_SIZE / 2;
   indicator_radius = 5;
   
-  // Draw background circle (dark gray)
   gfx_set(0.15, 0.15, 0.15, 1);
-  gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);  // Filled with 1px border
+  gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);
   
-  // Draw state indicator
-  // Red when processing is skipped (early exit), Green when actively processing
   gr_processing_skipped ? (
-    // Red - early exit (no compression happening)
     gfx_set(0.8, 0.2, 0.2, 1);
   ) : (
-    // Green - actively compressing
     gfx_set(0.2, 0.8, 0.3, 1);
   );
-  gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);  // Filled circle
+  gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);
 );
 
 //==============================================================================
@@ -40,45 +160,35 @@ function draw_processing_state_indicator() (
 
 function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
   menu_gr_meter_enabled ? (
-    // Use shared meter position calculation functions
     gr_meter_x = get_meter_x();
     gr_meter_y = get_meter_y();
     gr_meter_w = get_meter_w();
     gr_meter_h = get_meter_h();
     meter_center_y = gr_meter_y + gr_meter_h / 2;
 
-    // Draw meter background
     gfx_set(0.2, 0.2, 0.2, 1);
     gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 
-  // Draw center line (0dB)
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1); // Antialiased
+    gfx_set(0.6, 0.6, 0.6, 1);
+    gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1);
 
-  // Check if audio is active (playback state 1 = playing, 5 = recording)
-  is_audio_active = (play_state == 1) || (play_state == 5);
+    is_audio_active = (play_state == 1) || (play_state == 5);
 
-  // Only show meter when audio is active
-  is_audio_active ? (
-    current_gr_db < 0 ? (
-      // Gain reduction (negative) - render from top down in orange/red
-      // Optimized: use pre-calculated GR_PIXELS_PER_DB constant
-      gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
-      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
-      gfx_set(1, 0.5, 0, 1); // Orange color for reduction
-      gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
-    ) : current_gr_db > 0 ? (
-      // Gain boost (positive) - render from bottom up in blue
-      // Optimized: use pre-calculated GR_PIXELS_PER_DB constant
-      gr_height = current_gr_db * GR_PIXELS_PER_DB;
-      gr_height = min(gr_height, gr_meter_h); // Clamp to full meter
-      gfx_set(0.2, 0.5, 1, 1); // Blue color for boost
-      gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+    is_audio_active ? (
+      current_gr_db < 0 ? (
+        gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
+        gr_height = min(gr_height, gr_meter_h);
+        gfx_set(1, 0.5, 0, 1);
+        gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
+      ) : current_gr_db > 0 ? (
+        gr_height = current_gr_db * GR_PIXELS_PER_DB;
+        gr_height = min(gr_height, gr_meter_h);
+        gfx_set(0.2, 0.5, 1, 1);
+        gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
+      );
     );
-  );
   
-  // Draw GR blend threshold line if visible (using threshold_lines service)
-  render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+    render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
   );
 );
 
@@ -86,8 +196,6 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
 // HISTOGRAM HELPERS
 //==============================================================================
 
-// Draw input histogram line (specialized version)
-// Optimized to use pre-calculated constants for dB-to-pixel conversion
 function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -102,10 +210,8 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
     sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
     level_db = buffer[sample_idx];
     
-    // Only draw if above minimum
     level_db > GRAPH_MIN_DB ? (
       x_pos = GRAPH_X + i;
-      // Convert dB to graph Y coordinate (optimized: eliminates division)
       y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
       
       first_point ? (
@@ -123,30 +229,21 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
   );
 );
 
-// Draw GR histogram line for negative values (reduction) - per-pixel buffer mode
-// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
-// Reads from newest (right) to oldest (left), matching input histogram behavior
 function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
   
-  // Map buffer samples to graph pixels (buffer may be larger than graph width)
   width_pixels = GRAPH_SIZE;
   buffer_size = histogram_pixel_max_samples;
   
   while (i < width_pixels) (
-    // Calculate buffer index: newest pixel is at histogram_pixel_idx, oldest is (idx - buffer_size + 1)
-    // For pixel i (0=left, width_pixels-1=right), age = floor((width_pixels - 1 - i) * (buffer_size - 1) / (width_pixels - 1))
-    // This matches the input histogram calculation for consistent scrolling
     age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
     buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
     gr_value = buffer[buffer_idx];
     
-    // Only draw negative values (reduction)
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
-      // Convert GR to graph Y coordinate (from top)
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + gr_height;
       
@@ -165,8 +262,6 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
   );
 );
 
-// Draw GR histogram line for negative values (reduction) - original mode
-// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -181,10 +276,8 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
     sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
     gr_value = buffer[sample_idx];
     
-    // Only draw negative values (reduction)
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
-      // Convert GR to graph Y coordinate (from top)
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + gr_height;
       
@@ -203,30 +296,21 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
   );
 );
 
-// Draw GR histogram line for positive values (boost) - per-pixel buffer mode
-// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
-// Reads from newest (right) to oldest (left), matching input histogram behavior
 function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
   gfx_set(r, g, b, a);
   first_point = 1;
   i = 0;
   
-  // Map buffer samples to graph pixels (buffer may be larger than graph width)
   width_pixels = GRAPH_SIZE;
   buffer_size = histogram_pixel_max_samples;
   
   while (i < width_pixels) (
-    // Calculate buffer index: newest pixel is at histogram_pixel_idx, oldest is (idx - buffer_size + 1)
-    // For pixel i (0=left, width_pixels-1=right), age = floor((width_pixels - 1 - i) * (buffer_size - 1) / (width_pixels - 1))
-    // This matches the input histogram calculation for consistent scrolling
     age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
     buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
     gr_value = buffer[buffer_idx];
     
-    // Only draw positive values (boost)
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
-      // Convert GR to graph Y coordinate (from bottom)
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
       
@@ -245,8 +329,6 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
   );
 );
 
-// Draw GR histogram line for positive values (boost) - original mode
-// Optimized to use pre-calculated GR_PIXELS_PER_DB constant
 function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a) (
   samples_span = max_samples;
   width_pixels = GRAPH_SIZE;
@@ -261,10 +343,8 @@ function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a)
     sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
     gr_value = buffer[sample_idx];
     
-    // Only draw positive values (boost)
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
-      // Convert GR to graph Y coordinate (from bottom)
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
       
@@ -289,8 +369,6 @@ function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a)
 
 function draw_input_histogram() (
   INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && menu_histogram_enabled ? (
-    // Draw input level as a continuous line using dB to graph coordinate conversion
-    // Color: Green, using same coordinate system as the red dot indicator
     draw_input_histogram_line(
       input_histogram_buffer,
       input_histogram_pos,
@@ -310,40 +388,34 @@ function draw_input_histogram() (
 function draw_histogram() (
   HISTOGRAM_ENABLED && menu_histogram_enabled ? (
     menu_histogram_buffer_mode > 0.5 ? (
-      // PER-PIXEL BUFFER MODE: Draw directly from pixel buffer
       histogram_pixel_initialized ? (
-        // Draw negative (reduction) line (orange, from top)
         draw_gr_histogram_neg_line_pixel(
           histogram_pixel_buffer,
-          1, 0.5, 0, // Orange
+          1, 0.5, 0,
           HISTOGRAM_OPACITY
         );
         
-        // Draw positive (addition) line (blue, from bottom)
         draw_gr_histogram_pos_line_pixel(
           histogram_pixel_buffer,
-          0.2, 0.5, 1, // Blue
+          0.2, 0.5, 1,
           HISTOGRAM_OPACITY
         );
       );
     ) : (
-      // ORIGINAL MODE: Draw negative (reduction) and positive (addition) GR as separate lines
       histogram_initialized ? (
-        // Draw negative (reduction) line (orange, from top)
         draw_gr_histogram_neg_line(
           histogram_buffer,
           histogram_pos,
           histogram_max_samples,
-          1, 0.5, 0, // Orange
+          1, 0.5, 0,
           HISTOGRAM_OPACITY
         );
         
-        // Draw positive (addition) line (blue, from bottom)
         draw_gr_histogram_pos_line(
           histogram_buffer,
           histogram_pos,
           histogram_max_samples,
-          0.2, 0.5, 1, // Blue
+          0.2, 0.5, 1,
           HISTOGRAM_OPACITY
         );
       );

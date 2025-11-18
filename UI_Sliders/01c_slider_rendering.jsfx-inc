@@ -49,27 +49,35 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
   label_w, label_h, normalized_pos, fill_w, handle_x, handle_y, center_x, fader_x, fill_start_x, fill_width,
   option_count, value_index, reverse_mode, stepped_value, display_value, fill_h
 ) (
-  // Check if this slider has enumerated options (stepped behavior)
+  // Check if this slider has enumerated options or step-points (stepped behavior)
   option_count = get_dropdown_option_count(param_index);
+  step_count = get_step_point_count(param_index);
+  total_options = option_count > 0 ? option_count : step_count;
   
-  // Calculate stepped value if slider has enumerated options
-  option_count > 0 ? (
-    // Slider value IS the index for enumerated sliders
-    value_index = floor(value);
-    value_index = max(0, min(option_count - 1, value_index));
+  // Calculate stepped value if slider has enumerated options or step-points
+  total_options > 0 ? (
+    option_count > 0 ? (
+      // Enumerated slider: value IS the index
+      value_index = floor(value);
+      value_index = max(0, min(option_count - 1, value_index));
+      // Get the actual discrete value from our cached enumerated list
+      stepped_value = get_dropdown_option_value(param_index, value_index);
+    ) : (
+      // Step-point slider: find closest step-point index
+      step_points_base = get_step_points_base(param_index);
+      value_index = find_step_point_index(value, step_points_base, step_count);
+      stepped_value = step_points_base[value_index];
+    );
     
-    // Get the actual discrete value from our cached enumerated list
-    stepped_value = get_dropdown_option_value(param_index, value_index);
-    
-    // Calculate normalized position based on index in enumerated list
+    // Calculate normalized position based on index in stepped list
     reverse_mode = (format_options & OPTION_REVERSE);
-    option_count > 1 ? (
+    total_options > 1 ? (
       reverse_mode ? (
         // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
-        normalized_pos = 1.0 - (value_index / (option_count - 1));
+        normalized_pos = 1.0 - (value_index / (total_options - 1));
       ) : (
         // For normal sliders, first option is at left (0.0), last option is at right (1.0)
-        normalized_pos = value_index / (option_count - 1);
+        normalized_pos = value_index / (total_options - 1);
       );
     ) : (
       // Only one option - center it

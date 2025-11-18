@@ -69,17 +69,28 @@ function format_value_with_decimals(value, decimal_places) (
 function format_slider_value(param_index, value, suffix_str, formatting, format_options) local(
   decimal_places, option_count, option_index, actual_value, increment, rounded_value
 ) (
-  // Check if this is an enumerated slider
+  // Check if this is an enumerated slider or step-point slider
   option_count = get_dropdown_option_count(param_index);
-  option_count > 0 ? (
-    // Enumerated slider: check if it needs suffix formatting or uses pre-formatted text
-    option_index = floor(value);
-    option_index = max(0, min(option_count - 1, option_index));
+  step_count = get_step_point_count(param_index);
+  total_options = option_count > 0 ? option_count : step_count;
+  
+  total_options > 0 ? (
+    // Stepped slider: check if it needs suffix formatting or uses pre-formatted text
+    option_count > 0 ? (
+      // Enumerated slider: value IS the index
+      option_index = floor(value);
+      option_index = max(0, min(option_count - 1, option_index));
+      // Get actual numeric value from enumerated list
+      actual_value = get_dropdown_option_value(param_index, option_index);
+    ) : (
+      // Step-point slider: find closest step-point index
+      step_points_base = get_step_points_base(param_index);
+      option_index = find_step_point_index(value, step_points_base, step_count);
+      actual_value = step_points_base[option_index];
+    );
     
     // If suffix_str is provided (not empty), format the actual numeric value with suffix
     strlen(suffix_str) > 0 ? (
-      // Get actual numeric value and format with suffix
-      actual_value = get_dropdown_option_value(param_index, option_index);
       
       // Special case: value 0 typically means "Off"
       actual_value == 0 ? (

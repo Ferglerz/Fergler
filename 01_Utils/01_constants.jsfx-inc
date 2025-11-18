@@ -45,7 +45,5 @@ NUM_CONTROLS = 26;  // Total number of UI controls (highest index is 25, so need
 // Debug logging (string slots for debug messages)
 STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supports 0-63)
 
-// Audio buffer sizes (calculated in memory allocation)
-max_lookahead_samples = 0;
-lookahead_mask = 0;  // Bit mask for efficient circular buffer indexing (size - 1)
+// Note: max_lookahead_samples and lookahead_mask are calculated in 01_Utils/05_memory.jsfx-inc
 

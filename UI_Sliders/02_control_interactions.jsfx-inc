@@ -118,7 +118,7 @@ function handle_control_click(control_index) (
 );
 
 // Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options) (
+function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options, snapped_value) (
   // Apply fine drag multiplier when ctrl/cmd is held
   fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
   
@@ -136,13 +136,16 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
       max_val = control_defs[ui_drag_control*11 + 7];
       current_value = slider(param_index);
       
-      // Check if this slider has enumerated options
+      // Check if this slider has enumerated options or step-points
       option_count = get_dropdown_option_count(param_index);
-      option_count > 0 ? (
-        // Enumerated slider: divide slider width by number of options
+      step_count = get_step_point_count(param_index);
+      
+      (option_count > 0 || step_count > 0) ? (
+        // Stepped slider (enumerated or step-points): divide slider width by number of options
         // Each option gets (slider_width / option_count) pixels
+        total_options = option_count > 0 ? option_count : step_count;
         slider_w = control_defs[ui_drag_control*11 + 3];
-        pixels_per_option = slider_w / option_count;
+        pixels_per_option = slider_w / total_options;
         
         // Get mouse position relative to slider
         group_idx = control_defs[ui_drag_control*11 + 10];
@@ -155,8 +158,17 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
         
         mouse_pos_in_slider = mouse_x - ctrl_x;
         option_index = floor(mouse_pos_in_slider / pixels_per_option);
-        option_index = max(0, min(option_count - 1, option_index));
-        slider(param_index) = option_index;
+        option_index = max(0, min(total_options - 1, option_index));
+        
+        // Set slider value based on type
+        option_count > 0 ? (
+          // Enumerated slider: value is the index
+          slider(param_index) = option_index;
+        ) : (
+          // Step-point slider: value is the step-point value at that index
+          step_points_base = get_step_points_base(param_index);
+          slider(param_index) = step_points_base[option_index];
+        );
       ) : (
         // Continuous slider - check if this slider supports bidirectional drag (knob-style)
         format_options & OPTION_BIDIRECTIONAL ? (
@@ -171,9 +183,17 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           value_range = max_val - min_val;
           delta = (mouse_delta / slider_w) * value_range;
           new_value = clamp(current_value + delta, min_val, max_val);
-          slider(param_index) = new_value;
+          // Check if this slider has step-points and snap if so
+          step_count = get_step_point_count(param_index);
+          step_count > 0 ? (
+            step_points_base = get_step_points_base(param_index);
+            snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
+            slider(param_index) = snapped_value;
+          ) : (
+            slider(param_index) = new_value;
+          );
         ) : (
-          // Standard slider - use position-based or delta-based depending on fine mode
+          // Continuous slider - use position-based or delta-based depending on fine mode
           MOUSE_CTRL_KEY ? (
             // Fine drag mode - use delta approach
             mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
@@ -181,10 +201,27 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
             value_range = max_val - min_val;
             delta = (mouse_dx / slider_w) * value_range;
             new_value = clamp(current_value + delta, min_val, max_val);
-            slider(param_index) = new_value;
+            // Check if this slider has step-points and snap if so
+            step_count = get_step_point_count(param_index);
+            step_count > 0 ? (
+              step_points_base = get_step_points_base(param_index);
+              snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
+              slider(param_index) = snapped_value;
+            ) : (
+              slider(param_index) = new_value;
+            );
           ) : (
             // Normal drag mode - use position
-            slider(param_index) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+            new_value = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+            // Check if this slider has step-points and snap if so
+            step_count = get_step_point_count(param_index);
+            step_count > 0 ? (
+              step_points_base = get_step_points_base(param_index);
+              snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
+              slider(param_index) = snapped_value;
+            ) : (
+              slider(param_index) = new_value;
+            );
           );
         );
       );

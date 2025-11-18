@@ -7,50 +7,6 @@
 compression_init_complete = 0;
 
 //==============================================================================
-// COMPRESSION CURVE INTERPOLATION
-//==============================================================================
-
-function interpolate_compression_curve(input_db) (
-  debug_counter_curve_interp += 1;
-  
-  input_db <= graph_points[0] ? graph_points[1] : (
-    input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
-      i = 0;
-      while (i < num_points - 1 && graph_points[(i+1)*2] < input_db) (
-        i += 1;
-      );
-
-      x1 = graph_points[i*2];
-      y1 = graph_points[i*2 + 1];
-      x2 = graph_points[(i+1)*2];
-      y2 = graph_points[(i+1)*2 + 1];
-      curve_amount = get_curve_amount(i + 1);
-      
-      curve_amount > 0 && i + 1 < num_points - 1 ? (
-        calculate_bezier_control_points(i + 1, curve_amount);
-        p0_x = bezier_p0_x;
-        p0_y = bezier_p0_y;
-        p1_x = bezier_control1_x;
-        p1_y = bezier_control1_y;
-        p2_x = bezier_control2_x;
-        p2_y = bezier_control2_y;
-        p3_x = bezier_p3_x;
-        p3_y = bezier_p3_y;
-        
-        // Optimized: inline clamp to avoid function call overhead
-        bezier_t = max(0, min(1, (input_db - p0_x) / max(p3_x - p0_x, eps)));
-        evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
-        bezier_result_y
-      ) : (
-        // Optimized: inline clamp to avoid function call overhead
-        t = max(0, min(1, (input_db - x1) / (x2 - x1)));
-        y1 + t * (y2 - y1)
-      )
-    )
-  )
-);
-
-//==============================================================================
 // COMPRESSION LOOKUP TABLE
 //==============================================================================
 

@@ -281,20 +281,6 @@ function get_dropdown_options_offset(slider_index) local(offset, i, opt_count) (
   offset;
 );
 
-function extract_single_option(temp_str, option_start, option_end, target_slot, slider_index, option_index) (
-  option_len = option_end - option_start;
-  option_len > 0 ? (
-    strcpy_substr(target_slot, temp_str, option_start, option_len);
-    numeric_value = string_to_number(target_slot);
-    // Calculate offset using actual max values
-    values_offset = get_dropdown_options_offset(slider_index);
-    dropdown_option_values_base[values_offset + option_index] = numeric_value;
-    1;
-  ) : (
-    0;
-  );
-);
-
 function parse_comma_separated_options(options_str, options_len, slider_index) (
   // Calculate base slot using cumulative offset based on actual max values
   base_offset = get_dropdown_options_offset(slider_index);

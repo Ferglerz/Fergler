@@ -1,0 +1,503 @@
+//==============================================================================
+// BACKUP OF REMOVED UNUSED FUNCTIONS
+//==============================================================================
+// This file contains all unused functions that were removed from the codebase
+// on [date removed]. They are preserved here for reference and potential
+// future use if needed.
+//
+// Total functions removed: 26
+//==============================================================================
+
+//==============================================================================
+// 01_Utils/02_math_utils.jsfx-inc
+//==============================================================================
+
+// Soft clipping function for harmonic generation
+function soft_clip(x, threshold) (
+  abs(x) > threshold ? (
+    x > 0 ? threshold + (x - threshold) / (1 + sqr((x - threshold) * 4)) :
+           -threshold + (x + threshold) / (1 + sqr((x + threshold) * 4))
+  ) : x
+);
+
+//==============================================================================
+// 03_Compression/06_gain_reduction.jsfx-inc
+//==============================================================================
+
+// Backward compatibility wrapper (converts linear to dB)
+function calculate_gain_reduction(input_level_linear) (
+  input_level_db = linear_to_db(max(input_level_linear, MIN_DETECTOR_LEVEL));
+  calculate_gain_reduction_from_db(input_level_db);
+);
+
+//==============================================================================
+// 01_Utils/06_state.jsfx-inc
+//==============================================================================
+
+function set_large_knob_value(index, value) (
+  large_knob_defs[index*8 + 7] = value;
+);
+
+//==============================================================================
+// 01_Utils/03_debug_logging.jsfx-inc
+//==============================================================================
+
+function debug_clear() (
+  debug_message_count = 0;
+  debug_scroll_offset = 0;
+);
+
+function debug_separator() (
+  debug_log("----------------------------------------");
+);
+
+//==============================================================================
+// 03_Compression/05_compression_core.jsfx-inc
+//==============================================================================
+
+function interpolate_compression_curve(input_db) (
+  debug_counter_curve_interp += 1;
+  
+  input_db <= graph_points[0] ? graph_points[1] : (
+    input_db >= graph_points[(num_points-1)*2] ? graph_points[(num_points-1)*2 + 1] : (
+      i = 0;
+      while (i < num_points - 1 && graph_points[(i+1)*2] < input_db) (
+        i += 1;
+      );
+
+      x1 = graph_points[i*2];
+      y1 = graph_points[i*2 + 1];
+      x2 = graph_points[(i+1)*2];
+      y2 = graph_points[(i+1)*2 + 1];
+      curve_amount = get_curve_amount(i + 1);
+      
+      curve_amount > 0 && i + 1 < num_points - 1 ? (
+        calculate_bezier_control_points(i + 1, curve_amount);
+        p0_x = bezier_p0_x;
+        p0_y = bezier_p0_y;
+        p1_x = bezier_control1_x;
+        p1_y = bezier_control1_y;
+        p2_x = bezier_control2_x;
+        p2_y = bezier_control2_y;
+        p3_x = bezier_p3_x;
+        p3_y = bezier_p3_y;
+        
+        // Optimized: inline clamp to avoid function call overhead
+        bezier_t = max(0, min(1, (input_db - p0_x) / max(p3_x - p0_x, eps)));
+        evaluate_bezier_curve(bezier_t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
+        bezier_result_y
+      ) : (
+        // Optimized: inline clamp to avoid function call overhead
+        t = max(0, min(1, (input_db - x1) / (x2 - x1)));
+        y1 + t * (y2 - y1)
+      )
+    )
+  )
+);
+
+//==============================================================================
+// 03_Compression/08_harmonic_models.jsfx-inc
+//==============================================================================
+
+function apply_optical_processing(driven, amount, combined_factor, even_boost, odd_boost) local(
+  scaled_saturation, x, x2, x3, x4, even_boost_factor, odd_boost_factor, result
+) (
+  scaled_saturation = amount * combined_factor;
+  x = driven;
+  
+  x2 = x * x;
+  x3 = x2 * x;
+  x4 = x2 * x2;
+  
+  even_boost_factor = 1 + even_boost * 0.01;
+  odd_boost_factor = 1 + odd_boost * 0.01;
+  
+  // Optical baseline: VERY subtle harmonics - transparent character
+  result = x + x2 * scaled_saturation * 0.02 * even_boost_factor +
+           x4 * scaled_saturation * 0.005 * even_boost_factor;
+  
+  odd_boost > 0 ? (
+    result += x3 * scaled_saturation * 0.01 * odd_boost_factor
+  );
+  
+  result;
+);
+
+// Combined tube-style processing with level preservation
+function apply_tube_processing(input, amount, power_factor, sharpening_amount, clip_threshold) local(
+  harmonic_content, result
+) (
+  // Apply extremely subtle tube techniques to generate harmonic content only
+  harmonic_content = 0;
+  harmonic_content += apply_power_factor_saturation(input, power_factor, amount * 0.0001);
+  harmonic_content += apply_asymmetric_sharpening(input, sharpening_amount * amount * 0.0001);
+  harmonic_content = apply_soft_clipping(harmonic_content, clip_threshold, 1.0);
+  result = input + harmonic_content;
+  result;
+);
+
+//==============================================================================
+// UI_General/01_drawing_primitives.jsfx-inc
+//==============================================================================
+
+function set_interactive_color(is_hovered, is_active, normal_r, normal_g, normal_b, highlight_r, highlight_g, highlight_b, alpha) (
+  is_hovered || is_active ? (
+    gfx_set(highlight_r, highlight_g, highlight_b, alpha);
+  ) : (
+    gfx_set(normal_r, normal_g, normal_b, alpha);
+  );
+);
+
+function draw_threshold_line_with_label(line_y, start_x, end_x, threshold_type, threshold_value, label_text, label_x, label_y) (
+  // Set color based on threshold type and state
+  set_threshold_line_color(threshold_type, 
+    hovered_threshold_line == threshold_type, 
+    dragging_threshold_line == threshold_type);
+  
+  // Draw line
+  gfx_line(start_x, line_y, end_x, line_y, 1);
+  
+  // Draw label
+  gfx_x = label_x;
+  gfx_y = label_y;
+  gfx_drawstr(label_text);
+);
+
+//==============================================================================
+// UI_General/02_ui_utils.jsfx-inc
+//==============================================================================
+
+// Format value with appropriate decimal places and suffix
+function format_value_with_suffix(value, increment, display_mode) local(decimal_places, format_str) (
+  decimal_places = get_decimal_places(increment);
+  
+  display_mode == DISPLAY_PERCENT ? (
+    sprintf(#temp_display_str, "%%.%df %%", decimal_places, value);
+  ) : display_mode == DISPLAY_DB ? (
+    sprintf(#temp_display_str, "%%.%df dB", decimal_places, value);
+  ) : display_mode == DISPLAY_MS ? (
+    sprintf(#temp_display_str, "%%.%df ms", decimal_places, value);
+  ) : display_mode == DISPLAY_HZ ? (
+    sprintf(#temp_display_str, "%%.%df Hz", decimal_places, value);
+  ) : (
+    sprintf(#temp_display_str, "%%.%df", decimal_places, value);
+  );
+  
+  temp_display_str;
+);
+
+// Format frequency for display (e.g., "Off", "4k", "1.5k", "500")
+// Returns string via global variable for JSFX string handling
+function format_freq_display(freq) local(freq_khz) (
+  freq == 0 ? (
+    // Off
+    freq_display_str = "Off";
+  ) : freq >= 1000 ? (
+    // Display as kilohertz (e.g., 4k, 1.5k)
+    freq_khz = freq / 1000;
+    freq_khz == floor(freq_khz) ? (
+      // Whole number kHz (e.g., 4k, 5k)
+      sprintf(#freq_display_str, "%.0fk", freq_khz);
+    ) : (
+      // Fractional kHz (e.g., 1.25k, 1.5k)
+      sprintf(#freq_display_str, "%.2fk", freq_khz);
+    );
+  ) : (
+    // Display as Hz for frequencies below 1kHz
+    sprintf(#freq_display_str, "%.0f", freq);
+  );
+  
+  freq_display_str;
+);
+
+// Convenience functions for common properties
+function set_slider_increment(control_index, increment) (
+  set_slider_property(control_index, 0, increment);
+);
+
+// Shared function to update value from mouse delta
+function update_value_from_mouse_delta(current_value, min_val, max_val, mouse_dy, sensitivity, param_index) local(array_index) (
+  // Vertical mouse movement controls value (down = increase, up = decrease)
+  value_range = max_val - min_val;
+  delta = -mouse_dy * sensitivity * value_range / 100; // Negative because down = increase
+  
+  new_value = current_value + delta;
+  new_value = max(min_val, min(max_val, new_value));
+  
+  // Apply increment snapping - inline get_slider_increment
+  // Get slider increment from file_reading module (uses slider_num, 1-indexed)
+  increment = get_slider_increment(param_index);
+  increment > 0 ? (
+    // Snap to nearest increment step
+    floor(new_value / increment + 0.5) * increment
+  ) : (
+    new_value
+  );
+);
+
+//==============================================================================
+// UI_Sliders/00_file_reading.jsfx-inc
+//==============================================================================
+
+function extract_single_option(temp_str, option_start, option_end, target_slot, slider_index, option_index) (
+  option_len = option_end - option_start;
+  option_len > 0 ? (
+    strcpy_substr(target_slot, temp_str, option_start, option_len);
+    numeric_value = string_to_number(target_slot);
+    // Calculate offset using actual max values
+    values_offset = get_dropdown_options_offset(slider_index);
+    dropdown_option_values_base[values_offset + option_index] = numeric_value;
+    1;
+  ) : (
+    0;
+  );
+);
+
+//==============================================================================
+// UI_Sliders/01h_control_objects.jsfx-inc
+//==============================================================================
+
+// Create S1..S64 control objects for convenience. Only those used will be accessed.
+function init_control_objects() local(i) (
+  i = 1;
+  while (i <= 64) (
+    // Build namespace identifier S1, S2, ... explicitly via calls
+    // JSFX allows "S1.construct_from_param(1)" even if S1 was not previously declared
+    i == 1 ? S1.construct_from_param(1);
+    i == 2 ? S2.construct_from_param(2);
+    i == 3 ? S3.construct_from_param(3);
+    i == 4 ? S4.construct_from_param(4);
+    i == 5 ? S5.construct_from_param(5);
+    i == 6 ? S6.construct_from_param(6);
+    i == 7 ? S7.construct_from_param(7);
+    i == 8 ? S8.construct_from_param(8);
+    i == 9 ? S9.construct_from_param(9);
+    i == 10 ? S10.construct_from_param(10);
+    i == 11 ? S11.construct_from_param(11);
+    i == 12 ? S12.construct_from_param(12);
+    i == 13 ? S13.construct_from_param(13);
+    i == 14 ? S14.construct_from_param(14);
+    i == 15 ? S15.construct_from_param(15);
+    i == 16 ? S16.construct_from_param(16);
+    i == 17 ? S17.construct_from_param(17);
+    i == 18 ? S18.construct_from_param(18);
+    i == 19 ? S19.construct_from_param(19);
+    i == 20 ? S20.construct_from_param(20);
+    i == 21 ? S21.construct_from_param(21);
+    i == 22 ? S22.construct_from_param(22);
+    i == 23 ? S23.construct_from_param(23);
+    i == 24 ? S24.construct_from_param(24);
+    i == 25 ? S25.construct_from_param(25);
+    i == 26 ? S26.construct_from_param(26);
+    i == 27 ? S27.construct_from_param(27);
+    i == 28 ? S28.construct_from_param(28);
+    i == 29 ? S29.construct_from_param(29);
+    i == 30 ? S30.construct_from_param(30);
+    i == 31 ? S31.construct_from_param(31);
+    i == 32 ? S32.construct_from_param(32);
+    i == 33 ? S33.construct_from_param(33);
+    i == 34 ? S34.construct_from_param(34);
+    i == 35 ? S35.construct_from_param(35);
+    i == 36 ? S36.construct_from_param(36);
+    i == 37 ? S37.construct_from_param(37);
+    i == 38 ? S38.construct_from_param(38);
+    i == 39 ? S39.construct_from_param(39);
+    i == 40 ? S40.construct_from_param(40);
+    i == 41 ? S41.construct_from_param(41);
+    i == 42 ? S42.construct_from_param(42);
+    i == 43 ? S43.construct_from_param(43);
+    i == 44 ? S44.construct_from_param(44);
+    i == 45 ? S45.construct_from_param(45);
+    i == 46 ? S46.construct_from_param(46);
+    i == 47 ? S47.construct_from_param(47);
+    i == 48 ? S48.construct_from_param(48);
+    i == 49 ? S49.construct_from_param(49);
+    i == 50 ? S50.construct_from_param(50);
+    i == 51 ? S51.construct_from_param(51);
+    i == 52 ? S52.construct_from_param(52);
+    i == 53 ? S53.construct_from_param(53);
+    i == 54 ? S54.construct_from_param(54);
+    i == 55 ? S55.construct_from_param(55);
+    i == 56 ? S56.construct_from_param(56);
+    i == 57 ? S57.construct_from_param(57);
+    i == 58 ? S58.construct_from_param(58);
+    i == 59 ? S59.construct_from_param(59);
+    i == 60 ? S60.construct_from_param(60);
+    i == 61 ? S61.construct_from_param(61);
+    i == 62 ? S62.construct_from_param(62);
+    i == 63 ? S63.construct_from_param(63);
+    i == 64 ? S64.construct_from_param(64);
+    i += 1;
+  );
+);
+
+// Get control object from param_index (1-based JSFX slider number)
+// This function is placed here to break circular dependencies - it's needed by
+// rendering functions (01a-01f) which are imported before 01g_control_dispatcher
+function get_control_object(param_index) local(control_obj) (
+  param_index == 1 ? control_obj = S1;
+  param_index == 2 ? control_obj = S2;
+  param_index == 3 ? control_obj = S3;
+  param_index == 4 ? control_obj = S4;
+  param_index == 5 ? control_obj = S5;
+  param_index == 6 ? control_obj = S6;
+  param_index == 7 ? control_obj = S7;
+  param_index == 8 ? control_obj = S8;
+  param_index == 9 ? control_obj = S9;
+  param_index == 10 ? control_obj = S10;
+  param_index == 11 ? control_obj = S11;
+  param_index == 12 ? control_obj = S12;
+  param_index == 13 ? control_obj = S13;
+  param_index == 14 ? control_obj = S14;
+  param_index == 15 ? control_obj = S15;
+  param_index == 16 ? control_obj = S16;
+  param_index == 17 ? control_obj = S17;
+  param_index == 18 ? control_obj = S18;
+  param_index == 19 ? control_obj = S19;
+  param_index == 20 ? control_obj = S20;
+  param_index == 21 ? control_obj = S21;
+  param_index == 22 ? control_obj = S22;
+  param_index == 23 ? control_obj = S23;
+  param_index == 24 ? control_obj = S24;
+  param_index == 25 ? control_obj = S25;
+  param_index == 26 ? control_obj = S26;
+  param_index == 27 ? control_obj = S27;
+  param_index == 28 ? control_obj = S28;
+  param_index == 29 ? control_obj = S29;
+  param_index == 30 ? control_obj = S30;
+  param_index == 31 ? control_obj = S31;
+  param_index == 32 ? control_obj = S32;
+  param_index == 33 ? control_obj = S33;
+  param_index == 34 ? control_obj = S34;
+  param_index == 35 ? control_obj = S35;
+  param_index == 36 ? control_obj = S36;
+  param_index == 37 ? control_obj = S37;
+  param_index == 38 ? control_obj = S38;
+  param_index == 39 ? control_obj = S39;
+  param_index == 40 ? control_obj = S40;
+  param_index == 41 ? control_obj = S41;
+  param_index == 42 ? control_obj = S42;
+  param_index == 43 ? control_obj = S43;
+  param_index == 44 ? control_obj = S44;
+  param_index == 45 ? control_obj = S45;
+  param_index == 46 ? control_obj = S46;
+  param_index == 47 ? control_obj = S47;
+  param_index == 48 ? control_obj = S48;
+  param_index == 49 ? control_obj = S49;
+  param_index == 50 ? control_obj = S50;
+  param_index == 51 ? control_obj = S51;
+  param_index == 52 ? control_obj = S52;
+  param_index == 53 ? control_obj = S53;
+  param_index == 54 ? control_obj = S54;
+  param_index == 55 ? control_obj = S55;
+  param_index == 56 ? control_obj = S56;
+  param_index == 57 ? control_obj = S57;
+  param_index == 58 ? control_obj = S58;
+  param_index == 59 ? control_obj = S59;
+  param_index == 60 ? control_obj = S60;
+  param_index == 61 ? control_obj = S61;
+  param_index == 62 ? control_obj = S62;
+  param_index == 63 ? control_obj = S63;
+  param_index == 64 ? control_obj = S64;
+  control_obj;
+);
+
+// Return current slider value (live) for this object's param
+function current_value() instance(param_index) (
+  slider(this.param_index);
+);
+
+// Return numeric value for an option index (0-based). 0 if out of range or no options.
+function option_value(option_index) instance(values_base opt_count) (
+  option_index >= 0 && option_index < this.opt_count ? (
+    dropdown_option_values_base[this.values_base + option_index];
+  ) : 0;
+);
+
+//==============================================================================
+// VUmeter.jsfx
+//==============================================================================
+
+function mark_dirty() (
+  needs_redraw = 1;
+);
+
+//==============================================================================
+// UI_Sliders/01h_slider_objects.jsfx-inc
+//==============================================================================
+
+// Return current slider value (live) for this object's param
+function current_value() instance(param_index) (
+  slider(this.param_index);
+);
+
+// Return numeric value for an option index (0-based). 0 if out of range or no options.
+function option_value(option_index) instance(values_base opt_count) (
+  option_index >= 0 && option_index < this.opt_count ? (
+    dropdown_option_values_base[this.values_base + option_index];
+  ) : 0;
+);
+
+//==============================================================================
+// 03_Compression/02_graph_data_core.jsfx-inc
+//==============================================================================
+
+function has_curve(point_index) (
+  get_curve_amount(point_index) > 0;
+);
+
+function clear_all_curves() (
+  i = 0;
+  while (i < MAX_POINTS) (
+    curve_amounts[i] = 0;
+    i += 1;
+  );
+);
+
+//==============================================================================
+// 03_Compression/03_graph_curves.jsfx-inc
+//==============================================================================
+
+function invalidate_curve_segments_db() (
+  curve_segments_db_dirty = 1;
+);
+
+//==============================================================================
+// UI_Graph/07_graph_curves.jsfx-inc
+//==============================================================================
+
+function draw_cached_mixed_curves() (
+  cache_curve_if_needed();
+  gfx_set(1, 0.8, 0.2, 1);
+  i = 0;
+  while (i < curve_cache_size) (
+    seg_idx = i * 4;
+    gfx_x = curve_cache_points[seg_idx];
+    gfx_y = curve_cache_points[seg_idx + 1];
+    gfx_lineto(curve_cache_points[seg_idx + 2], curve_cache_points[seg_idx + 3], 1);
+    i += 1;
+  );
+);
+
+//==============================================================================
+// UI_General/05_header.jsfx-inc
+//==============================================================================
+
+function draw_ui_panel_background() (
+  gfx_set(UI_BG_R, UI_BG_G, UI_BG_B, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H);
+  gfx_set(0.5, 0.5, 0.5, 1);
+  gfx_rect(UI_PANEL_X, UI_PANEL_Y, UI_PANEL_W, UI_PANEL_H, 0);
+);
+
+//==============================================================================
+// UI_General/11_threshold_lines.jsfx-inc
+//==============================================================================
+
+function validate_threshold_spacing(value, other_value) (
+  // Ensure at least MIN_THRESHOLD_SPACING between values
+  value > other_value ?
+    max(value, other_value + MIN_THRESHOLD_SPACING) :
+    min(value, other_value - MIN_THRESHOLD_SPACING)
+);
+

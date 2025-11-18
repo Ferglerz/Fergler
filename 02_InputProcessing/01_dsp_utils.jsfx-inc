@@ -6,6 +6,19 @@
 @init
 
 //==============================================================================
+// LOOKAHEAD AND LIMITER STATE INITIALIZATION
+//==============================================================================
+
+function init_lookahead_limiter_state() (
+  // Audio processing state
+  lookahead_pos = 0;
+
+  // Limiter state variables
+  limiter_prev_l = 0;
+  limiter_prev_r = 0;
+);
+
+//==============================================================================
 // LOOKAHEAD PROCESSING  
 //==============================================================================
 

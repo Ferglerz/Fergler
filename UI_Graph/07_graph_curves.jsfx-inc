@@ -31,19 +31,6 @@ function draw_compression_lut_curve() (
   );
 );
 
-function draw_cached_mixed_curves() (
-  cache_curve_if_needed();
-  gfx_set(1, 0.8, 0.2, 1);
-  i = 0;
-  while (i < curve_cache_size) (
-    seg_idx = i * 4;
-    gfx_x = curve_cache_points[seg_idx];
-    gfx_y = curve_cache_points[seg_idx + 1];
-    gfx_lineto(curve_cache_points[seg_idx + 2], curve_cache_points[seg_idx + 3], 1);
-    i += 1;
-  );
-);
-
 function draw_debug_invisible_points(point_index, curve_factor) (
   menu_debug_enabled ? (
     gfx_set(1, 0, 0, 0.8);

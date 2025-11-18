@@ -14,14 +14,14 @@ desc:Advanced Multi-Model Compressor (Modular)
 
 
 // Time-related parameters (1-5)
-// Attack: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
-// Default: 10ms is at index 27
+// Attack: regular slider with step-points defined in UI (0.01ms to 5000ms)
+// Default: 10ms
 // Note: The slider variable is 'attack' (unit depends on time_multiplier), converted to 'attack_ms' (milliseconds) in @slider
-slider1:attack=27<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Attack
+slider1:attack=10<0.01,5000,0.01>Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-// Release: enumerated list with fine control in lower ranges (67 values: 0.01ms to 5000ms)
-// Default: 100ms is at index 40
-slider3:release_ms=40<0,66,1{0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,45,50,60,70,80,90,100,125,150,175,200,225,250,300,350,400,450,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000}>-Release
+// Release: regular slider with step-points defined in UI (0.01ms to 5000ms)
+// Default: 100ms
+slider3:release_ms=100<0.01,5000,0.01>Release
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
@@ -32,11 +32,11 @@ slider8:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider9:max_gr_db=-100<-100,0,1>-Max GR
 
 // Filtering parameters (10-11)
-// Sliders use enumerated values - index selects from available frequency options
-// HP: 29 options (0=Off, then 20Hz to 6kHz) - default index 0 (Off)
-// LP: 32 options (20Hz to 14kHz, then 0=Off) - default index 31 (Off)
-slider10:hp_freq=0<0,28,1{0,20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000}>-HP Filter
-slider11:lp_freq=31<0,31,1{20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0}>-LP Filter
+// Sliders use regular values with step-points defined in UI
+// HP: 0=Off, then 20Hz to 6kHz - default 0 (Off)
+// LP: 20Hz to 14kHz, then 0=Off - default 0 (Off)
+slider10:hp_freq=0<0,6000,1>-HP Filter
+slider11:lp_freq=0<0,14000,1>-LP Filter
 
 // Character & Harmonics parameters (12-17)
 slider12:harmonic_type=0<0,2,1{Off,Tape,Tube}>-Type
@@ -80,8 +80,6 @@ slider35:hold_ms=0<0,1000,1>-Hold
 // INCLUDE MODULES
 //==============================================================================
 
-// For Claude: These are import, not @import or include or @include
-
 // 01_Utils: Foundation utilities (no dependencies)
 import 01_Utils/01_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
@@ -91,7 +89,6 @@ import 01_Utils/03_debug_logging.jsfx-inc
 import UI_Sliders/00_file_reading.jsfx-inc
 
 import 01_Utils/05_memory.jsfx-inc
-import 01_Utils/06_state.jsfx-inc
 
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
@@ -134,7 +131,7 @@ import UI_Sliders/01_control_definitions.jsfx-inc
 import UI_Sliders/02_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
-import UI_Sliders/05_Composure_Controls.jsfx-inc
+import UI_Controls/05_Composure_Controls.jsfx-inc
 
 // UI_Graph: Graph rendering and interaction (depends on UI_General)
 // threshold_lines is now in UI_General and independent
@@ -144,6 +141,10 @@ import UI_Graph/08_graph_meters.jsfx-inc
 import UI_Graph/09_graph_display.jsfx-inc
 import UI_Graph/12_dot_trail.jsfx-inc
 import UI_Graph/03_graph.jsfx-inc
+
+// 01_Utils/06_state: State initialization (depends on all modules above)
+// Must be imported after all init functions are defined
+import 01_Utils/06_state.jsfx-inc
 
 // UI_General: UI orchestration (depends on UI_General, UI_Sliders, UI_Graph)
 // These must be imported last as they orchestrate all UI components
@@ -200,8 +201,6 @@ init_state_variables();
 // Must be called after UI_General imports (specifically after 00_ui_constants.jsfx-inc)
 init_graph_optimization_constants();
 
-// Initialize slider processing flag (ensures @slider calculations run on first load)
-slider_initialized = 0;
 
 // Initialize limiter constants (must be called after math_utils import)
 init_limiter_constants();
@@ -227,7 +226,20 @@ setup_control_layout();
   update_corner_points();
 );
 
-// 7. Mark compression system as ready (prevents LUT race condition)
+// 7. Cache frequently used time calculations (sample rate dependent)
+// Calculate attack_ms from slider values (same logic as @slider)
+attack_raw = max(0.01, min(5000, attack));
+attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
+release_ms = max(0.01, min(5000, release_ms));
+
+// Cache sample rate calculations
+srate_inv = 1.0 / srate;
+attack_ms_srate = attack_ms * srate;
+release_ms_srate = release_ms * srate;
+hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
+lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+
+// 8. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
 
 //==============================================================================
@@ -236,44 +248,29 @@ compression_init_complete = 1;
 
 @slider
 
-// Track which parameters actually changed
-param_changed = 0;
-
 // --- Filter Parameters (10-11) ---
 // Sliders use enumerated indices - get actual frequency value from option
 // hp_freq: index 0 = Off, other indices = filter frequency
 // lp_freq: index 31 = Off, other indices = filter frequency
-filter_params_changed = 0;
-// DEBUG: Read slider values directly using slider() function
-hp_slider_current = slider(10);
-lp_slider_current = slider(11);
-(hp_slider_current != hp_freq_prev || !slider_initialized) ? (
-  hp_freq_prev = hp_slider_current;
-  param_changed = 1;
-  filter_params_changed = 1;
-);
-
-(lp_slider_current != lp_freq_prev || !slider_initialized) ? (
-  lp_freq_prev = lp_slider_current;
-  param_changed = 1;
-  filter_params_changed = 1;
-);
-
-// Update filter coefficients when parameters change
-filter_params_changed || !slider_initialized ? (
-  update_filter_coefficients();
-);
+// Update filter coefficients (runs every @slider execution)
+update_filter_coefficients();
 
 // --- Timing Parameters (1-5) ---
-// Attack and Release are now enumerated - get actual values from dropdown options
-attack_index = floor(slider1);
-release_ms_index = floor(slider3);
-attack_raw = get_dropdown_option_value(1, attack_index);
-release_ms = get_dropdown_option_value(3, release_ms_index);
+// Attack and Release are now regular sliders - read values directly
+// Clamp to valid ranges
+attack_raw = max(0.01, min(5000, attack));
+release_ms = max(0.01, min(5000, release_ms));
 
 // Convert attack time from slider unit (microseconds/milliseconds) to final milliseconds
 // This conversion is done here in @slider so the rest of the codebase always uses milliseconds
 attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
+
+// Update cached sample rate calculations
+srate_inv = 1.0 / srate;
+attack_ms_srate = attack_ms * srate;
+release_ms_srate = release_ms * srate;
+hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
+lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
 
 // Calculate attack and release coefficients in @slider
 // Using standard time constant formula (63% of target) - standard compressor definition
@@ -298,66 +295,63 @@ attack_curve != 0 ? (
   );
 );
 
-// Cache frequently used time calculations in @slider (calculated unconditionally for sample rate changes)
-srate_inv = 1.0 / srate;
-attack_ms_srate = attack_ms * srate;
-release_ms_srate = release_ms * srate;
-hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
-lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+// Cache program-dependent release coefficients (calculated in @slider when release_ms or srate changes)
+// These are used by program release modes and curve shaping functions
+rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+rel_fast_cached = exp(-1/(base_fast_s * rel_mult * srate));
+rel_med_cached  = exp(-1/(base_med_s  * rel_mult * srate));
+rel_slow_cached = exp(-1/(base_slow_s * rel_mult * srate));
 
-(attack_index != attack_prev_index || release_ms_index != release_ms_prev_index ||
- slider5 != lookahead_ms_prev ||
- slider7 != rms_size_ms_prev || slider2 != attack_curve_prev ||
- slider4 != release_curve_prev || slider33 != time_multiplier_prev || !slider_initialized) ? (
+// Cache curve shaping coefficients (only recalculate when release_ms or srate changes)
+// CURVE_FAST_MULTIPLIER and CURVE_SLOW_MULTIPLIER are defined in 07_envelope.jsfx-inc
+release_ms > 0 ? (
+  curve_fast_coeff_cached = exp(-1000 / ((release_ms / CURVE_FAST_MULTIPLIER) * srate));
+  curve_slow_coeff_cached = exp(-1000 / ((release_ms * CURVE_SLOW_MULTIPLIER) * srate));
+  // Clamp to valid range [0, 1] once during caching
+  curve_fast_coeff_cached = max(0, min(1, curve_fast_coeff_cached));
+  curve_slow_coeff_cached = max(0, min(1, curve_slow_coeff_cached));
+  
+  // Cache input-dependent fast coefficient (4x faster than user's release setting)
+  rel_input_fast_cached = exp(-1000 / ((release_ms * 0.25) * srate));
+  rel_input_fast_cached = max(0, min(1, rel_input_fast_cached));
+) : (
+  curve_fast_coeff_cached = 0;
+  curve_slow_coeff_cached = 0;
+  rel_input_fast_cached = 0;
+);
 
-  // Clear RMS state if window size changed
-  slider7 != rms_size_ms_prev ? (
+// Clear RMS state if window size changed (check previous value before updating)
+(rms_size_ms_prev == -999 || rms_size_ms != rms_size_ms_prev) ? (
+  rms_size_ms != rms_size_ms_prev ? (
     clear_rms_state();
   );
+  rms_size_ms_prev = rms_size_ms;
+);
 
-  // Calculate sample counts (for reference, not used in exponential smoothing)
-  rms_samples = floor(rms_size_ms * 0.001 * srate);
-  rms_samples < 1 ? rms_samples = 1;
+// Calculate sample counts (for reference, not used in exponential smoothing)
+rms_samples = floor(rms_size_ms * 0.001 * srate);
+rms_samples < 1 ? rms_samples = 1;
 
-  // Calculate RMS exponential smoothing coefficients in @slider
-  // Only needed when RMS window > 0
-  rms_size_ms > 0 ? (
-    rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
-    rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
-  );
-
-  param_changed = 1;
-
-  // Store for next comparison
-  attack_prev_index = attack_index;
-  release_ms_prev_index = release_ms_index;
-  lookahead_ms_prev = slider5;
-  rms_size_ms_prev = slider7;
-  attack_curve_prev = slider2;
-  release_curve_prev = slider4;
-  time_multiplier_prev = slider33;
+// Calculate RMS exponential smoothing coefficients in @slider
+// Always initialize coefficients (even when RMS is 0, to avoid undefined values)
+rms_size_ms > 0 ? (
+  rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
+  rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
+) : (
+  // Initialize to safe defaults when RMS is disabled
+  rms_smoothing_coeff = 0;
+  rms_smoothing_one_minus = 1;
 );
 
 // --- Hold Parameter (35) ---
-(slider35 != hold_ms_prev || !slider_initialized) ? (
-  hold_ms_prev = slider35;
-  param_changed = 1;
-);
+// Already handled above in timing parameters section
 
 // --- Makeup Gain (21) ---
-(slider21 != makeup_gain_db_prev || !slider_initialized) ? (
-  makeup_gain_linear = db_to_linear(makeup_gain_db);
-  makeup_gain_db_prev = slider21;
-  param_changed = 1;
-);
+makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 // --- Harmonic Drive (14) ---
 // Cache harmonic drive compensation reciprocal to avoid per-sample division
-(slider14 != harmonic_drive_prev || !slider_initialized) ? (
-  drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
-  harmonic_drive_prev = slider14;
-  param_changed = 1;
-);
+drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
 
 
 // --- Plugin Delay Compensation ---
@@ -372,49 +366,30 @@ pdc_delay > 0 ? (
 
 // --- Strength and Global Offset parameters ---
 // Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-(strength != strength_prev || !slider_initialized) ? (
-  strength_multiplier = strength / 100.0;  // Convert percentage to multiplier
-  strength_prev = strength;
-  param_changed = 1;
-);
+strength_multiplier = strength / 100.0;  // Convert percentage to multiplier
 
-(global_offset_db != global_offset_db_prev || !slider_initialized) ? (
-  global_offset_db_prev = global_offset_db;
-  
-  param_changed = 1;
-  
-  // Note: Strength is now used directly in gain reduction calculation
-  // Global offset is applied at lookup time (shifts input level before curve lookup).
-);
+// Note: Strength is now used directly in gain reduction calculation
+// Global offset is applied at lookup time (shifts input level before curve lookup).
 
 // --- Trail Parameters (31-32) ---
-(slider31 != trail_interval_ms_prev || slider32 != trail_fade_duration_ms_prev || !slider_initialized) ? (
-  trail_interval_ms_prev = slider31;
-  trail_fade_duration_ms_prev = slider32;
-  
-  // Recalculate trail buffer size if parameters changed
-  trail_interval_samples = trail_interval_ms * 0.001 * srate;
-  trail_fade_samples = trail_fade_duration_ms * 0.001 * srate;
-  new_trail_max_dots = ceil(trail_fade_samples / trail_interval_samples) + 10;
-  
-  // Clamp to allocated size to prevent buffer overflow
-  new_trail_max_dots = min(new_trail_max_dots, trail_max_dots_allocated);
-  
-  // Only update if size changed significantly
-  abs(new_trail_max_dots - trail_max_dots) > 5 ? (
-    // Update buffer size limit (memory is already allocated)
-    trail_max_dots = new_trail_max_dots;
-    // Clear existing trail dots when parameters change
-    trail_count = 0;
-    trail_write_pos = 0;
-    trail_last_creation_time = 0;
-  );
-  
-  param_changed = 1;
+// Recalculate trail buffer size
+trail_interval_samples = trail_interval_ms * 0.001 * srate;
+trail_fade_samples = trail_fade_duration_ms * 0.001 * srate;
+new_trail_max_dots = ceil(trail_fade_samples / trail_interval_samples) + 10;
+
+// Clamp to allocated size to prevent buffer overflow
+new_trail_max_dots = min(new_trail_max_dots, trail_max_dots_allocated);
+
+// Only update if size changed significantly
+abs(new_trail_max_dots - trail_max_dots) > 5 ? (
+  // Update buffer size limit (memory is already allocated)
+  trail_max_dots = new_trail_max_dots;
+  // Clear existing trail dots when parameters change
+  trail_count = 0;
+  trail_write_pos = 0;
+  trail_last_creation_time = 0;
 );
 
-// Mark slider section as initialized (ensures all calculations run on first load)
-slider_initialized = 1;
 
 //==============================================================================
 // ON BLOCK

@@ -38,14 +38,6 @@ function linear_to_db(linear) (
   linear > 0 ? log(linear) * LOG10_20 : -150
 );
 
-// Soft clipping function for harmonic generation
-function soft_clip(x, threshold) (
-  abs(x) > threshold ? (
-    x > 0 ? threshold + (x - threshold) / (1 + sqr((x - threshold) * 4)) :
-           -threshold + (x + threshold) / (1 + sqr((x + threshold) * 4))
-  ) : x
-);
-
 // Time unit conversion function for Attack time
 // Converts the displayed attack time value to milliseconds based on Time Unit selection
 function convert_attack_time_to_ms(attack_value, time_unit) (

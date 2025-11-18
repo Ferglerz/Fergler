@@ -1,6 +1,5 @@
 // Gain Reduction Calculation Module
 // Calculates gain reduction based on compression curve and input level
-// Depends on: 00a_constants.jsfx-inc, 00b_math_utils.jsfx-inc, 04a_compression_core.jsfx-inc
 
 @init
 
@@ -10,18 +9,9 @@
 
 // Calculate GR using offset input and compression curve
 function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_output_db, target_gr_db) (
-  // Apply global offset to INPUT (shifts what level the compressor "sees")
-  // This makes the compressor think the signal is louder/quieter than it actually is
   offset_input_db = input_level_db + global_offset_db;
-  
-  // OPTIMIZED: Use lookup table instead of direct curve interpolation
-  // This replaces expensive bezier calculations with fast array lookup + linear interpolation
   target_output_db = lookup_compression_lut(offset_input_db);
-  
-  // Calculate gain reduction based on offset input
-  // The output will be compensated later in the chain
   target_gr_db = target_output_db - offset_input_db;
-  
   target_gr_db
 );
 
@@ -31,39 +21,19 @@ function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_o
 
 // Optimized version that accepts dB directly (avoids redundant conversion)
 function calculate_gain_reduction_from_db(input_level_db) (
-  // Debug counter: track gain reduction calculations
   debug_counter_gain_reduction += 1;
   
-  // Early exit optimization: Check if actual input is below compression threshold
-  // Note: Global offset is NOT used here - it only affects curve lookup, not where compression starts
-  // The threshold is based on the curve shape, which doesn't change with global offset
+  // Early exit: Global offset affects curve lookup, not compression threshold
   input_level_db < comp_curve_min_threshold_db ? (
-    // Below threshold - no compression possible, return 0 immediately
-    gr_processing_skipped = 1;  // Flag that we skipped processing
+    gr_processing_skipped = 1;
     0
   ) : (
-    // Above threshold - calculate GR from compression curve
-    gr_processing_skipped = 0;  // Flag that we did processing
+    gr_processing_skipped = 0;
     target_gr_db = calculate_gr_from_curve(input_level_db);
-
-    // Apply strength (using multiplier converted from percentage)
     target_gr_db *= strength_multiplier;
-
-    target_gr_db = max(max_gr_db, target_gr_db);  // Use max, not min
-
-    // The compressor is unaware of the offset, so display shows the same GR values
-    // current_gr_db will be set AFTER envelope processing in audio_processing_chain
-
+    target_gr_db = max(max_gr_db, target_gr_db);
     target_gr_db
   )
 );
 
-// Original function for backward compatibility (but now calls optimized version)
-function calculate_gain_reduction(input_level_linear) (
-  // Convert input level to dB for curve lookup
-  input_level_db = linear_to_db(max(input_level_linear, MIN_DETECTOR_LEVEL));
-  
-  // Call the optimized version
-  calculate_gain_reduction_from_db(input_level_db);
-);
 

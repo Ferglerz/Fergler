@@ -33,13 +33,6 @@ hovered_threshold_line = -1;   // Which line is hovered (-1 = none)
 // THRESHOLD LINE VALIDATION
 //==============================================================================
 
-function validate_threshold_spacing(value, other_value) (
-  // Ensure at least MIN_THRESHOLD_SPACING between values
-  value > other_value ?
-    max(value, other_value + MIN_THRESHOLD_SPACING) :
-    min(value, other_value - MIN_THRESHOLD_SPACING)
-);
-
 function clamp_gr_blend_threshold(new_value) (
   // Clamp to valid GR range (1-24 dB)
   clamp(new_value, 1, 24)

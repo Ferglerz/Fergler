@@ -2,6 +2,42 @@
 // Depends on: 01_Utils/01_constants.jsfx-inc, 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_General/12_coordinate_conversion.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc
 
 @init
+
+//==============================================================================
+// TRAIL STATE INITIALIZATION
+//==============================================================================
+
+function init_trail_state() (
+  // Dot trail state
+  // trail_buffer is allocated in allocate_memory() - DO NOT reset it here!
+  // trail_max_dots is set in allocate_memory() and should not be reset here
+  trail_count = 0; // Current number of active trail dots
+  trail_write_pos = 0; // Position in circular buffer
+  trail_last_creation_time = 0; // Last time a trail dot was created (in samples)
+  trail_initialized = 0; // Flag to track initialization
+  
+  // Initialize trail buffer if enabled
+  trail_max_dots > 0 ? (
+    // Clear trail buffer
+    i = 0;
+    while (i < trail_max_dots * 4) (
+      trail_buffer[i] = 0;
+      i += 1;
+    );
+    
+    trail_count = 0;
+    trail_write_pos = 0;
+    trail_last_creation_time = 0;
+    trail_initialized = 1;
+  ) : (
+    trail_initialized = 0;
+  );
+);
+
+//==============================================================================
+// TRAIL DOT CREATION AND MANAGEMENT
+//==============================================================================
+
 function create_trail_dot() (
   trail_initialized && trail_count < trail_max_dots ? (
     clamped_input_db = clamp(blended_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
