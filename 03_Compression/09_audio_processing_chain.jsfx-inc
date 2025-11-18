@@ -46,7 +46,6 @@ function init_audio_processing_state() (
   detector_level_block_max = MIN_DETECTOR_LEVEL;
   gr_db_block_max = 0;
   gr_processing_skipped = 0;
-  strength_multiplier = 1.0;
   compression_history = 0;
   program_release_timer = 0;
 );
