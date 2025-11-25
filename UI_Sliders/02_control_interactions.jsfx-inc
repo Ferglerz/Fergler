@@ -46,21 +46,11 @@ function update_pdc_delay_if_needed(param_index) (
 // Reset control to default value
 function reset_control_to_default(control_index) (
   param_index = control_defs[control_index*11 + 5];
-  min_val = control_defs[control_index*11 + 6];
-  max_val = control_defs[control_index*11 + 7];
   control_type = control_defs[control_index*11 + 0];
   
-  // Calculate default value (middle for most, 0 for buttons)
-  control_type == 1 ? (
-    // Button - default to off
-    slider(param_index) = 0;
-  ) : control_type == 2 ? (
-    // Dropdown - default to first option
-    slider(param_index) = 0;
-  ) : (
-    // Slider/knob - default to middle
-    slider(param_index) = (min_val + max_val) / 2;
-  );
+  // Get default value from stored slider parameters (read from file)
+  default_val = get_slider_default(param_index);
+  slider(param_index) = default_val;
   
   sliderchange(1 << (param_index - 1));
   update_pdc_delay_if_needed(param_index);
@@ -84,8 +74,8 @@ function handle_control_click(control_index) (
   
   // Debug logging removed per user request
   
-  // Check for double-click or alt-click to reset (but not for dropdowns)
-  (is_double_click_control(control_index) || MOUSE_ALT_KEY) && control_type != 2 ? (
+  // Check for double-click or alt-click to reset (but not for dropdowns or buttons)
+  (is_double_click_control(control_index) || MOUSE_ALT_KEY) && control_type != 2 && control_type != 1 ? (
     reset_control_to_default(control_index);
     ui_drag_control = -2; // Prevent drag
   ) : (

@@ -17,11 +17,11 @@ desc:Advanced Multi-Model Compressor (Modular)
 // Attack: regular slider with step-points defined in UI (0.01ms to 5000ms)
 // Default: 10ms
 // Note: The slider variable is 'attack' (unit depends on time_multiplier), converted to 'attack_ms' (milliseconds) in @slider
-slider1:attack=10<0.01,5000,0.01>Attack
+slider1:attack=10<0.01,5000,0.01>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 // Release: regular slider with step-points defined in UI (0.01ms to 5000ms)
 // Default: 100ms
-slider3:release_ms=100<0.01,5000,0.01>Release
+slider3:release_ms=100<0.01,5000,0.01>-Release
 slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
@@ -49,7 +49,7 @@ slider17:harmonic_odd_boost=0<0,200,1>-Odd
 // Global parameters (18-24)
 slider18:strength=100<0,400,5>-Strength
 slider19:input_offset_db=0<-30,30,0.25>-Input Offset
-slider20:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
+slider20:makeup_gain_db=0<-20,20,0.1>Makeup Gain
 slider21:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
 slider22:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
 slider23:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen to Detection Signal
@@ -68,11 +68,8 @@ slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 // Time multiplier for attack display (33)
 slider33:time_multiplier=1<0,1,1{Milliseconds,Microseconds}>-Time Unit
 
-// Input dot blend (34)
-slider34:input_dot_blend=100<0,100,1>-Input Dot Blend (%)
-
 // Hold parameter (35)
-slider35:hold_ms=0<0,1000,1>Hold
+slider35:hold_ms=0<0,1000,1>-Hold
 
 // SEARCH STOP
 
@@ -240,7 +237,9 @@ setup_control_layout();
 
 // 7. Cache frequently used time calculations (sample rate dependent)
 srate_inv = 1.0 / srate;
-lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+// Update lookahead samples using dedicated function
+// Update functions are defined in 02_InputProcessing/
+update_lookahead_samples();
 
 // 8. Update all parameter coefficients using dedicated update functions
 // This ensures coefficients are correctly initialized even after samplerate changes
@@ -251,6 +250,7 @@ update_release_coefficient();
 update_hold_samples();
 update_rms_coefficient();
 update_strength_multiplier();
+update_makeup_gain();
 
 // 9. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
@@ -271,7 +271,9 @@ update_filter_coefficients();
 // --- Timing Parameters (1-5) ---
 // Update cached sample rate calculations
 srate_inv = 1.0 / srate;
-lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+// Update lookahead samples using dedicated function
+// Update functions are defined in 02_InputProcessing/
+update_lookahead_samples();
 
 // Update attack and release coefficients using dedicated functions
 // Update functions are defined in 03_Compression/Envelope/
@@ -285,7 +287,9 @@ update_rms_coefficient();
 smooth_rms_coefficient();
 
 // --- Makeup Gain (21) ---
-makeup_gain_linear = db_to_linear(makeup_gain_db);
+// Update makeup gain using dedicated function
+// Update functions are defined in 03_Compression/Envelope/
+update_makeup_gain();
 
 // --- Harmonic Drive (14) ---
 // Cache harmonic drive compensation reciprocal to avoid per-sample division
@@ -347,8 +351,9 @@ gr_db_block_max = 0;
 
 // Update coefficients every block for real-time response
 // This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
-// Update functions are defined in 03_Compression/Envelope/
+// Update functions are defined in 03_Compression/Envelope/ and 02_InputProcessing/
 update_filter_coefficients();
+update_lookahead_samples();
 update_attack_coefficient();
 update_release_coefficient();
 update_hold_samples();
@@ -356,6 +361,7 @@ update_rms_coefficient();
 // Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
 smooth_rms_coefficient();
 update_strength_multiplier();
+update_makeup_gain();
 
 
 //==============================================================================
@@ -385,9 +391,8 @@ INPUT_HISTOGRAM_ENABLED && input_histogram_initialized ? (
   input_histogram_db = input_histogram_buffer[latest_idx];
 );
 
-// Calculate blended input dB value based on slider
-blend_amount = input_dot_blend / 100.0;  // Convert 0-100 to 0-1
-blended_input_db = current_input_db * (1.0 - blend_amount) + input_histogram_db * blend_amount;
+// Use input histogram value directly (100% blend - always use smoothed histogram value)
+blended_input_db = input_histogram_db;
 
 // OPTIMIZATION: Cache audio active state (play_state 1=playing, 5=recording)
 // This avoids recalculating it 3+ times per frame across different render functions

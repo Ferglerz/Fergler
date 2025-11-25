@@ -38,5 +38,6 @@ function init_state_variables() (
   init_trail_state();
   
   // Calculate lookahead samples (must be done after max_lookahead_samples is set in memory allocation)
-  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+  // Update function is defined in 02_InputProcessing/01_dsp_utils.jsfx-inc
+  update_lookahead_samples();
 );

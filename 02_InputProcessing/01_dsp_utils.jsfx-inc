@@ -19,6 +19,16 @@ function init_lookahead_limiter_state() (
 );
 
 //==============================================================================
+// LOOKAHEAD PARAMETER UPDATES
+//==============================================================================
+
+function update_lookahead_samples() (
+  // Convert lookahead time from milliseconds to samples
+  // Clamp to maximum allocated buffer size to prevent buffer overflow
+  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+);
+
+//==============================================================================
 // LOOKAHEAD PROCESSING  
 //==============================================================================
 

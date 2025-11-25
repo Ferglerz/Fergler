@@ -16,7 +16,7 @@
 //
 // USAGE:
 //   draw_control_value_text(x, y, param_index, value, " ms", FORMAT_K, 0);
-//   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0);
+//   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0, fill_direction);
 //
 
 //==============================================================================
@@ -43,20 +43,51 @@ function draw_control_value_text(x, y, param_index, display_value, suffix_str, f
 // Helper function to draw value text for horizontal sliders with smart positioning
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
 // display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
-function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode) local(
-  formatted_str, value_str_w, value_str_h
+// fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, or FILL_CENTER_OUT
+function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction) local(
+  formatted_str, value_str_w, value_str_h, text_x, is_over_fill
 ) (
   // Skip drawing if display mode is HIDE_VALUE
   display_mode == DISPLAY_HIDE_VALUE ? 0 : (
     formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
     gfx_measurestr(formatted_str, value_str_w, value_str_h);
+    
+    // Determine text position (left or right)
     normalized_pos > 0.5 ? (
-      gfx_set(0, 0, 0, 1);  // Black
-      gfx_x = x + 3;
+      text_x = x + 3;
     ) : (
-      gfx_set(1, 1, 1, 1);  // White
-      gfx_x = x + w - value_str_w - 3;
+      text_x = x + w - value_str_w - 3;
     );
+    
+    // For reverse fill (FILL_RIGHT_TO_LEFT), determine if text is over filled (yellow) or unfilled (grey) area
+    fill_direction == FILL_RIGHT_TO_LEFT ? (
+      // Reverse fill: filled area is from (x + normalized_pos * w) to (x + w) on the right
+      // Unfilled area is from x to (x + normalized_pos * w) on the left
+      normalized_pos > 0.5 ? (
+        // Text on left - check if it's in unfilled area (grey background)
+        // Left side is unfilled when normalized_pos > 0.5, so text is over grey = white text
+        is_over_fill = 0;
+      ) : (
+        // Text on right - check if it's in filled area (yellow fill)
+        // Right side is filled when normalized_pos <= 0.5, so text is over yellow = black text
+        is_over_fill = 1;
+      );
+      // Set color: black over yellow (filled), white over grey (unfilled)
+      is_over_fill ? (
+        gfx_set(0, 0, 0, 1);  // Black over yellow fill
+      ) : (
+        gfx_set(1, 1, 1, 1);   // White over grey background
+      );
+    ) : (
+      // Normal fill (FILL_LEFT_TO_RIGHT or FILL_CENTER_OUT): use original logic
+      normalized_pos > 0.5 ? (
+        gfx_set(0, 0, 0, 1);  // Black
+      ) : (
+        gfx_set(1, 1, 1, 1);  // White
+      );
+    );
+    
+    gfx_x = text_x;
     gfx_y = y + (h - value_str_h) / 2;
     gfx_drawstr(formatted_str);
   );

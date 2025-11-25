@@ -156,9 +156,6 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row += 1;
   // Lookahead with ms suffix
   define_slider(9, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, S5.min, S5.max, S5.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 9));
-  row += 1;
-  // Input Dot Blend with percent suffix
-  define_slider(25, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 34, S34.min, S34.max, S34.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 25));
   
   //==============================================================================
   // GROUP 2: COMPRESSION

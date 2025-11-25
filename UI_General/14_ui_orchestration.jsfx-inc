@@ -36,8 +36,8 @@ function render_complete_interface() (
   
   // Draw input level indicator (green dot) - clamp to graph bounds
   is_audio_active ? (
-    // Clamp blended_input_db to graph range to prevent dot from rendering outside
-    clamped_input_db = clamp(blended_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    // Clamp input_histogram_db to graph range to prevent dot from rendering outside
+    clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0, 1, 0, 0.8, 1);
   );
   

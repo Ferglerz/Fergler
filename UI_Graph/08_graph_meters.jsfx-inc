@@ -245,7 +245,7 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = GRAPH_Y + gr_height;
+      y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
       
       first_point ? (
         gfx_x = x_pos;
@@ -279,7 +279,7 @@ function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a)
     gr_value < 0 ? (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = GRAPH_Y + gr_height;
+      y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
       
       first_point ? (
         gfx_x = x_pos;
@@ -312,7 +312,7 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
+      y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
       
       first_point ? (
         gfx_x = x_pos;
@@ -346,7 +346,7 @@ function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a)
     gr_value > 0 ? (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = GRAPH_Y + GRAPH_SIZE - gr_height;
+      y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
       
       first_point ? (
         gfx_x = x_pos;

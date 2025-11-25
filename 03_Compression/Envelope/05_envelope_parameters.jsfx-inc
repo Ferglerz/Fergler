@@ -59,5 +59,10 @@ function update_strength_multiplier() (
   strength_multiplier = strength / 100.0;
 );
 
+function update_makeup_gain() (
+  // Convert Makeup Gain from dB to linear scale
+  makeup_gain_linear = db_to_linear(makeup_gain_db);
+);
+
 
 

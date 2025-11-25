@@ -78,7 +78,7 @@ DROPDOWN_W = 90; // 120 * 0.75
 DROPDOWN_H = 19; // 25 * 0.75 = 18.75 rounded up
 
 // Spacing (75% of original)
-CONTROL_SPACING_Y = 48;  // Increased from 38 for better readability (50 * 0.75 = 37.5, now 64 * 0.75 = 48)
+CONTROL_SPACING_Y = 44;  // Reduced by 4px from 48 for tighter spacing
 CONTROL_SPACING_X = 135; // 180 * 0.75
 LABEL_HEIGHT = 11;       // 15 * 0.75 = 11.25 rounded down
 

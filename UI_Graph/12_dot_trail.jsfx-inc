@@ -40,7 +40,7 @@ function init_trail_state() (
 
 function create_trail_dot() (
   trail_initialized && trail_count < trail_max_dots ? (
-    clamped_input_db = clamp(blended_input_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     input_x = db_to_graph_x(clamped_input_db);
     input_y = db_to_graph_y(clamped_input_db);
     idx = trail_write_pos * 4;
