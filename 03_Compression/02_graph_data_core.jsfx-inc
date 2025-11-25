@@ -247,7 +247,7 @@ function remove_displaced_points(moved_input_db, moved_output_db) (
 
 function calculate_compression_threshold() (
   // Find leftmost point where compression occurs (input != output) for early exit optimization
-  // Note: Global offset is NOT factored in here - applied when checking threshold
+  // Note: Input offset is NOT factored in here - applied when checking threshold
   comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;
   
   i = 1;

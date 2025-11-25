@@ -64,8 +64,15 @@ function normalized_blend(blend_fast, blend_slow, coef_fast, coef_slow) local(su
 );
 
 //--- Helper: Apply exponential smoothing envelope update ---
-function apply_envelope_smoothing(coeff, target_value) (
-  global_smoothed_gain_db = coeff * global_smoothed_gain_db + (1 - coeff) * target_value;
+// CRITICAL: Coefficients must be in valid range [EPS, 1-EPS] to prevent clicks
+// Coefficients outside this range cause instant jumps (coeff=0) or no movement (coeff=1)
+function apply_envelope_smoothing(coeff, target_value) local(valid_coeff) (
+  // Clamp coefficient to valid range to prevent discontinuities
+  // EPS prevents instant jumps, 1-EPS prevents no movement
+  valid_coeff = max(EPS, min(1 - EPS, coeff));
+  global_smoothed_gain_db = valid_coeff * global_smoothed_gain_db + (1 - valid_coeff) * target_value;
   global_smoothed_gain_db;
 );
+
+
 

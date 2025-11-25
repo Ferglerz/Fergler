@@ -26,7 +26,7 @@ slider4:release_curve=-2<-2,2,0.01>-Release Curve
 slider5:lookahead_ms=0<0,2000,1>-Lookahead
 
 // RMS & Detection parameters (6-9)
-slider6:rms_size_ms=0<1,100,0.1>-RMS Window
+slider6:rms_size_ms=0<0,100,0.1>-RMS Window
 slider7:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
 slider8:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider9:max_gr_db=-100<-100,0,1>-Max GR
@@ -48,7 +48,7 @@ slider17:harmonic_odd_boost=0<0,200,1>-Odd
 
 // Global parameters (18-24)
 slider18:strength=100<0,400,5>-Strength
-slider19:global_offset_db=0<-30,30,0.25>-Global Offset
+slider19:input_offset_db=0<-30,30,0.25>-Input Offset
 slider20:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 slider21:compressor_type=0<0,6,1{Clean Digital,Varimu,Bridged Diode,VCA,PWM/Fairchild,FET,Optical}>-Compressor Type
 slider22:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
@@ -281,6 +281,8 @@ update_hold_samples();
 
 // Update RMS coefficients using dedicated function
 update_rms_coefficient();
+// Start smoothing immediately when slider changes (also smoothed in @block for continuous updates)
+smooth_rms_coefficient();
 
 // --- Makeup Gain (21) ---
 makeup_gain_linear = db_to_linear(makeup_gain_db);
@@ -300,12 +302,12 @@ pdc_delay > 0 ? (
   pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
 );
 
-// --- Strength and Global Offset parameters ---
+// --- Strength and Input Offset parameters ---
 // Update strength multiplier using dedicated function
 update_strength_multiplier();
 
 // Note: Strength is now used directly in gain reduction calculation
-// Global offset is applied at lookup time (shifts input level before curve lookup).
+// Input offset is applied at lookup time (shifts input level before curve lookup).
 
 // --- Trail Parameters (31-32) ---
 // Recalculate trail buffer size
@@ -335,7 +337,8 @@ abs(new_trail_max_dots - trail_max_dots) > 5 ? (
 
 // Store block-level max values for histograms (captured during previous block)
 // Convert detector level from linear to dB (once per block instead of per sample)
-input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL));
+// Apply input offset to histogram so it shows offset-adjusted input level (what compressor sees)
+input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL)) + input_offset_db;
 gr_db_for_histogram = gr_db_block_max;
 
 // Reset max trackers for next block
@@ -350,6 +353,8 @@ update_attack_coefficient();
 update_release_coefficient();
 update_hold_samples();
 update_rms_coefficient();
+// Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
+smooth_rms_coefficient();
 update_strength_multiplier();
 
 
@@ -368,7 +373,8 @@ MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
 MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
-current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
+// Apply input offset so dot shows offset-adjusted input level (what compressor sees)
+current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL)) + input_offset_db;
 
 // Get latest input histogram value (if available)
 input_histogram_db = current_input_db;  // Default to current input if histogram not available

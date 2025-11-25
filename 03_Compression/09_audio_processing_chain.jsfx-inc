@@ -28,6 +28,12 @@ function init_rms_state() (
   rms_size_ms_prev = -999;
   rms_samples = floor(rms_size_ms * 0.001 * srate);
   rms_samples < 1 ? rms_samples = 1;
+  // Initialize target coefficients (will be set by update_rms_coefficient)
+  rms_smoothing_coeff_target = 0;
+  rms_smoothing_one_minus_target = 1;
+  // Initialize actual coefficients to match targets
+  rms_smoothing_coeff = 0;
+  rms_smoothing_one_minus = 1;
 );
 
 function clear_rms_state() (
@@ -122,6 +128,15 @@ function process_complete_audio_chain() (
     
     detector_level_block_max = update_block_max(detector_level, detector_level_block_max);
 
+    // Skip envelope processing only when:
+    // Case 1: Both target GR and current GR are 0 (or near 0) - already at rest
+    // Case 2: Target GR is 0 AND we are within the release towards 0 (current GR near 0)
+    // 
+    // Do NOT skip when actively releasing (target GR = 0 but current GR > threshold)
+    // This ensures smooth release transitions without clicks
+    // 
+    // The condition checks: target is 0 AND current is near 0
+    // This covers both cases: both at rest, or releasing and near 0
     can_skip_envelope = (
       abs(target_gr_db) < 0.01 &&
       abs(global_smoothed_gain_db) < 0.01

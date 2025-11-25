@@ -9,7 +9,7 @@
 
 // Calculate GR using offset input and compression curve
 function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_output_db, target_gr_db) (
-  offset_input_db = input_level_db + global_offset_db;
+  offset_input_db = input_level_db + input_offset_db;
   target_output_db = lookup_compression_lut(offset_input_db);
   target_gr_db = target_output_db - offset_input_db;
   target_gr_db
@@ -23,7 +23,7 @@ function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_o
 function calculate_gain_reduction_from_db(input_level_db) (
   debug_counter_gain_reduction += 1;
   
-  // Early exit: Global offset affects curve lookup, not compression threshold
+  // Early exit: Input offset affects curve lookup, not compression threshold
   input_level_db < comp_curve_min_threshold_db ? (
     gr_processing_skipped = 1;
     0

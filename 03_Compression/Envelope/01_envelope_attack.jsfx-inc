@@ -17,9 +17,16 @@ function update_attack_coefficient() (
   attack_ms_srate = attack_ms * srate;
   
   // Calculate attack coefficient using standard time constant formula (63% of target)
-  // Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (time_ms * srate))
+  // Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (attack_ms * srate))
   // After one time constant, envelope reaches 63.2% of the way from start to target
-  attack_coeff_base = attack_ms > 0 ? exp(-1000 / (attack_ms * srate)) : 0;
+  // Note: For valid attack_ms values, exp() will never return 0 or 1, so no clamping needed here
+  // The safety clamp in apply_envelope_smoothing() handles edge cases
+  attack_ms > 0 ? (
+    attack_coeff_base = exp(-1000 / (attack_ms * srate));
+  ) : (
+    // Edge case: attack_ms is 0 or invalid - use very fast but not instant to prevent clicks
+    attack_coeff_base = 1 - EPS;
+  );
   
   // Apply attack curve shaping
   attack_coeff = attack_coeff_base;
@@ -35,6 +42,10 @@ function update_attack_coefficient() (
       curve_amount = abs(attack_curve);
       attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
     );
+    // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+    // No clamping here to preserve accurate time constants
   );
 );
+
+
 

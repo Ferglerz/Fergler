@@ -1,6 +1,5 @@
 // Envelope Parameters Module
 // RMS and strength parameter updates
-// Depends on: 03_Compression/09_audio_processing_chain.jsfx-inc (for clear_rms_state)
 
 @init
 
@@ -9,27 +8,49 @@
 //==============================================================================
 
 function update_rms_coefficient() (
-  // Clear RMS state if window size changed (check previous value before updating)
-  (rms_size_ms_prev == -999 || rms_size_ms != rms_size_ms_prev) ? (
-    rms_size_ms != rms_size_ms_prev ? (
-      clear_rms_state();
-    );
-    rms_size_ms_prev = rms_size_ms;
-  );
-  
   // Calculate sample counts (for reference, not used in exponential smoothing)
   rms_samples = floor(rms_size_ms * 0.001 * srate);
   rms_samples < 1 ? rms_samples = 1;
   
-  // Calculate RMS exponential smoothing coefficients
-  // Always initialize coefficients (even when RMS is 0, to avoid undefined values)
+  // Calculate TARGET RMS exponential smoothing coefficients
+  // These will be smoothly interpolated in @block to prevent zipper noise
+  // Always initialize target coefficients (even when RMS is 0, to avoid undefined values)
   rms_size_ms > 0 ? (
-    rms_smoothing_coeff = exp(-1000.0 / (rms_size_ms * srate));
-    rms_smoothing_one_minus = 1 - rms_smoothing_coeff;
+    rms_smoothing_coeff_target = exp(-1000.0 / (rms_size_ms * srate));
+    rms_smoothing_one_minus_target = 1 - rms_smoothing_coeff_target;
   ) : (
     // Initialize to safe defaults when RMS is disabled
-    rms_smoothing_coeff = 0;
-    rms_smoothing_one_minus = 1;
+    rms_smoothing_coeff_target = 0;
+    rms_smoothing_one_minus_target = 1;
+  );
+  
+  // On first initialization, set actual coefficients to target immediately
+  (rms_size_ms_prev == -999) ? (
+    rms_smoothing_coeff = rms_smoothing_coeff_target;
+    rms_smoothing_one_minus = rms_smoothing_one_minus_target;
+    rms_size_ms_prev = rms_size_ms;
+  );
+);
+
+// Smoothly interpolate RMS coefficients towards target in @block
+// This prevents zipper noise when RMS window size changes during playback
+function smooth_rms_coefficient() (
+  // Use very fast smoothing (0.5ms time constant) to quickly reach target without clicks
+  // This is much faster than the RMS window itself, so it won't affect the RMS response
+  // 0.5ms is fast enough to feel immediate but slow enough to prevent audible clicks
+  rms_coeff_smoothing_time = 0.0005;  // 0.5ms smoothing time - very fast transition
+  rms_coeff_smoothing_coeff = exp(-1.0 / (rms_coeff_smoothing_time * srate));
+  rms_coeff_smoothing_one_minus = 1.0 - rms_coeff_smoothing_coeff;
+  
+  // Always smoothly interpolate coefficient towards target (removed threshold check for reliability)
+  rms_smoothing_coeff = rms_smoothing_coeff * rms_coeff_smoothing_coeff + 
+                        rms_smoothing_coeff_target * rms_coeff_smoothing_one_minus;
+  rms_smoothing_one_minus = 1.0 - rms_smoothing_coeff;
+  
+  // Snap to target if very close (within 0.001) to avoid floating point drift
+  abs(rms_smoothing_coeff - rms_smoothing_coeff_target) < 0.001 ? (
+    rms_smoothing_coeff = rms_smoothing_coeff_target;
+    rms_smoothing_one_minus = rms_smoothing_one_minus_target;
   );
 );
 
@@ -37,4 +58,6 @@ function update_strength_multiplier() (
   // Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
   strength_multiplier = strength / 100.0;
 );
+
+
 

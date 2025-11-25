@@ -17,7 +17,9 @@ function process_single_stage_envelope(target_gr_db, detector_level_db) local(ta
 
   // Hysteresis: prevent rapid oscillation between attack/release
   // Threshold scales with current GR to be more forgiving at higher compression levels
-  hysteresis_threshold = max(0.1, current_gr_abs * 0.05);
+  // Increased base threshold from 0.1 to 0.2 dB to prevent clicks during highly active compression
+  // Scale factor increased from 0.05 to 0.1 for better stability at high GR levels
+  hysteresis_threshold = max(0.2, current_gr_abs * 0.1);
 
   global_attack_coef = attack_coeff;
   target_gr_abs > (current_gr_abs + hysteresis_threshold) ? (
@@ -62,4 +64,6 @@ function process_envelope_following(target_gr_db, detector_level_db) (
   
   global_smoothed_gain_db;
 );
+
+
 

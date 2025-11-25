@@ -191,3 +191,5 @@ Most unused functions appear to be utilities kept for potential future use:
 ### Recommendation
 Most of these functions are small utilities that don't significantly impact codebase size. They could be kept for potential future use, or removed if codebase cleanup is prioritized. The legacy functions (`calculate_gain_reduction`, `interpolate_compression_curve`, `apply_tube_processing`, `soft_clip`) could be removed since they've been superseded by better implementations.
 
+
+
