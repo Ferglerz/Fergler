@@ -1,5 +1,5 @@
 // User Interactions - Controls Module
-// UI controls and knobs interaction handling
+// UI controls interaction handling
 // Dependencies: 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_Sliders/00_slider_constants.jsfx-inc, UI_Sliders/01_control_definitions.jsfx-inc
 
 @init
@@ -86,10 +86,6 @@ function handle_control_click(control_index) (
       slider(param_index) = update_slider_value(control_index, mouse_x, mouse_y);
       sliderchange(1 << (param_index - 1));
       update_pdc_delay_if_needed(param_index);
-    ) : control_type == 3 ? (
-      // Small knob (control type 3) - start drag
-      ui_drag_control = control_index;
-      // Don't update on first click - just lock the control
     ) : control_type == 1 ? (
       // Button - toggle (don't start drag for buttons)
       slider(param_index) = current_value > 0.5 ? 0 : 1;
@@ -160,14 +156,14 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           slider(param_index) = step_points_base[option_index];
         );
       ) : (
-        // Continuous slider - check if this slider supports bidirectional drag (knob-style)
+        // Continuous slider - check if this slider supports bidirectional drag
         format_options & OPTION_BIDIRECTIONAL ? (
           // Bidirectional drag - use both X and Y movement
           mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
           mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
           
-          // Combine X and Y movement for knob-style interaction
-          mouse_delta = mouse_dx - mouse_dy; // Y movement is inverted for intuitive knob behavior
+          // Combine X and Y movement for bidirectional interaction
+          mouse_delta = mouse_dx - mouse_dy; // Y movement is inverted for intuitive behavior
           
           slider_w = control_defs[ui_drag_control*11 + 3];
           value_range = max_val - min_val;

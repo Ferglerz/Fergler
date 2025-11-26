@@ -13,7 +13,7 @@
 // rendering to the appropriate specialized function based on control type.
 //
 // CONTROL TYPES:
-//   0 = Slider/Knob (orientation determines which)
+//   0 = Slider
 //   1 = Button (toggle)
 //   2 = Dropdown (combobox)
 //
@@ -30,7 +30,7 @@
 // 7. Handles enumerated vs continuous parameter logic
 //
 // CONTROL DEFINITION FORMAT (control_defs array):
-//   [index*11 + 0] = type (0=slider/knob, 1=button, 2=dropdown)
+//   [index*11 + 0] = type (0=slider, 1=button, 2=dropdown)
 //   [index*11 + 1] = x position
 //   [index*11 + 2] = y position
 //   [index*11 + 3] = width
@@ -86,7 +86,7 @@ function render_control(index) local(
   current_value = slider(param_index);
 
   // Handle different control types
-  type == 0 ? ( // Slider or knob - extract config and call renderer directly
+  type == 0 ? ( // Slider - extract config and call renderer directly
     slider_config = control_defs[index*11 + 8];
     
     // Extract configuration parameters
@@ -114,19 +114,11 @@ function render_control(index) local(
     // They use option_count instead (0 to option_count-1)
     option_count = get_dropdown_option_count(param_index);
     option_count > 0 ? (
-      // Enumerated slider: use 0 and option_count-1 as min/max (ignored by draw_slider/draw_knob anyway)
-      is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
-      ) : (
-        draw_slider(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
-      );
+      // Enumerated slider: use 0 and option_count-1 as min/max
+      draw_slider(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
     ) : (
       // Continuous slider: use min_val/max_val from control_defs
-      is_knob_orientation(slider_orientation) ? (
-        draw_knob(x, y, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
-      ) : (
-        draw_slider(x, y, w, h, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
-      );
+      draw_slider(x, y, w, h, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
     );
   ) : type == 1 ? ( // Button
     draw_generic_button(x, y, w, h, current_value > 0.5, label_slot);

@@ -1,0 +1,79 @@
+// Backup of all knob-related code snippets removed from various files
+// This file contains code that was removed but may be useful for reference
+
+//==============================================================================
+// FROM: UI_Sliders/00_slider_constants.jsfx-inc
+//==============================================================================
+
+// Removed orientation constants (lines 23-24):
+// ORIENTATION_KNOB_SMALL = 2;    // Small knob style
+// ORIENTATION_KNOB_LARGE = 3;    // Large knob style
+
+// Removed knob type constants (lines 55-65):
+// KNOB_TYPE_ANGULAR = 0;     // Angular knob (like volume knobs) - rotating dot indicator
+// KNOB_TYPE_ROTARY = 1;      // Rotary knob (like pan knobs) - arc fill
+// LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
+// LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
+// LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
+
+//==============================================================================
+// FROM: UI_Sliders/01a_value_formatting.jsfx-inc
+//==============================================================================
+
+// Removed function (lines 52-53):
+// function is_knob_orientation(orientation) (
+//   orientation == ORIENTATION_KNOB_SMALL || orientation == ORIENTATION_KNOB_LARGE;
+// );
+
+//==============================================================================
+// FROM: UI_Sliders/01g_control_dispatcher.jsfx-inc
+//==============================================================================
+
+// Removed knob rendering calls (lines 118-119, 125-126):
+// For enumerated sliders:
+//   is_knob_orientation(slider_orientation) ? (
+//     draw_knob(x, y, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
+//   ) : (
+//     draw_slider(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
+//   );
+
+// For continuous sliders:
+//   is_knob_orientation(slider_orientation) ? (
+//     draw_knob(x, y, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, formatting, format_options, display_mode);
+//   ) : (
+//     draw_slider(x, y, w, h, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
+//   );
+
+//==============================================================================
+// FROM: UI_Controls/05_Composure_Controls.jsfx-inc
+//==============================================================================
+
+// Removed variable (line 102):
+// rel_x_knob = (group_w - LARGE_KNOB_SIZE) / 2;
+
+// Removed output volume knob definition (lines 253-257):
+// output_knob_x = gfx_w - 5 - KNOB_SIZE;
+// output_knob_y = (HEADER_HEIGHT - KNOB_SIZE) / 2;
+// define_slider(24, output_knob_x, output_knob_y, KNOB_SIZE, KNOB_SIZE, 20, S20.min, S20.max, S20.label, create_ui_control(ORIENTATION_KNOB_SMALL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " dB", 24));
+
+//==============================================================================
+// FROM: UI_Sliders/02_control_interactions.jsfx-inc
+//==============================================================================
+
+// Removed knob interaction handling (lines 89-92):
+// ) : control_type == 3 ? (
+//   // Small knob (control type 3) - start drag
+//   ui_drag_control = control_index;
+//   // Don't update on first click - just lock the control
+// ) : control_type == 1 ? (
+
+// Removed comment from line 2:
+// // UI controls and knobs interaction handling
+
+//==============================================================================
+// FROM: Composure.jsfx
+//==============================================================================
+
+// Removed import (line 134):
+// import UI_Sliders/01d_knob_rendering.jsfx-inc
+

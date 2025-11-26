@@ -82,7 +82,7 @@ lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_bas
 // MAIN CONTROL LAYOUT SETUP
 //==============================================================================
 
-function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group_w, group_h, group_spacing, rel_x_slider, rel_x_knob, rel_x_button, rel_x_dropdown) (
+function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group_w, group_h, group_spacing, rel_x_slider, rel_x_button, rel_x_dropdown) (
   // Initialize group positioning
   group_x = UI_PANEL_X + 15;
   group_y = UI_PANEL_Y + 15;
@@ -99,12 +99,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   // Controls positioned relative to group (will add group position when rendering)
   // Center controls horizontally within group
   rel_x_slider = (group_w - SLIDER_W) / 2;
-  rel_x_knob = (group_w - LARGE_KNOB_SIZE) / 2;
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Attack knob (index 0, param 1) - ms suffix
-  define_slider(0, rel_x_knob, rel_y + row * CONTROL_SPACING_Y, LARGE_KNOB_SIZE, LARGE_KNOB_SIZE, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_KNOB_LARGE, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " ms", 0));
+  // Attack slider (index 0, param 1) - ms suffix
+  define_slider(0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0));
   row += 1;
   // Attack Curve: hide value display
   define_slider(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, S2.min, S2.max, S2.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 1));
@@ -250,15 +249,15 @@ function setup_header_controls() (
     // Header controls are not in a group (absolute positioning)
     set_control_group(-1);
     
-    // Define output volume knob as a knob-style slider (index 24, param 20)
+    // Define output volume slider (index 24, param 20)
     // FIXED: Changed from index 2 to 24 to avoid conflict with Release slider (index 2, param 3)
-    output_knob_x = gfx_w - 5 - KNOB_SIZE;
-    output_knob_y = (HEADER_HEIGHT - KNOB_SIZE) / 2;
-  define_slider(24, output_knob_x, output_knob_y, KNOB_SIZE, KNOB_SIZE, 20, S20.min, S20.max, S20.label, create_ui_control(ORIENTATION_KNOB_SMALL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " dB", 24));
+    output_slider_x = gfx_w - 5 - SLIDER_W;
+    output_slider_y = (HEADER_HEIGHT - SLIDER_H) / 2;
+  define_slider(24, output_slider_x, output_slider_y, SLIDER_W, SLIDER_H, 20, S20.min, S20.max, S20.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " dB", 24));
     
     // Define Compressor Type dropdown in header (control index 22, param 21)
-    // Position to the left of the output knob
-    compressor_type_x = output_knob_x - DROPDOWN_W - 20;
+    // Position to the left of the output slider
+    compressor_type_x = output_slider_x - DROPDOWN_W - 20;
     compressor_type_y = (HEADER_HEIGHT - DROPDOWN_H) / 2;
   define_dropdown(22, compressor_type_x, compressor_type_y, DROPDOWN_W, DROPDOWN_H, 21, S21.min, S21.max, S21.label);
   );

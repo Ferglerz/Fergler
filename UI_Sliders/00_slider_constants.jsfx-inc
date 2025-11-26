@@ -19,9 +19,7 @@ DISPLAY_HIDE_VALUE = 1;    // Hide value display (e.g., for curve sliders)
 
 // Slider orientation - determines how the control is rendered
 ORIENTATION_HORIZONTAL = 0;    // Standard horizontal slider
-ORIENTATION_VERTICAL = 1;      // Vertical slider  
-ORIENTATION_KNOB_SMALL = 2;    // Small knob style
-ORIENTATION_KNOB_LARGE = 3;    // Large knob style
+ORIENTATION_VERTICAL = 1;      // Vertical slider
 
 //==============================================================================
 // FILL DIRECTION CONSTANTS
@@ -52,25 +50,12 @@ OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and 
 OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
 
 //==============================================================================
-// KNOB TYPE CONSTANTS
-//==============================================================================
-
-// Small knob types
-KNOB_TYPE_ANGULAR = 0;     // Angular knob (like volume knobs) - rotating dot indicator
-KNOB_TYPE_ROTARY = 1;      // Rotary knob (like pan knobs) - arc fill
-
-// Large knob types
-LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
-LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
-LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
-
-//==============================================================================
 // UI CONTROL CONFIGURATION FUNCTION
 //==============================================================================
 
 // Single UI control configuration function - creates a bit-packed configuration value
 // Parameters:
-//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL, ORIENTATION_KNOB_SMALL, ORIENTATION_KNOB_LARGE
+//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL
 //   display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
 //   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
 //   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE

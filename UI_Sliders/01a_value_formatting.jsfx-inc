@@ -1,5 +1,5 @@
 // Slider Value Formatting Module
-// Handles all value formatting logic for sliders, knobs, and controls
+// Handles all value formatting logic for sliders and controls
 // Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/00_file_reading.jsfx-inc, UI_Sliders/00_slider_constants.jsfx-inc
 
 @init
@@ -8,7 +8,7 @@
 // VALUE FORMATTING FUNCTIONS
 //==============================================================================
 //
-// This module provides value formatting for all control types (sliders, knobs,
+// This module provides value formatting for all control types (sliders,
 // buttons, dropdowns). It handles:
 // - Enumerated sliders with dropdown options (pre-formatted text from definitions)
 // - Continuous sliders with various number formatting
@@ -47,11 +47,6 @@
 //==============================================================================
 // HELPER FUNCTIONS
 //==============================================================================
-
-// Helper function to check if orientation is a knob type
-function is_knob_orientation(orientation) (
-  orientation == ORIENTATION_KNOB_SMALL || orientation == ORIENTATION_KNOB_LARGE;
-);
 
 // Helper function to format value with decimal places (two-step sprintf pattern)
 function format_value_with_decimals(value, decimal_places) (

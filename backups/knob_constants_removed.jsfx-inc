@@ -1,0 +1,53 @@
+// Backup of all knob-related constants removed from the codebase
+// Removed from: UI_General/00_ui_constants.jsfx-inc (lines 101-149)
+
+// Knob Configuration (75% of original)
+KNOB_SIZE = 17;  // 22 * 0.75 = 16.5 rounded up
+KNOB_RADIUS = 8;  // Half of size (17/2 = 8.5 rounded down)
+KNOB_INDICATOR_SIZE = 2;  // 2 pixel circle indicator (keep at 2 for visibility)
+KNOB_SHADOW_OFFSET = 2;  // Drop shadow offset (keep at 2 for visibility)
+SMALL_KNOB_SIZE = 17;  // Same as KNOB_SIZE (for control type 3 knobs)
+
+// Knob Colors
+KNOB_BG_R = 0.3; KNOB_BG_G = 0.3; KNOB_BG_B = 0.3;  // Dark gray
+KNOB_INDICATOR_R = 0.0; KNOB_INDICATOR_G = 0.0; KNOB_INDICATOR_B = 0.0;  // Pure black
+KNOB_SHADOW_R = 0.0; KNOB_SHADOW_G = 0.0; KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Knob Types
+KNOB_TYPE_ANGULAR = 0;  // Angular knob (like volume knobs)
+KNOB_TYPE_ROTARY = 1;   // Rotary knob (like pan knobs)
+
+// Large Knob Types
+LARGE_KNOB_TYPE_LTR = 0;      // Left-to-right (0° to 270°)
+LARGE_KNOB_TYPE_RTL = 1;      // Right-to-left (90° to 360°)
+LARGE_KNOB_TYPE_BIDIRECTIONAL = 2; // Bidirectional (-135° to 135°)
+
+// Large Knob Configuration (75% of original)
+LARGE_KNOB_SIZE = 38;         // Half of original: 75 / 2 = 37.5 rounded up
+LARGE_KNOB_RADIUS = 19;       // Half of original: 38 / 2 = 19
+LARGE_KNOB_ARC_DEPTH = 2;     // Half of original: 3 / 2 = 1.5 rounded up
+LARGE_KNOB_BAR_OVERHANG = 2;  // Half of original: 4 / 2 = 2
+
+// Large Knob Colors
+LARGE_KNOB_BG_R = 0.3; LARGE_KNOB_BG_G = 0.3; LARGE_KNOB_BG_B = 0.3;  // Dark gray background
+LARGE_KNOB_ARC_R = 0.8; LARGE_KNOB_ARC_G = 0.6; LARGE_KNOB_ARC_B = 0.2;  // Yellow arc (same as slider fill)
+LARGE_KNOB_BAR_R = 1.0; LARGE_KNOB_BAR_G = 1.0; LARGE_KNOB_BAR_B = 1.0;  // White indicator bar
+LARGE_KNOB_SHADOW_R = 0.0; LARGE_KNOB_SHADOW_G = 0.0; LARGE_KNOB_SHADOW_B = 0.0;  // Black shadow
+
+// Large Knob Interaction Constants
+LARGE_KNOB_ANGLE_LTR_START = 0 * $pi / 180;        // 0°
+LARGE_KNOB_ANGLE_LTR_END = 270 * $pi / 180;        // 270°
+LARGE_KNOB_ANGLE_RTL_START = 90 * $pi / 180;       // 90°
+LARGE_KNOB_ANGLE_RTL_END = 360 * $pi / 180;        // 360° (0°)
+LARGE_KNOB_ANGLE_BIDIR_START = -135 * $pi / 180;   // -135°
+LARGE_KNOB_ANGLE_BIDIR_END = 135 * $pi / 180;      // 135°
+
+// Knob Interaction Constants
+KNOB_ANGLE_START = -135 * $pi / 180;  // Start angle in radians
+KNOB_ANGLE_END = 135 * $pi / 180;     // End angle in radians
+KNOB_ANGLE_RANGE = KNOB_ANGLE_END - KNOB_ANGLE_START;
+
+// Mouse sensitivity for controls (affects how much mouse movement changes value)
+KNOB_SENSITIVITY = 0.5;        // Regular knobs (higher = more sensitive)
+LARGE_KNOB_SENSITIVITY = 0.3;  // Large knobs (lower = finer control)
+
