@@ -9,7 +9,7 @@
 //==============================================================================
 
 //--- Single-Stage Envelope Following ---
-function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs, current_gr_abs, hysteresis_threshold) (
+function process_single_stage_envelope(target_gr_db, detector_level_db) local(target_gr_abs, current_gr_abs, hysteresis_threshold, is_negative_gr, rel_coef_use, base_rel_coef, fixed_rel_coef) (
   debug_counter_single_envelope += 1;
 
   target_gr_abs = abs(target_gr_db);
@@ -21,27 +21,38 @@ function process_single_stage_envelope(target_gr_db, detector_level_db) local(ta
   // Scale factor increased from 0.05 to 0.1 for better stability at high GR levels
   hysteresis_threshold = max(0.2, current_gr_abs * 0.1);
 
+  // Determine if current GR is negative (reduction/cut) or positive (addition/boost)
+  // Negative GR = below 1:1 line (cutting signal), Positive GR = above 1:1 line (boosting signal)
+  is_negative_gr = global_smoothed_gain_db < 0;
+
   global_attack_coef = attack_coeff;
   target_gr_abs > (current_gr_abs + hysteresis_threshold) ? (
+    // Attack phase: GR is increasing
     apply_envelope_smoothing(global_attack_coef, target_gr_db);
   ) : (
+    // Release phase: GR is decreasing or stable
     abs(release_curve) >= 0.001 ? (
       prog_release_type > 0 ? (
         prog_release_type == 2 ? (
-          rel_coef_use = calculate_gr_dependent_curve_release_coeff(current_gr_abs, release_curve, gr_blend_threshold_db);
+          // GR dependent mode with curve: use appropriate threshold based on GR sign (cut vs boost)
+          rel_coef_use = calculate_gr_dependent_curve_release_coeff(current_gr_abs, release_curve, is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db);
         ) : (
           base_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
-          rel_coef_use = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve);
-          // TODO: Could blend between base_rel_coef and curve-shaped for more nuanced control
+          rel_coef_use = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, base_rel_coef);
         );
         apply_envelope_smoothing(rel_coef_use, target_gr_db);
       ) : (
-        fixed_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve);
+        fixed_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, -1);
         apply_envelope_smoothing(fixed_rel_coef, target_gr_db);
       );
     ) : (
       prog_release_type > 0 ? (
-        rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
+        prog_release_type == 2 ? (
+          // GR dependent mode: use dual thresholds based on GR sign (cut vs boost)
+          rel_coef_use = release_gr_dependent_dual(current_gr_abs, is_negative_gr);
+        ) : (
+          rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
+        );
         apply_envelope_smoothing(rel_coef_use, target_gr_db);
       ) : (
         apply_envelope_smoothing(release_coeff, target_gr_db);

@@ -62,7 +62,6 @@ function init_slider_objects() local(i)
     i == 9 ? S9.construct_from_param(9);
     i == 10 ? S10.construct_from_param(10);
     i == 11 ? S11.construct_from_param(11);
-    i == 12 ? S12.construct_from_param(12);
     i == 13 ? S13.construct_from_param(13);
     i == 14 ? S14.construct_from_param(14);
     i == 15 ? S15.construct_from_param(15);
@@ -74,7 +73,6 @@ function init_slider_objects() local(i)
     i == 21 ? S21.construct_from_param(21);
     i == 22 ? S22.construct_from_param(22);
     i == 23 ? S23.construct_from_param(23);
-    i == 24 ? S24.construct_from_param(24);
     i == 25 ? S25.construct_from_param(25);
     i == 26 ? S26.construct_from_param(26);
     i == 27 ? S27.construct_from_param(27);

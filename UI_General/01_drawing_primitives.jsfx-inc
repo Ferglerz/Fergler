@@ -144,12 +144,23 @@ function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
     ) : (
       gfx_set(0.2, 0.8, 1, 0.8);
     );
-  ) : threshold_type == THRESHOLD_GR_BLEND ? (
+  ) : threshold_type == THRESHOLD_GR_BLEND_REDUCTION ? (
+    // Reduction threshold: orange/yellow (for attack/reduction phase)
     is_hovered || is_dragging ? (
-      gfx_set(1, 1, 0.3, 1);
+      gfx_set(1, 0.6, 0.1, 1);
     ) : (
-      gfx_set(0.9, 0.9, 0, 0.8);
+      gfx_set(1, 0.5, 0, 0.8);
     );
+  ) : threshold_type == THRESHOLD_GR_BLEND_ADDITION ? (
+    // Addition threshold: cyan/blue (for release/addition phase)
+    is_hovered || is_dragging ? (
+      gfx_set(0.1, 0.8, 1, 1);
+    ) : (
+      gfx_set(0, 0.6, 0.9, 0.8);
+    );
+  ) : (
+    // Default fallback (shouldn't happen, but safe)
+    gfx_set(0.9, 0.9, 0.9, 0.8);
   );
 );
 

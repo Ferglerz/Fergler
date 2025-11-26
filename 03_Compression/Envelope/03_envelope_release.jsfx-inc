@@ -53,10 +53,21 @@ function update_release_coefficient() (
 // PROGRAM RELEASE STRATEGIES
 //==============================================================================
 
-//--- Type 2: GR-Dependent ---
+//--- Type 2: GR-Dependent (single threshold - legacy) ---
 function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
-  blend_fast = clamp_coeff(1 - gr_amount / gr_blend_threshold_db);
-  blend_slow = clamp_coeff(gr_amount / gr_blend_threshold_db);
+  blend_fast = clamp_coeff(1 - gr_amount / gr_blend_threshold_reduction_db);
+  blend_slow = clamp_coeff(gr_amount / gr_blend_threshold_reduction_db);
+  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
+);
+
+//--- Type 2: GR-Dependent with separate thresholds for reduction and addition ---
+// gr_amount: current GR amount (absolute value)
+// is_negative_gr: true when GR is negative (reduction/cut, below 1:1), false when positive (addition/boost, above 1:1)
+function release_gr_dependent_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, threshold) (
+  threshold = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
+  blend_fast = clamp_coeff(1 - gr_amount / threshold);
+  blend_slow = clamp_coeff(gr_amount / threshold);
   // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
@@ -73,9 +84,22 @@ function release_input_dependent_single(input_level_db) local(level_above_thresh
 );
 
 //--- Type 3: Rate-of-Change ---
-function release_rate_of_change(det_delta) (
+// det_delta: change in detector level (positive = level dropping, negative = level rising)
+// Uses smooth blending based on sensitivity parameter for more noticeable effect
+function release_rate_of_change(det_delta) local(blend_fast, blend_slow, normalized_delta) (
+  // Normalize delta based on sensitivity (larger sensitivity = less sensitive)
+  // When level is dropping fast (positive det_delta), use fast release
+  // When level is rising or dropping slowly, use slow release
+  normalized_delta = det_delta / rate_change_sensitivity_db;
+  
+  // Smooth blend: at sensitivity threshold = 50% fast, at 2x sensitivity = 100% fast
+  // Clamp to prevent overshoot
+  normalized_delta = max(0, min(2.0, normalized_delta));
+  blend_fast = clamp_coeff(normalized_delta * 0.5);
+  blend_slow = clamp_coeff(1.0 - blend_fast);
+  
   // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
-  det_delta > 3 ? rel_fast_cached : rel_slow_cached
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
 //==============================================================================
@@ -104,19 +128,25 @@ function apply_curve_amount_blending(base_coeff, curve_shaped_coeff, curve_amoun
 // Modifies time constant based on distance from target GR
 // Positive curves: slow when far, fast when close
 // Negative curves: fast when far, slow when close
-function calculate_curve_shaped_release_coeff(current_gr_db, target_gr_db, release_curve) local(
-  distance, blend_factor, curve_amount, blended_coeff
+// base_coeff: base coefficient to use instead of release_coeff (for program-dependent modes)
+// Pass -1 to use default release_coeff
+function calculate_curve_shaped_release_coeff(current_gr_db, target_gr_db, release_curve, base_coeff) local(
+  distance, blend_factor, curve_amount, blended_coeff, base_to_use
 ) (
   abs(release_curve) < 0.001 ? (
-    release_coeff
+    // No curve: return base coefficient (or release_coeff if -1 sentinel)
+    base_coeff > 0 ? base_coeff : release_coeff
   ) : (
+    // Use provided base_coeff if valid (> 0), otherwise use release_coeff
+    base_to_use = base_coeff > 0 ? base_coeff : release_coeff;
+    
     distance = abs(current_gr_db - target_gr_db);
     blend_factor = min(1.0, distance / CURVE_CALIBRATION_DB);
     curve_amount = abs(release_curve);
     
-    blended_coeff = blend_curve_with_base(blend_factor, release_coeff, release_curve > 0);
+    blended_coeff = blend_curve_with_base(blend_factor, base_to_use, release_curve > 0);
     // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
-    apply_curve_amount_blending(release_coeff, blended_coeff, curve_amount)
+    apply_curve_amount_blending(base_to_use, blended_coeff, curve_amount)
   )
 );
 
@@ -128,6 +158,8 @@ function calculate_gr_dependent_curve_release_coeff(current_gr_abs, release_curv
   distance_from_threshold, normalized_pos, curve_shape, blended_coeff, curve_amount, base_gr_release
 ) (
   abs(release_curve) < 0.001 ? (
+    // No curve: use dual threshold function (is_reducing determined by caller context)
+    // For backward compatibility, use reduction threshold as default
     release_gr_dependent(current_gr_abs)
   ) : (
     distance_from_threshold = abs(current_gr_abs - gr_threshold);
@@ -167,11 +199,11 @@ function select_program_release_coef(target_gr_abs, detector_level_db, current_g
   det_delta = prev_detector_db - detector_level_db;
   input_level_db = detector_level_db;
 
-  prog_release_type == 0 ? rel_med_cached :
+  prog_release_type == 0 ? release_coeff :
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
   prog_release_type == 2 ? release_gr_dependent(current_gr_abs) :
   prog_release_type == 3 ? release_rate_of_change(det_delta) :
-  rel_med_cached
+  release_coeff
 );
 
 

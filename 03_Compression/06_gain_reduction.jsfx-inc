@@ -31,7 +31,6 @@ function calculate_gain_reduction_from_db(input_level_db) (
     gr_processing_skipped = 0;
     target_gr_db = calculate_gr_from_curve(input_level_db);
     target_gr_db *= strength_multiplier;
-    target_gr_db = max(max_gr_db, target_gr_db);
     target_gr_db
   )
 );

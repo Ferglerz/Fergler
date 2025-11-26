@@ -28,10 +28,10 @@ ui_double_click_threshold = 0.3; // 300ms for double click
 // HELPER FUNCTIONS
 //==============================================================================
 
-// Update PDC delay for lookahead slider (slider5)
+// Update PDC delay for lookahead slider (param_index 11 = lookahead_ms)
 function update_pdc_delay_if_needed(param_index) (
-  param_index == 5 ? (
-    pdc_delay = min(slider(5) * 0.001 * srate, max_lookahead_samples) | 0;
+  param_index == 11 ? (
+    pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
     pdc_delay > 0 ? (
       pdc_bot_ch = 0;
       pdc_top_ch = 2;

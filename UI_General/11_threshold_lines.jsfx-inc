@@ -16,14 +16,16 @@ MIN_THRESHOLD_SPACING = 6; // Minimum 6dB spacing between lines
 THRESHOLD_LINE_GRAB_RADIUS = 8; // Pixels for mouse grab detection
 
 // Line types
-THRESHOLD_GR_BLEND = 0;      // GR blend threshold (on meter)
-THRESHOLD_INPUT_LEVEL = 1;   // Input level threshold (on graph)
-THRESHOLD_INPUT_LEVEL_2 = 2; // Second input level threshold (on graph)
+THRESHOLD_GR_BLEND_REDUCTION = 0;    // GR blend threshold for reduction (on meter)
+THRESHOLD_GR_BLEND_ADDITION = 1;     // GR blend threshold for addition (on meter)
+THRESHOLD_INPUT_LEVEL = 2;           // Input level threshold (on graph)
+THRESHOLD_INPUT_LEVEL_2 = 3;         // Second input level threshold (on graph)
 
 // Slider mappings for each threshold line (for programmatic sliderchange calls)
-THRESHOLD_SLIDER_GR_BLEND = 32;      // slider32: gr_blend_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 27;   // slider27: input_level_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL_2 = 28; // slider28: input_level_threshold_2_db
+THRESHOLD_SLIDER_GR_BLEND_REDUCTION = 27;  // slider27: gr_blend_threshold_reduction_db
+THRESHOLD_SLIDER_GR_BLEND_ADDITION = 34;   // slider34: gr_blend_threshold_addition_db
+THRESHOLD_SLIDER_INPUT_LEVEL = 28;         // slider28: input_level_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 29;       // slider29: input_level_threshold_2_db
 
 // Interaction state
 dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)
@@ -33,7 +35,12 @@ hovered_threshold_line = -1;   // Which line is hovered (-1 = none)
 // THRESHOLD LINE VALIDATION
 //==============================================================================
 
-function clamp_gr_blend_threshold(new_value) (
+function clamp_gr_blend_threshold_reduction(new_value) (
+  // Clamp to valid GR range (1-24 dB)
+  clamp(new_value, 1, 24)
+);
+
+function clamp_gr_blend_threshold_addition(new_value) (
   // Clamp to valid GR range (1-24 dB)
   clamp(new_value, 1, 24)
 );
@@ -54,7 +61,7 @@ function clamp_input_level_threshold_2(new_value, min_db, max_db) (
 // These functions convert between GR dB values and meter Y positions
 // They accept meter position parameters to remain independent of Graph module
 
-// Convert GR dB value to meter Y position
+// Convert GR dB value to meter Y position (for cut threshold - negative GR area)
 // Parameters: gr_db (GR value in dB), meter_y (top Y position), meter_h (meter height)
 function gr_blend_db_to_meter_y(gr_db, meter_y, meter_h) (
   // GR meter range: -40dB to +40dB
@@ -65,12 +72,41 @@ function gr_blend_db_to_meter_y(gr_db, meter_y, meter_h) (
   meter_y + (gr_db / max_range_db) * meter_h
 );
 
-// Convert meter Y position back to GR threshold dB
+// Convert boost threshold dB value to meter Y position (for boost threshold - positive GR area)
+// Parameters: boost_db (boost threshold in dB, 0-24), meter_y (top Y position), meter_h (meter height)
+// Bottom of meter = 0 dB boost, upwards = higher boost values
+function gr_boost_db_to_meter_y(boost_db, meter_y, meter_h) (
+  // GR meter range: -40dB to +40dB
+  // Bottom of meter is +40dB, middle is 0dB
+  // Boost threshold range: 0-24 dB, where 0 = bottom, 24 = higher up
+  max_range_db = 40;
+  max_boost_db = 24;
+  
+  // Bottom of meter (where +40dB GR would be)
+  meter_bottom = meter_y + meter_h;
+  
+  // Convert boost_db (0-24) to position from bottom
+  // 0 dB boost = bottom, 24 dB boost = some position up from bottom
+  // Map 0-24 dB boost to the positive GR area (0 to +40 dB on meter)
+  meter_bottom - (boost_db / max_range_db) * meter_h
+);
+
+// Convert meter Y position back to GR threshold dB (for cut threshold)
 // Parameters: y (Y position), meter_y (top Y position), meter_h (meter height)
 function meter_y_to_gr_blend_db(y, meter_y, meter_h) (
   // Convert meter Y position back to GR threshold dB
   max_range_db = 40;
   (y - meter_y) / meter_h * max_range_db
+);
+
+// Convert meter Y position back to boost threshold dB (for boost threshold)
+// Parameters: y (Y position), meter_y (top Y position), meter_h (meter height)
+function meter_y_to_gr_boost_db(y, meter_y, meter_h) (
+  // Bottom of meter is 0 dB boost, upwards = higher boost
+  max_range_db = 40;
+  meter_bottom = meter_y + meter_h;
+  // Invert: bottom - y gives us distance from bottom, convert to dB
+  ((meter_bottom - y) / meter_h) * max_range_db
 );
 
 //==============================================================================
@@ -106,23 +142,37 @@ function check_threshold_line(mouse_x, mouse_y, threshold_type, is_visible, line
 function find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_w, meter_h) local(found_line, line_y) (
   // Check each threshold line in priority order (first match wins)
   
-  // 1. GR blend line (on meter)
+  // 1. GR blend reduction line (on meter) - negative GR area
   // Note: Uses gr_blend_db_to_meter_y() with meter position parameters
   prog_release_type == 2 ? (
-    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db, meter_y, meter_h);
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
     found_line = check_threshold_line(
       mouse_x, mouse_y,
-      THRESHOLD_GR_BLEND,
+      THRESHOLD_GR_BLEND_REDUCTION,
       1,  // is_visible
       line_y,
       1,  // is_on_meter = true
       meter_x, meter_y, meter_w
     );
+    
+    // 2. GR blend addition line (on meter) - positive GR area, from bottom
+    // Note: Uses gr_boost_db_to_meter_y() which positions from bottom
+    found_line < 0 ? (
+      line_y = gr_boost_db_to_meter_y(gr_blend_threshold_addition_db, meter_y, meter_h);
+      found_line = check_threshold_line(
+        mouse_x, mouse_y,
+        THRESHOLD_GR_BLEND_ADDITION,
+        1,  // is_visible
+        line_y,
+        1,  // is_on_meter = true
+        meter_x, meter_y, meter_w
+      );
+    );
   ) : (
     found_line = -1;
   );
   
-  // 2. Input level line (on graph)
+  // 3. Input level line (on graph)
   // Note: Uses global db_to_graph_y() function from graph module
   found_line < 0 ? (
     prog_release_type == 1 ? (
@@ -147,12 +197,20 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_
 // THRESHOLD LINE DRAGGING
 //==============================================================================
 
-// Update GR blend threshold (on meter)
+// Update GR blend threshold reduction (on meter)
 // Note: Uses meter_y_to_gr_blend_db() with meter position parameters
-function update_gr_blend_threshold(mouse_y, meter_y, meter_h) (
+function update_gr_blend_threshold_reduction(mouse_y, meter_y, meter_h) (
   new_value = meter_y_to_gr_blend_db(mouse_y, meter_y, meter_h);
-  gr_blend_threshold_db = clamp_gr_blend_threshold(new_value);
-  sliderchange(1 << (THRESHOLD_SLIDER_GR_BLEND - 1));
+  gr_blend_threshold_reduction_db = clamp_gr_blend_threshold_reduction(new_value);
+  sliderchange(1 << (THRESHOLD_SLIDER_GR_BLEND_REDUCTION - 1));
+);
+
+// Update GR blend threshold addition (on meter)
+// Note: Uses meter_y_to_gr_boost_db() which converts from bottom-up positioning
+function update_gr_blend_threshold_addition(mouse_y, meter_y, meter_h) (
+  new_value = meter_y_to_gr_boost_db(mouse_y, meter_y, meter_h);
+  gr_blend_threshold_addition_db = clamp_gr_blend_threshold_addition(new_value);
+  sliderchange(1 << (THRESHOLD_SLIDER_GR_BLEND_ADDITION - 1));
 );
 
 // Update input level threshold (on graph)
@@ -173,7 +231,8 @@ function update_input_level_threshold_2(mouse_y, min_db, max_db) (
 
 // Dispatch to the appropriate update function based on which line is being dragged
 function update_dragged_threshold_line(mouse_y, meter_y, meter_h, graph_min_db, graph_max_db) (
-  dragging_threshold_line == THRESHOLD_GR_BLEND ? update_gr_blend_threshold(mouse_y, meter_y, meter_h) :
+  dragging_threshold_line == THRESHOLD_GR_BLEND_REDUCTION ? update_gr_blend_threshold_reduction(mouse_y, meter_y, meter_h) :
+  dragging_threshold_line == THRESHOLD_GR_BLEND_ADDITION ? update_gr_blend_threshold_addition(mouse_y, meter_y, meter_h) :
   dragging_threshold_line == THRESHOLD_INPUT_LEVEL ? update_input_level_threshold(mouse_y, graph_min_db, graph_max_db) :
   dragging_threshold_line == THRESHOLD_INPUT_LEVEL_2 ? update_input_level_threshold_2(mouse_y, graph_min_db, graph_max_db) :
   0  // No-op if invalid threshold type
@@ -207,22 +266,37 @@ function handle_threshold_line_mouse(meter_x, meter_y, meter_w, meter_h, graph_m
 //==============================================================================
 // These functions can be called by graph and meter modules to render threshold lines
 
-// Render GR blend threshold line on meter
+// Render GR blend threshold lines on meter (both reduction and addition)
 // Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
-function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) (
+function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y) (
   prog_release_type == 2 ? (
-    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_db, meter_y, meter_h);
-    set_threshold_line_color(THRESHOLD_GR_BLEND, 
-      hovered_threshold_line == THRESHOLD_GR_BLEND, 
-      dragging_threshold_line == THRESHOLD_GR_BLEND);
+    // Render reduction threshold line (negative GR area, top portion)
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
+    set_threshold_line_color(THRESHOLD_GR_BLEND_REDUCTION, 
+      hovered_threshold_line == THRESHOLD_GR_BLEND_REDUCTION, 
+      dragging_threshold_line == THRESHOLD_GR_BLEND_REDUCTION);
     
     // Draw line across meter
     gfx_line(meter_x, line_y, meter_x + meter_w, line_y, 1);
     
-    // Draw label
+    // Draw label (just dB value, no prefix)
     gfx_x = meter_x + meter_w + 5;
     gfx_y = line_y - 6;
-    gfx_printf("%.1f dB", gr_blend_threshold_db);
+    gfx_printf("%.1f dB", gr_blend_threshold_reduction_db);
+    
+    // Render addition threshold line (positive GR area, from bottom)
+    line_y = gr_boost_db_to_meter_y(gr_blend_threshold_addition_db, meter_y, meter_h);
+    set_threshold_line_color(THRESHOLD_GR_BLEND_ADDITION, 
+      hovered_threshold_line == THRESHOLD_GR_BLEND_ADDITION, 
+      dragging_threshold_line == THRESHOLD_GR_BLEND_ADDITION);
+    
+    // Draw line across meter
+    gfx_line(meter_x, line_y, meter_x + meter_w, line_y, 1);
+    
+    // Draw label (just dB value, no prefix)
+    gfx_x = meter_x + meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("%.1f dB", gr_blend_threshold_addition_db);
   );
 );
 

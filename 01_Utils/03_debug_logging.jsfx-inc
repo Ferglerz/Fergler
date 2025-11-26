@@ -54,20 +54,19 @@ function debug_log(message) (
 // Consolidated filter debug status (updates single slot with all current values)
 // Uses global variables set by update_filter_coefficients() and apply_detection_filters()
 function debug_update_filter_status() (
-  // Read slider values directly to see what they actually are
-  hp_slider_direct = slider(10);
-  lp_slider_direct = slider(11);
+  // Use variable names (hp_freq, lp_freq) instead of slider(17), slider(18) for maintainability
+  // Note: hp_freq and lp_freq are the actual slider variables (slider17:hp_freq, slider18:lp_freq)
   
   // First line: HP filter - slider value, frequency, and all coefficients
-  sprintf(#debug_temp_str, "HP: slider(10)=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f", 
-          hp_slider_direct, filter_debug_hp_slider, filter_debug_hp_freq, 
+  sprintf(#debug_temp_str, "HP: hp_freq=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f", 
+          hp_freq, filter_debug_hp_slider, filter_debug_hp_freq, 
           filter_debug_hp_b0, filter_debug_hp_b1, filter_debug_hp_b2, 
           filter_debug_hp_a1, filter_debug_hp_a2);
   strcpy(DEBUG_FILTER_STATUS_SLOT, #debug_temp_str);
   
   // Second line: LP filter - slider value, frequency, and all coefficients
-  sprintf(#debug_temp_str, "LP: slider(11)=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f",
-          lp_slider_direct, filter_debug_lp_slider, filter_debug_lp_freq,
+  sprintf(#debug_temp_str, "LP: lp_freq=%.0f stored=%.0f freq=%.1fHz b0=%.6f b1=%.6f b2=%.6f a1=%.6f a2=%.6f",
+          lp_freq, filter_debug_lp_slider, filter_debug_lp_freq,
           filter_debug_lp_b0, filter_debug_lp_b1, filter_debug_lp_b2,
           filter_debug_lp_a1, filter_debug_lp_a2);
   strcpy(DEBUG_FILTER_STATUS_SLOT + 1, #debug_temp_str);

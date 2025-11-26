@@ -101,11 +101,10 @@ function render_control(index) local(
     suffix_str = #value_str;
     
     // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
-    // Only Attack slider responds to the time unit selector (slider 33)
+    // Only Attack slider responds to the time unit selector (time_multiplier variable)
     param_index == 1 ? (
-      time_unit = slider(33);
-      time_unit == 0 ? strcpy(#value_str, " ms") :
-      time_unit == 1 ? strcpy(#value_str, " us") :
+      time_multiplier == 0 ? strcpy(#value_str, " ms") :
+      time_multiplier == 1 ? strcpy(#value_str, " us") :
       strcpy(#value_str, " s");
       suffix_str = #value_str;
     );

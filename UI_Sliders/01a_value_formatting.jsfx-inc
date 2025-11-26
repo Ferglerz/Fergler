@@ -39,8 +39,7 @@
 //   gfx_drawstr(formatted_str);
 //
 //   // Dynamic suffix example (handled by caller)
-//   time_unit = slider(33);
-//   suffix_str = time_unit == 0 ? " ms" : (time_unit == 1 ? " us" : " s");
+//   suffix_str = time_multiplier == 0 ? " ms" : (time_multiplier == 1 ? " us" : " s");
 //   formatted_str = format_slider_value(1, attack_value, suffix_str, FORMAT_NORMAL, 0);
 //
 

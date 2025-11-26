@@ -35,7 +35,7 @@ function allocate_memory() (
   freemem += NUM_GROUPS * 6;
 
   // Always allocate audio buffers (these can be reallocated safely)
-  // Allocate based on lookahead slider's maximum value (slider5)
+  // Allocate based on lookahead slider's maximum value (slider12)
   // Convert from milliseconds to samples: max_ms * 0.001 * srate
   lookahead_max_ms = get_slider_max(5); // Get max from slider definition
   lookahead_needed_samples = ceil(lookahead_max_ms * 0.001 * srate);
@@ -57,8 +57,8 @@ function allocate_memory() (
   
   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
   // Allocate based on maximum possible values from slider ranges:
-  // - Maximum fade duration: 5000ms (slider32 max)
-  // - Minimum interval: 10ms (slider31 min)
+  // - Maximum fade duration: 5000ms (slider32 max, still slider32 after reordering)
+  // - Minimum interval: 10ms (slider31 min, still slider31 after reordering)
   // - Maximum dots needed: ceil(5000/10) + 10 = 510 dots
   // Store original allocated size to prevent buffer overflow
   trail_max_dots_allocated = 510; // Maximum size based on slider ranges

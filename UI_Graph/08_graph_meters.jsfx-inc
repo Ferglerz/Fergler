@@ -4,7 +4,7 @@
 //   - UI_General/00_ui_constants.jsfx-inc
 //   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
 //   - UI_General/12_coordinate_conversion.jsfx-inc (for DB_TO_PIXEL_SCALE, GR_PIXELS_PER_DB, HISTOGRAM_Y_OFFSET, get_meter_x, get_meter_y, get_meter_w, get_meter_h)
-//   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, THRESHOLD_GR_BLEND, hovered_threshold_line, dragging_threshold_line)
+//   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, THRESHOLD_GR_BLEND_REDUCTION, THRESHOLD_GR_BLEND_ADDITION, hovered_threshold_line, dragging_threshold_line)
 
 @init
 
