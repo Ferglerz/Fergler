@@ -103,8 +103,8 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Attack slider (index 0, param 1) - ms suffix
-  define_slider(0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0));
+  // Attack knob (index 0, param 1) - ms suffix
+  define_slider(0, rel_x_knob, rel_y + row * CONTROL_SPACING_Y, LARGE_KNOB_SIZE, LARGE_KNOB_SIZE, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_KNOB_LARGE, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " ms", 0));
   row += 1;
   // Attack Curve: hide value display
   define_slider(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, S2.min, S2.max, S2.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 1));
