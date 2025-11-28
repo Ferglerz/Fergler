@@ -78,6 +78,51 @@ function init_histogram_state() (
     input_histogram_pos = 0;
     input_histogram_initialized = 1;
   );
+  
+  // Pre-strength GR histogram buffers (for ghost line visualization)
+  histogram_before_strength_buffer = 0;
+  histogram_before_strength_max_samples = 0;
+  histogram_before_strength_pos = 0;
+  histogram_before_strength_initialized = 0;
+  histogram_before_strength_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_before_strength_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_before_strength_buffer = freemem;
+    freemem += histogram_before_strength_max_samples;
+    
+    i = 0;
+    while (i < histogram_before_strength_max_samples) (
+      histogram_before_strength_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_before_strength_pos = 0;
+    histogram_before_strength_initialized = 1;
+  );
+  
+  histogram_before_strength_pixel_buffer = 0;
+  histogram_before_strength_pixel_pos = 0;
+  histogram_before_strength_pixel_idx = 0;
+  histogram_before_strength_pixel_max_samples = 0;
+  histogram_before_strength_pixel_initialized = 0;
+  histogram_before_strength_pixel_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_before_strength_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_before_strength_pixel_buffer = freemem;
+    freemem += histogram_before_strength_pixel_max_samples;
+    
+    i = 0;
+    while (i < histogram_before_strength_pixel_max_samples) (
+      histogram_before_strength_pixel_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_before_strength_pixel_idx = 0;
+    histogram_before_strength_pixel_frame_counter = 0;
+    histogram_before_strength_pixel_initialized = 1;
+  );
 );
 
 //==============================================================================
@@ -110,6 +155,33 @@ function update_histogram_state(gr_value) (
           
           histogram_buffer[histogram_pos] = gr_value;
           histogram_pos = (histogram_pos + 1) % histogram_max_samples;
+        );
+      );
+    );
+);
+
+function update_histogram_before_strength_state(gr_value) (
+    menu_histogram_buffer_mode > 0.5 ? (
+      histogram_before_strength_pixel_initialized ? (
+        abs(gr_value) > abs(histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx]) ? (
+          histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = gr_value;
+        );
+        
+        histogram_before_strength_pixel_frame_counter += 1;
+        (histogram_before_strength_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+          histogram_before_strength_pixel_frame_counter = 0;
+          histogram_before_strength_pixel_idx = (histogram_before_strength_pixel_idx + 1) % histogram_before_strength_pixel_max_samples;
+          histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = 0;
+        );
+      );
+    ) : (
+      histogram_before_strength_initialized ? (
+        histogram_before_strength_frame_counter += 1;
+        (histogram_before_strength_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+          histogram_before_strength_frame_counter = 0;
+          
+          histogram_before_strength_buffer[histogram_before_strength_pos] = gr_value;
+          histogram_before_strength_pos = (histogram_before_strength_pos + 1) % histogram_before_strength_max_samples;
         );
       );
     );
@@ -175,6 +247,20 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
     is_audio_active = (play_state == 1) || (play_state == 5);
 
     is_audio_active ? (
+      // Render ghost line (pre-strength GR) first (behind, 50% opacity)
+      current_gr_db_before_strength < 0 ? (
+        gr_height_ghost = abs(current_gr_db_before_strength) * GR_PIXELS_PER_DB;
+        gr_height_ghost = min(gr_height_ghost, gr_meter_h);
+        gfx_set(1, 0.5, 0, 0.5);  // Half opacity for ghost line
+        gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height_ghost);
+      ) : current_gr_db_before_strength > 0 ? (
+        gr_height_ghost = current_gr_db_before_strength * GR_PIXELS_PER_DB;
+        gr_height_ghost = min(gr_height_ghost, gr_meter_h);
+        gfx_set(0.2, 0.5, 1, 0.5);  // Half opacity for ghost line
+        gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height_ghost, gr_meter_w, gr_height_ghost);
+      );
+      
+      // Render full color line (post-strength GR) on top (100% opacity)
       current_gr_db < 0 ? (
         gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
         gr_height = min(gr_height, gr_meter_h);
@@ -408,7 +494,23 @@ function draw_input_histogram() (
 function draw_histogram() (
   HISTOGRAM_ENABLED && menu_histogram_enabled ? (
     menu_histogram_buffer_mode > 0.5 ? (
+      histogram_before_strength_pixel_initialized ? (
+        // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
+        draw_gr_histogram_neg_line_pixel(
+          histogram_before_strength_pixel_buffer,
+          1, 0.5, 0,
+          HISTOGRAM_OPACITY * 0.5
+        );
+        
+        draw_gr_histogram_pos_line_pixel(
+          histogram_before_strength_pixel_buffer,
+          0.2, 0.5, 1,
+          HISTOGRAM_OPACITY * 0.5
+        );
+      );
+      
       histogram_pixel_initialized ? (
+        // Render full color lines (post-strength GR) on top (100% opacity)
         draw_gr_histogram_neg_line_pixel(
           histogram_pixel_buffer,
           1, 0.5, 0,
@@ -422,7 +524,27 @@ function draw_histogram() (
         );
       );
     ) : (
+      histogram_before_strength_initialized ? (
+        // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
+        draw_gr_histogram_neg_line(
+          histogram_before_strength_buffer,
+          histogram_before_strength_pos,
+          histogram_before_strength_max_samples,
+          1, 0.5, 0,
+          HISTOGRAM_OPACITY * 0.5
+        );
+        
+        draw_gr_histogram_pos_line(
+          histogram_before_strength_buffer,
+          histogram_before_strength_pos,
+          histogram_before_strength_max_samples,
+          0.2, 0.5, 1,
+          HISTOGRAM_OPACITY * 0.5
+        );
+      );
+      
       histogram_initialized ? (
+        // Render full color lines (post-strength GR) on top (100% opacity)
         draw_gr_histogram_neg_line(
           histogram_buffer,
           histogram_pos,

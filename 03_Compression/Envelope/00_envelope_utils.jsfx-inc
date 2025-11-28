@@ -17,6 +17,9 @@ function init_envelope_state() (
   // Global smoothed gain reduction (envelope follower output)
   global_smoothed_gain_db = 0;
   
+  // Global smoothed gain reduction before strength (for ghost line visualization)
+  global_smoothed_gain_db_before_strength = 0;
+  
   // Program release state
   base_fast_s = 0.05;  // 50ms
   base_med_s = 0.3;    // 300ms
@@ -72,6 +75,15 @@ function apply_envelope_smoothing(coeff, target_value) local(valid_coeff) (
   valid_coeff = max(EPS, min(1 - EPS, coeff));
   global_smoothed_gain_db = valid_coeff * global_smoothed_gain_db + (1 - valid_coeff) * target_value;
   global_smoothed_gain_db;
+);
+
+//--- Helper: Apply exponential smoothing envelope update for pre-strength GR (ghost line) ---
+// Uses same coefficient as main envelope to keep smoothing behavior synchronized
+function apply_envelope_smoothing_before_strength(coeff, target_value) local(valid_coeff) (
+  // Clamp coefficient to valid range to prevent discontinuities
+  valid_coeff = max(EPS, min(1 - EPS, coeff));
+  global_smoothed_gain_db_before_strength = valid_coeff * global_smoothed_gain_db_before_strength + (1 - valid_coeff) * target_value;
+  global_smoothed_gain_db_before_strength;
 );
 
 

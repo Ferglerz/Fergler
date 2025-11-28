@@ -49,8 +49,10 @@ function init_audio_processing_state() (
   final_r_prev = 0;
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
+  current_gr_db_before_strength = 0;
   detector_level_block_max = MIN_DETECTOR_LEVEL;
   gr_db_block_max = 0;
+  gr_db_before_strength_block_max = 0;
   gr_processing_skipped = 0;
   compression_history = 0;
   program_release_timer = 0;
@@ -120,6 +122,7 @@ function process_complete_audio_chain() (
     
     can_skip_compression ? (
       target_gr_db = 0;
+      target_gr_db_before_strength = 0;
       gr_processing_skipped = 1;
     ) : (
       detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
@@ -144,6 +147,7 @@ function process_complete_audio_chain() (
     
     can_skip_envelope ? (
       global_smoothed_gain_db = 0;
+      global_smoothed_gain_db_before_strength = 0;
     ) : (
       process_envelope_following(target_gr_db, detector_level_db);
     );
@@ -154,6 +158,13 @@ function process_complete_audio_chain() (
     current_gr_db = global_smoothed_gain_db;
     abs(current_gr_db) > abs(gr_db_block_max) ? (
       gr_db_block_max = current_gr_db;
+    );
+    
+    // Track smoothed pre-strength GR for visualization (ghost line)
+    // This represents the "true" GR used in calculations before strength multiplier
+    current_gr_db_before_strength = global_smoothed_gain_db_before_strength;
+    abs(current_gr_db_before_strength) > abs(gr_db_before_strength_block_max) ? (
+      gr_db_before_strength_block_max = current_gr_db_before_strength;
     );
 
     lookahead_ms > 0 ? (

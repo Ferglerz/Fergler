@@ -26,11 +26,12 @@ function calculate_gain_reduction_from_db(input_level_db) (
   // Early exit: Input offset affects curve lookup, not compression threshold
   input_level_db < comp_curve_min_threshold_db ? (
     gr_processing_skipped = 1;
+    target_gr_db_before_strength = 0;
     0
   ) : (
     gr_processing_skipped = 0;
-    target_gr_db = calculate_gr_from_curve(input_level_db);
-    target_gr_db *= strength_multiplier;
+    target_gr_db_before_strength = calculate_gr_from_curve(input_level_db);
+    target_gr_db = target_gr_db_before_strength * strength_multiplier;
     target_gr_db
   )
 );

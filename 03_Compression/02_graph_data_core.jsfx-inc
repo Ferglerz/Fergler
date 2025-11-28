@@ -10,8 +10,8 @@
 // GRAPH CONFIGURATION
 //==============================================================================
 
-GRAPH_RANGE_DB = 80;
-GRAPH_MIN_DB = -80;
+GRAPH_RANGE_DB = 20;
+GRAPH_MIN_DB = -20;
 GRAPH_MAX_DB = 0;
 
 MIN_POINTS = 4;
@@ -134,12 +134,17 @@ function update_corner_points() (
 //==============================================================================
 
 function init_graph_points() (
+  // Corner points at graph boundaries
   graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
-  graph_points[2] = -60; graph_points[3] = -60;
-  graph_points[4] = -40; graph_points[5] = -40;
-  graph_points[6] = -20; graph_points[7] = -20;
-  graph_points[8] = -10; graph_points[9] = -10;
   graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
+  
+  // Intermediate points distributed across the graph range (20%, 40%, 60%, 80% of range)
+  // These are calculated relative to GRAPH_MIN_DB so they adapt to any range change
+  graph_points[2] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.2); graph_points[3] = graph_points[2];
+  graph_points[4] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.4); graph_points[5] = graph_points[4];
+  graph_points[6] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.6); graph_points[7] = graph_points[6];
+  graph_points[8] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.8); graph_points[9] = graph_points[8];
+  
   update_corner_points();
 );
 

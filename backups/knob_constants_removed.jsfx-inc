@@ -51,3 +51,5 @@ KNOB_ANGLE_RANGE = KNOB_ANGLE_END - KNOB_ANGLE_START;
 KNOB_SENSITIVITY = 0.5;        // Regular knobs (higher = more sensitive)
 LARGE_KNOB_SENSITIVITY = 0.3;  // Large knobs (lower = finer control)
 
+
+

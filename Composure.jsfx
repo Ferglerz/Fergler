@@ -1,12 +1,4 @@
-// Advanced Multi-Model Compressor JSFX - Modular Version
-// Professional multi-algorithm compressor with interactive graph
-// Features: multiple characters, feedforward/feedback, RMS normalization,
-// program-dependent release, dedicated harmonic stage, soft-clipping limiter
-// Author: Custom JSFX Generator
-// Version: 3.0 - Advanced multi-model implementation (Modular)
-
-desc:Advanced Multi-Model Compressor (Modular)
-
+desc:Composure
 
 //==============================================================================
 // SLIDER DEFINITIONS
@@ -330,10 +322,12 @@ abs(new_trail_max_dots - trail_max_dots) > 5 ? (
 // Apply input offset to histogram so it shows offset-adjusted input level (what compressor sees)
 input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL)) + input_offset_db;
 gr_db_for_histogram = gr_db_block_max;
+gr_db_before_strength_for_histogram = gr_db_before_strength_block_max;
 
 // Reset max trackers for next block
 detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
+gr_db_before_strength_block_max = 0;
 
 // Update coefficients every block for real-time response
 // This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
@@ -368,6 +362,11 @@ MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
 // Apply input offset so dot shows offset-adjusted input level (what compressor sees)
 current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL)) + input_offset_db;
 
+// Get current GR values for display (post-strength is already available as current_gr_db)
+// Pre-strength GR represents the "true" GR used in calculations before strength multiplier
+// This is tracked in the audio processing chain (@sample section) and available for visualization
+// current_gr_db_before_strength is set in process_complete_audio_chain()
+
 // Get latest input histogram value (if available)
 input_histogram_db = current_input_db;  // Default to current input if histogram not available
 INPUT_HISTOGRAM_ENABLED && input_histogram_initialized ? (
@@ -385,7 +384,10 @@ blended_input_db = input_histogram_db;
 is_audio_active = (play_state == 1) || (play_state == 5);
 
 // Update histograms with block-max values (most efficient and smooth)
-HISTOGRAM_ENABLED ? update_histogram_state(gr_db_for_histogram);
+HISTOGRAM_ENABLED ? (
+  update_histogram_state(gr_db_for_histogram);
+  update_histogram_before_strength_state(gr_db_before_strength_for_histogram);
+);
 INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
 
 // Strength now used directly - no need for strength_actual

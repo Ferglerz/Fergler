@@ -18,14 +18,14 @@ DB_TO_PIXEL_SCALE = 0;
 PIXEL_TO_DB_SCALE = 0;
 HISTOGRAM_Y_OFFSET = 0;
 HISTOGRAM_X_OFFSET = 0;
-GR_PIXELS_PER_DB = 0;  // 40dB range for gain reduction display
+GR_PIXELS_PER_DB = 0;  // 20dB range for gain reduction display
 
 function init_graph_optimization_constants() (
   DB_TO_PIXEL_SCALE = GRAPH_SIZE / GRAPH_RANGE_DB;
   PIXEL_TO_DB_SCALE = GRAPH_RANGE_DB / GRAPH_SIZE;
   HISTOGRAM_Y_OFFSET = GRAPH_Y + GRAPH_SIZE + GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
   HISTOGRAM_X_OFFSET = GRAPH_X - GRAPH_MIN_DB * DB_TO_PIXEL_SCALE;
-  GR_PIXELS_PER_DB = GRAPH_SIZE / 40;
+  GR_PIXELS_PER_DB = GRAPH_SIZE / 20;
 );
 
 //==============================================================================
