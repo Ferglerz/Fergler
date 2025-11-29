@@ -228,8 +228,10 @@ update_attack_coefficient();
 update_release_coefficient();
 update_hold_samples();
 update_rms_coefficient();
-update_strength_multiplier();
-update_makeup_gain();
+// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
+strength_multiplier = strength / 100.0;
+// Convert Makeup Gain from dB to linear scale
+makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 // 9. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
@@ -259,8 +261,8 @@ smooth_rms_coefficient();
 update_lookahead_samples();
 
 // --- Compression Parameters (13-14) ---
-// Update strength multiplier using dedicated function
-update_strength_multiplier();
+// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
+strength_multiplier = strength / 100.0;
 // Note: Strength is now used directly in gain reduction calculation
 // Input offset is applied at lookup time (shifts input level before curve lookup).
 
@@ -277,9 +279,8 @@ update_filter_coefficients();
 drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
 
 // --- Header Parameters (24-25) ---
-// Update makeup gain using dedicated function
-// Update functions are defined in 03_Compression/Envelope/
-update_makeup_gain();
+// Convert Makeup Gain from dB to linear scale
+makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 // --- Plugin Delay Compensation ---
 // Cockos pattern: Calculate and set unconditionally every @slider execution
@@ -340,8 +341,10 @@ update_hold_samples();
 update_rms_coefficient();
 // Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
 smooth_rms_coefficient();
-update_strength_multiplier();
-update_makeup_gain();
+// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
+strength_multiplier = strength / 100.0;
+// Convert Makeup Gain from dB to linear scale
+makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 
 //==============================================================================

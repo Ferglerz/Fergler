@@ -54,15 +54,6 @@ function smooth_rms_coefficient() (
   );
 );
 
-function update_strength_multiplier() (
-  // Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-  strength_multiplier = strength / 100.0;
-);
-
-function update_makeup_gain() (
-  // Convert Makeup Gain from dB to linear scale
-  makeup_gain_linear = db_to_linear(makeup_gain_db);
-);
 
 
 

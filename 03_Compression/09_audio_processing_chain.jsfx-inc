@@ -18,6 +18,23 @@ function calculate_peak_level(left, right) (
   max(abs(left), abs(right))
 );
 
+// Get detection signal based on mode and sidechain state
+// Returns detect_l and detect_r values based on feedforward/feedback mode
+function get_detection_signal(has_stereo, has_sidechain_l, has_sidechain_r, input_l, input_r, feedback_l, feedback_r) local(mode, result_l, result_r) (
+  mode = detection_mode > 0.5;
+  mode ? (
+    // Feedforward mode: use input or sidechain
+    result_l = has_sidechain_l ? spl2 : input_l;
+    result_r = has_sidechain_r ? spl3 : (has_stereo ? input_r : input_l);
+  ) : (
+    // Feedback mode: use output or sidechain
+    result_l = has_sidechain_l ? spl2 : feedback_l;
+    result_r = has_sidechain_r ? spl3 : feedback_r;
+  );
+  detect_l = result_l;
+  detect_r = result_r;
+);
+
 //==============================================================================
 // RMS STATE INITIALIZATION
 //==============================================================================
@@ -72,13 +89,7 @@ function process_complete_audio_chain() (
   has_sidechain_l = (use_sidechain && num_ch >= 3);
   has_sidechain_r = (use_sidechain && num_ch >= 4);
 
-  detection_mode > 0.5 ? (
-    detect_l = has_sidechain_l ? spl2 : spl0;
-    detect_r = has_sidechain_r ? spl3 : (has_stereo ? spl1 : spl0);
-  ) : (
-    detect_l = has_sidechain_l ? spl2 : final_l_prev;
-    detect_r = has_sidechain_r ? spl3 : final_r_prev;
-  );
+  get_detection_signal(has_stereo, has_sidechain_l, has_sidechain_r, input_l_orig, input_r_orig, final_l_prev, final_r_prev);
 
   (hp_filter_enabled || lp_filter_enabled) ? (
     apply_detection_filters(detect_l, detect_r);
