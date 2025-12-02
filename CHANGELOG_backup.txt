@@ -1,0 +1,1647 @@
+diff --git a/.DS_Store b/.DS_Store
+index 94bda22..40d93e0 100644
+Binary files a/.DS_Store and b/.DS_Store differ
+diff --git a/01_Utils/01_constants.jsfx-inc b/01_Utils/01_constants.jsfx-inc
+index 5d98464..409c44b 100644
+--- a/01_Utils/01_constants.jsfx-inc
++++ b/01_Utils/01_constants.jsfx-inc
+@@ -13,12 +13,13 @@
+ #debug_temp_str = 54;  // For debug string concatenation
+ #freq_display_str = 60;  // For frequency display formatting
+ 
+-// Group title string slots (5 groups)
++// Group title string slots (6 groups)
+ #group_title_0 = 55;  // ENVELOPE
+ #group_title_1 = 56;  // DETECTION  
+ #group_title_2 = 57;  // COMPRESSION
+ #group_title_3 = 58;  // HARMONICS
+ #group_title_4 = 59;  // SOURCE
++#group_title_5 = 62;  // FILTERS (using slot 62, 60-61 are used by custom buttons)
+ 
+ // === AUDIO CONSTANTS ===
+ 
+diff --git a/01_Utils/05_memory.jsfx-inc b/01_Utils/05_memory.jsfx-inc
+index 826ee79..11ab35e 100644
+--- a/01_Utils/05_memory.jsfx-inc
++++ b/01_Utils/05_memory.jsfx-inc
+@@ -55,6 +55,26 @@ function allocate_memory() (
+   slider_properties_base = freemem;
+   freemem += NUM_CONTROLS * 4;
+   
++  // Parallax fader depths array (1 value per control for parallax depth)
++  !parallax_depths ? parallax_depths = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader Y offsets array (1 value per control for Y offset)
++  !parallax_y_offsets ? parallax_y_offsets = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader X offsets array (1 value per control for X offset)
++  !parallax_x_offsets ? parallax_x_offsets = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader scales array (1 value per control for image scale)
++  !parallax_scales ? parallax_scales = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader slider configs array (1 value per control for formatting/config)
++  !parallax_slider_configs ? parallax_slider_configs = freemem;
++  freemem += NUM_CONTROLS;
++  
+   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
+   // Allocate based on maximum possible values from slider ranges:
+   // - Maximum fade duration: 5000ms (slider32 max, still slider32 after reordering)
+diff --git a/01_Utils/06_state.jsfx-inc b/01_Utils/06_state.jsfx-inc
+index e9c1778..d003269 100644
+--- a/01_Utils/06_state.jsfx-inc
++++ b/01_Utils/06_state.jsfx-inc
+@@ -37,6 +37,9 @@ function init_state_variables() (
+   // Initialize trail state (UI_Graph/12_dot_trail.jsfx-inc)
+   init_trail_state();
+   
++  // Initialize custom button state (UI_General/15_custom_buttons.jsfx-inc)
++  init_custom_button_state();
++  
+   // Calculate lookahead samples (must be done after max_lookahead_samples is set in memory allocation)
+   // Update function is defined in 02_InputProcessing/01_dsp_utils.jsfx-inc
+   update_lookahead_samples();
+diff --git a/Composure.jsfx b/Composure.jsfx
+index bebd594..6656f47 100644
+--- a/Composure.jsfx
++++ b/Composure.jsfx
+@@ -31,11 +31,11 @@ slider17:hp_freq=0<0,6000,1>-HP Filter
+ slider18:lp_freq=0<0,14000,1>-LP Filter
+ 
+ // GROUP 3: HARMONICS (19-23)
+-slider19:harmonic_type=0<0,2,1{Off,Tape,Tube}>-Type
+-slider20:harmonic_drive=50<0,100,1>-Drive (%)
+-slider21:harmonic_mix=0<0,100,1>-Mix
+-slider22:harmonic_even_boost=0<0,200,1>-Even
+-slider23:harmonic_odd_boost=0<0,200,1>-Odd
++slider19:harmonic_type=0<0,2,1{Off,Tape,Tube}>Type
++slider20:harmonic_drive=50<0,100,1>Drive (%)
++slider21:harmonic_mix=0<0,100,1>Mix
++slider22:harmonic_even_boost=0<0,200,1>Even
++slider23:harmonic_odd_boost=0<0,200,1>Odd
+ 
+ // HEADER (25)
+ slider25:makeup_gain_db=0<-20,20,0.1>Makeup Gain
+@@ -45,7 +45,7 @@ slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+ slider27:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
+ slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+ slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
+-slider30:harmonic_amount=0<0,1,0.01>-Amount
++slider30:harmonic_amount=1<0,1,0.01>Amount
+ slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
+ slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
+ slider33:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)
+@@ -65,6 +65,10 @@ filename:0,Images/Composure_BG1.png
+ // Load toggle switch images
+ filename:1,Images/toggle_left2.png
+ filename:2,Images/toggle_right2.png
++// Load parallax fader images
++filename:3,Images/para_horz_fader_top.png
++filename:4,Images/para_horz_fader_bot_left.png
++filename:5,Images/para_horz_fader_bot_right.png
+ 
+ //==============================================================================
+ // INCLUDE MODULES
+@@ -114,6 +118,8 @@ import UI_General/01_drawing_primitives.jsfx-inc
+ import UI_General/04_debug.jsfx-inc
+ import UI_General/10_menu.jsfx-inc
+ import UI_General/05_header.jsfx-inc
++// Page transitions service (standalone utility, needed early for should_render_filters)
++import UI_General/16_page_transitions.jsfx-inc
+ // Coordinate conversion service (independent, used by graph and meter)
+ import UI_General/12_coordinate_conversion.jsfx-inc
+ // Threshold lines service (independent, used by graph and meter)
+@@ -124,6 +130,7 @@ import UI_Sliders/00_slider_constants.jsfx-inc
+ import UI_Sliders/01a_value_formatting.jsfx-inc
+ import UI_Sliders/01b_value_text_rendering.jsfx-inc
+ import UI_Sliders/01c_slider_rendering.jsfx-inc
++import UI_Sliders/01d_parallax_fader_rendering.jsfx-inc
+ import UI_Sliders/01e_button_rendering.jsfx-inc
+ import UI_Sliders/01f_dropdown_rendering.jsfx-inc
+ import UI_Sliders/01h_slider_objects.jsfx-inc
+@@ -143,6 +150,10 @@ import UI_Graph/09_graph_display.jsfx-inc
+ import UI_Graph/12_dot_trail.jsfx-inc
+ import UI_Graph/03_graph.jsfx-inc
+ 
++// UI_General: Custom buttons (depends on UI_General constants and drawing, and page transitions)
++// Must be imported before 01_Utils/06_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
++import UI_General/15_custom_buttons.jsfx-inc
++
+ // 01_Utils/06_state: State initialization (depends on all modules above)
+ // Must be imported after all init functions are defined
+ import 01_Utils/06_state.jsfx-inc
+@@ -408,6 +419,9 @@ HISTOGRAM_ENABLED ? (
+ );
+ INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
+ 
++// Update page transition state BEFORE rendering (needs to happen every frame)
++update_page_transition_state();
++
+ // Strength now used directly - no need for strength_actual
+ 
+ // Render main interface
+diff --git a/Images/.DS_Store b/Images/.DS_Store
+index 54060ac..8d913de 100644
+Binary files a/Images/.DS_Store and b/Images/.DS_Store differ
+diff --git a/UI_Controls/05_Composure_Controls.jsfx-inc b/UI_Controls/05_Composure_Controls.jsfx-inc
+index 373300c..b696797 100644
+--- a/UI_Controls/05_Composure_Controls.jsfx-inc
++++ b/UI_Controls/05_Composure_Controls.jsfx-inc
+@@ -4,6 +4,58 @@
+ 
+ @init
+ 
++//==============================================================================
++// IMAGE SET OBJECTS (Namespace-based)
++//==============================================================================
++//
++// Image set objects provide a convenient way to store all properties for an
++// image set (e.g., parallax fader images) in one place, similar to Slider objects.
++// This allows easy reuse and maintenance of image set configurations.
++//
++
++//------------------------------------------------------------------------------
++// Constructor for an image set "object"
++//------------------------------------------------------------------------------
++// Fields populated:
++//   this.image_top_index  - Image index for top layer
++//   this.image_bot_index  - Image index for bottom layer
++//   this.image_w          - Image width in pixels
++//   this.image_h          - Image height in pixels
++//   this.para_depth       - Parallax depth (affects top image travel distance)
++//   this.y_offset         - Y offset to lower images (accounts for shadows)
++//   this.x_offset         - Manual X offset for bottom image
++//   this.image_scale      - Scale factor for images (1.0 = no scaling)
++function construct_image_set(image_top_index, image_bot_index, image_w, image_h, para_depth, y_offset, x_offset, image_scale) instance(image_top_index image_bot_index image_w image_h para_depth y_offset x_offset image_scale)
++(
++  this.image_top_index = image_top_index;
++  this.image_bot_index = image_bot_index;
++  this.image_w = image_w;
++  this.image_h = image_h;
++  this.para_depth = para_depth;
++  this.y_offset = y_offset;
++  this.x_offset = x_offset;
++  this.image_scale = image_scale;
++);
++
++//==============================================================================
++// PARALLAX FADER CONSTANTS
++//==============================================================================
++
++// Hard-coded parallax depth (original value 10, minus 7 = 3)
++PARALLAX_DEPTH = 3;
++
++//==============================================================================
++// IMAGE SET INITIALIZATION
++//==============================================================================
++
++// Initialize left parallax fader image set object
++// Images: para_horz_fader_top (index 3), para_horz_fader_bot_left (index 4)
++sm_fader_left.construct_image_set(3, 4, 36, 45, PARALLAX_DEPTH, 11, -PARALLAX_DEPTH+2, 1.0);
++
++// Initialize right parallax fader image set object
++// Images: para_horz_fader_top (index 3), para_horz_fader_bot_right (index 5)
++sm_fader_rt.construct_image_set(3, 5, 36, 45, PARALLAX_DEPTH, 11, PARALLAX_DEPTH, 1.0);
++
+ //==============================================================================
+ // STEP-POINT ARRAYS FOR SLIDERS
+ //==============================================================================
+@@ -24,6 +76,18 @@
+ // Lookahead: 0=Off first, then 1ms to 2000ms (39 values)
+ #lookahead_step_points_str = "0,1,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50,60,70,80,90,100,150,200,250,300,400,500,600,700,800,900,1000,1250,1500,1750,2000";
+ 
++// Drive: 0 to 100 in 5% increments (21 values)
++#drive_step_points_str = "0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100";
++
++// Mix: 0-5% in 1% increments plus 0.5%, then 5% increments to 100 (26 values)
++#mix_step_points_str = "0,0.5,1,2,3,4,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100";
++
++// Even: 0 to 200 in 10% increments (21 values)
++#even_step_points_str = "0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200";
++
++// Odd: 0 to 200 in 10% increments (21 values)
++#odd_step_points_str = "0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200";
++
+ // Array base addresses are defined in UI_General/02_ui_utils.jsfx-inc for early access
+ // Step-point counts will be set by parsing function below
+ 
+@@ -68,6 +132,10 @@ function init_step_points() (
+   hp_step_points_base = freemem; freemem += 100;
+   lp_step_points_base = freemem; freemem += 100;
+   lookahead_step_points_base = freemem; freemem += 100;
++  drive_step_points_base = freemem; freemem += 100;
++  mix_step_points_base = freemem; freemem += 100;
++  even_step_points_base = freemem; freemem += 100;
++  odd_step_points_base = freemem; freemem += 100;
+   
+   // Parse step points into allocated arrays
+   attack_step_count = parse_step_points_string(#attack_step_points_str, attack_step_points_base);
+@@ -75,8 +143,11 @@ function init_step_points() (
+   hp_step_count = parse_step_points_string(#hp_step_points_str, hp_step_points_base);
+   lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_base);
+   lookahead_step_count = parse_step_points_string(#lookahead_step_points_str, lookahead_step_points_base);
++  drive_step_count = parse_step_points_string(#drive_step_points_str, drive_step_points_base);
++  mix_step_count = parse_step_points_string(#mix_step_points_str, mix_step_points_base);
++  even_step_count = parse_step_points_string(#even_step_points_str, even_step_points_base);
++  odd_step_count = parse_step_points_string(#odd_step_points_str, odd_step_points_base);
+ );
+-lookahead_step_count = parse_step_points_string(#lookahead_step_points_str, lookahead_step_points_base);
+ 
+ //==============================================================================
+ // COMPOSURE CONTROL LAYOUT
+@@ -113,30 +184,30 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   set_control_group(0);  // Associate following controls with group 0
+   
+   // Controls positioned relative to group (will add group position when rendering)
+-  // Center controls horizontally within group
+-  rel_x_slider = (group_w - SLIDER_W) / 2;
++  // Center controls horizontally within group, shifted left by 11 pixels
++  rel_x_slider = (group_w - SLIDER_W) / 2 ;
+   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+   row = 0;
+   
+-  // Attack slider (index 0, param 1) - ms suffix
+-  define_slider(0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0));
++  // Attack slider (index 0, param 1) - ms suffix, stepped slider using parallax fader
++  define_parallax_fader(0, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 1, S1.min, S1.max, S1.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " ms", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+-  // Attack Curve: hide value display
+-  define_slider(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, S2.min, S2.max, S2.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 1));
++  // Attack Curve: using parallax fader - uses sm_fader_left image set
++  define_parallax_fader(1, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 2, S2.min, S2.max, S2.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, "", FORMAT_NORMAL, 0, DISPLAY_HIDE_VALUE);
+   row += 1;
+-  // Hold slider (index 2, param 3) - ms suffix
+-  define_slider(2, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, S3.min, S3.max, S3.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 2));
++  // Hold slider (index 2, param 3) - ms suffix, using parallax fader
++  define_parallax_fader(2, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 3, S3.min, S3.max, S3.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " ms", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+ 
+-  // Release slider (index 3, param 4) - ms suffix
+-  define_slider(3, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, S4.min, S4.max, S4.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 3));
++  // Release slider (index 3, param 4) - ms suffix, stepped slider using parallax fader
++  define_parallax_fader(3, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 4, S4.min, S4.max, S4.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " ms", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+-  // Release Curve
+-  define_slider(4, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, S5.min, S5.max, S5.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 4));
++  // Release Curve: using parallax fader
++  define_parallax_fader(4, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 5, S5.min, S5.max, S5.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, "", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+   
+-  // Progressive Release Type - center dropdown
+-  rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
++  // Progressive Release Type - center dropdown, shifted left by 11 pixels
++  rel_x_dropdown = (group_w - DROPDOWN_W) / 2 ;
+   define_dropdown(5, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y - 10, DROPDOWN_W, DROPDOWN_H, 6, S6.min, S6.max, S6.label);
+   
+   //==============================================================================
+@@ -148,10 +219,10 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   define_group(1, group_x, group_y, group_w, group_h, 1, "DETECTION");
+   set_control_group(1);  // Associate following controls with group 1
+   
+-  // Center controls horizontally within group
+-  rel_x_slider = (group_w - SLIDER_W) / 2;
+-  rel_x_button = (group_w - BUTTON_W) / 2;
+-  rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
++  // Center controls horizontally within group, shifted left by 11 pixels
++  rel_x_slider = (group_w - SLIDER_W) / 2 ;
++  rel_x_button = (group_w - BUTTON_W) / 2 ;
++  rel_x_dropdown = (group_w - DROPDOWN_W) / 2 ;
+   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+   row = 0;
+   
+@@ -160,8 +231,8 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   define_image_button(6, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 7, S7.min, S7.max, S7.label, 1, 2, 1);
+   row += 1;
+   
+-  // RMS Window with ms suffix (index 7, param 8)
+-  define_slider(7, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
++  // RMS Window with ms suffix (index 7, param 8) - using parallax fader
++  define_parallax_fader(7, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 8, S8.min, S8.max, S8.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " ms", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+   // RMS Normalization button (index 8, param 9) - using image toggle
+   // Images: toggle_left (index 1), toggle_right (index 2)
+@@ -181,13 +252,13 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   define_group(2, group_x, group_y, group_w, group_h, 1, "COMPRESSION");
+   set_control_group(2);  // Associate following controls with group 2
+   
+-  // Center controls horizontally within group
+-  rel_x = (group_w - SLIDER_W) / 2;
++  // Center controls horizontally within group, shifted left by 11 pixels
++  rel_x = (group_w - SLIDER_W) / 2 ;
+   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+   row = 0;
+   
+-  // Strength with percent suffix (index 11, param 13)
+-  define_slider(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 13, S13.min, S13.max, S13.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 11));
++  // Strength with percent suffix (index 11, param 13) - using parallax fader
++  define_parallax_fader(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 13, S13.min, S13.max, S13.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
+   // Input Offset moved to header (removed from here)
+   
+   //==============================================================================
+@@ -196,9 +267,9 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   define_group(4, group_x, group_y + group_h + group_spacing, group_w, GRAPH_SIZE - group_h - group_spacing, 1, "SOURCE");
+   set_control_group(4);  // Associate following controls with group 4
+   
+-  // Center controls horizontally within group
+-  rel_x_slider = (group_w - SLIDER_W) / 2;
+-  rel_x_button = (group_w - BUTTON_W) / 2;
++  // Center controls horizontally within group, shifted left by 11 pixels
++  rel_x_slider = (group_w - SLIDER_W) / 2 ;
++  rel_x_button = (group_w - BUTTON_W) / 2 ;
+   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+   row = 0;
+   
+@@ -211,7 +282,25 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   
+   // Listen button (index 14, param 16)
+   define_button(14, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
+-  row += 1;
++  // HP and LP filters moved to GROUP 5 (FILTERS)
++  
++  //==============================================================================
++  // GROUP 5: FILTERS (positioned from graph left to meter right, graph height)
++  //==============================================================================
++  // Position: from graph left edge to meter right edge
++  // Meter position: GRAPH_X + GRAPH_SIZE + 15 (get_meter_x()), width = 23 (get_meter_w())
++  filters_group_x = GRAPH_X;
++  filters_group_y = GRAPH_Y;
++  filters_group_w = (GRAPH_X + GRAPH_SIZE + 15 + 23) - GRAPH_X;  // Width from graph left to meter right
++  filters_group_h = GRAPH_SIZE;  // Same height as graph
++  
++  define_group(5, filters_group_x, filters_group_y, filters_group_w, filters_group_h, 1, "FILTERS");
++  set_control_group(5);  // Associate following controls with group 5
++  
++  // Center controls horizontally within group
++  rel_x_slider = (filters_group_w - SLIDER_W) / 2;
++  rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;
++  row = 0;
+   
+   // HP Filter with Hz suffix and k formatting (left-to-right fill) (index 15, param 17)
+   // Enumerated slider: min=0, max=28 (29 options)
+@@ -233,9 +322,10 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   define_group(3, group_x, group_y, group_w, group_h, 1, "HARMONICS");
+   set_control_group(3);  // Associate following controls with group 3
+   
+-  // Center controls horizontally within group
+-  rel_x_slider = (group_w - SLIDER_W) / 2;
+-  rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
++  // Center controls horizontally within group, shifted left by 11 pixels
++  rel_x_slider = (group_w - SLIDER_W) / 2 ;
++  rel_x_button = (group_w - BUTTON_W) / 2 ;
++  rel_x_dropdown = (group_w - DROPDOWN_W) / 2 ;
+   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
+   row = 0;
+   
+@@ -244,17 +334,18 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
+   // Note: 0=Off (left), 1-2=Tape/Tube (right)
+   define_image_button(17, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 19, S19.min, S19.max, S19.label, 1, 2, 1);
+   row += 1;
+-  // Drive (index 18, param 20)
+-  define_slider(18, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, S20.min, S20.max, S20.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 18));
++  // Drive (index 18, param 20) - using parallax fader with right image set
++  define_parallax_fader(18, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, S20.min, S20.max, S20.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, "", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
+   row += 1;
+-  // Mix with percent suffix (index 19, param 21)
+-  define_slider(19, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 21, S21.min, S21.max, S21.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 19));
++  // Mix with percent suffix (index 19, param 21) - using parallax fader
++  // Uses sm_fader_rt image set object for all image properties
++  define_parallax_fader(19, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 21, S21.min, S21.max, S21.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
+   row += 1;
+-  // Even with percent suffix (index 20, param 22)
+-  define_slider(20, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 22, S22.min, S22.max, S22.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 20));
++  // Even with percent suffix (index 20, param 22) - using parallax fader
++  define_parallax_fader(20, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 22, S22.min, S22.max, S22.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
+   row += 1;
+-  // Odd with percent suffix (index 21, param 23)
+-  define_slider(21, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 23, S23.min, S23.max, S23.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 21));
++  // Odd with percent suffix (index 21, param 23) - using parallax fader
++  define_parallax_fader(21, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 23, S23.min, S23.max, S23.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
+   
+   // Compressor Type moved to header (will be defined in setup_header_controls)
+ );
+@@ -274,19 +365,19 @@ function setup_header_controls() (
+     
+     // Lookahead slider (index 10, param 11) - just to the right of menu button
+     // Menu button right edge: MENU_BUTTON_X + MENU_BUTTON_SIZE = 8 + 15 = 23
+-    // Add 5px spacing: 23 + 5 = 28
+-    lookahead_slider_x = MENU_BUTTON_X + MENU_BUTTON_SIZE + 5;
++    // Add 5px spacing: 23 + 5 = 28, then move 20px to the right
++    lookahead_slider_x = MENU_BUTTON_X + MENU_BUTTON_SIZE + 5 + 20;
+     define_slider(10, lookahead_slider_x, header_slider_y, SLIDER_W, SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " ms", 10));
+     
+-    // Input Offset slider (index 12, param 14) - to the left of Makeup Gain
+-    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
+-    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing)
++    // Makeup Gain slider (index 22, param 25) - keep X position the same
+     makeup_gain_x = gfx_w - 5 - SLIDER_W;
+-    input_offset_x = makeup_gain_x - SLIDER_W - 5;
+-    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
+-    
+-    // Makeup Gain slider (index 22, param 25) - update to hide label
+     define_slider(22, makeup_gain_x, header_slider_y, SLIDER_W, SLIDER_H, 25, S25.min, S25.max, S25.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL, " dB", 22));
++    
++    // Input Offset slider (index 12, param 14) - to the left of Makeup Gain, moved 40px left
++    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
++    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing), then 40px further left
++    input_offset_x = makeup_gain_x - SLIDER_W - 5 - 40;
++    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
+   );
+ );
+ 
+@@ -297,7 +388,16 @@ function setup_header_controls() (
+ function render_all_controls() (
+   i = 0;
+   while (i < control_count) (
+-    render_control(i);
++    // Skip HP and LP filter controls (indices 15 and 16) if filters page is not being rendered
++    // Only render if: not a filter control, OR filters page should be rendered
++    !((i == 15 || i == 16) && !should_render_filters()) ? (
++      // Apply fade opacity for filter controls (indices 15 and 16)
++      (i == 15 || i == 16) ? (
++        render_control(i, get_filters_opacity());
++      ) : (
++        render_control(i, 1.0);  // Render other controls with full opacity
++      );
++    );
+     i += 1;
+   );
+ );
+diff --git a/UI_General/00_ui_constants.jsfx-inc b/UI_General/00_ui_constants.jsfx-inc
+index ca865c6..f9560cc 100644
+--- a/UI_General/00_ui_constants.jsfx-inc
++++ b/UI_General/00_ui_constants.jsfx-inc
+@@ -68,7 +68,7 @@ HISTOGRAM_STEP_SIZE = 1;  // For GRAPH_SIZE=263: floor(263/200) = 1
+ BEZIER_STEPS = 20; // Number of line segments to approximate Bezier curves
+ 
+ // Control Dimensions (75% of original)
+-SLIDER_W = 101;  // 135 * 0.75 = 101.25 rounded down
++SLIDER_W = 123;  // 101 + 22 (increased by 22 pixels)
+ SLIDER_H = 15;   // 20 * 0.75
+ SLIDER_W_VERTICAL = 15;  // 20 * 0.75
+ SLIDER_H_VERTICAL = 101; // 135 * 0.75 = 101.25 rounded down
+@@ -92,6 +92,7 @@ SLIDER_BG_REVERSE_R = 0.8; SLIDER_BG_REVERSE_G = 0.8; SLIDER_BG_REVERSE_B = 0.2;
+ BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
+ BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
+ TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
++VALUE_COLOR_R = 0.3333; VALUE_COLOR_G = 0.3333; VALUE_COLOR_B = 0.3333;  // #555555
+ 
+ // Header Colors
+ HEADER_BG_R = 0.0667; HEADER_BG_G = 0.0667; HEADER_BG_B = 0.0667;  // #111111
+@@ -121,7 +122,7 @@ MENU_HOVER_R = 0.4; MENU_HOVER_G = 0.4; MENU_HOVER_B = 0.4;  // Hover background
+ MENU_CHECKMARK_R = 0.0; MENU_CHECKMARK_G = 1.0; MENU_CHECKMARK_B = 0.0;  // Green checkmark
+ 
+ // Group Configuration
+-NUM_GROUPS = 5;  // Total number of groups
++NUM_GROUPS = 6;  // Total number of groups (added FILTERS group)
+ GROUP_BORDER_RADIUS = 5;  // Rounded corner radius
+ GROUP_TITLE_HEIGHT = 22;  // Height of title area
+ GROUP_TITLE_PADDING = 8;  // Horizontal padding around title text
+diff --git a/UI_General/01_drawing_primitives.jsfx-inc b/UI_General/01_drawing_primitives.jsfx-inc
+index 1934fcf..8c4f9ba 100644
+--- a/UI_General/01_drawing_primitives.jsfx-inc
++++ b/UI_General/01_drawing_primitives.jsfx-inc
+@@ -68,7 +68,7 @@ function draw_rounded_rect_outline(x, y, w, h, radius) local(segments) (
+ // GROUP RENDERING
+ //==============================================================================
+ 
+-function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x) (
++function draw_group(group_index, fade_amount) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x, current_alpha) (
+   gx = group_defs[group_index*6 + 0];
+   gy = group_defs[group_index*6 + 1];
+   gw = group_defs[group_index*6 + 2];
+@@ -76,12 +76,15 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
+   show_title = group_defs[group_index*6 + 4];
+   title_ptr = group_defs[group_index*6 + 5];
+   
++  // Apply fade amount (default to 1.0 if not provided)
++  current_alpha = fade_amount > 0 ? fade_amount : 1.0;
++  
+   // Draw main group background (disabled - no background)
+   // gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
+   // draw_rounded_rect(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
+   
+   // Draw group border
+-  gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
++  gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, current_alpha);
+   draw_rounded_rect_outline(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
+   
+   // Draw title if enabled
+@@ -103,7 +106,7 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
+     // draw_rounded_rect_outline(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
+     
+     // Draw title text (centered)
+-    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, 1);
++    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, current_alpha);
+     title_x = title_area_x + GROUP_TITLE_PADDING;
+     title_y = gy + (GROUP_TITLE_HEIGHT - title_h) / 2;
+     gfx_x = title_x;
+diff --git a/UI_General/02_ui_utils.jsfx-inc b/UI_General/02_ui_utils.jsfx-inc
+index 5a75bf9..a7a6864 100644
+--- a/UI_General/02_ui_utils.jsfx-inc
++++ b/UI_General/02_ui_utils.jsfx-inc
+@@ -46,6 +46,10 @@ function get_step_point_count(param_index) (
+   param_index == 11 ? S11.step_count :
+   param_index == 17 ? S17.step_count :
+   param_index == 18 ? S18.step_count :
++  param_index == 20 ? drive_step_count :
++  param_index == 21 ? mix_step_count :
++  param_index == 22 ? even_step_count :
++  param_index == 23 ? odd_step_count :
+   0
+ );
+ 
+@@ -56,6 +60,10 @@ function get_step_points_base(param_index) (
+   param_index == 11 ? lookahead_step_points_base :
+   param_index == 17 ? hp_step_points_base :
+   param_index == 18 ? lp_step_points_base :
++  param_index == 20 ? drive_step_points_base :
++  param_index == 21 ? mix_step_points_base :
++  param_index == 22 ? even_step_points_base :
++  param_index == 23 ? odd_step_points_base :
+   0
+ );
+ 
+diff --git a/UI_General/05_header.jsfx-inc b/UI_General/05_header.jsfx-inc
+index fe317a5..13c75c9 100644
+--- a/UI_General/05_header.jsfx-inc
++++ b/UI_General/05_header.jsfx-inc
+@@ -39,14 +39,16 @@ function draw_custom_menu() (
+   menu_visible ? (
+     menu_x = MENU_BUTTON_X;
+     menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
+-    menu_height = 4 * MENU_ITEM_HEIGHT;
++    menu_height = 6 * MENU_ITEM_HEIGHT;
+     gfx_set(MENU_BG_R, MENU_BG_G, MENU_BG_B, 1);
+     gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height);
+     gfx_set(MENU_BORDER_R, MENU_BORDER_G, MENU_BORDER_B, 1);
+     gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height, 0);
+     check_x = menu_x + MENU_WIDTH - 15;
++    // Set font once before drawing all menu items (non-bold)
++    gfx_setfont(1, "Arial", 11);
+     i = 0;
+-    while (i < 4) (
++    while (i < 6) (
+       item_y = menu_y + i * MENU_ITEM_HEIGHT;
+       is_hovered = (menu_hovered_item == i);
+       is_hovered ? (
+@@ -59,13 +61,15 @@ function draw_custom_menu() (
+       i == 0 ? gfx_drawstr("Debug") :
+       i == 1 ? gfx_drawstr("Histogram") :
+       i == 2 ? gfx_drawstr("GR Meter") :
+-      i == 3 ? gfx_drawstr("Brickwall Limiter") : 0;
+-      is_enabled = (i == 0 && menu_debug_enabled > 0.5) || (i == 1 && menu_histogram_enabled > 0.5) || (i == 2 && menu_gr_meter_enabled > 0.5) || (i == 3 && menu_brickwall_limiter_enabled > 0.5);
++      i == 3 ? gfx_drawstr("Brickwall Limiter") :
++      i == 4 ? gfx_drawstr("Hide Controls") :
++      i == 5 ? gfx_drawstr("Preview Filters") : 0;
++      is_enabled = (i == 0 && menu_debug_enabled > 0.5) || (i == 1 && menu_histogram_enabled > 0.5) || (i == 2 && menu_gr_meter_enabled > 0.5) || (i == 3 && menu_brickwall_limiter_enabled > 0.5) || (i == 4 && menu_controls_hidden > 0.5) || (i == 5 && menu_preview_filters_enabled > 0.5);
+       is_enabled ? (
+         gfx_set(MENU_CHECKMARK_R, MENU_CHECKMARK_G, MENU_CHECKMARK_B, 1);
+         gfx_x = check_x;
+         gfx_y = item_y + 6;
+-        gfx_drawstr("✓");
++        gfx_drawstr("v");  // Using "v" as checkmark (Unicode "✓" may not render in JSFX)
+       );
+       i += 1;
+     );
+diff --git a/UI_General/10_menu.jsfx-inc b/UI_General/10_menu.jsfx-inc
+index bd5c37c..f796687 100644
+--- a/UI_General/10_menu.jsfx-inc
++++ b/UI_General/10_menu.jsfx-inc
+@@ -16,6 +16,8 @@ function init_menu_state() (
+     menu_histogram_enabled = 1;  // Default to enabled
+     menu_gr_meter_enabled = 1;   // Default to enabled
+     menu_brickwall_limiter_enabled = 1;  // Default to enabled
++    menu_controls_hidden = 0;  // Default to visible
++    menu_preview_filters_enabled = 1;  // Default to enabled
+   );
+ 
+   // Custom menu state
+@@ -49,7 +51,7 @@ function is_mouse_in_menu() (
+   menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
+   menu_visible > 0.5 && 
+   mouse_x >= menu_x && mouse_x <= menu_x + MENU_WIDTH &&
+-  mouse_y >= menu_y && mouse_y <= menu_y + (4 * MENU_ITEM_HEIGHT)
++  mouse_y >= menu_y && mouse_y <= menu_y + (6 * MENU_ITEM_HEIGHT)
+ );
+ 
+ function get_hovered_menu_item() (
+@@ -57,7 +59,7 @@ function get_hovered_menu_item() (
+     menu_x = MENU_BUTTON_X;
+     menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
+     item_index = floor((mouse_y - menu_y) / MENU_ITEM_HEIGHT);
+-    item_index >= 0 && item_index < 4 ? item_index : -1;
++    item_index >= 0 && item_index < 6 ? item_index : -1;
+   ) : (
+     -1
+   );
+@@ -78,6 +80,12 @@ function handle_menu_item_click(item_index) (
+     menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
+     brickwall_limiter = menu_brickwall_limiter_enabled;
+     sliderchange(1 << (26 - 1)); // Update slider26 (still slider26 after reordering)
++  ) : item_index == 4 ? (
++    // Toggle hide controls
++    menu_controls_hidden = menu_controls_hidden > 0.5 ? 0 : 1;
++  ) : item_index == 5 ? (
++    // Toggle preview filters
++    menu_preview_filters_enabled = menu_preview_filters_enabled > 0.5 ? 0 : 1;
+   );
+   
+   // Close menu after selection
+diff --git a/UI_General/13_ui_interaction.jsfx-inc b/UI_General/13_ui_interaction.jsfx-inc
+index 3d33f4d..fb1dad7 100644
+--- a/UI_General/13_ui_interaction.jsfx-inc
++++ b/UI_General/13_ui_interaction.jsfx-inc
+@@ -13,27 +13,38 @@
+ // MAIN MOUSE INPUT PROCESSING
+ //==============================================================================
+ 
+-function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
+-  // Update menu hover state
+-  menu_visible ? (
+-    menu_hovered_item = get_hovered_menu_item();
+-  );
++function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked) (
++  // Don't process mouse input during page transitions to prevent accidental clicks
++  !page_transition_active ? (
++    // Update menu hover state
++    menu_visible ? (
++      menu_hovered_item = get_hovered_menu_item();
++    );
++
++    // Calculate meter position using shared functions
++    gr_meter_x = get_meter_x();
++    gr_meter_y = get_meter_y();
++    gr_meter_w = get_meter_w();
++    gr_meter_h = get_meter_h();
+ 
+-  // Calculate meter position using shared functions
+-  gr_meter_x = get_meter_x();
+-  gr_meter_y = get_meter_y();
+-  gr_meter_w = get_meter_w();
+-  gr_meter_h = get_meter_h();
++    // Handle custom buttons first (they have highest priority)
++    custom_button_clicked = process_custom_button_input();
+ 
+-  // Handle custom UI controls first (they have priority)
+-  handle_ui_mouse_input();
++    // Handle custom UI controls (they have priority over graph)
++    !custom_button_clicked ? (
++      handle_ui_mouse_input();
++    );
+ 
+-  // Handle threshold line interactions second (before graph interactions)
+-  // Pass meter position and graph bounds as parameters
+-  handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
++    // Handle threshold line interactions (before graph interactions)
++    // Pass meter position and graph bounds as parameters
++    !custom_button_clicked && ui_drag_control == -1 ? (
++      handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
++    );
+ 
+-  // Only process graph mouse input if not interacting with UI controls or threshold lines
+-  ui_drag_control == -1 && dragging_threshold_line == -1 ? (
+-    handle_graph_mouse_input();
++    // Only process graph mouse input if not interacting with UI controls, custom buttons, or threshold lines
++    // Also only process if graph is visible (should_render_graph)
++    !custom_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_graph() ? (
++      handle_graph_mouse_input();
++    );
+   );
+ );
+diff --git a/UI_General/14_ui_orchestration.jsfx-inc b/UI_General/14_ui_orchestration.jsfx-inc
+index 3c872cd..c982fbe 100644
+--- a/UI_General/14_ui_orchestration.jsfx-inc
++++ b/UI_General/14_ui_orchestration.jsfx-inc
+@@ -33,45 +33,92 @@ function render_complete_interface() (
+   draw_header();
+   setup_header_controls();
+   
+-  // Draw all group backgrounds and titles
+-  render_all_groups();
+-
+-  // Draw all controls (uses unified control system)
+-  render_all_controls();
+-
+-  // Draw graph elements with proper clipping
+-  draw_graph_background();  // 05j
+-  draw_input_histogram();   // 05i - Input signal histogram (drawn first, behind GR histogram)
+-  draw_histogram();         // 05i - GR histogram
+-  
+-  draw_grid();                        // 05j
+-  draw_mixed_curves();                // 05h
+-  draw_graph_points();                // 05h
+-  update_and_render_trail_dots();     // 05l - Trail dots (faded green dots)
+-  
+-  // Draw input level indicator (green dot) - clamp to graph bounds
+-  is_audio_active ? (
+-    // Clamp input_histogram_db to graph range to prevent dot from rendering outside
+-    clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+-    draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0, 1, 0, 0.8, 1);
++  // Draw all group backgrounds and titles (only if controls are visible)
++  menu_controls_hidden < 0.5 ? (
++    render_all_groups();
++    // Draw all controls (uses unified control system)
++    render_all_controls();
+   );
++
++  // Draw graph elements (only render when graph page is active or transitioning)
++  // During transitions, only one page should be visible at a time
++  should_render_graph() ? (
++    draw_graph_background();  // 05j
++    draw_input_histogram();   // 05i - Input signal histogram (drawn first, behind GR histogram)
++    draw_histogram();         // 05i - GR histogram
++    
++    draw_grid();                        // 05j
++    draw_mixed_curves();                // 05h
++    draw_graph_points();                // 05h
++    update_and_render_trail_dots();     // 05l - Trail dots (faded green dots)
++    
++    // Draw input level indicator (green dot) - clamp to graph bounds
++    is_audio_active ? (
++      // Clamp input_histogram_db to graph range to prevent dot from rendering outside
++      clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
++      draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0, 1, 0, 0.8, 1);
++    );
++    
++    draw_threshold_lines_on_graph();    // 05h
++    
++    // Draw meters and info outside graph area (these don't fade, they're outside the graph)
++    draw_gain_reduction_meter();  // 05i
++    draw_processing_state_indicator();  // 05i - Red/green indicator showing early exit state
++    draw_labels_and_info();       // 05j
++    draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
++    
++    // Apply blur effect if blur transition is active
++    graph_blur_active > 0.5 ? (
++      // Apply blur to graph and meter area using gfx_blurto
++      // gfx_blurto(x, y) blurs the region between current gfx_x,gfx_y and x,y
++      // Blur from 10px up/left of graph to 10px down/right of meter bottom-right
++      blur_intensity = graph_blur_amount;  // Ramping: 0 to 1 over 100ms
++      blur_intensity > 0.01 ? (
++        // Calculate blur region coordinates
++        blur_start_x = GRAPH_X - 10;
++        blur_start_y = GRAPH_Y - 10;
++        meter_x = get_meter_x();
++        meter_y = get_meter_y();
++        meter_w = get_meter_w();
++        meter_h = get_meter_h();
++        blur_end_x = meter_x + meter_w + 10;
++        blur_end_y = meter_y + meter_h + 10;
++        
++        // Set starting position for blur
++        gfx_x = blur_start_x;
++        gfx_y = blur_start_y;
++        
++        // Apply single blur (no stacking)
++        gfx_blurto(blur_end_x, blur_end_y);
++      );
++    );
+   
+-  draw_threshold_lines_on_graph();    // 05h
++  // Blur reflection area separately, all the time
++  // Reflection is 3 pixels tall, between graph left side and meter right side, plus 10px either side
++  reflection_y = GRAPH_Y + GRAPH_SIZE + 16;  // Same Y position as reflection
++  meter_x = get_meter_x();
++  meter_w = get_meter_w();
++  reflection_blur_start_x = GRAPH_X - 10;
++  reflection_blur_start_y = reflection_y;
++  reflection_blur_end_x = meter_x + meter_w + 10;
++  reflection_blur_end_y = reflection_y + 3;  // 3 pixels tall
+   
+-  // Draw mouse hints inside graph area
+-  draw_mouse_hints();         // 05j
++  // Set starting position for reflection blur
++  gfx_x = reflection_blur_start_x;
++  gfx_y = reflection_blur_start_y;
+   
+-  // Draw meters and info outside graph area
+-  draw_gain_reduction_meter();  // 05i
+-  draw_processing_state_indicator();  // 05i - Red/green indicator showing early exit state
+-  draw_labels_and_info();       // 05j
+-  draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
++  // Apply blur to reflection area (always active) - single blur for testing
++  gfx_blurto(reflection_blur_end_x, reflection_blur_end_y);
++  );
+   
+   // Draw custom menu (after graph elements to appear on top)
+   draw_custom_menu();
+   
+   // Draw debug performance counters (only visible when debug mode is enabled)
+   draw_debug_performance_counters();
++  
++  // Draw custom buttons (below graph)
++  render_custom_buttons();
+ 
+   // Handle all user interactions
+   process_mouse_input();
+diff --git a/UI_Graph/07_graph_curves.jsfx-inc b/UI_Graph/07_graph_curves.jsfx-inc
+index 16856a3..e296662 100644
+--- a/UI_Graph/07_graph_curves.jsfx-inc
++++ b/UI_Graph/07_graph_curves.jsfx-inc
+@@ -118,9 +118,9 @@ function draw_graph_points() (
+     is_dragging && mouse_down ? (
+       text_x = point_x + 15;
+       text_y = point_y;
+-      draw_text_at(1, 1, 1, 1, text_x, text_y - 4, "%.1f dB", output_db - input_db);
+-      draw_text_at(1, 1, 0.6, 1, text_x, text_y + 8, "%.1f dB", output_db);
+-      is_curved ? draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
++      draw_text_at(1, 1, 1, 0.5, text_x, text_y - 4, "%.1f dB", output_db - input_db);
++      draw_text_at(1, 1, 0.6, 0.5, text_x, text_y + 8, "%.1f dB", output_db);
++      is_curved ? draw_text_at(1, 1, 1, 0.5, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
+     );
+     i += 1;
+   );
+diff --git a/UI_Graph/08_graph_meters.jsfx-inc b/UI_Graph/08_graph_meters.jsfx-inc
+index 09d0419..6b969f8 100644
+--- a/UI_Graph/08_graph_meters.jsfx-inc
++++ b/UI_Graph/08_graph_meters.jsfx-inc
+@@ -145,13 +145,13 @@ function draw_processing_state_indicator() (
+   indicator_y = GRAPH_Y + GRAPH_SIZE / 2;
+   indicator_radius = 5;
+   
+-  gfx_set(0.15, 0.15, 0.15, 1);
++  gfx_set(0.15, 0.15, 0.15, 0.5);
+   gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);
+   
+   gr_processing_skipped ? (
+-    gfx_set(0.8, 0.2, 0.2, 1);
++    gfx_set(0.8, 0.2, 0.2, 0.5);
+   ) : (
+-    gfx_set(0.2, 0.8, 0.3, 1);
++    gfx_set(0.2, 0.8, 0.3, 0.5);
+   );
+   gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);
+ );
+@@ -247,7 +247,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
+     gr_meter_h = get_meter_h();
+     meter_center_y = gr_meter_y + gr_meter_h / 2;
+ 
+-    gfx_set(0.2, 0.2, 0.2, 1);
++    gfx_set(0.2, 0.2, 0.2, 0.5);
+     gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+ 
+     gfx_set(0.6, 0.6, 0.6, 1);
+@@ -377,6 +377,7 @@ function draw_histogram_reflection_unified_pixel() local(
+       
+       input_level_db > GRAPH_MIN_DB ? (
+         input_y_pos = HISTOGRAM_Y_OFFSET - input_level_db * DB_TO_PIXEL_SCALE;
++        input_y_pos = max(input_y_pos, GRAPH_Y);  // Clamp to graph top
+         input_distance = abs(input_y_pos - graph_reference_y);
+         input_reference_factor = 1 - (input_distance / max_distance);
+         input_reference_factor = max(0, min(1, input_reference_factor));
+@@ -474,6 +475,7 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a)
+       gfx_set(r, g, b, faded_alpha);
+       x_pos = GRAPH_X + i;
+       y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
++      y_pos = max(y_pos, GRAPH_Y);  // Clamp to graph top
+       
+       first_point ? (
+         gfx_x = x_pos;
+diff --git a/UI_Sliders/01_control_definitions.jsfx-inc b/UI_Sliders/01_control_definitions.jsfx-inc
+index 3d7f858..ac251df 100644
+--- a/UI_Sliders/01_control_definitions.jsfx-inc
++++ b/UI_Sliders/01_control_definitions.jsfx-inc
+@@ -147,6 +147,60 @@ function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label
+   control_count = max(control_count, index + 1);
+ );
+ 
++// Define parallax fader control
++// Parameters:
++//   image_top_index: Image index for top layer (0-255)
++//   image_bot_index: Image index for bottom layer (0-255)
++//   image_w, image_h: Image dimensions (agnostic - received from caller)
++//   paralax_depth: Pixel offset for parallax effect (affects top image travel, stored separately)
++//   parallax_y_offset: Y offset to lower images (accounts for shadows in image, stored separately)
++//   parallax_x_offset: Manual X offset for bottom image (independent of depth, stored separately)
++//   image_scale: Scale factor for images (e.g., 1.0 for no scaling, stored separately)
++//   suffix_str: Suffix string to append after value (e.g., " %", " dB")
++//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
++//   format_options: OPTION_* flags
++//   display_mode: DISPLAY_NORMAL, DISPLAY_HIDE_VALUE
++// Encodes: (top_image_index) | (bot_image_index << 8) | (image_w << 16) | (image_h << 24)
++// Note: paralax_depth and slider config are stored in separate arrays
++function define_parallax_fader(index, x, y, w, h, param_index, min_val, max_val, label, image_top_index, image_bot_index, image_w, image_h, paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode) local(fader_config, slider_config) (
++  control_defs[index*11 + 0] = 3;         // 3=parallax fader
++  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
++  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
++  control_defs[index*11 + 3] = w;         // Width
++  control_defs[index*11 + 4] = h;         // Height
++  control_defs[index*11 + 5] = param_index; // Parameter index
++  control_defs[index*11 + 6] = min_val;   // Min value
++  control_defs[index*11 + 7] = max_val;   // Max value
++  // Encode image configuration: top_index (bits 0-7), bot_index (bits 8-15), 
++  // image_w (bits 16-23), image_h (bits 24-31)
++  fader_config = image_top_index | (image_bot_index << 8) | ((image_w | 0) << 16) | ((image_h | 0) << 24);
++  control_defs[index*11 + 8] = fader_config;  // Image configuration
++  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
++  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
++  
++  // Store paralax_depth in separate array
++  parallax_depths[index] = paralax_depth;
++  
++  // Store parallax_y_offset in separate array
++  parallax_y_offsets[index] = parallax_y_offset;
++  
++  // Store parallax_x_offset in separate array
++  parallax_x_offsets[index] = parallax_x_offset;
++  
++  // Store image_scale in separate array
++  parallax_scales[index] = image_scale;
++  
++  // Store suffix string in string slot (61 + control_index) - same as sliders
++  strcpy(61 + index, suffix_str);
++  
++  // Store slider config (formatting, format_options, display_mode) in separate array
++  slider_config = formatting | (format_options << 8) | (display_mode << 16);
++  parallax_slider_configs[index] = slider_config;
++  
++  // Track control count (highest index + 1)
++  control_count = max(control_count, index + 1);
++);
++
+ 
+ //==============================================================================
+ // GENERIC RENDERING FUNCTIONS
+@@ -156,7 +210,16 @@ function render_all_groups() (
+   // Draw all group backgrounds
+   i = 0;
+   while (i < NUM_GROUPS) (
+-    draw_group(i);
++    // Group 5 (FILTERS) - only render if filters page should be rendered
++    i == 5 ? (
++      should_render_filters() ? (
++        // Apply fade opacity
++        draw_group(i, get_filters_opacity());
++      );
++    ) : (
++      // Normal rendering for other groups with full opacity
++      draw_group(i, 1.0);
++    );
+     i += 1;
+   );
+ );
+diff --git a/UI_Sliders/01b_value_text_rendering.jsfx-inc b/UI_Sliders/01b_value_text_rendering.jsfx-inc
+index f34d473..c208385 100644
+--- a/UI_Sliders/01b_value_text_rendering.jsfx-inc
++++ b/UI_Sliders/01b_value_text_rendering.jsfx-inc
+@@ -17,6 +17,9 @@
+ // USAGE:
+ //   draw_control_value_text(x, y, param_index, value, " ms", FORMAT_K, 0);
+ //   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0, fill_direction);
++//   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0, fill_direction, text_r, text_g, text_b);
++//     // Pass -1, -1, -1 for text_r, text_g, text_b to use smart color selection (default)
++//     // Pass valid RGB values (0-1) to use a fixed color (e.g., VALUE_COLOR_R, VALUE_COLOR_G, VALUE_COLOR_B)
+ //
+ 
+ //==============================================================================
+@@ -44,7 +47,8 @@ function draw_control_value_text(x, y, param_index, display_value, suffix_str, f
+ // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+ // display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+ // fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, or FILL_CENTER_OUT
+-function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction) local(
++// text_r, text_g, text_b: Optional text color (if all are -1, uses smart color selection based on position)
++function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction, text_r, text_g, text_b) local(
+   formatted_str, value_str_w, value_str_h, text_x, is_over_fill
+ ) (
+   // Skip drawing if display mode is HIDE_VALUE
+@@ -59,31 +63,36 @@ function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_ind
+       text_x = x + w - value_str_w - 3;
+     );
+     
+-    // For reverse fill (FILL_RIGHT_TO_LEFT), determine if text is over filled (yellow) or unfilled (grey) area
+-    fill_direction == FILL_RIGHT_TO_LEFT ? (
+-      // Reverse fill: filled area is from (x + normalized_pos * w) to (x + w) on the right
+-      // Unfilled area is from x to (x + normalized_pos * w) on the left
+-      normalized_pos > 0.5 ? (
+-        // Text on left - check if it's in unfilled area (grey background)
+-        // Left side is unfilled when normalized_pos > 0.5, so text is over grey = white text
+-        is_over_fill = 0;
+-      ) : (
+-        // Text on right - check if it's in filled area (yellow fill)
+-        // Right side is filled when normalized_pos <= 0.5, so text is over yellow = black text
+-        is_over_fill = 1;
+-      );
+-      // Set color: black over yellow (filled), white over grey (unfilled)
+-      is_over_fill ? (
+-        gfx_set(0, 0, 0, 1);  // Black over yellow fill
+-      ) : (
+-        gfx_set(1, 1, 1, 1);   // White over grey background
+-      );
++    // Use provided color if valid (not -1), otherwise use smart color selection
++    (text_r >= 0 && text_g >= 0 && text_b >= 0) ? (
++      gfx_set(text_r, text_g, text_b, 1);
+     ) : (
+-      // Normal fill (FILL_LEFT_TO_RIGHT or FILL_CENTER_OUT): use original logic
+-      normalized_pos > 0.5 ? (
+-        gfx_set(0, 0, 0, 1);  // Black
++      // For reverse fill (FILL_RIGHT_TO_LEFT), determine if text is over filled (yellow) or unfilled (grey) area
++      fill_direction == FILL_RIGHT_TO_LEFT ? (
++        // Reverse fill: filled area is from (x + normalized_pos * w) to (x + w) on the right
++        // Unfilled area is from x to (x + normalized_pos * w) on the left
++        normalized_pos > 0.5 ? (
++          // Text on left - check if it's in unfilled area (grey background)
++          // Left side is unfilled when normalized_pos > 0.5, so text is over grey = white text
++          is_over_fill = 0;
++        ) : (
++          // Text on right - check if it's in filled area (yellow fill)
++          // Right side is filled when normalized_pos <= 0.5, so text is over yellow = black text
++          is_over_fill = 1;
++        );
++        // Set color: black over yellow (filled), white over grey (unfilled)
++        is_over_fill ? (
++          gfx_set(0, 0, 0, 1);  // Black over yellow fill
++        ) : (
++          gfx_set(1, 1, 1, 1);   // White over grey background
++        );
+       ) : (
+-        gfx_set(1, 1, 1, 1);  // White
++        // Normal fill (FILL_LEFT_TO_RIGHT or FILL_CENTER_OUT): use original logic
++        normalized_pos > 0.5 ? (
++          gfx_set(0, 0, 0, 1);  // Black
++        ) : (
++          gfx_set(1, 1, 1, 1);  // White
++        );
+       );
+     );
+     
+diff --git a/UI_Sliders/01c_slider_rendering.jsfx-inc b/UI_Sliders/01c_slider_rendering.jsfx-inc
+index e65e622..97a51a2 100644
+--- a/UI_Sliders/01c_slider_rendering.jsfx-inc
++++ b/UI_Sliders/01c_slider_rendering.jsfx-inc
+@@ -175,10 +175,11 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
+     // Draw value text with smart positioning
+     // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted frequency
+     // format_slider_value will handle the conversion and formatting
++    // Pass -1, -1, -1 for color to use smart color selection (default behavior)
+     option_count > 0 ? (
+-      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, value, suffix_str, formatting, format_options, display_mode, fill_direction);
++      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, value, suffix_str, formatting, format_options, display_mode, fill_direction, -1, -1, -1);
+     ) : (
+-      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction);
++      draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction, -1, -1, -1);
+     );
+   );
+ );
+diff --git a/UI_Sliders/01g_control_dispatcher.jsfx-inc b/UI_Sliders/01g_control_dispatcher.jsfx-inc
+index ffa8693..b1c2493 100644
+--- a/UI_Sliders/01g_control_dispatcher.jsfx-inc
++++ b/UI_Sliders/01g_control_dispatcher.jsfx-inc
+@@ -16,9 +16,12 @@
+ //   0 = Slider
+ //   1 = Button (toggle)
+ //   2 = Dropdown (combobox)
++//   3 = Parallax Fader
+ //
+ // USAGE:
+-//   render_control(control_index);
++//   render_control(control_index, opacity);
++//   control_index: Index of the control to render
++//   opacity: Opacity value (0-1) to apply to the control
+ //
+ // The dispatcher:
+ // 1. Reads control definition from control_defs array
+@@ -60,10 +63,13 @@ function get_control_suffix(control_index) (
+ //==============================================================================
+ 
+ // Helper function to render a control from the control_defs array
+-function render_control(index) local(
++// Parameters:
++//   index: Control index to render
++//   opacity: Opacity (0-1) to apply to the control rendering
++function render_control(index, opacity) local(
+   group_idx, type, x, y, w, h, param_index, min_val, max_val, slider_config,
+   slider_orientation, display_mode, fill_direction, formatting, format_options, current_value,
+-  option_count, suffix_str, label_slot
++  option_count, suffix_str, label_slot, fade_alpha
+ ) (
+   type = control_defs[index*11 + 0];
+   x = control_defs[index*11 + 1];
+@@ -81,6 +87,10 @@ function render_control(index) local(
+     x += group_defs[group_idx*6 + 0];
+     y += group_defs[group_idx*6 + 1];
+   );
++  
++  // Apply provided opacity
++  fade_alpha = opacity;
++  gfx_a = fade_alpha;
+ 
+   // Get current parameter value
+   current_value = slider(param_index);
+@@ -135,8 +145,57 @@ function render_control(index) local(
+     );
+   ) : type == 2 ? ( // Dropdown
+     draw_generic_dropdown(x, y, w, h, current_value, label_slot, param_index);
++  ) : type == 3 ? ( // Parallax Fader - extract config and call renderer directly
++    // Decode parallax fader configuration
++    fader_config = control_defs[index*11 + 8];
++    image_top_index = fader_config & 0xFF;           // Bits 0-7: top image index
++    image_bot_index = (fader_config >> 8) & 0xFF;   // Bits 8-15: bottom image index
++    image_w = (fader_config >> 16) & 0xFF;          // Bits 16-23: image width
++    image_h = (fader_config >> 24) & 0xFF;          // Bits 24-31: image height
++    paralax_depth = parallax_depths[index];          // Get parallax depth from separate array
++    parallax_y_offset = parallax_y_offsets[index];    // Get Y offset from separate array
++    parallax_x_offset = parallax_x_offsets[index];    // Get X offset from separate array
++    image_scale = parallax_scales[index];             // Get image scale from separate array
++    
++    // Get suffix string from string slot (same as sliders)
++    get_control_suffix(index);
++    suffix_str = #value_str;
++    
++    // Extract slider config (formatting, format_options, display_mode) from separate array
++    slider_config = parallax_slider_configs[index];
++    formatting = slider_config & 0xFF;              // Bits 0-7: formatting
++    format_options = (slider_config >> 8) & 0xFF;   // Bits 8-15: format options
++    display_mode = (slider_config >> 16) & 0xFF;    // Bits 16-23: display mode
++    
++    // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
++    // Only Attack slider responds to the time unit selector (time_multiplier variable)
++    param_index == 1 ? (
++      time_multiplier == 0 ? strcpy(#value_str, " ms") :
++      time_multiplier == 1 ? strcpy(#value_str, " us") :
++      strcpy(#value_str, " s");
++      suffix_str = #value_str;
++    );
++    
++    // For enumerated sliders, ignore min_val/max_val from control_defs
++    // They use option_count instead (0 to option_count-1)
++    // Parallax faders support stepped sliders the same way as regular sliders
++    option_count = get_dropdown_option_count(param_index);
++    option_count > 0 ? (
++      // Enumerated slider: use 0 and option_count-1 as min/max
++      draw_parallax_fader(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index,
++                          image_top_index, image_bot_index, image_w, image_h,
++                          paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
++    ) : (
++      // Continuous or step-point slider: use min_val/max_val from control_defs
++      draw_parallax_fader(x, y, w, h, current_value, min_val, max_val, label_slot, param_index,
++                          image_top_index, image_bot_index, image_w, image_h,
++                          paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
++    );
+   ) : (
+     0; // Unknown control type
+   );
++  
++  // Reset alpha after rendering
++  gfx_a = 1.0;
+ );
+ 
+diff --git a/UI_Sliders/01h_slider_objects.jsfx-inc b/UI_Sliders/01h_slider_objects.jsfx-inc
+index 10b7ea9..98844cf 100644
+--- a/UI_Sliders/01h_slider_objects.jsfx-inc
++++ b/UI_Sliders/01h_slider_objects.jsfx-inc
+@@ -47,6 +47,10 @@ function construct_from_param(param_index) instance(param_index default min max
+     param_index == 11 ? lookahead_step_count :
+     param_index == 17 ? hp_step_count :
+     param_index == 18 ? lp_step_count :
++    param_index == 20 ? drive_step_count :
++    param_index == 21 ? mix_step_count :
++    param_index == 22 ? even_step_count :
++    param_index == 23 ? odd_step_count :
+     0;
+ );
+ 
+diff --git a/UI_Sliders/02_control_interactions.jsfx-inc b/UI_Sliders/02_control_interactions.jsfx-inc
+index cc3faa5..9c8d7ea 100644
+--- a/UI_Sliders/02_control_interactions.jsfx-inc
++++ b/UI_Sliders/02_control_interactions.jsfx-inc
+@@ -11,6 +11,9 @@
+ // Control States
+ ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
+ 
++// Preview Filters: Track initial state of Listen to Detection when dragging HP/LP filters
++preview_filters_listen_initial_state = -1;  // -1 = not tracking, 0 = was off, 1 = was on
++
+ // Mouse position tracking for delta calculations
+ ui_prev_mouse_x = 0;
+ ui_prev_mouse_y = 0;
+@@ -42,6 +45,43 @@ function update_pdc_delay_if_needed(param_index) (
+   );
+ );
+ 
++// Preview Filters: Auto-enable Listen when adjusting HP/LP filters
++function handle_preview_filters(param_index, is_drag_start) (
++  // If Preview Filters is enabled and adjusting HP or LP filter
++  menu_preview_filters_enabled > 0.5 && (param_index == 17 || param_index == 18) ? (
++    is_drag_start ? (
++      // Drag start: Save initial state of Listen to Detection
++      preview_filters_listen_initial_state = slider(16) > 0.5 ? 1 : 0;
++      
++      // If it was off, enable it temporarily
++      preview_filters_listen_initial_state < 0.5 ? (
++        listen_to_sidechain = 1;
++        slider(16) = 1;
++        sliderchange(1 << (16 - 1));
++      );
++    ) : (
++      // During drag: Keep it enabled if it was off initially
++      preview_filters_listen_initial_state < 0.5 ? (
++        listen_to_sidechain = 1;
++        slider(16) = 1;
++        sliderchange(1 << (16 - 1));
++      );
++    );
++  );
++);
++
++// Preview Filters: Restore Listen state on drag end
++function handle_preview_filters_drag_end() (
++  // If we were tracking and Listen was off initially, restore it to off
++  preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
++    listen_to_sidechain = 0;
++    slider(16) = 0;
++    sliderchange(1 << (16 - 1));
++  );
++  // Reset tracking state
++  preview_filters_listen_initial_state = -1;
++);
++
+ //==============================================================================
+ // HELPER FUNCTIONS
+ //==============================================================================
+@@ -83,7 +123,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
+     ui_drag_control = -2; // Prevent drag
+   ) : (
+     // Normal click behavior
+-    control_type == 0 ? (
++    (control_type == 0 || control_type == 3) ? ( // Slider or Parallax Fader
+       // Slider - start drag (handles both continuous and enumerated sliders)
+       ui_drag_control = control_index;
+       
+@@ -94,9 +134,17 @@ function handle_control_click(control_index) local(option_count, step_count, min
+         step_count = get_step_point_count(param_index);
+         (option_count > 0 || step_count > 0) ? (
+           // Stepped slider with CTRL: calculate smooth value from mouse position
+-          slider_config = control_defs[control_index*11 + 8];
+-          slider_orientation = slider_config & 0xFF;
+-          format_options = (slider_config >> 32) & 0xFF;
++          control_type == 3 ? (
++            // Parallax fader: get config from separate array
++            slider_config = parallax_slider_configs[control_index];
++            format_options = (slider_config >> 8) & 0xFF;
++            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
++          ) : (
++            // Regular slider: get config from control_defs
++            slider_config = control_defs[control_index*11 + 8];
++            slider_orientation = slider_config & 0xFF;
++            format_options = (slider_config >> 32) & 0xFF;
++          );
+           min_val = control_defs[control_index*11 + 6];
+           max_val = control_defs[control_index*11 + 7];
+           
+@@ -130,9 +178,17 @@ function handle_control_click(control_index) local(option_count, step_count, min
+           slider(param_index) = raw_value;
+         ) : (
+           // Continuous slider with CTRL: calculate smooth value (no increment snapping)
+-          slider_config = control_defs[control_index*11 + 8];
+-          slider_orientation = slider_config & 0xFF;
+-          format_options = (slider_config >> 32) & 0xFF;
++          control_type == 3 ? (
++            // Parallax fader: get config from separate array
++            slider_config = parallax_slider_configs[control_index];
++            format_options = (slider_config >> 8) & 0xFF;
++            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
++          ) : (
++            // Regular slider: get config from control_defs
++            slider_config = control_defs[control_index*11 + 8];
++            slider_orientation = slider_config & 0xFF;
++            format_options = (slider_config >> 32) & 0xFF;
++          );
+           min_val = control_defs[control_index*11 + 6];
+           max_val = control_defs[control_index*11 + 7];
+           
+@@ -171,6 +227,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
+       );
+       sliderchange(1 << (param_index - 1));
+       update_pdc_delay_if_needed(param_index);
++      handle_preview_filters(param_index, 1);  // is_drag_start = 1
+     ) : control_type == 1 ? (
+       // Button - toggle (don't start drag for buttons)
+       slider(param_index) = current_value > 0.5 ? 0 : 1;
+@@ -201,10 +258,18 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
+     param_index = control_defs[ui_drag_control*11 + 5];
+     control_type = control_defs[ui_drag_control*11 + 0];
+ 
+-    control_type == 0 ? ( // Slider - unified system
+-      slider_config = control_defs[ui_drag_control*11 + 8];
+-      slider_style = slider_config & 0xFF;
+-      format_options = (slider_config >> 32) & 0xFF;
++    (control_type == 0 || control_type == 3) ? ( // Slider or Parallax Fader - unified system
++      control_type == 3 ? (
++        // Parallax fader: get config from separate array
++        slider_config = parallax_slider_configs[ui_drag_control];
++        format_options = (slider_config >> 8) & 0xFF;
++        slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
++      ) : (
++        // Regular slider: get config from control_defs
++        slider_config = control_defs[ui_drag_control*11 + 8];
++        slider_orientation = slider_config & 0xFF;
++        format_options = (slider_config >> 32) & 0xFF;
++      );
+ 
+       min_val = control_defs[ui_drag_control*11 + 6];
+       max_val = control_defs[ui_drag_control*11 + 7];
+@@ -218,9 +283,17 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
+         // Stepped slider (enumerated or step-points)
+         MOUSE_CTRL_KEY ? (
+           // CTRL held: allow smooth adjustment (ignore stepping) - use position-based calculation
+-          slider_config = control_defs[ui_drag_control*11 + 8];
+-          slider_orientation = slider_config & 0xFF;
+-          format_options = (slider_config >> 32) & 0xFF;
++          control_type == 3 ? (
++            // Parallax fader: get config from separate array
++            slider_config = parallax_slider_configs[ui_drag_control];
++            format_options = (slider_config >> 8) & 0xFF;
++            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
++          ) : (
++            // Regular slider: get config from control_defs
++            slider_config = control_defs[ui_drag_control*11 + 8];
++            slider_orientation = slider_config & 0xFF;
++            format_options = (slider_config >> 32) & 0xFF;
++          );
+           
+           group_idx = control_defs[ui_drag_control*11 + 10];
+           slider_orientation == ORIENTATION_VERTICAL ? (
+@@ -382,6 +455,7 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
+       
+       sliderchange(1 << (param_index - 1));
+       update_pdc_delay_if_needed(param_index);
++      handle_preview_filters(param_index, 0);  // is_drag_start = 0 (during drag)
+     ) : (
+       // Other control types - no drag handling needed
+       0; // Empty statement to satisfy JSFX syntax
+@@ -420,10 +494,20 @@ function handle_ui_mouse_input() (
+           );
+         ) : (
+         // Check controls until we find one under the mouse
++        // Only check controls that are visible (filter controls only when filters page is visible)
+         i = 0;
+         while (i < control_count && ui_drag_control == -1) (
+-          is_point_in_control(mouse_x, mouse_y, i) ? (
+-            handle_control_click(i);
++          // Check if this control is in the filters group and if filters are visible
++          control_group_idx = control_defs[i*11 + 10];
++          is_filter_control = (control_group_idx == 5);  // Group 5 is FILTERS group
++          (is_filter_control && !should_render_filters()) ? (
++            // Filter control is hidden, skip it
++            0;
++          ) : (
++            // Control is visible, check if mouse is over it
++            is_point_in_control(mouse_x, mouse_y, i) ? (
++              handle_control_click(i);
++            );
+           );
+           i += 1;
+         );
+@@ -433,6 +517,8 @@ function handle_ui_mouse_input() (
+     );
+   ) : (
+     // Mouse released - reset drag state
++    // Check if we need to restore Listen to Detection state
++    handle_preview_filters_drag_end();
+     ui_drag_control = -1;
+     ui_fine_drag_accum = 0; // Reset accumulator
+   );
+ M .DS_Store
+ M 01_Utils/01_constants.jsfx-inc
+ M 01_Utils/05_memory.jsfx-inc
+ M 01_Utils/06_state.jsfx-inc
+ M Composure.jsfx
+ M Images/.DS_Store
+ M UI_Controls/05_Composure_Controls.jsfx-inc
+ M UI_General/00_ui_constants.jsfx-inc
+ M UI_General/01_drawing_primitives.jsfx-inc
+ M UI_General/02_ui_utils.jsfx-inc
+ M UI_General/05_header.jsfx-inc
+ M UI_General/10_menu.jsfx-inc
+ M UI_General/13_ui_interaction.jsfx-inc
+ M UI_General/14_ui_orchestration.jsfx-inc
+ M UI_Graph/07_graph_curves.jsfx-inc
+ M UI_Graph/08_graph_meters.jsfx-inc
+ M UI_Sliders/01_control_definitions.jsfx-inc
+ M UI_Sliders/01b_value_text_rendering.jsfx-inc
+ M UI_Sliders/01c_slider_rendering.jsfx-inc
+ M UI_Sliders/01g_control_dispatcher.jsfx-inc
+ M UI_Sliders/01h_slider_objects.jsfx-inc
+ M UI_Sliders/02_control_interactions.jsfx-inc
+?? CHANGELOG_backup.txt
+?? UI_General/15_custom_buttons.jsfx-inc
+?? UI_General/16_page_transitions.jsfx-inc
+?? UI_Sliders/01d_parallax_fader_rendering.jsfx-inc
+
+=== NEW FILES ===
+?? CHANGELOG_backup.txt
+?? UI_General/15_custom_buttons.jsfx-inc
+?? UI_General/16_page_transitions.jsfx-inc
+?? UI_Sliders/01d_parallax_fader_rendering.jsfx-inc
+
+=== NEW FILE: CHANGELOG_backup.txt ===
+diff --git a/.DS_Store b/.DS_Store
+index 94bda22..40d93e0 100644
+Binary files a/.DS_Store and b/.DS_Store differ
+diff --git a/01_Utils/01_constants.jsfx-inc b/01_Utils/01_constants.jsfx-inc
+index 5d98464..409c44b 100644
+--- a/01_Utils/01_constants.jsfx-inc
++++ b/01_Utils/01_constants.jsfx-inc
+@@ -13,12 +13,13 @@
+ #debug_temp_str = 54;  // For debug string concatenation
+ #freq_display_str = 60;  // For frequency display formatting
+ 
+-// Group title string slots (5 groups)
++// Group title string slots (6 groups)
+ #group_title_0 = 55;  // ENVELOPE
+ #group_title_1 = 56;  // DETECTION  
+ #group_title_2 = 57;  // COMPRESSION
+ #group_title_3 = 58;  // HARMONICS
+ #group_title_4 = 59;  // SOURCE
++#group_title_5 = 62;  // FILTERS (using slot 62, 60-61 are used by custom buttons)
+ 
+ // === AUDIO CONSTANTS ===
+ 
+diff --git a/01_Utils/05_memory.jsfx-inc b/01_Utils/05_memory.jsfx-inc
+index 826ee79..11ab35e 100644
+--- a/01_Utils/05_memory.jsfx-inc
++++ b/01_Utils/05_memory.jsfx-inc
+@@ -55,6 +55,26 @@ function allocate_memory() (
+   slider_properties_base = freemem;
+   freemem += NUM_CONTROLS * 4;
+   
++  // Parallax fader depths array (1 value per control for parallax depth)
++  !parallax_depths ? parallax_depths = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader Y offsets array (1 value per control for Y offset)
++  !parallax_y_offsets ? parallax_y_offsets = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader X offsets array (1 value per control for X offset)
++  !parallax_x_offsets ? parallax_x_offsets = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader scales array (1 value per control for image scale)
++  !parallax_scales ? parallax_scales = freemem;
++  freemem += NUM_CONTROLS;
++  
++  // Parallax fader slider configs array (1 value per control for formatting/config)
++  !parallax_slider_configs ? parallax_slider_configs = freemem;
++  freemem += NUM_CONTROLS;
++  
+
+=== NEW FILE: UI_General/15_custom_buttons.jsfx-inc ===
+// Custom Buttons Module
+// Custom buttons that don't use JSFX sliders - first buttons to use custom objects and custom run code
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/16_page_transitions.jsfx-inc
+
+@init
+
+//==============================================================================
+// CUSTOM BUTTON STATE
+//==============================================================================
+
+// Graph blur transition state (used during page transitions)
+graph_blur_start_time = 0;  // Time when blur transition started (0 = not active)
+graph_blur_duration = 0.100;  // Blur duration in seconds (100ms - matches fade out)
+graph_blur_active = 0;      // 1 = blur transition in progress, 0 = no blur
+graph_blur_amount = 0;      // Current blur amount (0-1, ramps up during transition)
+
+// Button definitions (custom objects)
+// Button 0: Graph and Filter visibility toggle (combined)
+custom_button_0_x = -999;    // Invalid position until set in @gfx (use -999 to detect uninitialized)
+custom_button_0_y = -999;    // Invalid position until set in @gfx (use -999 to detect uninitialized)
+custom_button_0_w = BUTTON_W;
+custom_button_0_h = BUTTON_H;
+custom_button_0_state = 0; // 0 = graph visible (button inactive), 1 = filters visible (button active)
+
+// Button label strings (use string slots 60+)
+#custom_button_0_label = 60;
+#custom_button_1_label = 61;
+
+//==============================================================================
+// STATE INITIALIZATION
+//==============================================================================
+
+// Initialize button labels
+function init_custom_button_labels() (
+  // Set label based on initial page state (graph visible = "Hide Graph/Filters")
+  // Use get_current_page() to ensure correct initial label
+  get_current_page() == PAGE_GRAPH ? (
+    strcpy(#custom_button_0_label, "Hide Graph/Filters");
+  ) : (
+    strcpy(#custom_button_0_label, "Show Graph/Filters");
+  );
+);
+
+function init_custom_button_state() (
+  // Initialize page transition system FIRST
+  init_page_transition_state();
+  
+  // Initialize button state to match initial page (graph visible = button inactive)
+  // Use get_current_page() to ensure correct initial state
+  custom_button_0_state = get_current_page() == PAGE_FILTERS ? 1 : 0;
+
+=== NEW FILE: UI_General/16_page_transitions.jsfx-inc ===
+// Page Transitions Module
+// Generic page transition system for smooth fade-in/fade-out between UI pages
+// Dependencies: None (standalone utility module)
+
+@init
+
+//==============================================================================
+// PAGE DEFINITIONS
+//==============================================================================
+
+// Page indices (can be extended for future pages)
+PAGE_GRAPH = 0;      // Graph page (graph visible, filters hidden)
+PAGE_FILTERS = 1;    // Filters page (graph hidden, filters visible)
+// Future pages can be added here: PAGE_SETTINGS = 2, etc.
+
+//==============================================================================
+// PAGE TRANSITION CONSTANTS
+//==============================================================================
+
+PAGE_FADE_OUT_DURATION = 0.100;  // 100ms fade out (75ms + 25ms)
+PAGE_DELAY_DURATION = 0.075;     // 75ms delay between fade out and fade in (50ms + 25ms)
+PAGE_FADE_IN_DURATION = 0.100;   // 100ms fade in (75ms + 25ms)
+PAGE_TOTAL_DURATION = PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION + PAGE_FADE_IN_DURATION;  // 275ms total
+
+//==============================================================================
+// PAGE TRANSITION STATE
+//==============================================================================
+
+// Current page state
+current_page = PAGE_GRAPH;        // Currently displayed page
+target_page = PAGE_GRAPH;         // Target page for transition
+
+// Transition state
+page_transition_active = 0;       // 1 = transition in progress, 0 = no transition
+page_transition_start_time = 0;   // Time when transition started (0 = not active)
+
+// Fade amounts for each page (0-1, where 1 = fully visible, 0 = fully hidden)
+// Array indexed by page number
+page_fade_amounts = 0;  // Will be initialized to array of fade amounts
+
+//==============================================================================
+// PAGE TRANSITION INITIALIZATION
+//==============================================================================
+
+function init_page_transition_state() (
+  current_page = PAGE_GRAPH;
+  target_page = PAGE_GRAPH;
+  page_transition_active = 0;
+  page_transition_start_time = 0;
+  
+
+=== NEW FILE: UI_Sliders/01d_parallax_fader_rendering.jsfx-inc ===
+// Parallax Fader Rendering Module
+// Handles rendering of parallax fader controls with two-layer image effect
+// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
+
+@init
+
+//==============================================================================
+// PARALLAX FADER RENDERING
+//==============================================================================
+//
+// This module provides parallax fader rendering for horizontal sliders.
+// It handles:
+// - Two-layer image rendering (top and bottom images)
+// - Parallax effect based on slider position and depth parameter
+// - Label rendering above slider
+// - Value text rendering
+// - Slider interaction (drag to change value)
+//
+// USAGE:
+//   draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_index,
+//                       image_top_index, image_bot_index, image_w, image_h,
+//                       paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+//
+// PARALLAX EFFECT:
+//   The top image moves at a different rate than the bottom image based on
+//   paralax_depth. When dragged, the top image's travel distance is reduced
+//   or increased by paralax_depth pixels to create the parallax effect.
+//
+
+//==============================================================================
+// PARALLAX FADER STYLE CONFIGURATION (Module-level variables)
+//==============================================================================
+
+// Style configuration variables - set these before rendering
+parallax_style_label_height = 11;
+parallax_style_text_r = 1.0; parallax_style_text_g = 1.0; parallax_style_text_b = 1.0;
+
+//==============================================================================
+// PARALLAX FADER RENDERING FUNCTION
+//==============================================================================
+
+// Draw parallax fader control - uses style configuration variables
+// Parameters:
+//   x, y: Position (fader top-left corner)
+//   w, h: Dimensions (fader size)
+//   value: Current slider value
+//   min_val, max_val: Value range
+//   label: Label string slot
+//   param_index: Parameter index for value formatting
+//   image_top_index: Image index for top layer
