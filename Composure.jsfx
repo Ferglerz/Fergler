@@ -183,6 +183,8 @@ read_slider_definitions("Composure.jsfx");
 
 // 2. Initialize all constants, memory, and state variables
 allocate_memory();
+// Initialize step-point arrays (must happen after memory allocation)
+init_step_points();
 init_state_variables();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)

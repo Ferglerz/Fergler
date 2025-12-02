@@ -40,7 +40,9 @@ HISTORY_UPDATE = 0.001;
 // === MEMORY LAYOUT CONFIGURATION ===
 
 // UI Controls
-NUM_CONTROLS = 23;  // Total number of UI controls (indices 0-22)
+// Memory allocation size - matches JSFX slider limit (256 sliders available)
+// Actual control count is tracked dynamically by control_count variable
+NUM_CONTROLS = 256;  // Memory allocation size for control definitions
 
 // Debug logging (string slots for debug messages)
 STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supports 0-63)

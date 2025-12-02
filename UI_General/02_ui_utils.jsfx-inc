@@ -30,26 +30,22 @@ function is_point_in_control(x, y, control_index) local(group_idx) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-// Step-point array base addresses (defined in 05_Composure_Controls.jsfx-inc)
+// Step-point array base addresses (allocated inline in 05_Composure_Controls.jsfx-inc init_step_points())
 // These are declared here for early access by helper functions
-attack_step_points_base = 20000;
-release_step_points_base = 20100;
-hp_step_points_base = 20200;
-lp_step_points_base = 20300;
+// Variables default to 0 in JSFX, no initialization needed
 
 // Step-point counts (initialized in 05_Composure_Controls.jsfx-inc)
-attack_step_count = 0;
-release_step_count = 0;
-hp_step_count = 0;
-lp_step_count = 0;
+// Variables default to 0 in JSFX, no initialization needed
 
-// Helper functions to get step-point info for a slider parameter
+// Helper function to get step-point count from slider object
 // Returns step-point count for the given parameter, or 0 if not a stepped slider
+// This accesses the step_count property from the slider object namespace
 function get_step_point_count(param_index) (
-  param_index == 1 ? attack_step_count :
-  param_index == 3 ? release_step_count :
-  param_index == 10 ? hp_step_count :
-  param_index == 11 ? lp_step_count :
+  param_index == 1 ? S1.step_count :
+  param_index == 4 ? S4.step_count :
+  param_index == 11 ? S11.step_count :
+  param_index == 17 ? S17.step_count :
+  param_index == 18 ? S18.step_count :
   0
 );
 
@@ -58,7 +54,8 @@ function get_step_points_base(param_index) (
   param_index == 1 ? attack_step_points_base :
   param_index == 3 ? release_step_points_base :
   param_index == 10 ? hp_step_points_base :
-  param_index == 11 ? lp_step_points_base :
+  param_index == 11 ? lookahead_step_points_base :
+  param_index == 18 ? lp_step_points_base :
   0
 );
 

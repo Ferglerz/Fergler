@@ -21,7 +21,8 @@
 //   this.values_base  - base offset into dropdown_option_values_base (if any)
 //   this.name_slot    - string slot for name (or 0 if unavailable)
 //   this.label        - string slot for label (same as name_slot, exposed as property for consistency with min/max)
-function construct_from_param(param_index) instance(param_index default min max inc has_options opt_count values_base name_slot label)
+//   this.step_count   - number of step points (0 if not a step-point slider)
+function construct_from_param(param_index) instance(param_index default min max inc has_options opt_count values_base name_slot label step_count)
 (
   this.param_index = param_index;
   // Pull data from existing parsed arrays (single read at init)
@@ -39,6 +40,14 @@ function construct_from_param(param_index) instance(param_index default min max 
   this.name_slot = name_slot;
   // Expose label as property (same as name_slot, for consistency with min/max)
   this.label = name_slot;
+  // Get step point count from global variables (step counts are initialized in 05_Composure_Controls.jsfx-inc before slider objects)
+  this.step_count = 
+    param_index == 1 ? attack_step_count :
+    param_index == 4 ? release_step_count :
+    param_index == 11 ? lookahead_step_count :
+    param_index == 17 ? hp_step_count :
+    param_index == 18 ? lp_step_count :
+    0;
 );
 
 //------------------------------------------------------------------------------

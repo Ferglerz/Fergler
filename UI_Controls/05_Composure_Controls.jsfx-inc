@@ -21,6 +21,9 @@
 // LP Filter: 20Hz to 14kHz, then 0=Off (32 values)
 #lp_step_points_str = "20,30,40,60,80,100,120,150,200,250,300,350,400,500,600,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000,6000,8000,10000,12000,14000,0";
 
+// Lookahead: 0=Off first, then 1ms to 2000ms (39 values)
+#lookahead_step_points_str = "0,1,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50,60,70,80,90,100,150,200,250,300,400,500,600,700,800,900,1000,1250,1500,1750,2000";
+
 // Array base addresses are defined in UI_General/02_ui_utils.jsfx-inc for early access
 // Step-point counts will be set by parsing function below
 
@@ -56,11 +59,24 @@ function parse_step_points_string(step_points_str, step_points_base) local(
 );
 
 // Initialize step-point arrays from strings
-// Helper functions are defined in UI_General/02_ui_utils.jsfx-inc
-attack_step_count = parse_step_points_string(#attack_step_points_str, attack_step_points_base);
-release_step_count = parse_step_points_string(#release_step_points_str, release_step_points_base);
-hp_step_count = parse_step_points_string(#hp_step_points_str, hp_step_points_base);
-lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_base);
+// Allocates memory inline using freemem and parses step points
+// Maximum step count is 67 (attack/release), allocate 100 slots per array for future expansion
+function init_step_points() (
+  // Allocate step-point arrays inline
+  attack_step_points_base = freemem; freemem += 100;
+  release_step_points_base = freemem; freemem += 100;
+  hp_step_points_base = freemem; freemem += 100;
+  lp_step_points_base = freemem; freemem += 100;
+  lookahead_step_points_base = freemem; freemem += 100;
+  
+  // Parse step points into allocated arrays
+  attack_step_count = parse_step_points_string(#attack_step_points_str, attack_step_points_base);
+  release_step_count = parse_step_points_string(#release_step_points_str, release_step_points_base);
+  hp_step_count = parse_step_points_string(#hp_step_points_str, hp_step_points_base);
+  lp_step_count = parse_step_points_string(#lp_step_points_str, lp_step_points_base);
+  lookahead_step_count = parse_step_points_string(#lookahead_step_points_str, lookahead_step_points_base);
+);
+lookahead_step_count = parse_step_points_string(#lookahead_step_points_str, lookahead_step_points_base);
 
 //==============================================================================
 // COMPOSURE CONTROL LAYOUT
@@ -262,7 +278,7 @@ function setup_header_controls() (
 
 function render_all_controls() (
   i = 0;
-  while (i < NUM_CONTROLS) (
+  while (i < control_count) (
     render_control(i);
     i += 1;
   );
