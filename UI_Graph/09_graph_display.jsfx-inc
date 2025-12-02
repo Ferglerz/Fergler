@@ -11,11 +11,8 @@
 function draw_graph_background() (
   debug_counter_graph_bg += 1;
   
-  // Draw graph background
-  gfx_set(0.3, 0.3, 0.3, 1);
-  gfx_rect(GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_SIZE);
-
-  // Draw unity line
+  // Background removed - now using plugin background image
+  // Only draw unity line (1:1 diagonal reference line)
   gfx_set(0.6, 0.6, 0.6, 1);
   gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
 );

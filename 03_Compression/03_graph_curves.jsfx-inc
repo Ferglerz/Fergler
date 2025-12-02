@@ -191,15 +191,29 @@ function generate_curve_segments_db() (
   curve_segments_db_dirty = 0;
 );
 
-function sample_curve_at_db(input_db) (
+// Internal function to sample curve without clamping (used for boundary calculations)
+function sample_curve_at_db_internal(input_db) (
   curve_segments_db_dirty ? generate_curve_segments_db();
   
   curve_segments_db_count == 0 ? (
     input_db
   ) : (
     first_x = curve_segments_db[0];
+    first_y = curve_segments_db[1];
     input_db <= first_x ? (
-      curve_segments_db[1]
+      // Extend tangent from first segment for inputs below the curve
+      // Calculate slope from first segment
+      seg_x2_db = curve_segments_db[2];
+      seg_y2_db = curve_segments_db[3];
+      seg_width = seg_x2_db - first_x;
+      abs(seg_width) > 0.0001 ? (
+        // Calculate slope and extend line
+        slope = (seg_y2_db - first_y) / seg_width;
+        first_y + slope * (input_db - first_x)
+      ) : (
+        // Vertical segment, just return first Y
+        first_y
+      )
     ) : (
       last_idx = curve_segments_db_count - 1;
       last_x = curve_segments_db[last_idx * 4 + 2];
@@ -235,6 +249,28 @@ function sample_curve_at_db(input_db) (
         output_db
       )
     )
-  );
+  )
+);
+
+function sample_curve_at_db(input_db) (
+  // Sample the curve at the input
+  output_db = sample_curve_at_db_internal(input_db);
+  
+  // Clamp below minimum graph point: allow tangent to continue, but prevent boosts
+  // The curve should continue naturally from corner point on its tangent
+  // Only clamp if it would cause a boost (output > input)
+  input_db < GRAPH_MIN_DB ? (
+    // Allow tangent to continue, but clamp to 1:1 max to prevent gain boosts
+    min(output_db, input_db)
+  ) : (
+    // Clamp above maximum graph point: maintain Y value at GRAPH_MAX_DB
+    // This prevents huge gains from angled top-right point
+    input_db > GRAPH_MAX_DB ? (
+      clamped_y_at_max = sample_curve_at_db_internal(GRAPH_MAX_DB);
+      clamped_y_at_max
+    ) : (
+      output_db
+    )
+  )
 );
 

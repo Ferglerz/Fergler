@@ -40,16 +40,16 @@ INPUT_HISTOGRAM_COLOR_B = 0.0;
 // Header Configuration (defined early for use in calculations, 75% of original)
 HEADER_HEIGHT = 23;        // 30 * 0.75 = 22.5 rounded up
 HEADER_BORDER_HEIGHT = 2;  // Keep at 2 for visibility
-HEADER_SHADOW_HEIGHT = 2;  // 3 * 0.75 = 2.25 rounded down
+HEADER_SHADOW_HEIGHT = 4; 
 HEADER_TOTAL_HEIGHT = HEADER_HEIGHT + HEADER_BORDER_HEIGHT + HEADER_SHADOW_HEIGHT;
 
-// Visual configuration (75% of original size)
-GFX_WIDTH = 2625;  // 3500 * 0.75
-GFX_HEIGHT = 338 + HEADER_TOTAL_HEIGHT;  // 450 * 0.75 = 337.5 rounded up
+// Visual configuration (matches background image at 0.5 scale)
+GFX_WIDTH = 1066;  // Half of 2132 (background image width)
+GFX_HEIGHT = 440;  // Plugin height
 
 // UI Panel Configuration (now on LEFT side)
 UI_PANEL_X = 25;  // Left side of interface
-UI_PANEL_Y = 25 + HEADER_TOTAL_HEIGHT;  // Aligned with header
+UI_PANEL_Y = 25 + HEADER_TOTAL_HEIGHT + 16;  
 UI_PANEL_W = 600;  // 800 * 0.75
 UI_PANEL_H = 263;  // 350 * 0.75 = 262.5 rounded up
 
@@ -94,7 +94,7 @@ BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
 TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
 
 // Header Colors
-HEADER_BG_R = 0.25; HEADER_BG_G = 0.25; HEADER_BG_B = 0.25;  // Dark gray
+HEADER_BG_R = 0.0667; HEADER_BG_G = 0.0667; HEADER_BG_B = 0.0667;  // #111111
 HEADER_BORDER_R = 0.95; HEADER_BORDER_G = 0.93; HEADER_BORDER_B = 0.88;  // Off-white cream
 HEADER_SHADOW_R = 0.1; HEADER_SHADOW_G = 0.1; HEADER_SHADOW_B = 0.1;  // Dark shadow
 
@@ -166,6 +166,7 @@ OPTION_ROUNDED = 0x01;         // Bit 0: Apply rounding to any format
 OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
 OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
 OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
+OPTION_HIDE_LABEL = 0x10;     // Bit 4: Hide the slider label/title
 
 // Single UI control configuration function - ALL PARAMETERS REQUIRED
 // Parameters:

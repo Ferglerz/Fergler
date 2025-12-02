@@ -52,9 +52,9 @@ function get_step_point_count(param_index) (
 // Returns step-point array base for the given parameter, or 0 if not a stepped slider
 function get_step_points_base(param_index) (
   param_index == 1 ? attack_step_points_base :
-  param_index == 3 ? release_step_points_base :
-  param_index == 10 ? hp_step_points_base :
+  param_index == 4 ? release_step_points_base :
   param_index == 11 ? lookahead_step_points_base :
+  param_index == 17 ? hp_step_points_base :
   param_index == 18 ? lp_step_points_base :
   0
 );

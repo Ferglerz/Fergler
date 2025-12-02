@@ -120,7 +120,19 @@ function render_control(index) local(
       draw_slider(x, y, w, h, current_value, min_val, max_val, label_slot, param_index, slider_orientation, suffix_str, fill_direction, formatting, format_options, display_mode);
     );
   ) : type == 1 ? ( // Button
-    draw_generic_button(x, y, w, h, current_value > 0.5, label_slot);
+    // Check if this is an image button (control_defs[8] > 0 and has image config)
+    button_config = control_defs[index*11 + 8];
+    button_config > 0 ? (
+      // Image button: decode image indices and scale
+      image_left_index = button_config & 0xFF;           // Bits 0-7: left image index
+      image_right_index = (button_config >> 8) & 0xFF;   // Bits 8-15: right image index
+      scale_int = (button_config >> 16) & 0xFFFF;       // Bits 16-31: scale as integer * 10000
+      image_scale = scale_int / 10000.0;                 // Convert back to float
+      draw_image_toggle_button(x, y, w, h, current_value > 0.5, image_left_index, image_right_index, image_scale, label_slot);
+    ) : (
+      // Standard button
+      draw_generic_button(x, y, w, h, current_value > 0.5, label_slot);
+    );
   ) : type == 2 ? ( // Dropdown
     draw_generic_dropdown(x, y, w, h, current_value, label_slot, param_index);
   ) : (

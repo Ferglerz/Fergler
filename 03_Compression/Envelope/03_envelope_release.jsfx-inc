@@ -86,11 +86,20 @@ function release_input_dependent_single(input_level_db) local(level_above_thresh
 //--- Type 3: Rate-of-Change ---
 // det_delta: change in detector level (positive = level dropping, negative = level rising)
 // Uses smooth blending based on sensitivity parameter for more noticeable effect
-function release_rate_of_change(det_delta) local(blend_fast, blend_slow, normalized_delta) (
-  // Normalize delta based on sensitivity (larger sensitivity = less sensitive)
+// rate_change_threshold_modifier: multiplier (0.5-4.0) that adjusts the depth of the effect
+// Higher modifier (x4.0) = more depth (more effect), lower modifier (x0.5) = less depth (less effect)
+// Base sensitivity is 10x: x4.0 multiplier = 40x effect, x0.5 multiplier = 5x effect
+function release_rate_of_change(det_delta) local(blend_fast, blend_slow, normalized_delta, effective_sensitivity) (
+  // Apply threshold modifier to sensitivity with 10x base sensitivity boost
+  // Divide by (modifier * 10): higher modifier = lower effective sensitivity = more effect
+  // x4.0 = divide by (4.0 * 10) = 1/40 sensitivity = 40x more effect
+  // x0.5 = divide by (0.5 * 10) = 1/5 sensitivity = 5x more effect
+  effective_sensitivity = rate_change_sensitivity_db / (rate_change_threshold_modifier * 10);
+  
+  // Normalize delta based on effective sensitivity (smaller sensitivity = more sensitive = more effect)
   // When level is dropping fast (positive det_delta), use fast release
   // When level is rising or dropping slowly, use slow release
-  normalized_delta = det_delta / rate_change_sensitivity_db;
+  normalized_delta = det_delta / effective_sensitivity;
   
   // Smooth blend: at sensitivity threshold = 50% fast, at 2x sensitivity = 100% fast
   // Clamp to prevent overshoot
@@ -100,6 +109,31 @@ function release_rate_of_change(det_delta) local(blend_fast, blend_slow, normali
   
   // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
+);
+
+//--- Type 4: GR-Dependent Inverse ---
+// Inverse of GR-dependent: high GR = slow release, low GR = fast release
+// gr_amount: current GR amount (absolute value)
+// is_negative_gr: true when GR is negative (reduction/cut, below 1:1), false when positive (addition/boost, above 1:1)
+function release_gr_dependent_inverse_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, threshold) (
+  threshold = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
+  // Inverse: swap fast and slow blends
+  blend_slow = clamp_coeff(1 - gr_amount / threshold);
+  blend_fast = clamp_coeff(gr_amount / threshold);
+  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
+);
+
+//--- Type 5: Input-Dependent Inverse ---
+// Inverse of input-dependent: below threshold: slow release, above threshold: fast release
+// Blend over 20 dB range: at threshold = 100% slow, 20 dB above = 100% fast
+function release_input_dependent_inverse(input_level_db) local(level_above_threshold, blend_fast, blend_normal) (
+  level_above_threshold = input_level_db - input_level_threshold_db;
+  // Inverse: swap fast and normal blends
+  blend_normal = clamp_coeff(1 - level_above_threshold / 20);
+  blend_fast = clamp_coeff(level_above_threshold / 20);
+  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+  normalized_blend(blend_fast, blend_normal, rel_input_fast_cached, release_coeff)
 );
 
 //==============================================================================
@@ -203,6 +237,8 @@ function select_program_release_coef(target_gr_abs, detector_level_db, current_g
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
   prog_release_type == 2 ? release_gr_dependent(current_gr_abs) :
   prog_release_type == 3 ? release_rate_of_change(det_delta) :
+  prog_release_type == 4 ? release_gr_dependent(current_gr_abs) :  // Will use inverse in orchestration
+  prog_release_type == 5 ? release_input_dependent_inverse(input_level_db) :
   release_coeff
 );
 

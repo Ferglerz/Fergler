@@ -48,6 +48,7 @@ OPTION_ROUNDED = 0x01;         // Bit 0: Apply rounding to any format
 OPTION_AUTO_STEP = 0x02;       // Bit 1: Auto-step for enumerated options
 OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and left/right)
 OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
+OPTION_HIDE_LABEL = 0x10;     // Bit 4: Hide the slider label/title
 
 //==============================================================================
 // UI CONTROL CONFIGURATION FUNCTION

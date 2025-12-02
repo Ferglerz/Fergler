@@ -92,17 +92,19 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     display_value = value;
   );
   
-  // Draw label
-  gfx_set(slider_style_text_r, slider_style_text_g, slider_style_text_b, 1);
-  orientation == ORIENTATION_VERTICAL ? (
-    gfx_x = x + w + 8; gfx_y = y;
-  ) : (
-    // Horizontal slider - center align
-    gfx_measurestr(label, label_w, label_h);
-    gfx_x = x + (w - label_w) / 2;
-    gfx_y = y - slider_style_label_height;
+  // Draw label (unless OPTION_HIDE_LABEL is set)
+  !(format_options & OPTION_HIDE_LABEL) ? (
+    gfx_set(slider_style_text_r, slider_style_text_g, slider_style_text_b, 1);
+    orientation == ORIENTATION_VERTICAL ? (
+      gfx_x = x + w + 8; gfx_y = y;
+    ) : (
+      // Horizontal slider - center align
+      gfx_measurestr(label, label_w, label_h);
+      gfx_x = x + (w - label_w) / 2;
+      gfx_y = y - slider_style_label_height;
+    );
+    gfx_drawstr(label);
   );
-  gfx_drawstr(label);
 
   orientation == ORIENTATION_VERTICAL ? (
     // Vertical slider

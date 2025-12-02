@@ -23,6 +23,9 @@ ui_last_click_time = 0;
 ui_last_clicked_control = -1;
 ui_double_click_threshold = 0.3; // 300ms for double click
 
+// CTRL key state tracking for snap-on-release behavior
+ui_prev_ctrl_key = 0;  // Previous frame's CTRL key state
+
 
 //==============================================================================
 // HELPER FUNCTIONS
@@ -67,7 +70,7 @@ function is_double_click_control(control_index) local(current_time, is_double) (
 );
 
 // Handle control click based on control type
-function handle_control_click(control_index) (
+function handle_control_click(control_index) local(option_count, step_count, min_val, max_val, normalized_pos, ctrl_x, ctrl_y, ctrl_w, ctrl_h, group_idx, ctrl_x_rel, group_x_val, slider_config, slider_orientation, format_options, raw_value, increment, array_index) (
   control_type = control_defs[control_index*11 + 0];
   param_index = control_defs[control_index*11 + 5];
   current_value = slider(param_index);
@@ -83,7 +86,89 @@ function handle_control_click(control_index) (
     control_type == 0 ? (
       // Slider - start drag (handles both continuous and enumerated sliders)
       ui_drag_control = control_index;
-      slider(param_index) = update_slider_value(control_index, mouse_x, mouse_y);
+      
+      // Check if CTRL is held - if so, don't snap stepped sliders on initial click
+      MOUSE_CTRL_KEY ? (
+        // CTRL held: for stepped sliders, use smooth position-based value (no snapping)
+        option_count = get_dropdown_option_count(param_index);
+        step_count = get_step_point_count(param_index);
+        (option_count > 0 || step_count > 0) ? (
+          // Stepped slider with CTRL: calculate smooth value from mouse position
+          slider_config = control_defs[control_index*11 + 8];
+          slider_orientation = slider_config & 0xFF;
+          format_options = (slider_config >> 32) & 0xFF;
+          min_val = control_defs[control_index*11 + 6];
+          max_val = control_defs[control_index*11 + 7];
+          
+          group_idx = control_defs[control_index*11 + 10];
+          slider_orientation == ORIENTATION_VERTICAL ? (
+            ctrl_y = control_defs[control_index*11 + 2];
+            ctrl_h = control_defs[control_index*11 + 4];
+            group_idx >= 0 ? (
+              ctrl_y += group_defs[group_idx*6 + 1];
+            );
+            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
+            normalized_pos = max(0, min(1, normalized_pos));
+            normalized_pos = 1 - normalized_pos;
+          ) : (
+            ctrl_x_rel = control_defs[control_index*11 + 1];
+            ctrl_w = control_defs[control_index*11 + 3];
+            group_idx >= 0 ? (
+              group_x_val = group_defs[group_idx*6 + 0];
+              ctrl_x = ctrl_x_rel + group_x_val;
+            ) : (
+              ctrl_x = ctrl_x_rel;
+            );
+            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
+            normalized_pos = max(0, min(1, normalized_pos));
+            format_options & OPTION_REVERSE ? (
+              normalized_pos = 1.0 - normalized_pos;
+            );
+          );
+          // Calculate smooth value (no snapping)
+          raw_value = min_val + normalized_pos * (max_val - min_val);
+          slider(param_index) = raw_value;
+        ) : (
+          // Continuous slider with CTRL: calculate smooth value (no increment snapping)
+          slider_config = control_defs[control_index*11 + 8];
+          slider_orientation = slider_config & 0xFF;
+          format_options = (slider_config >> 32) & 0xFF;
+          min_val = control_defs[control_index*11 + 6];
+          max_val = control_defs[control_index*11 + 7];
+          
+          group_idx = control_defs[control_index*11 + 10];
+          slider_orientation == ORIENTATION_VERTICAL ? (
+            ctrl_y = control_defs[control_index*11 + 2];
+            ctrl_h = control_defs[control_index*11 + 4];
+            group_idx >= 0 ? (
+              ctrl_y += group_defs[group_idx*6 + 1];
+            );
+            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
+            normalized_pos = max(0, min(1, normalized_pos));
+            normalized_pos = 1 - normalized_pos;
+          ) : (
+            ctrl_x_rel = control_defs[control_index*11 + 1];
+            ctrl_w = control_defs[control_index*11 + 3];
+            group_idx >= 0 ? (
+              group_x_val = group_defs[group_idx*6 + 0];
+              ctrl_x = ctrl_x_rel + group_x_val;
+            ) : (
+              ctrl_x = ctrl_x_rel;
+            );
+            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
+            normalized_pos = max(0, min(1, normalized_pos));
+            format_options & OPTION_REVERSE ? (
+              normalized_pos = 1.0 - normalized_pos;
+            );
+          );
+          // Calculate smooth value (no increment snapping when CTRL is held)
+          raw_value = min_val + normalized_pos * (max_val - min_val);
+          slider(param_index) = raw_value;
+        );
+      ) : (
+        // CTRL not held: use normal update (with snapping for stepped sliders)
+        slider(param_index) = update_slider_value(control_index, mouse_x, mouse_y);
+      );
       sliderchange(1 << (param_index - 1));
       update_pdc_delay_if_needed(param_index);
     ) : control_type == 1 ? (
@@ -104,9 +189,12 @@ function handle_control_click(control_index) (
 );
 
 // Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options, snapped_value) (
+function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options, snapped_value, ctrl_just_released, increment) (
   // Apply fine drag multiplier when ctrl/cmd is held
   fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
+  
+  // Detect CTRL key release (was held, now not held)
+  ctrl_just_released = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
   
   ui_drag_control >= 0 ? (
     // Update dragged control
@@ -127,33 +215,97 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
       step_count = get_step_point_count(param_index);
       
       (option_count > 0 || step_count > 0) ? (
-        // Stepped slider (enumerated or step-points): divide slider width by number of options
-        // Each option gets (slider_width / option_count) pixels
-        total_options = option_count > 0 ? option_count : step_count;
-        slider_w = control_defs[ui_drag_control*11 + 3];
-        pixels_per_option = slider_w / total_options;
-        
-        // Get mouse position relative to slider
-        group_idx = control_defs[ui_drag_control*11 + 10];
-        ctrl_x_rel = control_defs[ui_drag_control*11 + 1];
-        group_idx >= 0 ? (
-          ctrl_x = ctrl_x_rel + group_defs[group_idx*6 + 0];
+        // Stepped slider (enumerated or step-points)
+        MOUSE_CTRL_KEY ? (
+          // CTRL held: allow smooth adjustment (ignore stepping) - use position-based calculation
+          slider_config = control_defs[ui_drag_control*11 + 8];
+          slider_orientation = slider_config & 0xFF;
+          format_options = (slider_config >> 32) & 0xFF;
+          
+          group_idx = control_defs[ui_drag_control*11 + 10];
+          slider_orientation == ORIENTATION_VERTICAL ? (
+            ctrl_y = control_defs[ui_drag_control*11 + 2];
+            ctrl_h = control_defs[ui_drag_control*11 + 4];
+            group_idx >= 0 ? (
+              ctrl_y += group_defs[group_idx*6 + 1];
+            );
+            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
+            normalized_pos = max(0, min(1, normalized_pos));
+            normalized_pos = 1 - normalized_pos;
+          ) : (
+            ctrl_x_rel = control_defs[ui_drag_control*11 + 1];
+            ctrl_w = control_defs[ui_drag_control*11 + 3];
+            group_idx >= 0 ? (
+              ctrl_x = ctrl_x_rel + group_defs[group_idx*6 + 0];
+            ) : (
+              ctrl_x = ctrl_x_rel;
+            );
+            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
+            normalized_pos = max(0, min(1, normalized_pos));
+            format_options & OPTION_REVERSE ? (
+              normalized_pos = 1.0 - normalized_pos;
+            );
+          );
+          // Calculate smooth value directly from mouse position (no stepping)
+          new_value = min_val + normalized_pos * (max_val - min_val);
+          slider(param_index) = new_value;
         ) : (
-          ctrl_x = ctrl_x_rel;
+          // CTRL not held: use stepped behavior
+          // Stepped slider: divide slider width by number of options
+          total_options = option_count > 0 ? option_count : step_count;
+          slider_w = control_defs[ui_drag_control*11 + 3];
+          pixels_per_option = slider_w / total_options;
+          
+          // Get mouse position relative to slider
+          group_idx = control_defs[ui_drag_control*11 + 10];
+          ctrl_x_rel = control_defs[ui_drag_control*11 + 1];
+          group_idx >= 0 ? (
+            ctrl_x = ctrl_x_rel + group_defs[group_idx*6 + 0];
+          ) : (
+            ctrl_x = ctrl_x_rel;
+          );
+          
+          mouse_pos_in_slider = mouse_x - ctrl_x;
+          option_index = floor(mouse_pos_in_slider / pixels_per_option);
+          option_index = max(0, min(total_options - 1, option_index));
+          
+          // Set slider value based on type
+          option_count > 0 ? (
+            // Enumerated slider: value is the index
+            slider(param_index) = option_index;
+          ) : (
+            // Step-point slider: value is the step-point value at that index
+            step_points_base = get_step_points_base(param_index);
+            slider(param_index) = step_points_base[option_index];
+          );
         );
         
-        mouse_pos_in_slider = mouse_x - ctrl_x;
-        option_index = floor(mouse_pos_in_slider / pixels_per_option);
-        option_index = max(0, min(total_options - 1, option_index));
-        
-        // Set slider value based on type
-        option_count > 0 ? (
-          // Enumerated slider: value is the index
-          slider(param_index) = option_index;
-        ) : (
-          // Step-point slider: value is the step-point value at that index
-          step_points_base = get_step_points_base(param_index);
-          slider(param_index) = step_points_base[option_index];
+        // Snap to closest step when CTRL is released
+        ctrl_just_released ? (
+          // Get current slider value (may have been adjusted smoothly)
+          current_slider_value = slider(param_index);
+          step_count > 0 ? (
+            // Step-point slider: snap to closest step-point
+            step_points_base = get_step_points_base(param_index);
+            snapped_value = find_closest_step_point(current_slider_value, step_points_base, step_count);
+            slider(param_index) = snapped_value;
+          ) : option_count > 0 ? (
+            // Enumerated slider: snap to closest option index
+            // Calculate which option is closest to current value
+            total_options = option_count;
+            closest_index = 0;
+            closest_diff = abs(0 - current_slider_value);
+            i = 1;
+            while (i < total_options) (
+              test_diff = abs(i - current_slider_value);
+              test_diff < closest_diff ? (
+                closest_index = i;
+                closest_diff = test_diff;
+              );
+              i += 1;
+            );
+            slider(param_index) = closest_index;
+          );
         );
       ) : (
         // Continuous slider - check if this slider supports bidirectional drag
@@ -169,44 +321,60 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           value_range = max_val - min_val;
           delta = (mouse_delta / slider_w) * value_range;
           new_value = clamp(current_value + delta, min_val, max_val);
-          // Check if this slider has step-points and snap if so
-          step_count = get_step_point_count(param_index);
-          step_count > 0 ? (
-            step_points_base = get_step_points_base(param_index);
-            snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
-            slider(param_index) = snapped_value;
-          ) : (
+          
+          // Apply snapping based on CTRL state
+          MOUSE_CTRL_KEY ? (
+            // CTRL held: no snapping, allow smooth adjustment
             slider(param_index) = new_value;
+          ) : (
+            // CTRL not held: snap to increment if available
+            array_index = ui_drag_control * 4 + 0;
+            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
+            increment > 0 ? (
+              // Snap to nearest increment step
+              snapped_value = floor(new_value / increment + 0.5) * increment;
+              slider(param_index) = clamp(snapped_value, min_val, max_val);
+            ) : (
+              slider(param_index) = new_value;
+            );
+          );
+          
+          // Snap to increment when CTRL is released
+          ctrl_just_released ? (
+            // Get current slider value (may have been adjusted smoothly)
+            current_slider_value = slider(param_index);
+            array_index = ui_drag_control * 4 + 0;
+            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
+            increment > 0 ? (
+              snapped_value = floor(current_slider_value / increment + 0.5) * increment;
+              slider(param_index) = clamp(snapped_value, min_val, max_val);
+            );
           );
         ) : (
           // Continuous slider - use position-based or delta-based depending on fine mode
           MOUSE_CTRL_KEY ? (
-            // Fine drag mode - use delta approach
+            // Fine drag mode - use delta approach (smooth, no snapping)
             mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
             slider_w = control_defs[ui_drag_control*11 + 3];
             value_range = max_val - min_val;
             delta = (mouse_dx / slider_w) * value_range;
             new_value = clamp(current_value + delta, min_val, max_val);
-            // Check if this slider has step-points and snap if so
-            step_count = get_step_point_count(param_index);
-            step_count > 0 ? (
-              step_points_base = get_step_points_base(param_index);
-              snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
-              slider(param_index) = snapped_value;
-            ) : (
-              slider(param_index) = new_value;
-            );
+            slider(param_index) = new_value;
           ) : (
-            // Normal drag mode - use position
+            // Normal drag mode - use position with snapping
             new_value = update_slider_value(ui_drag_control, mouse_x, mouse_y);
-            // Check if this slider has step-points and snap if so
-            step_count = get_step_point_count(param_index);
-            step_count > 0 ? (
-              step_points_base = get_step_points_base(param_index);
-              snapped_value = find_closest_step_point(new_value, step_points_base, step_count);
-              slider(param_index) = snapped_value;
-            ) : (
-              slider(param_index) = new_value;
+            slider(param_index) = new_value;
+          );
+          
+          // Snap to increment when CTRL is released
+          ctrl_just_released ? (
+            // Get current slider value (may have been adjusted smoothly)
+            current_slider_value = slider(param_index);
+            array_index = ui_drag_control * 4 + 0;
+            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
+            increment > 0 ? (
+              snapped_value = floor(current_slider_value / increment + 0.5) * increment;
+              slider(param_index) = clamp(snapped_value, min_val, max_val);
             );
           );
         );
@@ -272,5 +440,8 @@ function handle_ui_mouse_input() (
   // Update previous mouse position for next frame's delta calculation
   ui_prev_mouse_x = mouse_x;
   ui_prev_mouse_y = mouse_y;
+  
+  // Update previous CTRL key state for next frame
+  ui_prev_ctrl_key = MOUSE_CTRL_KEY;
 );
 

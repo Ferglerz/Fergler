@@ -56,3 +56,42 @@ function draw_generic_button(x, y, w, h, is_on, label) local() (
   gfx_drawstr(label);
 );
 
+//==============================================================================
+// IMAGE-BASED TOGGLE RENDERING
+//==============================================================================
+
+// Draw image-based toggle button
+// Parameters:
+//   x, y: Position (button top-left corner)
+//   w, h: Dimensions (button size)
+//   is_on: Toggle state (0=off/left, 1=on/right)
+//   image_left_index: Image index for left/off state
+//   image_right_index: Image index for right/on state
+//   image_scale: Ignored (images are already correct size)
+// Note: Images are 84x56 pixels, no scaling needed
+function draw_image_toggle_button(x, y, w, h, is_on, image_left_index, image_right_index, image_scale, label) local(img_index, img_w, img_h, label_height, label_w, label_h, label_x) (
+  // Draw label above button (centered like dropdowns, but centered horizontally)
+  label_height = 11;  // Same as dropdown label height
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  // Measure label to center it
+  gfx_measurestr(label, label_w, label_h);
+  label_x = x + (w - label_w) / 2;  // Center label horizontally
+  gfx_x = label_x;
+  gfx_y = y - label_height;
+  gfx_drawstr(label);
+  
+  // Select image based on state
+  img_index = is_on ? image_right_index : image_left_index;
+  
+  // Image dimensions (84x56)
+  img_w = 84;
+  img_h = 56;
+  
+  // Center the image within the button by offsetting by half the image size
+  // x, y are the button's coordinates (already include group offset from dispatcher)
+  // gfx_blit uses gfx_x and gfx_y as the position for the image's top-left corner
+  gfx_x = x + (w - img_w) / 2;
+  gfx_y = y + (h - img_h) / 2;
+  gfx_blit(img_index, 1, 0);  // Scale 1.0 = no scaling
+);
+

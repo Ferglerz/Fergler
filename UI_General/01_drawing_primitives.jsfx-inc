@@ -76,9 +76,9 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
   show_title = group_defs[group_index*6 + 4];
   title_ptr = group_defs[group_index*6 + 5];
   
-  // Draw main group background
-  gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
-  draw_rounded_rect(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
+  // Draw main group background (disabled - no background)
+  // gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
+  // draw_rounded_rect(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
   
   // Draw group border
   gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
@@ -94,13 +94,13 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
     title_area_w = title_w + GROUP_TITLE_PADDING * 2;
     title_area_x = gx + (gw - title_area_w) / 2;  // Center horizontally
     
-    // Draw title background (rounded rectangle at top)
-    gfx_set(GROUP_TITLE_BG_R, GROUP_TITLE_BG_G, GROUP_TITLE_BG_B, 1);
-    draw_rounded_rect(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
+    // Draw title background (disabled - no background)
+    // gfx_set(GROUP_TITLE_BG_R, GROUP_TITLE_BG_G, GROUP_TITLE_BG_B, 1);
+    // draw_rounded_rect(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
     
-    // Draw title border
-    gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
-    draw_rounded_rect_outline(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
+    // Draw title border (disabled - no border)
+    // gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
+    // draw_rounded_rect_outline(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
     
     // Draw title text (centered)
     gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, 1);

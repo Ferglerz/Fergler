@@ -10,9 +10,24 @@
 // MAIN INTERFACE ORCHESTRATION
 //==============================================================================
 
+function render_background_image() (
+  // Render background image first (before everything else)
+  // Set position to top-left corner
+  gfx_x = 0;
+  gfx_y = 8;
+  // Blit image at index 0, scale 1 (no scaling), rotation 0
+  gfx_blit(0, 1, 0);
+);
+
+
+  gfx_y = 0;
+
 function render_complete_interface() (
-  // Set background color
+  // Set background color (fallback if image doesn't load)
   gfx_clear = 0x202020;
+
+  // Draw background image first (before everything else)
+  render_background_image();
 
   // Draw header elements
   draw_header();

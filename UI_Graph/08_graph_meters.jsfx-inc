@@ -4,7 +4,7 @@
 //   - UI_General/00_ui_constants.jsfx-inc
 //   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
 //   - UI_General/12_coordinate_conversion.jsfx-inc (for DB_TO_PIXEL_SCALE, GR_PIXELS_PER_DB, HISTOGRAM_Y_OFFSET, get_meter_x, get_meter_y, get_meter_w, get_meter_h)
-//   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, THRESHOLD_GR_BLEND_REDUCTION, THRESHOLD_GR_BLEND_ADDITION, hovered_threshold_line, dragging_threshold_line)
+//   - UI_General/11_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, render_rate_change_threshold_line, THRESHOLD_GR_BLEND_REDUCTION, THRESHOLD_GR_BLEND_ADDITION, THRESHOLD_RATE_CHANGE_MODIFIER, hovered_threshold_line, dragging_threshold_line)
 
 @init
 
@@ -13,27 +13,6 @@
 //==============================================================================
 
 function init_histogram_state() (
-  histogram_buffer = 0;
-  histogram_max_samples = 0;
-  histogram_pos = 0;
-  histogram_initialized = 0;
-  histogram_frame_counter = 0;
-  
-  HISTOGRAM_ENABLED ? (
-    histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
-    histogram_buffer = freemem;
-    freemem += histogram_max_samples;
-    
-    i = 0;
-    while (i < histogram_max_samples) (
-      histogram_buffer[i] = 0;
-      i += 1;
-    );
-    
-    histogram_pos = 0;
-    histogram_initialized = 1;
-  );
-  
   histogram_pixel_buffer = 0;
   histogram_pixel_pos = 0;
   histogram_pixel_idx = 0;
@@ -80,27 +59,6 @@ function init_histogram_state() (
   );
   
   // Pre-strength GR histogram buffers (for ghost line visualization)
-  histogram_before_strength_buffer = 0;
-  histogram_before_strength_max_samples = 0;
-  histogram_before_strength_pos = 0;
-  histogram_before_strength_initialized = 0;
-  histogram_before_strength_frame_counter = 0;
-  
-  HISTOGRAM_ENABLED ? (
-    histogram_before_strength_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
-    histogram_before_strength_buffer = freemem;
-    freemem += histogram_before_strength_max_samples;
-    
-    i = 0;
-    while (i < histogram_before_strength_max_samples) (
-      histogram_before_strength_buffer[i] = 0;
-      i += 1;
-    );
-    
-    histogram_before_strength_pos = 0;
-    histogram_before_strength_initialized = 1;
-  );
-  
   histogram_before_strength_pixel_buffer = 0;
   histogram_before_strength_pixel_pos = 0;
   histogram_before_strength_pixel_idx = 0;
@@ -130,61 +88,33 @@ function init_histogram_state() (
 //==============================================================================
 
 function update_histogram_state(gr_value) (
-    menu_histogram_buffer_mode > 0.5 ? (
-      histogram_pixel_initialized ? (
-        abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
-          histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
-        );
-        
-        histogram_pixel_frame_counter += 1;
-        (histogram_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-          histogram_pixel_frame_counter = 0;
-          histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
-          histogram_pixel_buffer[histogram_pixel_idx] = 0;
-        );
-      );
-    ) : (
-      histogram_initialized ? (
-        histogram_frame_counter += 1;
-        (histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-          histogram_frame_counter = 0;
-          
-          abs(gr_value) > 0.0001 ? (
-            debug_counter_ui_histogram += 1;
-          );
-          
-          histogram_buffer[histogram_pos] = gr_value;
-          histogram_pos = (histogram_pos + 1) % histogram_max_samples;
-        );
-      );
+  histogram_pixel_initialized ? (
+    abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+      histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
     );
+    
+    histogram_pixel_frame_counter += 1;
+    (histogram_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_pixel_frame_counter = 0;
+      histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
+      histogram_pixel_buffer[histogram_pixel_idx] = 0;
+    );
+  );
 );
 
 function update_histogram_before_strength_state(gr_value) (
-    menu_histogram_buffer_mode > 0.5 ? (
-      histogram_before_strength_pixel_initialized ? (
-        abs(gr_value) > abs(histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx]) ? (
-          histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = gr_value;
-        );
-        
-        histogram_before_strength_pixel_frame_counter += 1;
-        (histogram_before_strength_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-          histogram_before_strength_pixel_frame_counter = 0;
-          histogram_before_strength_pixel_idx = (histogram_before_strength_pixel_idx + 1) % histogram_before_strength_pixel_max_samples;
-          histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = 0;
-        );
-      );
-    ) : (
-      histogram_before_strength_initialized ? (
-        histogram_before_strength_frame_counter += 1;
-        (histogram_before_strength_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-          histogram_before_strength_frame_counter = 0;
-          
-          histogram_before_strength_buffer[histogram_before_strength_pos] = gr_value;
-          histogram_before_strength_pos = (histogram_before_strength_pos + 1) % histogram_before_strength_max_samples;
-        );
-      );
+  histogram_before_strength_pixel_initialized ? (
+    abs(gr_value) > abs(histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx]) ? (
+      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = gr_value;
     );
+    
+    histogram_before_strength_pixel_frame_counter += 1;
+    (histogram_before_strength_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_before_strength_pixel_frame_counter = 0;
+      histogram_before_strength_pixel_idx = (histogram_before_strength_pixel_idx + 1) % histogram_before_strength_pixel_max_samples;
+      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = 0;
+    );
+  );
 );
 
 function update_input_histogram_state(input_level_db) (
@@ -224,6 +154,85 @@ function draw_processing_state_indicator() (
     gfx_set(0.2, 0.8, 0.3, 1);
   );
   gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);
+);
+
+//==============================================================================
+// METER REFLECTION
+//==============================================================================
+
+// Draw meter reflection below the meter (on same horizontal plane as histogram reflection)
+function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
+  reflection_y, meter_reference_y, max_distance, meter_gr_abs, meter_weight,
+  meter_alpha, acc_r, acc_g, acc_b, middle_alpha, edge_alpha,
+  blue_weight, orange_weight, blue_opacity, orange_opacity, total_opacity
+) (
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 16;  // Moved up 1 pixel (was 17)
+  meter_reference_y = meter_y + meter_h * 0.75;  // 3/4 of the way down the meter
+  max_distance = meter_h * 0.75;  // Distance from top to reference point
+  
+  // Calculate meter contribution based on current GR/GA
+  meter_gr_abs = abs(current_gr_db);
+  meter_weight = min(1.0, meter_gr_abs / 20.0);  // Normalize to 0-1 based on 20dB max
+  
+  // At 0dB, meter_alpha should be 0 (invisible)
+  // Weight toward blue opacity as value gets smaller (closer to zero)
+  // Blue gets higher opacity contribution than orange
+  meter_alpha = 0.5625 * meter_weight;  // Doubled from 0.28125 (2x opacity)
+  
+  meter_alpha > 0.001 ? (
+    // Calculate color based on GR direction
+    current_gr_db < 0 ? (
+      // Negative GR (compression) - primarily orange, but blend with blue as it approaches zero
+      // At -20dB: mostly orange, at 0dB: invisible
+      // Weight toward blue as value gets smaller (closer to zero)
+      blue_weight = 1.0 - (meter_weight * 0.7);  // 1.0 at 0dB, 0.3 at 20dB
+      orange_weight = 1.0 - blue_weight;  // 0.0 at 0dB, 0.7 at 20dB
+      
+      // Blue gets higher opacity contribution (weighted more)
+      blue_opacity = meter_alpha * (blue_weight * 1.5);  // Blue opacity weighted 1.5x
+      orange_opacity = meter_alpha * (orange_weight * 1.0);  // Orange opacity normal
+      total_opacity = blue_opacity + orange_opacity;
+      
+      // Blend colors based on opacity-weighted contributions
+      acc_r = (1.0 * orange_opacity + 0.2 * blue_opacity) / max(total_opacity, 0.001);
+      acc_g = (0.5 * orange_opacity + 0.5 * blue_opacity) / max(total_opacity, 0.001);
+      acc_b = (0.0 * orange_opacity + 1.0 * blue_opacity) / max(total_opacity, 0.001);
+      meter_alpha = total_opacity;  // Use combined opacity
+    ) : current_gr_db > 0 ? (
+      // Positive GR (gain addition) - blue
+      acc_r = 0.2;
+      acc_g = 0.5;
+      acc_b = 1.0;
+    ) : (
+      // Zero GR - invisible (meter_alpha already 0, won't render)
+      acc_r = 0.2;
+      acc_g = 0.5;
+      acc_b = 1.0;
+      meter_alpha = 0;  // Explicitly set to 0 for clarity
+    );
+    
+    // Apply white tint (70% original, 30% white)
+    acc_r = acc_r * 0.7 + 1.0 * 0.3;
+    acc_g = acc_g * 0.7 + 1.0 * 0.3;
+    acc_b = acc_b * 0.7 + 1.0 * 0.3;
+    
+    // Draw 3-pixel tall reflection with gradient opacity
+    // Top and bottom at 50% of middle opacity
+    middle_alpha = meter_alpha;
+    edge_alpha = meter_alpha * 0.5;
+    
+    // Top pixel
+    gfx_set(acc_r, acc_g, acc_b, edge_alpha);
+    gfx_rect(meter_x, reflection_y, meter_w, 1);
+    
+    // Middle pixel
+    gfx_set(acc_r, acc_g, acc_b, middle_alpha);
+    gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
+    
+    // Bottom pixel
+    gfx_set(acc_r, acc_g, acc_b, edge_alpha);
+    gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
+  );
 );
 
 //==============================================================================
@@ -275,6 +284,168 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
     );
   
     render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+    render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+    
+    // Draw meter reflection below the meter (on same plane as histogram reflection)
+    draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  );
+);
+
+//==============================================================================
+// HISTOGRAM REFLECTION HELPERS
+//==============================================================================
+
+// Unified reflection function that merges all histogram colors (orange, blue, green) and curve points
+// Renders horizontal reflection at fixed Y position with color blending
+function draw_histogram_reflection_unified_pixel() local(
+  graph_reference_y, max_distance, reflection_y, width_pixels, buffer_size,
+  i, age, buffer_idx, gr_value, x_pos, gr_height, original_y,
+  distance_from_reference, reference_factor, reflection_alpha,
+  acc_r, acc_g, acc_b, acc_alpha, total_alpha,
+  input_age, input_sample_idx, input_level_db, input_y_pos, input_distance, input_reference_factor, input_alpha,
+  point_idx, point_input_db, point_output_db, point_x, point_y, point_distance, point_reference_factor, point_alpha,
+  point_i, middle_alpha, edge_alpha
+) (
+  graph_reference_y = GRAPH_Y + GRAPH_SIZE * 0.75;  // 3/4 of the way down toward bottom
+  max_distance = GRAPH_SIZE * 0.75;  // Distance from top to reference point
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 16;  // Moved up 1 pixel (was 17)
+  width_pixels = GRAPH_SIZE;
+  buffer_size = histogram_pixel_max_samples;
+  base_opacity = 0.28125;  // Reduced by 25%: 0.375 * 0.75 = 0.28125
+  i = 0;
+  
+  while (i < width_pixels) (
+    // Initialize accumulated color for this pixel
+    acc_r = 0;
+    acc_g = 0;
+    acc_b = 0;
+    acc_alpha = 0;
+    
+    // Process orange histogram (negative GR) - pixel mode
+    histogram_pixel_initialized ? (
+      age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
+      buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
+      gr_value = histogram_pixel_buffer[buffer_idx];
+      
+      gr_value < 0 ? (
+        gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
+        original_y = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
+        distance_from_reference = abs(original_y - graph_reference_y);
+        reference_factor = 1 - (distance_from_reference / max_distance);
+        reference_factor = max(0, min(1, reference_factor));
+        reflection_alpha = base_opacity * (reference_factor ^ 2);  // Squared falloff
+        
+        reflection_alpha > 0.001 ? (
+          // Orange color with white tint: blend (1, 0.5, 0) with white (1, 1, 1) - 70% original, 30% white
+          acc_r += (1.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_g += (0.5 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_b += (0.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_alpha += reflection_alpha;
+        );
+      );
+    );
+    
+    // Process blue histogram (positive GR) - pixel mode
+    histogram_pixel_initialized ? (
+      age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
+      buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
+      gr_value = histogram_pixel_buffer[buffer_idx];
+      
+      gr_value > 0 ? (
+        gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
+        original_y = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
+        distance_from_reference = abs(original_y - graph_reference_y);
+        reference_factor = 1 - (distance_from_reference / max_distance);
+        reference_factor = max(0, min(1, reference_factor));
+        reflection_alpha = base_opacity * (reference_factor ^ 2);  // Squared falloff
+        
+        reflection_alpha > 0.001 ? (
+          // Blue color with white tint: blend (0.2, 0.5, 1) with white (1, 1, 1) - 70% original, 30% white
+          acc_r += (0.2 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_g += (0.5 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_b += (1.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
+          acc_alpha += reflection_alpha;
+        );
+      );
+    );
+    
+    // Process green input histogram - pixel mode equivalent
+    input_histogram_initialized ? (
+      input_age = floor((width_pixels - 1 - i) * (input_histogram_max_samples - 1) / max(width_pixels - 1, 1));
+      input_sample_idx = (input_histogram_pos - 1 - input_age + input_histogram_max_samples) % input_histogram_max_samples;
+      input_level_db = input_histogram_buffer[input_sample_idx];
+      
+      input_level_db > GRAPH_MIN_DB ? (
+        input_y_pos = HISTOGRAM_Y_OFFSET - input_level_db * DB_TO_PIXEL_SCALE;
+        input_distance = abs(input_y_pos - graph_reference_y);
+        input_reference_factor = 1 - (input_distance / max_distance);
+        input_reference_factor = max(0, min(1, input_reference_factor));
+        input_alpha = base_opacity * (input_reference_factor ^ 2);  // Squared falloff
+        
+        input_alpha > 0.001 ? (
+          // Green color with white tint: blend (0.0, 0.8, 0.0) with white (1, 1, 1) - 70% original, 30% white
+          acc_r += (0.0 * 0.7 + 1.0 * 0.3) * input_alpha;
+          acc_g += (0.8 * 0.7 + 1.0 * 0.3) * input_alpha;
+          acc_b += (0.0 * 0.7 + 1.0 * 0.3) * input_alpha;
+          acc_alpha += input_alpha;
+        );
+      );
+    );
+    
+    // Process white curve points - check if any point is at this x position
+    point_i = 1;
+    while (point_i < num_points - 1) (
+      point_idx = point_i * 2;
+      point_input_db = graph_points[point_idx];
+      point_output_db = graph_points[point_idx + 1];
+      point_x = db_to_graph_x(point_input_db);
+      point_y = db_to_graph_y(point_output_db);
+      
+      // Check if this point's x position is within 2 pixels of current i
+      abs(point_x - (GRAPH_X + i)) <= 2 ? (
+        point_distance = abs(point_y - graph_reference_y);
+        point_reference_factor = 1 - (point_distance / max_distance);
+        point_reference_factor = max(0, min(1, point_reference_factor));
+        point_alpha = base_opacity * (point_reference_factor ^ 2);  // Squared falloff
+        
+        point_alpha > 0.001 ? (
+          // White point color: (1, 1, 1) with white tint (already white, but keep it bright)
+          acc_r += 1.0 * point_alpha;
+          acc_g += 1.0 * point_alpha;
+          acc_b += 1.0 * point_alpha;
+          acc_alpha += point_alpha;
+        );
+      );
+      point_i += 1;
+    );
+    
+    // Render merged color if there's any contribution
+    acc_alpha > 0.001 ? (
+      // Normalize colors by total alpha for proper blending
+      total_alpha = min(1.0, acc_alpha);  // Cap at 100% opacity
+      acc_r = min(1.0, acc_r / max(acc_alpha, 0.001));
+      acc_g = min(1.0, acc_g / max(acc_alpha, 0.001));
+      acc_b = min(1.0, acc_b / max(acc_alpha, 0.001));
+      
+      // Draw 3-pixel tall reflection with gradient opacity
+      // Top and bottom at 50% of middle opacity
+      middle_alpha = total_alpha;
+      edge_alpha = total_alpha * 0.5;
+      
+      // Top pixel
+      gfx_set(acc_r, acc_g, acc_b, edge_alpha);
+      gfx_rect(GRAPH_X + i, reflection_y, 1, 1);
+      
+      // Middle pixel
+      gfx_set(acc_r, acc_g, acc_b, middle_alpha);
+      gfx_rect(GRAPH_X + i, reflection_y + 1, 1, 1);
+      
+      // Bottom pixel
+      gfx_set(acc_r, acc_g, acc_b, edge_alpha);
+      gfx_rect(GRAPH_X + i, reflection_y + 2, 1, 1);
+    );
+    
+    i += 1;
   );
 );
 
@@ -356,43 +527,6 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
   );
 );
 
-function draw_gr_histogram_neg_line(buffer, buffer_pos, max_samples, r, g, b, a) (
-  samples_span = max_samples;
-  width_pixels = GRAPH_SIZE;
-  step_size = max(1, floor(width_pixels / 200));
-  
-  first_point = 1;
-  i = 0;
-  
-  while (i < width_pixels) (
-    age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
-    sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
-    gr_value = buffer[sample_idx];
-    
-    gr_value < 0 ? (
-      // Linear fade for leftmost 100 pixels (i=0 is far left)
-      fade_factor = i < 100 ? (i / 100) : 1;
-      faded_alpha = a * fade_factor;
-      
-      gfx_set(r, g, b, faded_alpha);
-      x_pos = GRAPH_X + i;
-      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
-      
-      first_point ? (
-        gfx_x = x_pos;
-        gfx_y = y_pos;
-        first_point = 0;
-      ) : (
-        gfx_lineto(x_pos, y_pos, 1);
-      );
-    ) : (
-      first_point = 1;
-    );
-    
-    i += step_size;
-  );
-);
 
 function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
   first_point = 1;
@@ -431,43 +565,6 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
   );
 );
 
-function draw_gr_histogram_pos_line(buffer, buffer_pos, max_samples, r, g, b, a) (
-  samples_span = max_samples;
-  width_pixels = GRAPH_SIZE;
-  step_size = max(1, floor(width_pixels / 200));
-  
-  first_point = 1;
-  i = 0;
-  
-  while (i < width_pixels) (
-    age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
-    sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
-    gr_value = buffer[sample_idx];
-    
-    gr_value > 0 ? (
-      // Linear fade for leftmost 100 pixels (i=0 is far left)
-      fade_factor = i < 100 ? (i / 100) : 1;
-      faded_alpha = a * fade_factor;
-      
-      gfx_set(r, g, b, faded_alpha);
-      x_pos = GRAPH_X + i;
-      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
-      
-      first_point ? (
-        gfx_x = x_pos;
-        gfx_y = y_pos;
-        first_point = 0;
-      ) : (
-        gfx_lineto(x_pos, y_pos, 1);
-      );
-    ) : (
-      first_point = 1;
-    );
-    
-    i += step_size;
-  );
-);
 
 //==============================================================================
 // INPUT HISTOGRAM
@@ -493,75 +590,38 @@ function draw_input_histogram() (
 
 function draw_histogram() (
   HISTOGRAM_ENABLED && menu_histogram_enabled ? (
-    menu_histogram_buffer_mode > 0.5 ? (
-      histogram_before_strength_pixel_initialized ? (
-        // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
-        draw_gr_histogram_neg_line_pixel(
-          histogram_before_strength_pixel_buffer,
-          1, 0.5, 0,
-          HISTOGRAM_OPACITY * 0.5
-        );
-        
-        draw_gr_histogram_pos_line_pixel(
-          histogram_before_strength_pixel_buffer,
-          0.2, 0.5, 1,
-          HISTOGRAM_OPACITY * 0.5
-        );
+    histogram_before_strength_pixel_initialized ? (
+      // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
+      draw_gr_histogram_neg_line_pixel(
+        histogram_before_strength_pixel_buffer,
+        1, 0.5, 0,
+        HISTOGRAM_OPACITY * 0.5
       );
       
-      histogram_pixel_initialized ? (
-        // Render full color lines (post-strength GR) on top (100% opacity)
-        draw_gr_histogram_neg_line_pixel(
-          histogram_pixel_buffer,
-          1, 0.5, 0,
-          HISTOGRAM_OPACITY
-        );
-        
-        draw_gr_histogram_pos_line_pixel(
-          histogram_pixel_buffer,
-          0.2, 0.5, 1,
-          HISTOGRAM_OPACITY
-        );
-      );
-    ) : (
-      histogram_before_strength_initialized ? (
-        // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
-        draw_gr_histogram_neg_line(
-          histogram_before_strength_buffer,
-          histogram_before_strength_pos,
-          histogram_before_strength_max_samples,
-          1, 0.5, 0,
-          HISTOGRAM_OPACITY * 0.5
-        );
-        
-        draw_gr_histogram_pos_line(
-          histogram_before_strength_buffer,
-          histogram_before_strength_pos,
-          histogram_before_strength_max_samples,
-          0.2, 0.5, 1,
-          HISTOGRAM_OPACITY * 0.5
-        );
-      );
-      
-      histogram_initialized ? (
-        // Render full color lines (post-strength GR) on top (100% opacity)
-        draw_gr_histogram_neg_line(
-          histogram_buffer,
-          histogram_pos,
-          histogram_max_samples,
-          1, 0.5, 0,
-          HISTOGRAM_OPACITY
-        );
-        
-        draw_gr_histogram_pos_line(
-          histogram_buffer,
-          histogram_pos,
-          histogram_max_samples,
-          0.2, 0.5, 1,
-          HISTOGRAM_OPACITY
-        );
+      draw_gr_histogram_pos_line_pixel(
+        histogram_before_strength_pixel_buffer,
+        0.2, 0.5, 1,
+        HISTOGRAM_OPACITY * 0.5
       );
     );
+    
+    histogram_pixel_initialized ? (
+      // Render full color lines (post-strength GR) on top (100% opacity)
+      draw_gr_histogram_neg_line_pixel(
+        histogram_pixel_buffer,
+        1, 0.5, 0,
+        HISTOGRAM_OPACITY
+      );
+      
+      draw_gr_histogram_pos_line_pixel(
+        histogram_pixel_buffer,
+        0.2, 0.5, 1,
+        HISTOGRAM_OPACITY
+      );
+    );
+    
+    // Draw unified reflection (merges orange, blue, and green)
+    draw_histogram_reflection_unified_pixel();
   );
 );
 

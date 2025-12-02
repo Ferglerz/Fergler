@@ -90,10 +90,24 @@ function update_corner_points() (
         graph_points[1] = GRAPH_MIN_DB;
         graph_points[0] = p1_x + (GRAPH_MIN_DB - p1_y) / slope;
         
-        // If X goes right of -80, clamp X and adjust Y
-        graph_points[0] > GRAPH_MIN_DB ? (
+        // Clamp X to never go below GRAPH_MIN_DB (never negative/outside graph bounds)
+        graph_points[0] < GRAPH_MIN_DB ? (
           graph_points[0] = GRAPH_MIN_DB;
           graph_points[1] = p1_y + slope * (GRAPH_MIN_DB - p1_x);
+          // Clamp Y to never exceed GRAPH_MIN_DB (stay on or below bottom edge)
+          graph_points[1] > GRAPH_MIN_DB ? (
+            graph_points[1] = GRAPH_MIN_DB
+          );
+        ) : (
+          // If X goes right of GRAPH_MIN_DB, clamp X and adjust Y
+          graph_points[0] > GRAPH_MIN_DB ? (
+            graph_points[0] = GRAPH_MIN_DB;
+            graph_points[1] = p1_y + slope * (GRAPH_MIN_DB - p1_x);
+            // Clamp Y to never exceed GRAPH_MIN_DB (stay on or below bottom edge)
+            graph_points[1] > GRAPH_MIN_DB ? (
+              graph_points[1] = GRAPH_MIN_DB
+            );
+          )
         );
       );
     ) : (
@@ -117,10 +131,13 @@ function update_corner_points() (
     abs(dx) > 0.001 ? (
       slope = (p2_y - p1_y) / dx;
       graph_points[last_idx * 2] = GRAPH_MAX_DB;
-      graph_points[last_idx * 2 + 1] = p2_y + slope * (GRAPH_MAX_DB - p2_x);
+      calculated_y = p2_y + slope * (GRAPH_MAX_DB - p2_x);
+      // Clamp to 1:1 line (GRAPH_MAX_DB) to prevent huge gains
+      graph_points[last_idx * 2 + 1] = min(calculated_y, GRAPH_MAX_DB);
     ) : (
       graph_points[last_idx * 2] = GRAPH_MAX_DB;
-      graph_points[last_idx * 2 + 1] = p2_y;
+      // Clamp to 1:1 line to prevent huge gains
+      graph_points[last_idx * 2 + 1] = min(p2_y, GRAPH_MAX_DB);
     );
   ) : (
     last_idx = num_points - 1;

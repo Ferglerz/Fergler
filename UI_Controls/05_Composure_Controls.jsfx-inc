@@ -155,21 +155,22 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Time Unit selector (index 6, param 7)
-  define_dropdown(6, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 7, S7.min, S7.max, S7.label);
+  // Time Unit selector (index 6, param 7) - using image toggle
+  // Images: toggle_left (index 1), toggle_right (index 2)
+  define_image_button(6, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 7, S7.min, S7.max, S7.label, 1, 2, 1);
   row += 1;
   
   // RMS Window with ms suffix (index 7, param 8)
   define_slider(7, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
   row += 1;
-  // RMS Normalization button (index 8, param 9)
-  define_button(8, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 9, S9.min, S9.max, S9.label);
+  // RMS Normalization button (index 8, param 9) - using image toggle
+  // Images: toggle_left (index 1), toggle_right (index 2)
+  define_image_button(8, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 9, S9.min, S9.max, S9.label, 1, 2, 1);
   row += 1;
-  // Detection Mode dropdown (index 9, param 10)
-  define_dropdown(9, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 10, S10.min, S10.max, S10.label);
-  row += 1;
-  // Lookahead with ms suffix (index 10, param 11)
-  define_slider(10, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 10));
+  // Detection Mode dropdown (index 9, param 10) - using image toggle
+  // Images: toggle_left (index 1), toggle_right (index 2)
+  define_image_button(9, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 10, S10.min, S10.max, S10.label, 1, 2, 1);
+  // Lookahead moved to header (removed from here)
   
   //==============================================================================
   // GROUP 2: COMPRESSION
@@ -187,9 +188,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   
   // Strength with percent suffix (index 11, param 13)
   define_slider(11, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 13, S13.min, S13.max, S13.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 11));
-  row += 1;
-  // Offset with dB suffix (index 12, param 14)
-  define_slider(12, rel_x, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 12));
+  // Input Offset moved to header (removed from here)
   
   //==============================================================================
   // GROUP 4: SOURCE (below COMPRESSION)
@@ -203,8 +202,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Sidechain button (index 13, param 15)
-  define_button(13, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label);
+  // Sidechain button (index 13, param 15) - using image toggle
+  // Images: toggle_left1.png (index 1), toggle_right1.png (index 2)
+  // Scale: calculated to fit button (19/333 ≈ 0.057 for height, 60/501 ≈ 0.12 for width)
+  // Using 0.057 to fit button height (image will be ~28.6x19, centered in 60x19 button)
+  define_image_button(13, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label, 1, 2, 1);
   row += 1;
   
   // Listen button (index 14, param 16)
@@ -237,8 +239,10 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
-  // Type dropdown (index 17, param 19)
-  define_dropdown(17, rel_x_dropdown, rel_y + row * CONTROL_SPACING_Y, DROPDOWN_W, DROPDOWN_H, 19, S19.min, S19.max, S19.label);
+  // Type dropdown (index 17, param 19) - using image toggle
+  // Images: toggle_left (index 1), toggle_right (index 2)
+  // Note: 0=Off (left), 1-2=Tape/Tube (right)
+  define_image_button(17, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 19, S19.min, S19.max, S19.label, 1, 2, 1);
   row += 1;
   // Drive (index 18, param 20)
   define_slider(18, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 20, S20.min, S20.max, S20.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 18));
@@ -265,10 +269,24 @@ function setup_header_controls() (
     // Header controls are not in a group (absolute positioning)
     set_control_group(-1);
     
-    // Define output volume slider (index 22, param 25)
-    output_slider_x = gfx_w - 5 - SLIDER_W;
-    output_slider_y = (HEADER_HEIGHT - SLIDER_H) / 2;
-  define_slider(22, output_slider_x, output_slider_y, SLIDER_W, SLIDER_H, 25, S25.min, S25.max, S25.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, " dB", 22));
+    // Calculate header slider Y position (centered vertically)
+    header_slider_y = (HEADER_HEIGHT - SLIDER_H) / 2;
+    
+    // Lookahead slider (index 10, param 11) - just to the right of menu button
+    // Menu button right edge: MENU_BUTTON_X + MENU_BUTTON_SIZE = 8 + 15 = 23
+    // Add 5px spacing: 23 + 5 = 28
+    lookahead_slider_x = MENU_BUTTON_X + MENU_BUTTON_SIZE + 5;
+    define_slider(10, lookahead_slider_x, header_slider_y, SLIDER_W, SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " ms", 10));
+    
+    // Input Offset slider (index 12, param 14) - to the left of Makeup Gain
+    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
+    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing)
+    makeup_gain_x = gfx_w - 5 - SLIDER_W;
+    input_offset_x = makeup_gain_x - SLIDER_W - 5;
+    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
+    
+    // Makeup Gain slider (index 22, param 25) - update to hide label
+    define_slider(22, makeup_gain_x, header_slider_y, SLIDER_W, SLIDER_H, 25, S25.min, S25.max, S25.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL, " dB", 22));
   );
 );
 

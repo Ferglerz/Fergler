@@ -98,7 +98,33 @@ function define_button(index, x, y, w, h, param_index, min_val, max_val, label) 
   control_defs[index*11 + 5] = param_index; // Parameter index
   control_defs[index*11 + 6] = min_val;   // Min value
   control_defs[index*11 + 7] = max_val;   // Max value
-  control_defs[index*11 + 8] = 0;         // Reserved
+  control_defs[index*11 + 8] = 0;         // Reserved (0 = standard button, >0 = image button config)
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
+  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+  // Track control count (highest index + 1)
+  control_count = max(control_count, index + 1);
+);
+
+// Define image-based toggle button
+// Parameters:
+//   image_left_index: Image index for left/off state (0-255)
+//   image_right_index: Image index for right/on state (0-255)
+//   image_scale: Scale factor (e.g., 0.25 for 4x downscale)
+// Encodes: (left_image_index) | (right_image_index << 8) | (scale_int << 16)
+// where scale_int = scale * 10000 (0.25 becomes 2500)
+function define_image_button(index, x, y, w, h, param_index, min_val, max_val, label, image_left_index, image_right_index, image_scale) local(scale_int, image_config) (
+  control_defs[index*11 + 0] = 1;         // 1=button
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  control_defs[index*11 + 3] = w;         // Width
+  control_defs[index*11 + 4] = h;         // Height
+  control_defs[index*11 + 5] = param_index; // Parameter index
+  control_defs[index*11 + 6] = min_val;   // Min value
+  control_defs[index*11 + 7] = max_val;   // Max value
+  // Encode image configuration: left_index (bits 0-7), right_index (bits 8-15), scale (bits 16-31)
+  scale_int = image_scale * 10000 | 0;  // Convert to integer (0.25 -> 2500)
+  image_config = image_left_index | (image_right_index << 8) | (scale_int << 16);
+  control_defs[index*11 + 8] = image_config;  // Image button configuration
   control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
   // Track control count (highest index + 1)

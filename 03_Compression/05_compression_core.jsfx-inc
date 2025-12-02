@@ -36,17 +36,35 @@ function lookup_compression_lut(input_db) (
   comp_lut_dirty ? build_compression_lut();
   
   input_db < COMP_LUT_MIN_DB ? (
-    comp_lut[0]
+    output_db = comp_lut[0]
   ) : input_db > COMP_LUT_MAX_DB ? (
-    comp_lut[COMP_LUT_SIZE - 1]
+    output_db = comp_lut[COMP_LUT_SIZE - 1]
   ) : (
     index_float = (input_db - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY;
     index_int = max(0, min(COMP_LUT_SIZE - 2, floor(index_float)));
     index_frac = index_float - index_int;
     value1 = comp_lut[index_int];
     value2 = comp_lut[index_int + 1];
-    value1 + index_frac * (value2 - value1)
+    output_db = value1 + index_frac * (value2 - value1)
   );
+  
+  // Clamp below minimum graph point: allow tangent to continue, but prevent boosts
+  // This matches sample_curve_at_db() behavior
+  input_db < GRAPH_MIN_DB ? (
+    // Allow tangent to continue (output_db already extends the tangent from LUT)
+    // But clamp to 1:1 max to prevent gain boosts
+    min(output_db, input_db)
+  ) : (
+    // Clamp above maximum graph point: maintain Y value at GRAPH_MAX_DB
+    // This prevents huge gains from angled top-right point
+    input_db > GRAPH_MAX_DB ? (
+      max_graph_idx = floor((GRAPH_MAX_DB - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY);
+      max_graph_idx = max(0, min(COMP_LUT_SIZE - 1, max_graph_idx));
+      comp_lut[max_graph_idx]
+    ) : (
+      output_db
+    )
+  )
 );
 
 function invalidate_compression_lut() (
