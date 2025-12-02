@@ -118,9 +118,9 @@ function draw_graph_points() (
     is_dragging && mouse_down ? (
       text_x = point_x + 15;
       text_y = point_y;
-      draw_text_at(1, 1, 1, 1, text_x, text_y - 4, "%.1f dB", output_db - input_db);
-      draw_text_at(1, 1, 0.6, 1, text_x, text_y + 8, "%.1f dB", output_db);
-      is_curved ? draw_text_at(1, 1, 1, 1, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
+      draw_text_at(1, 1, 1, 0.5, text_x, text_y - 4, "%.1f dB", output_db - input_db);
+      draw_text_at(1, 1, 0.6, 0.5, text_x, text_y + 8, "%.1f dB", output_db);
+      is_curved ? draw_text_at(1, 1, 1, 0.5, text_x, text_y + 20, "Curve: %.0f%%", curve_amount);
     );
     i += 1;
   );

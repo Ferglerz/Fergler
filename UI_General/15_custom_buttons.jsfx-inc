@@ -1,0 +1,225 @@
+// Custom Buttons Module
+// Custom buttons that don't use JSFX sliders - first buttons to use custom objects and custom run code
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/16_page_transitions.jsfx-inc
+
+@init
+
+//==============================================================================
+// CUSTOM BUTTON STATE
+//==============================================================================
+
+// Graph blur transition state (used during page transitions)
+graph_blur_start_time = 0;  // Time when blur transition started (0 = not active)
+graph_blur_duration = 0.100;  // Blur duration in seconds (100ms - matches fade out)
+graph_blur_active = 0;      // 1 = blur transition in progress, 0 = no blur
+graph_blur_amount = 0;      // Current blur amount (0-1, ramps up during transition)
+
+// Button definitions (custom objects)
+// Button 0: Graph and Filter visibility toggle (combined)
+custom_button_0_x = -999;    // Invalid position until set in @gfx (use -999 to detect uninitialized)
+custom_button_0_y = -999;    // Invalid position until set in @gfx (use -999 to detect uninitialized)
+custom_button_0_w = BUTTON_W;
+custom_button_0_h = BUTTON_H;
+custom_button_0_state = 0; // 0 = graph visible (button inactive), 1 = filters visible (button active)
+
+// Button label strings (use string slots 60+)
+#custom_button_0_label = 60;
+#custom_button_1_label = 61;
+
+//==============================================================================
+// STATE INITIALIZATION
+//==============================================================================
+
+// Initialize button labels
+function init_custom_button_labels() (
+  // Set label based on initial page state (graph visible = "Hide Graph/Filters")
+  // Use get_current_page() to ensure correct initial label
+  get_current_page() == PAGE_GRAPH ? (
+    strcpy(#custom_button_0_label, "Hide Graph/Filters");
+  ) : (
+    strcpy(#custom_button_0_label, "Show Graph/Filters");
+  );
+);
+
+function init_custom_button_state() (
+  // Initialize page transition system FIRST
+  init_page_transition_state();
+  
+  // Initialize button state to match initial page (graph visible = button inactive)
+  // Use get_current_page() to ensure correct initial state
+  custom_button_0_state = get_current_page() == PAGE_FILTERS ? 1 : 0;
+  
+  // Initialize blur state
+  graph_blur_start_time = 0;
+  graph_blur_active = 0;
+  graph_blur_amount = 0;
+  
+  init_custom_button_labels();
+);
+
+//==============================================================================
+// BUTTON POSITIONING
+//==============================================================================
+
+// Calculate button positions (called in @gfx when gfx_w is valid)
+function update_custom_button_positions() (
+  // Position button below graph, about 20 pixels under (moved up 40px from 60)
+  button_y = GRAPH_Y + GRAPH_SIZE + 20;
+  
+  // Center button horizontally below graph
+  button_center_x = GRAPH_X + GRAPH_SIZE / 2;
+  custom_button_0_x = button_center_x - custom_button_0_w / 2;
+  custom_button_0_y = button_y;
+);
+
+//==============================================================================
+// BUTTON RENDERING
+//==============================================================================
+
+// Draw a custom button
+// Parameters:
+//   x, y: Position
+//   w, h: Dimensions
+//   is_active: 1 = active/on, 0 = inactive/off
+//   label: Button label text
+function draw_custom_button(x, y, w, h, is_active, label) local() (
+  // Draw button background
+  is_active ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+  ) : (
+    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
+  );
+  gfx_rect(x, y, w, h);
+
+  // Draw button border
+  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
+  gfx_rect(x, y, w, h, 0);
+
+  // Draw button text
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  gfx_x = x + 5; gfx_y = y + 5;
+  gfx_drawstr(label);
+);
+
+
+// Update blur transition state (called every frame in @gfx)
+// Blur is active during the fade-out phase of page transitions
+// Note: page transition state should be updated BEFORE this is called
+function update_graph_blur_state() (
+  // Blur is active during fade-out phase (first 75ms)
+  page_transition_active > 0.5 ? (
+    current_time = time_precise();
+    elapsed = current_time - page_transition_start_time;
+    
+    elapsed < PAGE_FADE_OUT_DURATION ? (
+      // During fade-out phase: apply blur
+      graph_blur_active = 1;
+      graph_blur_start_time = page_transition_start_time;
+      graph_blur_amount = elapsed / PAGE_FADE_OUT_DURATION;  // 0 to 1
+      graph_blur_amount = min(graph_blur_amount, 1.0);
+    ) : (
+      // After fade-out: no blur
+      graph_blur_active = 0;
+      graph_blur_amount = 0;
+    );
+  ) : (
+    // No transition: no blur
+    graph_blur_active = 0;
+    graph_blur_amount = 0;
+  );
+);
+
+// Get current blur amount for graph rendering (0 = no blur, 1 = full blur)
+function get_graph_blur_amount() (
+  graph_blur_active > 0.5 ? graph_blur_amount : 0;
+);
+
+// Note: should_render_graph(), get_graph_opacity(), should_render_filters(), and get_filters_opacity()
+// are now defined in UI_General/16_page_transitions.jsfx-inc for earlier availability
+
+// Render all custom buttons
+function render_custom_buttons() (
+  // Update blur and page transition states
+  update_graph_blur_state();
+  
+  // Update button state to reflect current page
+  // Button is active (1) when filters are visible, inactive (0) when graph is visible
+  // Use get_current_page() to handle transitions correctly
+  custom_button_0_state = get_current_page() == PAGE_FILTERS ? 1 : 0;
+  
+  // Update positions (needs gfx_w to be valid)
+  // Always update positions during render to ensure they're valid
+  gfx_w > 0 ? (
+    update_custom_button_positions();
+    
+    // Only draw button if position is valid (not uninitialized)
+    custom_button_0_x >= 0 && custom_button_0_y >= 0 ? (
+      // Draw button 0: Graph and Filter visibility toggle (combined)
+      draw_custom_button(custom_button_0_x, custom_button_0_y, custom_button_0_w, custom_button_0_h, 
+                         custom_button_0_state, #custom_button_0_label);
+    );
+  );
+);
+
+//==============================================================================
+// BUTTON INTERACTION
+//==============================================================================
+
+// Check if point is inside a custom button
+function is_point_in_custom_button(x, y, button_x, button_y, button_w, button_h) (
+  x >= button_x && x <= button_x + button_w &&
+  y >= button_y && y <= button_y + button_h;
+);
+
+// Handle click on custom button 0 (Graph and Filter visibility - combined)
+function handle_custom_button_0_click() (
+  // Use get_current_page() to get the actual current page (handles transitions correctly)
+  actual_current_page = get_current_page();
+  actual_current_page == PAGE_GRAPH ? (
+    // Transitioning from graph to filters
+    start_page_transition(PAGE_GRAPH, PAGE_FILTERS);
+    custom_button_0_state = 1;  // Button becomes active when filters are shown
+    strcpy(#custom_button_0_label, "Show Graph/Filters");
+  ) : (
+    // Transitioning from filters to graph
+    start_page_transition(PAGE_FILTERS, PAGE_GRAPH);
+    custom_button_0_state = 0;  // Button becomes inactive when graph is shown
+    strcpy(#custom_button_0_label, "Hide Graph/Filters");
+  );
+);
+
+// Custom button mouse state (separate from graph mouse state)
+custom_button_mouse_down = 0;
+
+// Process mouse input for custom buttons
+// Returns: 1 if a custom button was clicked, 0 otherwise
+function process_custom_button_input() local(clicked) (
+  clicked = 0;
+  // Only process if buttons are positioned (gfx_w > 0)
+  gfx_w > 0 ? (
+    update_custom_button_positions();
+    
+    // CRITICAL FIX: Exclude graph area from button detection
+    // If click is in graph bounds, never check button (prevents graph clicks from triggering pagination)
+    !is_point_in_graph(mouse_x, mouse_y) ? (
+      // Click is NOT in graph area, safe to check button
+      // Also verify button position is valid (not uninitialized)
+      custom_button_0_x >= 0 && custom_button_0_y >= 0 ? (
+        MOUSE_LEFT_BUTTON && !custom_button_mouse_down ? (
+          custom_button_mouse_down = 1;
+          
+          // Check button 0
+          is_point_in_custom_button(mouse_x, mouse_y, custom_button_0_x, custom_button_0_y, 
+                                     custom_button_0_w, custom_button_0_h) ? (
+            handle_custom_button_0_click();
+            clicked = 1;
+          );
+        ) : !MOUSE_LEFT_BUTTON ? (
+          custom_button_mouse_down = 0;
+        );
+      );
+    );
+  );
+  clicked;
+);
+

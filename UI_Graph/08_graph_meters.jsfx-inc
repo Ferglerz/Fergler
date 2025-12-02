@@ -145,13 +145,13 @@ function draw_processing_state_indicator() (
   indicator_y = GRAPH_Y + GRAPH_SIZE / 2;
   indicator_radius = 5;
   
-  gfx_set(0.15, 0.15, 0.15, 1);
+  gfx_set(0.15, 0.15, 0.15, 0.5);
   gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);
   
   gr_processing_skipped ? (
-    gfx_set(0.8, 0.2, 0.2, 1);
+    gfx_set(0.8, 0.2, 0.2, 0.5);
   ) : (
-    gfx_set(0.2, 0.8, 0.3, 1);
+    gfx_set(0.2, 0.8, 0.3, 0.5);
   );
   gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);
 );
@@ -247,7 +247,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
     gr_meter_h = get_meter_h();
     meter_center_y = gr_meter_y + gr_meter_h / 2;
 
-    gfx_set(0.2, 0.2, 0.2, 1);
+    gfx_set(0.2, 0.2, 0.2, 0.5);
     gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 
     gfx_set(0.6, 0.6, 0.6, 1);
@@ -377,6 +377,7 @@ function draw_histogram_reflection_unified_pixel() local(
       
       input_level_db > GRAPH_MIN_DB ? (
         input_y_pos = HISTOGRAM_Y_OFFSET - input_level_db * DB_TO_PIXEL_SCALE;
+        input_y_pos = max(input_y_pos, GRAPH_Y);  // Clamp to graph top
         input_distance = abs(input_y_pos - graph_reference_y);
         input_reference_factor = 1 - (input_distance / max_distance);
         input_reference_factor = max(0, min(1, input_reference_factor));
@@ -474,6 +475,7 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
       gfx_set(r, g, b, faded_alpha);
       x_pos = GRAPH_X + i;
       y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
+      y_pos = max(y_pos, GRAPH_Y);  // Clamp to graph top
       
       first_point ? (
         gfx_x = x_pos;

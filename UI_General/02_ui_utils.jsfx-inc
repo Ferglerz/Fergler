@@ -46,6 +46,10 @@ function get_step_point_count(param_index) (
   param_index == 11 ? S11.step_count :
   param_index == 17 ? S17.step_count :
   param_index == 18 ? S18.step_count :
+  param_index == 20 ? drive_step_count :
+  param_index == 21 ? mix_step_count :
+  param_index == 22 ? even_step_count :
+  param_index == 23 ? odd_step_count :
   0
 );
 
@@ -56,6 +60,10 @@ function get_step_points_base(param_index) (
   param_index == 11 ? lookahead_step_points_base :
   param_index == 17 ? hp_step_points_base :
   param_index == 18 ? lp_step_points_base :
+  param_index == 20 ? drive_step_points_base :
+  param_index == 21 ? mix_step_points_base :
+  param_index == 22 ? even_step_points_base :
+  param_index == 23 ? odd_step_points_base :
   0
 );
 

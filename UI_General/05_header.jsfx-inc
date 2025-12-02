@@ -39,14 +39,16 @@ function draw_custom_menu() (
   menu_visible ? (
     menu_x = MENU_BUTTON_X;
     menu_y = MENU_BUTTON_Y + MENU_BUTTON_SIZE + 5;
-    menu_height = 4 * MENU_ITEM_HEIGHT;
+    menu_height = 6 * MENU_ITEM_HEIGHT;
     gfx_set(MENU_BG_R, MENU_BG_G, MENU_BG_B, 1);
     gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height);
     gfx_set(MENU_BORDER_R, MENU_BORDER_G, MENU_BORDER_B, 1);
     gfx_rect(menu_x, menu_y, MENU_WIDTH, menu_height, 0);
     check_x = menu_x + MENU_WIDTH - 15;
+    // Set font once before drawing all menu items (non-bold)
+    gfx_setfont(1, "Arial", 11);
     i = 0;
-    while (i < 4) (
+    while (i < 6) (
       item_y = menu_y + i * MENU_ITEM_HEIGHT;
       is_hovered = (menu_hovered_item == i);
       is_hovered ? (
@@ -59,13 +61,15 @@ function draw_custom_menu() (
       i == 0 ? gfx_drawstr("Debug") :
       i == 1 ? gfx_drawstr("Histogram") :
       i == 2 ? gfx_drawstr("GR Meter") :
-      i == 3 ? gfx_drawstr("Brickwall Limiter") : 0;
-      is_enabled = (i == 0 && menu_debug_enabled > 0.5) || (i == 1 && menu_histogram_enabled > 0.5) || (i == 2 && menu_gr_meter_enabled > 0.5) || (i == 3 && menu_brickwall_limiter_enabled > 0.5);
+      i == 3 ? gfx_drawstr("Brickwall Limiter") :
+      i == 4 ? gfx_drawstr("Hide Controls") :
+      i == 5 ? gfx_drawstr("Preview Filters") : 0;
+      is_enabled = (i == 0 && menu_debug_enabled > 0.5) || (i == 1 && menu_histogram_enabled > 0.5) || (i == 2 && menu_gr_meter_enabled > 0.5) || (i == 3 && menu_brickwall_limiter_enabled > 0.5) || (i == 4 && menu_controls_hidden > 0.5) || (i == 5 && menu_preview_filters_enabled > 0.5);
       is_enabled ? (
         gfx_set(MENU_CHECKMARK_R, MENU_CHECKMARK_G, MENU_CHECKMARK_B, 1);
         gfx_x = check_x;
         gfx_y = item_y + 6;
-        gfx_drawstr("✓");
+        gfx_drawstr("v");  // Using "v" as checkmark (Unicode "✓" may not render in JSFX)
       );
       i += 1;
     );

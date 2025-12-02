@@ -47,6 +47,10 @@ function construct_from_param(param_index) instance(param_index default min max 
     param_index == 11 ? lookahead_step_count :
     param_index == 17 ? hp_step_count :
     param_index == 18 ? lp_step_count :
+    param_index == 20 ? drive_step_count :
+    param_index == 21 ? mix_step_count :
+    param_index == 22 ? even_step_count :
+    param_index == 23 ? odd_step_count :
     0;
 );
 
