@@ -147,6 +147,60 @@ function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label
   control_count = max(control_count, index + 1);
 );
 
+// Define parallax fader control
+// Parameters:
+//   image_top_index: Image index for top layer (0-255)
+//   image_bot_index: Image index for bottom layer (0-255)
+//   image_w, image_h: Image dimensions (agnostic - received from caller)
+//   paralax_depth: Pixel offset for parallax effect (affects top image travel, stored separately)
+//   parallax_y_offset: Y offset to lower images (accounts for shadows in image, stored separately)
+//   parallax_x_offset: Manual X offset for bottom image (independent of depth, stored separately)
+//   image_scale: Scale factor for images (e.g., 1.0 for no scaling, stored separately)
+//   suffix_str: Suffix string to append after value (e.g., " %", " dB")
+//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
+//   format_options: OPTION_* flags
+//   display_mode: DISPLAY_NORMAL, DISPLAY_HIDE_VALUE
+// Encodes: (top_image_index) | (bot_image_index << 8) | (image_w << 16) | (image_h << 24)
+// Note: paralax_depth and slider config are stored in separate arrays
+function define_parallax_fader(index, x, y, w, h, param_index, min_val, max_val, label, image_top_index, image_bot_index, image_w, image_h, paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode) local(fader_config, slider_config) (
+  control_defs[index*11 + 0] = 3;         // 3=parallax fader
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  control_defs[index*11 + 3] = w;         // Width
+  control_defs[index*11 + 4] = h;         // Height
+  control_defs[index*11 + 5] = param_index; // Parameter index
+  control_defs[index*11 + 6] = min_val;   // Min value
+  control_defs[index*11 + 7] = max_val;   // Max value
+  // Encode image configuration: top_index (bits 0-7), bot_index (bits 8-15), 
+  // image_w (bits 16-23), image_h (bits 24-31)
+  fader_config = image_top_index | (image_bot_index << 8) | ((image_w | 0) << 16) | ((image_h | 0) << 24);
+  control_defs[index*11 + 8] = fader_config;  // Image configuration
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
+  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+  
+  // Store paralax_depth in separate array
+  parallax_depths[index] = paralax_depth;
+  
+  // Store parallax_y_offset in separate array
+  parallax_y_offsets[index] = parallax_y_offset;
+  
+  // Store parallax_x_offset in separate array
+  parallax_x_offsets[index] = parallax_x_offset;
+  
+  // Store image_scale in separate array
+  parallax_scales[index] = image_scale;
+  
+  // Store suffix string in string slot (61 + control_index) - same as sliders
+  strcpy(61 + index, suffix_str);
+  
+  // Store slider config (formatting, format_options, display_mode) in separate array
+  slider_config = formatting | (format_options << 8) | (display_mode << 16);
+  parallax_slider_configs[index] = slider_config;
+  
+  // Track control count (highest index + 1)
+  control_count = max(control_count, index + 1);
+);
+
 
 //==============================================================================
 // GENERIC RENDERING FUNCTIONS

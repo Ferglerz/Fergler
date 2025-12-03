@@ -1,0 +1,171 @@
+// Parallax Fader Rendering Module
+// Handles rendering of parallax fader controls with two-layer image effect
+// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
+
+@init
+
+//==============================================================================
+// PARALLAX FADER RENDERING
+//==============================================================================
+//
+// This module provides parallax fader rendering for horizontal sliders.
+// It handles:
+// - Two-layer image rendering (top and bottom images)
+// - Parallax effect based on slider position and depth parameter
+// - Label rendering above slider
+// - Value text rendering
+// - Slider interaction (drag to change value)
+//
+// USAGE:
+//   draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_index,
+//                       image_top_index, image_bot_index, image_w, image_h,
+//                       paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+//
+// PARALLAX EFFECT:
+//   The top image moves at a different rate than the bottom image based on
+//   paralax_depth. When dragged, the top image's travel distance is reduced
+//   or increased by paralax_depth pixels to create the parallax effect.
+//
+
+//==============================================================================
+// PARALLAX FADER STYLE CONFIGURATION (Module-level variables)
+//==============================================================================
+
+// Style configuration variables - set these before rendering
+parallax_style_label_height = 11;
+parallax_style_text_r = 1.0; parallax_style_text_g = 1.0; parallax_style_text_b = 1.0;
+
+//==============================================================================
+// PARALLAX FADER RENDERING FUNCTION
+//==============================================================================
+
+// Draw parallax fader control - uses style configuration variables
+// Parameters:
+//   x, y: Position (fader top-left corner)
+//   w, h: Dimensions (fader size)
+//   value: Current slider value
+//   min_val, max_val: Value range
+//   label: Label string slot
+//   param_index: Parameter index for value formatting
+//   image_top_index: Image index for top layer
+//   image_bot_index: Image index for bottom layer
+//   image_w, image_h: Image dimensions (agnostic - received from caller)
+//   paralax_depth: Pixel offset for parallax effect (affects top image travel distance)
+//   parallax_y_offset: Y offset to lower images (accounts for shadows in image)
+//   parallax_x_offset: Manual X offset for bottom image (independent of parallax depth)
+//   image_scale: Scale factor for images (e.g., 1.0 for no scaling, 0.5 for half size)
+//   suffix_str: Suffix string to append (e.g., " %", " dB")
+//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
+//   format_options: OPTION_* flags
+//   display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+function draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_index,
+                             image_top_index, image_bot_index, image_w, image_h,
+                             paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode) local(
+  label_w, label_h, normalized_pos, fader_x, top_travel_distance, top_fader_x, top_x, bot_x, top_y, bot_y, scaled_w, scaled_h,
+  option_count, step_count, total_options, value_index, reverse_mode, stepped_value, display_value
+) (
+  // Apply image scale to dimensions
+  scaled_w = image_w * image_scale;
+  scaled_h = image_h * image_scale;
+  
+  // Check if this slider has enumerated options or step-points (stepped behavior)
+  // Share the same stepped slider logic as regular sliders
+  option_count = get_dropdown_option_count(param_index);
+  step_count = get_step_point_count(param_index);
+  total_options = option_count > 0 ? option_count : step_count;
+  
+  // Calculate stepped value if slider has enumerated options or step-points
+  total_options > 0 ? (
+    option_count > 0 ? (
+      // Enumerated slider: value IS the index
+      value_index = floor(value);
+      value_index = max(0, min(option_count - 1, value_index));
+      // Get the actual discrete value from our cached enumerated list
+      stepped_value = get_dropdown_option_value(param_index, value_index);
+    ) : (
+      // Step-point slider: find closest step-point index
+      step_points_base = get_step_points_base(param_index);
+      value_index = find_step_point_index(value, step_points_base, step_count);
+      stepped_value = step_points_base[value_index];
+    );
+    
+    // Calculate normalized position based on index in stepped list
+    reverse_mode = (format_options & OPTION_REVERSE);
+    total_options > 1 ? (
+      reverse_mode ? (
+        // For reverse sliders, first option is at right (1.0), last option is at left (0.0)
+        normalized_pos = 1.0 - (value_index / (total_options - 1));
+      ) : (
+        // For normal sliders, first option is at left (0.0), last option is at right (1.0)
+        normalized_pos = value_index / (total_options - 1);
+      );
+    ) : (
+      // Only one option - center it
+      normalized_pos = 0.5;
+    );
+    
+    // Use stepped value for display
+    display_value = stepped_value;
+  ) : (
+    // No enumerated options, use continuous range
+    normalized_pos = (value - min_val) / (max_val - min_val);
+    display_value = value;
+  );
+  
+  // Draw label (unless OPTION_HIDE_LABEL is set)
+  !(format_options & OPTION_HIDE_LABEL) ? (
+    gfx_set(parallax_style_text_r, parallax_style_text_g, parallax_style_text_b, 1);
+    // Center align label
+    gfx_measurestr(label, label_w, label_h);
+    gfx_x = x + (w - label_w) / 2;
+    gfx_y = y - parallax_style_label_height;
+    gfx_drawstr(label);
+  );
+  
+  // Calculate fader position (0 to w - scaled_w)
+  fader_x = normalized_pos * (w - scaled_w);
+  
+  // Calculate parallax offsets
+  // Top image moves at a different rate: travel distance reduced/increased by paralax_depth
+  // Positive paralax_depth: top moves more (increased travel distance)
+  // Negative parallax_depth: top moves less (reduced travel distance)
+  // The parallax effect is applied to the travel distance, not the position
+  // So if fader moves from 0 to (w - scaled_w), top moves from 0 to (w - scaled_w + paralax_depth)
+  // Inverted: adding paralax_depth instead of subtracting to reverse the movement direction
+  top_travel_distance = (w - scaled_w) + paralax_depth;
+  top_fader_x = normalized_pos * top_travel_distance;
+  
+  // Calculate image positions
+  // Both images use the same vertical positioning to prevent stretching
+  // Center vertically within the slider height, then apply Y offset for shadows
+  bot_y = y + (h - scaled_h) / 2 + parallax_y_offset;
+  top_y = y + (h - scaled_h) / 2 + parallax_y_offset;
+  
+  // Bottom image: follows fader position, shifted right by manual X offset
+  // This offset is independent of parallax depth, allowing fine control of starting position
+  bot_x = x + fader_x + parallax_x_offset;
+  
+  // Top image: uses reduced/increased travel distance for parallax effect
+  top_x = x + top_fader_x;
+  
+  // Draw bottom image first (background layer)
+  gfx_x = bot_x;
+  gfx_y = bot_y;
+  gfx_blit(image_bot_index, image_scale, 0);  // Use image_scale for scaling
+  
+  // Draw top image second (foreground layer with parallax effect)
+  gfx_x = top_x;
+  gfx_y = top_y;
+  gfx_blit(image_top_index, image_scale, 0);  // Use image_scale for scaling
+  
+  // Draw value text with smart positioning
+  // For enumerated sliders, pass the raw value (index) to format_slider_value, not the converted value
+  // format_slider_value will handle the conversion and formatting
+  // Use VALUE_COLOR for parallax sliders instead of smart color selection
+  option_count > 0 ? (
+    draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, value, suffix_str, formatting, format_options, display_mode, FILL_LEFT_TO_RIGHT, VALUE_COLOR_R, VALUE_COLOR_G, VALUE_COLOR_B);
+  ) : (
+    draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, FILL_LEFT_TO_RIGHT, VALUE_COLOR_R, VALUE_COLOR_G, VALUE_COLOR_B);
+  );
+);
+

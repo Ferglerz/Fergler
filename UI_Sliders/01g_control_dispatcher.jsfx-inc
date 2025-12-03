@@ -16,9 +16,12 @@
 //   0 = Slider
 //   1 = Button (toggle)
 //   2 = Dropdown (combobox)
+//   3 = Parallax Fader
 //
 // USAGE:
-//   render_control(control_index);
+//   render_control(control_index, opacity);
+//   control_index: Index of the control to render
+//   opacity: Opacity value (0-1) to apply to the control
 //
 // The dispatcher:
 // 1. Reads control definition from control_defs array
@@ -135,8 +138,57 @@ function render_control(index) local(
     );
   ) : type == 2 ? ( // Dropdown
     draw_generic_dropdown(x, y, w, h, current_value, label_slot, param_index);
+  ) : type == 3 ? ( // Parallax Fader - extract config and call renderer directly
+    // Decode parallax fader configuration
+    fader_config = control_defs[index*11 + 8];
+    image_top_index = fader_config & 0xFF;           // Bits 0-7: top image index
+    image_bot_index = (fader_config >> 8) & 0xFF;   // Bits 8-15: bottom image index
+    image_w = (fader_config >> 16) & 0xFF;          // Bits 16-23: image width
+    image_h = (fader_config >> 24) & 0xFF;          // Bits 24-31: image height
+    paralax_depth = parallax_depths[index];          // Get parallax depth from separate array
+    parallax_y_offset = parallax_y_offsets[index];    // Get Y offset from separate array
+    parallax_x_offset = parallax_x_offsets[index];    // Get X offset from separate array
+    image_scale = parallax_scales[index];             // Get image scale from separate array
+    
+    // Get suffix string from string slot (same as sliders)
+    get_control_suffix(index);
+    suffix_str = #value_str;
+    
+    // Extract slider config (formatting, format_options, display_mode) from separate array
+    slider_config = parallax_slider_configs[index];
+    formatting = slider_config & 0xFF;              // Bits 0-7: formatting
+    format_options = (slider_config >> 8) & 0xFF;   // Bits 8-15: format options
+    display_mode = (slider_config >> 16) & 0xFF;    // Bits 16-23: display mode
+    
+    // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
+    // Only Attack slider responds to the time unit selector (time_multiplier variable)
+    param_index == 1 ? (
+      time_multiplier == 0 ? strcpy(#value_str, " ms") :
+      time_multiplier == 1 ? strcpy(#value_str, " us") :
+      strcpy(#value_str, " s");
+      suffix_str = #value_str;
+    );
+    
+    // For enumerated sliders, ignore min_val/max_val from control_defs
+    // They use option_count instead (0 to option_count-1)
+    // Parallax faders support stepped sliders the same way as regular sliders
+    option_count = get_dropdown_option_count(param_index);
+    option_count > 0 ? (
+      // Enumerated slider: use 0 and option_count-1 as min/max
+      draw_parallax_fader(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index,
+                          image_top_index, image_bot_index, image_w, image_h,
+                          paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+    ) : (
+      // Continuous or step-point slider: use min_val/max_val from control_defs
+      draw_parallax_fader(x, y, w, h, current_value, min_val, max_val, label_slot, param_index,
+                          image_top_index, image_bot_index, image_w, image_h,
+                          paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+    );
   ) : (
     0; // Unknown control type
   );
+  
+  // Reset alpha after rendering
+  gfx_a = 1.0;
 );
 

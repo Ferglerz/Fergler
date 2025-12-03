@@ -55,6 +55,26 @@ function allocate_memory() (
   slider_properties_base = freemem;
   freemem += NUM_CONTROLS * 4;
   
+  // Parallax fader depths array (1 value per control for parallax depth)
+  !parallax_depths ? parallax_depths = freemem;
+  freemem += NUM_CONTROLS;
+  
+  // Parallax fader Y offsets array (1 value per control for Y offset)
+  !parallax_y_offsets ? parallax_y_offsets = freemem;
+  freemem += NUM_CONTROLS;
+  
+  // Parallax fader X offsets array (1 value per control for X offset)
+  !parallax_x_offsets ? parallax_x_offsets = freemem;
+  freemem += NUM_CONTROLS;
+  
+  // Parallax fader scales array (1 value per control for image scale)
+  !parallax_scales ? parallax_scales = freemem;
+  freemem += NUM_CONTROLS;
+  
+  // Parallax fader slider configs array (1 value per control for formatting/config)
+  !parallax_slider_configs ? parallax_slider_configs = freemem;
+  freemem += NUM_CONTROLS;
+  
   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
   // Allocate based on maximum possible values from slider ranges:
   // - Maximum fade duration: 5000ms (slider32 max, still slider32 after reordering)

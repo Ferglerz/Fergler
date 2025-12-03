@@ -83,7 +83,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
     ui_drag_control = -2; // Prevent drag
   ) : (
     // Normal click behavior
-    control_type == 0 ? (
+    (control_type == 0 || control_type == 3) ? ( // Slider or Parallax Fader
       // Slider - start drag (handles both continuous and enumerated sliders)
       ui_drag_control = control_index;
       
@@ -94,9 +94,17 @@ function handle_control_click(control_index) local(option_count, step_count, min
         step_count = get_step_point_count(param_index);
         (option_count > 0 || step_count > 0) ? (
           // Stepped slider with CTRL: calculate smooth value from mouse position
-          slider_config = control_defs[control_index*11 + 8];
-          slider_orientation = slider_config & 0xFF;
-          format_options = (slider_config >> 32) & 0xFF;
+          control_type == 3 ? (
+            // Parallax fader: get config from separate array
+            slider_config = parallax_slider_configs[control_index];
+            format_options = (slider_config >> 8) & 0xFF;
+            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+          ) : (
+            // Regular slider: get config from control_defs
+            slider_config = control_defs[control_index*11 + 8];
+            slider_orientation = slider_config & 0xFF;
+            format_options = (slider_config >> 32) & 0xFF;
+          );
           min_val = control_defs[control_index*11 + 6];
           max_val = control_defs[control_index*11 + 7];
           
@@ -130,9 +138,17 @@ function handle_control_click(control_index) local(option_count, step_count, min
           slider(param_index) = raw_value;
         ) : (
           // Continuous slider with CTRL: calculate smooth value (no increment snapping)
-          slider_config = control_defs[control_index*11 + 8];
-          slider_orientation = slider_config & 0xFF;
-          format_options = (slider_config >> 32) & 0xFF;
+          control_type == 3 ? (
+            // Parallax fader: get config from separate array
+            slider_config = parallax_slider_configs[control_index];
+            format_options = (slider_config >> 8) & 0xFF;
+            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+          ) : (
+            // Regular slider: get config from control_defs
+            slider_config = control_defs[control_index*11 + 8];
+            slider_orientation = slider_config & 0xFF;
+            format_options = (slider_config >> 32) & 0xFF;
+          );
           min_val = control_defs[control_index*11 + 6];
           max_val = control_defs[control_index*11 + 7];
           
@@ -201,10 +217,18 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
     param_index = control_defs[ui_drag_control*11 + 5];
     control_type = control_defs[ui_drag_control*11 + 0];
 
-    control_type == 0 ? ( // Slider - unified system
-      slider_config = control_defs[ui_drag_control*11 + 8];
-      slider_style = slider_config & 0xFF;
-      format_options = (slider_config >> 32) & 0xFF;
+    (control_type == 0 || control_type == 3) ? ( // Slider or Parallax Fader - unified system
+      control_type == 3 ? (
+        // Parallax fader: get config from separate array
+        slider_config = parallax_slider_configs[ui_drag_control];
+        format_options = (slider_config >> 8) & 0xFF;
+        slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+      ) : (
+        // Regular slider: get config from control_defs
+        slider_config = control_defs[ui_drag_control*11 + 8];
+        slider_orientation = slider_config & 0xFF;
+        format_options = (slider_config >> 32) & 0xFF;
+      );
 
       min_val = control_defs[ui_drag_control*11 + 6];
       max_val = control_defs[ui_drag_control*11 + 7];
@@ -218,9 +242,17 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
         // Stepped slider (enumerated or step-points)
         MOUSE_CTRL_KEY ? (
           // CTRL held: allow smooth adjustment (ignore stepping) - use position-based calculation
-          slider_config = control_defs[ui_drag_control*11 + 8];
-          slider_orientation = slider_config & 0xFF;
-          format_options = (slider_config >> 32) & 0xFF;
+          control_type == 3 ? (
+            // Parallax fader: get config from separate array
+            slider_config = parallax_slider_configs[ui_drag_control];
+            format_options = (slider_config >> 8) & 0xFF;
+            slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+          ) : (
+            // Regular slider: get config from control_defs
+            slider_config = control_defs[ui_drag_control*11 + 8];
+            slider_orientation = slider_config & 0xFF;
+            format_options = (slider_config >> 32) & 0xFF;
+          );
           
           group_idx = control_defs[ui_drag_control*11 + 10];
           slider_orientation == ORIENTATION_VERTICAL ? (

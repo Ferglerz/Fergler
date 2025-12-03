@@ -17,6 +17,9 @@
 // USAGE:
 //   draw_control_value_text(x, y, param_index, value, " ms", FORMAT_K, 0);
 //   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0, fill_direction);
+//   draw_horizontal_slider_value_text(x, y, w, h, norm_pos, param_index, value, " ms", FORMAT_K, 0, fill_direction, text_r, text_g, text_b);
+//     // Pass -1, -1, -1 for text_r, text_g, text_b to use smart color selection (default)
+//     // Pass valid RGB values (0-1) to use a fixed color (e.g., VALUE_COLOR_R, VALUE_COLOR_G, VALUE_COLOR_B)
 //
 
 //==============================================================================
@@ -44,7 +47,8 @@ function draw_control_value_text(x, y, param_index, display_value, suffix_str, f
 // suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
 // display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
 // fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, or FILL_CENTER_OUT
-function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction) local(
+// text_r, text_g, text_b: Optional text color (if all are -1, uses smart color selection based on position)
+function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_index, display_value, suffix_str, formatting, format_options, display_mode, fill_direction, text_r, text_g, text_b) local(
   formatted_str, value_str_w, value_str_h, text_x, is_over_fill
 ) (
   // Skip drawing if display mode is HIDE_VALUE
