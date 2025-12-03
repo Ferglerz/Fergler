@@ -306,7 +306,8 @@ function draw_histogram_reflection_unified_pixel() local(
   acc_r, acc_g, acc_b, acc_alpha, total_alpha,
   input_age, input_sample_idx, input_level_db, input_y_pos, input_distance, input_reference_factor, input_alpha,
   point_idx, point_input_db, point_output_db, point_x, point_y, point_distance, point_reference_factor, point_alpha,
-  point_i, middle_alpha, edge_alpha
+  point_i, middle_alpha, edge_alpha,
+  dot_clamped_input_db, dot_x, dot_y, dot_distance, dot_reference_factor, dot_alpha
 ) (
   graph_reference_y = GRAPH_Y + GRAPH_SIZE * 0.75;  // 3/4 of the way down toward bottom
   max_distance = GRAPH_SIZE * 0.75;  // Distance from top to reference point
@@ -386,10 +387,10 @@ function draw_histogram_reflection_unified_pixel() local(
         input_alpha = base_opacity * (input_reference_factor ^ 2);  // Squared falloff
         
         input_alpha > 0.001 ? (
-          // Green color with white tint: blend (0.0, 0.8, 0.0) with white (1, 1, 1) - 70% original, 30% white
-          acc_r += (0.0 * 0.7 + 1.0 * 0.3) * input_alpha;
-          acc_g += (0.8 * 0.7 + 1.0 * 0.3) * input_alpha;
-          acc_b += (0.0 * 0.7 + 1.0 * 0.3) * input_alpha;
+          // White color with white tint: blend (1.0, 1.0, 1.0) with white (1, 1, 1) - 70% original, 30% white
+          acc_r += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
+          acc_g += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
+          acc_b += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
           acc_alpha += input_alpha;
         );
       );
@@ -420,6 +421,29 @@ function draw_histogram_reflection_unified_pixel() local(
         );
       );
       point_i += 1;
+    );
+    
+    // Process pastel green input dot - check if dot is at this x position
+    ((play_state == 1) || (play_state == 5)) ? (
+      dot_clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+      dot_x = db_to_graph_x(dot_clamped_input_db);
+      dot_y = db_to_graph_y(dot_clamped_input_db);
+      
+      // Check if dot's x position is within 2 pixels of current i
+      abs(dot_x - (GRAPH_X + i)) <= 2 ? (
+        dot_distance = abs(dot_y - graph_reference_y);
+        dot_reference_factor = 1 - (dot_distance / max_distance);
+        dot_reference_factor = max(0, min(1, dot_reference_factor));
+        dot_alpha = base_opacity * (dot_reference_factor ^ 2);  // Squared falloff
+        
+        dot_alpha > 0.001 ? (
+          // Pastel green color with white tint: blend (0.5, 0.9, 0.5) with white (1, 1, 1) - 70% original, 30% white
+          acc_r += (0.5 * 0.7 + 1.0 * 0.3) * dot_alpha;
+          acc_g += (0.9 * 0.7 + 1.0 * 0.3) * dot_alpha;
+          acc_b += (0.5 * 0.7 + 1.0 * 0.3) * dot_alpha;
+          acc_alpha += dot_alpha;
+        );
+      );
     );
     
     // Render merged color if there's any contribution
@@ -461,7 +485,6 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
   width_pixels = GRAPH_SIZE;
   step_size = max(1, floor(width_pixels / 200));
   
-  first_point = 1;
   i = 0;
   
   while (i < width_pixels) (
@@ -478,16 +501,10 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
       x_pos = GRAPH_X + i;
       y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
       y_pos = max(y_pos, GRAPH_Y);  // Clamp to graph top
+      bottom_y = GRAPH_Y + GRAPH_SIZE;
       
-      first_point ? (
-        gfx_x = x_pos;
-        gfx_y = y_pos;
-        first_point = 0;
-      ) : (
-        gfx_lineto(x_pos, y_pos, 1);
-      );
-    ) : (
-      first_point = 1;
+      // Draw vertical line from bottom to calculated position (inverted)
+      gfx_line(x_pos, bottom_y, x_pos, y_pos, 1);
     );
     
     i += step_size;
@@ -495,7 +512,6 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
 );
 
 function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
-  first_point = 1;
   i = 0;
   
   width_pixels = GRAPH_SIZE;
@@ -515,16 +531,10 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
+      top_y = GRAPH_Y;
       
-      first_point ? (
-        gfx_x = x_pos;
-        gfx_y = y_pos;
-        first_point = 0;
-      ) : (
-        gfx_lineto(x_pos, y_pos, 1);
-      );
-    ) : (
-      first_point = 1;
+      // Draw vertical line from top to calculated position
+      gfx_line(x_pos, top_y, x_pos, y_pos, 1);
     );
     
     i += 1;
@@ -533,7 +543,6 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
 
 
 function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
-  first_point = 1;
   i = 0;
   
   width_pixels = GRAPH_SIZE;
@@ -553,16 +562,10 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
+      bottom_y = GRAPH_Y + GRAPH_SIZE;
       
-      first_point ? (
-        gfx_x = x_pos;
-        gfx_y = y_pos;
-        first_point = 0;
-      ) : (
-        gfx_lineto(x_pos, y_pos, 1);
-      );
-    ) : (
-      first_point = 1;
+      // Draw vertical line from bottom to calculated position
+      gfx_line(x_pos, bottom_y, x_pos, y_pos, 1);
     );
     
     i += 1;
