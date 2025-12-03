@@ -1,0 +1,175 @@
+// Page Transitions Module
+// Generic page transition system for smooth fade-in/fade-out between UI pages
+// Dependencies: None (standalone utility module)
+
+@init
+
+//==============================================================================
+// PAGE DEFINITIONS
+//==============================================================================
+
+// Page indices (can be extended for future pages)
+PAGE_GRAPH = 0;      // Graph page (graph visible, filters hidden)
+PAGE_FILTERS = 1;    // Filters page (graph hidden, filters visible)
+// Future pages can be added here: PAGE_SETTINGS = 2, etc.
+
+//==============================================================================
+// PAGE TRANSITION CONSTANTS
+//==============================================================================
+
+PAGE_FADE_OUT_DURATION = 0.100;  // 100ms fade out (75ms + 25ms)
+PAGE_DELAY_DURATION = 0.075;     // 75ms delay between fade out and fade in (50ms + 25ms)
+PAGE_FADE_IN_DURATION = 0.100;   // 100ms fade in (75ms + 25ms)
+PAGE_TOTAL_DURATION = PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION + PAGE_FADE_IN_DURATION;  // 275ms total
+
+//==============================================================================
+// PAGE TRANSITION STATE
+//==============================================================================
+
+// Current page state
+current_page = PAGE_GRAPH;        // Currently displayed page
+target_page = PAGE_GRAPH;         // Target page for transition
+
+// Transition state
+page_transition_active = 0;       // 1 = transition in progress, 0 = no transition
+page_transition_start_time = 0;   // Time when transition started (0 = not active)
+
+// Fade amounts for each page (0-1, where 1 = fully visible, 0 = fully hidden)
+// Array indexed by page number
+page_fade_amounts = 0;  // Will be initialized to array of fade amounts
+
+//==============================================================================
+// PAGE TRANSITION INITIALIZATION
+//==============================================================================
+
+function init_page_transition_state() (
+  current_page = PAGE_GRAPH;
+  target_page = PAGE_GRAPH;
+  page_transition_active = 0;
+  page_transition_start_time = 0;
+  
+  // Initialize fade amounts: graph visible (1.0), filters hidden (0.0)
+  page_fade_amounts[PAGE_GRAPH] = 1.0;
+  page_fade_amounts[PAGE_FILTERS] = 0.0;
+);
+
+//==============================================================================
+// PAGE TRANSITION CONTROL
+//==============================================================================
+
+// Start a transition from one page to another
+// Parameters:
+//   from_page: Source page index
+//   to_page: Target page index
+function start_page_transition(from_page, to_page) (
+  from_page != to_page ? (
+    current_page = from_page;
+    target_page = to_page;
+    page_transition_start_time = time_precise();
+    page_transition_active = 1;
+  );
+);
+
+// Update page transition state (call every frame in @gfx)
+function update_page_transition_state() (
+  page_transition_active > 0.5 ? (
+    current_time = time_precise();
+    elapsed = current_time - page_transition_start_time;
+    
+    elapsed >= PAGE_TOTAL_DURATION ? (
+      // Transition complete
+      page_transition_active = 0;
+      current_page = target_page;
+      page_fade_amounts[current_page] = 1.0;
+      // Hide the previous page
+      previous_page = current_page == PAGE_GRAPH ? PAGE_FILTERS : PAGE_GRAPH;
+      page_fade_amounts[previous_page] = 0.0;
+      page_transition_start_time = 0;
+    ) : (
+      // Transition in progress
+      elapsed < PAGE_FADE_OUT_DURATION ? (
+        // Phase 1: Fade out current page (1.0 -> 0.0)
+        fade_out_progress = elapsed / PAGE_FADE_OUT_DURATION;
+        page_fade_amounts[current_page] = 1.0 - fade_out_progress;
+        // Target page stays at 0 during fade out
+        page_fade_amounts[target_page] = 0.0;
+      ) : elapsed < (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION) ? (
+        // Phase 2: Delay (both pages at 0)
+        page_fade_amounts[current_page] = 0.0;
+        page_fade_amounts[target_page] = 0.0;
+      ) : (
+        // Phase 3: Fade in target page (0.0 -> 1.0)
+        fade_in_elapsed = elapsed - (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION);
+        fade_in_progress = fade_in_elapsed / PAGE_FADE_IN_DURATION;
+        page_fade_amounts[current_page] = 0.0;
+        page_fade_amounts[target_page] = fade_in_progress;
+      );
+    );
+  );
+);
+
+//==============================================================================
+// PAGE VISIBILITY QUERIES
+//==============================================================================
+
+// Get fade amount for a specific page (0-1, where 1 = fully visible)
+// Parameters:
+//   page_index: Page index to query
+function get_page_fade_amount(page_index) (
+  page_fade_amounts[page_index];
+);
+
+// Check if a page should be rendered (visible or transitioning)
+// Parameters:
+//   page_index: Page index to check
+function should_render_page(page_index) (
+  page_fade_amounts[page_index] > 0.01;
+);
+
+// Check if a page is fully visible (not transitioning)
+// Parameters:
+//   page_index: Page index to check
+function is_page_fully_visible(page_index) (
+  page_fade_amounts[page_index] > 0.99 && 
+  (!page_transition_active || (page_transition_active > 0.5 && page_index == target_page && current_page == target_page));
+);
+
+// Get current page index
+function get_current_page() (
+  current_page;
+);
+
+// Get target page index (during transition)
+function get_target_page() (
+  target_page;
+);
+
+// Check if a transition is currently active
+function is_page_transition_active() (
+  page_transition_active > 0.5;
+);
+
+//==============================================================================
+// PAGE-SPECIFIC CONVENIENCE FUNCTIONS
+//==============================================================================
+
+// Check if graph page should be rendered (visible or transitioning)
+function should_render_graph() (
+  should_render_page(PAGE_GRAPH);
+);
+
+// Get current graph opacity (for fade transitions)
+function get_graph_opacity() (
+  get_page_fade_amount(PAGE_GRAPH);
+);
+
+// Check if filters page should be rendered (visible or transitioning)
+function should_render_filters() (
+  should_render_page(PAGE_FILTERS);
+);
+
+// Get current filters opacity (for fade transitions)
+function get_filters_opacity() (
+  get_page_fade_amount(PAGE_FILTERS);
+);
+

@@ -496,6 +496,7 @@ function handle_ui_mouse_input() (
         // Check controls until we find one under the mouse
         i = 0;
         while (i < control_count && ui_drag_control == -1) (
+          // Control is visible, check if mouse is over it
           is_point_in_control(mouse_x, mouse_y, i) ? (
             handle_control_click(i);
           );

@@ -280,18 +280,43 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   define_image_button(13, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label, 1, 2, 1);
   row += 1;
   
-  // Listen button (index 14, param 16)
-  define_button(14, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
-  row += 1;
+  // Listen button moved to Filters page (ungrouped)
   
-  // HP Filter with Hz suffix and k formatting (left-to-right fill) (index 15, param 17)
+  // HP and LP filters - ungrouped, positioned absolutely in graph/meter area
+  // Position: from graph left edge to meter right edge, centered vertically in graph area
+  // Meter position: GRAPH_X + GRAPH_SIZE + 15 (get_meter_x()), width = 23 (get_meter_w())
+  filters_area_x = GRAPH_X;
+  filters_area_y = GRAPH_Y;
+  filters_area_w = (GRAPH_X + GRAPH_SIZE + 15 + 23) - GRAPH_X;  // Width from graph left to meter right
+  filters_area_h = GRAPH_SIZE;  // Same height as graph
+  
+  // Set controls to ungrouped (absolute positioning)
+  set_control_group(-1);
+  
+  // Filter slider dimensions (doubled)
+  FILTER_SLIDER_W = SLIDER_W * 2;
+  FILTER_SLIDER_H = SLIDER_H * 2;
+  FILTER_SLIDER_SPACING = FILTER_SLIDER_H + 10;  // Spacing accounts for doubled height
+  
+  // Calculate absolute positions for filter controls (centered in graph/meter area)
+  filter_controls_center_x = filters_area_x + filters_area_w / 2;
+  filter_controls_start_y = filters_area_y + filters_area_h / 2 - (FILTER_SLIDER_H + FILTER_SLIDER_SPACING / 2);  // Center vertically
+  
+  // High Pass slider with Hz suffix and k formatting (left-to-right fill) (index 15, param 17)
   // Enumerated slider: min=0, max=28 (29 options)
-  define_slider(15, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 17, S17.min, S17.max, S17.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
-  row += 1;
+  // Position absolutely, centered horizontally, stacked vertically
+  define_slider(15, filter_controls_center_x - FILTER_SLIDER_W / 2, filter_controls_start_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 17, S17.min, S17.max, S17.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
   
-  // LP Filter with Hz suffix and k formatting (right-to-left fill) (index 16, param 18)
+  // Low Pass slider with Hz suffix and k formatting (right-to-left fill) (index 16, param 18)
   // Enumerated slider: min=0, max=31 (32 options)
-  define_slider(16, rel_x_slider, rel_y + row * CONTROL_SPACING_Y, SLIDER_W, SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
+  define_slider(16, filter_controls_center_x - FILTER_SLIDER_W / 2, filter_controls_start_y + FILTER_SLIDER_SPACING, FILTER_SLIDER_W, FILTER_SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
+  
+  // Listen to Detection button (index 14, param 16) - beneath Low Pass filter
+  define_button(14, filter_controls_center_x - BUTTON_W / 2, filter_controls_start_y + FILTER_SLIDER_SPACING + FILTER_SLIDER_H + 10, BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
+  
+  // Preview Filters button (moved from Settings page) - beneath Listen button
+  // This will be a custom button, not a slider-based control
+  // We'll add it to the Filters page rendering
   
   //==============================================================================
   // GROUP 3: HARMONICS (positioned to the right of graph and meter)
@@ -307,12 +332,13 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   // Center controls horizontally within group
   rel_x_slider = (group_w - SLIDER_W) / 2;
   rel_x_dropdown = (group_w - DROPDOWN_W) / 2;
+  rel_x_button = (group_w - BUTTON_W) / 2 ;
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;  // +15 pixels to make room for group header
   row = 0;
   
   // Type dropdown (index 17, param 19) - using image toggle
   // Images: toggle_left (index 1), toggle_right (index 2)
-  // Note: 0=Off (left), 1-2=Tape/Tube (right)
+  // Note: 0=Tape (left), 1=Tube (right) - Off is handled by Mix=0%
   define_image_button(17, rel_x_button, rel_y + row * CONTROL_SPACING_Y, BUTTON_W, BUTTON_H, 19, S19.min, S19.max, S19.label, 1, 2, 1);
   row += 1;
   // Drive (index 18, param 20) - using parallax fader with right image set
@@ -350,15 +376,15 @@ function setup_header_controls() (
     lookahead_slider_x = MENU_BUTTON_X + MENU_BUTTON_SIZE + 5;
     define_slider(10, lookahead_slider_x, header_slider_y, SLIDER_W, SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " ms", 10));
     
-    // Input Offset slider (index 12, param 14) - to the left of Makeup Gain
-    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
-    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing)
+    // Makeup Gain slider (index 22, param 25) - keep X position the same
     makeup_gain_x = gfx_w - 5 - SLIDER_W;
-    input_offset_x = makeup_gain_x - SLIDER_W - 5;
-    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
-    
-    // Makeup Gain slider (index 22, param 25) - update to hide label
     define_slider(22, makeup_gain_x, header_slider_y, SLIDER_W, SLIDER_H, 25, S25.min, S25.max, S25.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL, " dB", 22));
+    
+    // Input Offset slider (index 12, param 14) - to the left of Makeup Gain, moved 40px left
+    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
+    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing), then 40px further left
+    input_offset_x = makeup_gain_x - SLIDER_W - 5 - 40;
+    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
   );
 );
 
@@ -371,6 +397,24 @@ function render_all_controls() (
   while (i < control_count) (
     // Render all controls with full opacity
     render_control(i, 1.0);
+    i += 1;
+  );
+);
+
+// Render all controls with page-based filtering and opacity
+function render_all_controls_with_page_filtering() (
+  i = 0;
+  while (i < control_count) (
+    // Filter controls (indices 15, 16) and Listen button (index 14) - only render if Filters page should be visible
+    (i == 14 || i == 15 || i == 16) ? (
+      should_render_page(PAGE_FILTERS) ? (
+        // Render with fade opacity
+        render_control(i, get_page_fade_amount(PAGE_FILTERS));
+      );
+    ) : (
+      // Other controls - render with full opacity
+      render_control(i, 1.0);
+    );
     i += 1;
   );
 );

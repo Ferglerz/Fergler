@@ -122,7 +122,7 @@ MENU_HOVER_R = 0.4; MENU_HOVER_G = 0.4; MENU_HOVER_B = 0.4;  // Hover background
 MENU_CHECKMARK_R = 0.0; MENU_CHECKMARK_G = 1.0; MENU_CHECKMARK_B = 0.0;  // Green checkmark
 
 // Group Configuration
-NUM_GROUPS = 5;  // Total number of groups
+NUM_GROUPS = 5;  // Total number of groups (FILTERS removed - controls are ungrouped)
 GROUP_BORDER_RADIUS = 5;  // Rounded corner radius
 GROUP_TITLE_HEIGHT = 22;  // Height of title area
 GROUP_TITLE_PADDING = 8;  // Horizontal padding around title text

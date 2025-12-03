@@ -31,8 +31,9 @@ function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
   group_defs[index*6 + 3] = h;
   group_defs[index*6 + 4] = show_title;
   
-  // Store title in proper JSFX string slot (55-59)
-  title_slot = 55 + index;  // 55, 56, 57, 58, 59
+  // Store title in proper JSFX string slot (55-59 for groups 0-4)
+  // Groups 0-4: 55, 56, 57, 58, 59
+  title_slot = 55 + index;
   group_defs[index*6 + 5] = title_slot;
   
   // Copy title string to the string slot
@@ -207,10 +208,10 @@ function define_parallax_fader(index, x, y, w, h, param_index, min_val, max_val,
 //==============================================================================
 
 function render_all_groups() (
-  // Draw all group backgrounds
+  // Draw all group backgrounds (group 6 removed - filters are ungrouped)
   i = 0;
   while (i < NUM_GROUPS) (
-    // Render all groups with full opacity
+    // Normal rendering for all groups with full opacity
     draw_group(i, 1.0);
     i += 1;
   );

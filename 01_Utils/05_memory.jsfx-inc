@@ -85,5 +85,28 @@ function allocate_memory() (
   trail_max_dots = trail_max_dots_allocated; // Current limit (may be reduced in @slider)
   trail_buffer = freemem;
   freemem += trail_max_dots_allocated * 4;
+  
+  // Page button system memory allocation
+  // Button state array (4 fields per button * 16 max buttons = 64 slots)
+  !button_state ? button_state = freemem;
+  freemem += 64;
+  
+  // Page fade amounts array (NUM_PAGES slots, NUM_PAGES = 4)
+  !page_fade_amounts ? page_fade_amounts = freemem;
+  freemem += 4;  // NUM_PAGES = 4
+  
+  // Page button position arrays (NUM_PAGE_BUTTONS = 4)
+  !page_button_x_base ? page_button_x_base = freemem;
+  freemem += 4;  // NUM_PAGE_BUTTONS = 4
+  
+  !page_button_y_base ? page_button_y_base = freemem;
+  freemem += 4;  // NUM_PAGE_BUTTONS = 4
+  
+  // Settings button position arrays (NUM_SETTINGS_BUTTONS = 6)
+  !settings_button_x_base ? settings_button_x_base = freemem;
+  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6
+  
+  !settings_button_y_base ? settings_button_y_base = freemem;
+  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6
 );
 

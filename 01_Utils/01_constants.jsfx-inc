@@ -13,13 +13,12 @@
 #debug_temp_str = 54;  // For debug string concatenation
 #freq_display_str = 60;  // For frequency display formatting
 
-// Group title string slots (6 groups)
+// Group title string slots (5 groups)
 #group_title_0 = 55;  // ENVELOPE
 #group_title_1 = 56;  // DETECTION  
 #group_title_2 = 57;  // COMPRESSION
 #group_title_3 = 58;  // HARMONICS
 #group_title_4 = 59;  // SOURCE
-#group_title_5 = 62;  // FILTERS (using slot 62, 60-61 are used by custom buttons)
 
 // === AUDIO CONSTANTS ===
 

@@ -13,27 +13,36 @@
 // MAIN MOUSE INPUT PROCESSING
 //==============================================================================
 
-function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
-  // Update menu hover state
-  menu_visible ? (
-    menu_hovered_item = get_hovered_menu_item();
-  );
-
+function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked) (
   // Calculate meter position using shared functions
   gr_meter_x = get_meter_x();
   gr_meter_y = get_meter_y();
   gr_meter_w = get_meter_w();
   gr_meter_h = get_meter_h();
 
-  // Handle custom UI controls first (they have priority)
-  handle_ui_mouse_input();
+  // Handle page navigation buttons first (they have highest priority)
+  custom_button_clicked = process_custom_button_input();
+  
+  // Handle filters page buttons (if Filters page is visible)
+  filters_page_button_clicked = process_filters_page_button_input();
+  
+  // Handle settings page buttons (if Settings page is visible)
+  settings_button_clicked = process_settings_button_input();
 
-  // Handle threshold line interactions second (before graph interactions)
+  // Handle custom UI controls (they have priority over graph)
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked ? (
+    handle_ui_mouse_input();
+  );
+
+  // Handle threshold line interactions (before graph interactions)
   // Pass meter position and graph bounds as parameters
-  handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && ui_drag_control == -1 ? (
+    handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
+  );
 
-  // Only process graph mouse input if not interacting with UI controls or threshold lines
-  ui_drag_control == -1 && dragging_threshold_line == -1 ? (
+  // Only process graph mouse input if not interacting with UI controls, buttons, or threshold lines
+  // Also only process if Graph page is visible
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) ? (
     handle_graph_mouse_input();
   );
 );

@@ -1,0 +1,245 @@
+// Page Buttons Module
+// Modular button-based pagination system where each button independently manages its page
+// Dependencies: None (standalone utility module)
+
+@init
+
+//==============================================================================
+// PAGE DEFINITIONS
+//==============================================================================
+
+PAGE_GRAPH = 0;      // Graph page
+PAGE_FILTERS = 1;    // Filters page
+PAGE_SETTINGS = 2;   // Settings page
+PAGE_BLANK = 3;      // Blank placeholder page
+
+NUM_PAGES = 4;       // Total number of pages
+
+//==============================================================================
+// PAGE TRANSITION CONSTANTS
+//==============================================================================
+
+PAGE_FADE_OUT_DURATION = 0.100;  // 100ms fade out
+PAGE_DELAY_DURATION = 0.075;     // 75ms delay between fade out and fade in
+PAGE_FADE_IN_DURATION = 0.100;   // 100ms fade in
+PAGE_TOTAL_DURATION = PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION + PAGE_FADE_IN_DURATION;  // 275ms total
+
+//==============================================================================
+// PAGE BUTTON STATE (Per-Button)
+//==============================================================================
+
+// Each button manages its own state independently
+// Structure: button_state[button_index * 4 + field]
+// Fields per button:
+//   [0] = page_index (which page this button controls)
+//   [1] = is_active (1 = page visible, 0 = page hidden)
+//   [2] = transition_active (1 = transition in progress, 0 = no transition)
+//   [3] = transition_start_time (time when transition started, 0 = not active)
+
+// Initialize button state array (4 fields per button, up to 16 buttons)
+button_state = 0;  // Will be allocated as array
+
+// Fade amounts for each page (0-1, where 1 = fully visible, 0 = fully hidden)
+page_fade_amounts = 0;  // Will be initialized to array of fade amounts
+
+//==============================================================================
+// PAGE BUTTON INITIALIZATION
+//==============================================================================
+
+function init_page_buttons() (
+  // Memory allocation is done in allocate_memory() - just initialize values here
+  // Initialize all buttons to inactive
+  i = 0;
+  while (i < 16) (
+    button_state[i*4 + 0] = -1;  // page_index (invalid)
+    button_state[i*4 + 1] = 0;   // is_active (inactive)
+    button_state[i*4 + 2] = 0;   // transition_active (no transition)
+    button_state[i*4 + 3] = 0;   // transition_start_time (not started)
+    i += 1;
+  );
+  
+  // Initialize all page fade amounts to 0 (hidden)
+  i = 0;
+  while (i < NUM_PAGES) (
+    page_fade_amounts[i] = 0.0;
+    i += 1;
+  );
+  
+  // Set initial page (Graph) to visible
+  page_fade_amounts[PAGE_GRAPH] = 1.0;
+);
+
+//==============================================================================
+// BUTTON REGISTRATION
+//==============================================================================
+
+// Register a button to control a specific page
+// Parameters:
+//   button_index: Unique button index (0-15)
+//   page_index: Page index this button controls (PAGE_GRAPH, PAGE_FILTERS, etc.)
+function register_page_button(button_index, page_index) (
+  button_state[button_index*4 + 0] = page_index;
+  button_state[button_index*4 + 1] = 0;  // Start inactive
+  button_state[button_index*4 + 2] = 0;  // No transition
+  button_state[button_index*4 + 3] = 0;  // Not started
+);
+
+//==============================================================================
+// BUTTON CONTROL (Independent)
+//==============================================================================
+
+// Turn off a button's page (fade out)
+// Parameters:
+//   button_index: Button index to turn off
+function turn_off_page_button(button_index) local(page_idx) (
+  page_idx = button_state[button_index*4 + 0];
+  page_idx >= 0 ? (
+    // Only turn off if currently active
+    button_state[button_index*4 + 1] > 0.5 ? (
+      button_state[button_index*4 + 1] = 0;  // Mark as inactive
+      button_state[button_index*4 + 2] = 1;  // Start fade-out transition
+      button_state[button_index*4 + 3] = time_precise();  // Record start time
+    );
+  );
+);
+
+// Turn on a button's page (fade in)
+// This button will also send "turn off" commands to other active buttons
+// Parameters:
+//   button_index: Button index to turn on
+function turn_on_page_button(button_index) local(page_idx, i, other_page_idx) (
+  // Get this button's page index
+  page_idx = button_state[button_index*4 + 0];
+  page_idx >= 0 ? (
+    // Check if already active or transitioning - ignore rapid clicks
+    (button_state[button_index*4 + 1] > 0.5 || button_state[button_index*4 + 2] > 0.5) ? (
+      // Already active or transitioning, ignore click
+      0;
+    ) : (
+      // Turn off all other active buttons first
+      i = 0;
+      while (i < 16) (
+        (i != button_index && button_state[i*4 + 1] > 0.5) ? (
+          // This other button is active, turn it off
+          turn_off_page_button(i);
+        );
+        i += 1;
+      );
+      
+      // Now turn on this button's page
+      button_state[button_index*4 + 1] = 1;  // Mark as active
+      button_state[button_index*4 + 2] = 1;  // Start transition
+      button_state[button_index*4 + 3] = time_precise();  // Record start time
+    );
+  );
+);
+
+//==============================================================================
+// TRANSITION UPDATES (Per-Button)
+//==============================================================================
+
+// Update transition state for a single button
+// Parameters:
+//   button_index: Button index to update
+function update_button_transition(button_index) local(page_idx, is_active, trans_active, start_time, current_time, elapsed) (
+  page_idx = button_state[button_index*4 + 0];
+  page_idx >= 0 ? (
+    is_active = button_state[button_index*4 + 1];
+    trans_active = button_state[button_index*4 + 2];
+    start_time = button_state[button_index*4 + 3];
+    
+    trans_active > 0.5 ? (
+      current_time = time_precise();
+      elapsed = current_time - start_time;
+      
+      elapsed >= PAGE_TOTAL_DURATION ? (
+        // Transition complete
+        button_state[button_index*4 + 2] = 0;  // No longer transitioning
+        button_state[button_index*4 + 3] = 0;  // Reset start time
+        
+        // Update page fade amount based on final state
+        is_active > 0.5 ? (
+          page_fade_amounts[page_idx] = 1.0;  // Fully visible
+        ) : (
+          page_fade_amounts[page_idx] = 0.0;  // Fully hidden
+        );
+      ) : (
+        // Transition in progress
+        is_active > 0.5 ? (
+          // Fading in
+          elapsed < PAGE_FADE_OUT_DURATION ? (
+            // Still in fade-out phase (shouldn't happen, but handle gracefully)
+            page_fade_amounts[page_idx] = 0.0;
+          ) : elapsed < (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION) ? (
+            // Delay phase
+            page_fade_amounts[page_idx] = 0.0;
+          ) : (
+            // Fade-in phase
+            fade_in_elapsed = elapsed - (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION);
+            fade_in_progress = fade_in_elapsed / PAGE_FADE_IN_DURATION;
+            page_fade_amounts[page_idx] = fade_in_progress;
+          );
+        ) : (
+          // Fading out
+          elapsed < PAGE_FADE_OUT_DURATION ? (
+            // Fade-out phase
+            fade_out_progress = elapsed / PAGE_FADE_OUT_DURATION;
+            page_fade_amounts[page_idx] = 1.0 - fade_out_progress;
+          ) : (
+            // After fade-out: fully hidden
+            page_fade_amounts[page_idx] = 0.0;
+          );
+        );
+      );
+    );
+  );
+);
+
+// Update all button transitions (call every frame in @gfx)
+function update_all_page_transitions() (
+  i = 0;
+  while (i < 16) (
+    update_button_transition(i);
+    i += 1;
+  );
+);
+
+//==============================================================================
+// PAGE VISIBILITY QUERIES
+//==============================================================================
+
+// Get fade amount for a specific page (0-1, where 1 = fully visible)
+// Parameters:
+//   page_index: Page index to query
+function get_page_fade_amount(page_index) (
+  page_fade_amounts[page_index];
+);
+
+// Check if a page should be rendered (visible or transitioning)
+// Parameters:
+//   page_index: Page index to check
+function should_render_page(page_index) (
+  page_fade_amounts[page_index] > 0.01;
+);
+
+// Check if a button is currently active
+// Parameters:
+//   button_index: Button index to check
+function is_button_active(button_index) (
+  button_state[button_index*4 + 1] > 0.5;
+);
+
+// Check if a button is currently transitioning
+// Parameters:
+//   button_index: Button index to check
+function is_button_transitioning(button_index) (
+  button_state[button_index*4 + 2] > 0.5;
+);
+
+// Get the page index controlled by a button
+// Parameters:
+//   button_index: Button index
+function get_button_page_index(button_index) (
+  button_state[button_index*4 + 0];
+);
+

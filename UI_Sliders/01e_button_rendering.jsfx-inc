@@ -27,8 +27,9 @@
 //==============================================================================
 
 // Style configuration variables - set these before rendering
-button_style_on_r = 0.2; button_style_on_g = 0.8; button_style_on_b = 0.2;
-button_style_off_r = 0.4; button_style_off_g = 0.4; button_style_off_b = 0.4;
+// Button colors: yellow from sliders (0.8, 0.6, 0.2) at 66% opacity when active, 25% when inactive
+button_style_on_r = 0.528; button_style_on_g = 0.396; button_style_on_b = 0.132;  // 66% opacity of yellow
+button_style_off_r = 0.2; button_style_off_g = 0.15; button_style_off_b = 0.05;  // 25% opacity of yellow
 button_style_text_r = 1.0; button_style_text_g = 1.0; button_style_text_b = 1.0;
 button_style_border_r = 0.6; button_style_border_g = 0.6; button_style_border_b = 0.6;
 

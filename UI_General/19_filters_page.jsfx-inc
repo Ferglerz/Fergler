@@ -1,0 +1,165 @@
+// Filters Page Module
+// Filters page with filter controls and Preview Filters button
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/17_page_buttons.jsfx-inc
+
+@init
+
+//==============================================================================
+// FILTERS PAGE BUTTON DEFINITIONS
+//==============================================================================
+
+// Preview Filters button (moved from Settings page)
+// Button dimensions
+FILTERS_PAGE_BUTTON_W = 160;  // 160px wide to match Settings buttons
+FILTERS_PAGE_BUTTON_H = BUTTON_H;
+
+// Button position (will be calculated in @gfx)
+preview_filters_button_x = 0;
+preview_filters_button_y = 0;
+
+// Button label string (use string slot 70)
+#preview_filters_button_label = 70;  // "Preview Filters"
+
+//==============================================================================
+// STATE INITIALIZATION
+//==============================================================================
+
+function init_filters_page() (
+  // Initialize button label
+  strcpy(#preview_filters_button_label, "Preview Filters");
+);
+
+//==============================================================================
+// BUTTON POSITIONING
+//==============================================================================
+
+// Calculate Preview Filters button position (beneath Listen button)
+function update_preview_filters_button_position() local(listen_button_y) (
+  // Get Listen button position (control index 14)
+  // Listen button is at: filter_controls_start_y + FILTER_SLIDER_SPACING + FILTER_SLIDER_H + 10
+  // We need to calculate this from the filter controls area
+  filters_area_x = GRAPH_X;
+  filters_area_y = GRAPH_Y;
+  filters_area_w = (GRAPH_X + GRAPH_SIZE + 15 + 23) - GRAPH_X;
+  filters_area_h = GRAPH_SIZE;
+  filter_controls_center_x = filters_area_x + filters_area_w / 2;
+  FILTER_SLIDER_W = SLIDER_W * 2;
+  FILTER_SLIDER_H = SLIDER_H * 2;
+  FILTER_SLIDER_SPACING = FILTER_SLIDER_H + 10;
+  filter_controls_start_y = filters_area_y + filters_area_h / 2 - (FILTER_SLIDER_H + FILTER_SLIDER_SPACING / 2);
+  
+  // Listen button Y position
+  listen_button_y = filter_controls_start_y + FILTER_SLIDER_SPACING + FILTER_SLIDER_H + 10;
+  
+  // Preview Filters button is beneath Listen button
+  preview_filters_button_x = filter_controls_center_x - FILTERS_PAGE_BUTTON_W / 2;
+  preview_filters_button_y = listen_button_y + BUTTON_H + 10;  // 10px spacing
+);
+
+//==============================================================================
+// BUTTON RENDERING
+//==============================================================================
+
+// Draw Preview Filters button
+// Parameters:
+//   is_enabled: 1 = enabled/on, 0 = disabled/off
+function draw_preview_filters_button(is_enabled) local() (
+  // Draw button background
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+  ) : (
+    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
+  );
+  gfx_rect(preview_filters_button_x, preview_filters_button_y, FILTERS_PAGE_BUTTON_W, FILTERS_PAGE_BUTTON_H);
+  
+  // Draw button border
+  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
+  gfx_rect(preview_filters_button_x, preview_filters_button_y, FILTERS_PAGE_BUTTON_W, FILTERS_PAGE_BUTTON_H, 0);
+  
+  // Draw button text
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  gfx_x = preview_filters_button_x + 5; gfx_y = preview_filters_button_y + 5;
+  gfx_drawstr(#preview_filters_button_label);
+  
+  // Draw checkmark if enabled
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+    gfx_x = preview_filters_button_x + FILTERS_PAGE_BUTTON_W - 15;
+    gfx_y = preview_filters_button_y + 5;
+    gfx_drawstr("v");  // Checkmark
+  );
+);
+
+// Render filters page buttons
+function render_filters_page_buttons() (
+  // Only render if Filters page should be visible
+  should_render_page(PAGE_FILTERS) ? (
+    // Get page opacity for fade transitions
+    page_opacity = get_page_fade_amount(PAGE_FILTERS);
+    page_opacity > 0.01 ? (
+      // Update positions
+      gfx_w > 0 ? (
+        update_preview_filters_button_position();
+        
+        // Apply opacity
+        gfx_a = page_opacity;
+        
+        // Draw Preview Filters button
+        is_enabled = menu_preview_filters_enabled > 0.5;
+        draw_preview_filters_button(is_enabled);
+        
+        // Reset opacity
+        gfx_a = 1.0;
+      );
+    );
+  );
+);
+
+//==============================================================================
+// BUTTON INTERACTION
+//==============================================================================
+
+// Check if point is inside Preview Filters button
+function is_point_in_preview_filters_button(x, y) (
+  preview_filters_button_x >= 0 && preview_filters_button_y >= 0 ? (
+    x >= preview_filters_button_x && x <= preview_filters_button_x + FILTERS_PAGE_BUTTON_W &&
+    y >= preview_filters_button_y && y <= preview_filters_button_y + FILTERS_PAGE_BUTTON_H;
+  ) : (
+    0;
+  );
+);
+
+// Handle click on Preview Filters button
+function handle_preview_filters_button_click() (
+  // Toggle preview filters
+  menu_preview_filters_enabled = menu_preview_filters_enabled > 0.5 ? 0 : 1;
+);
+
+// Process mouse input for filters page buttons
+// Returns: 1 if a filters page button was clicked, 0 otherwise
+function process_filters_page_button_input() local(clicked) (
+  clicked = 0;
+  // Only process if Filters page should be visible
+  should_render_page(PAGE_FILTERS) ? (
+    gfx_w > 0 ? (
+      update_preview_filters_button_position();
+      
+      MOUSE_LEFT_BUTTON && !filters_page_mouse_down ? (
+        filters_page_mouse_down = 1;
+        
+        // Check Preview Filters button
+        is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
+          handle_preview_filters_button_click();
+          clicked = 1;
+        );
+      ) : !MOUSE_LEFT_BUTTON ? (
+        filters_page_mouse_down = 0;
+      );
+    );
+  );
+  clicked;
+);
+
+// Filters page button mouse state
+filters_page_mouse_down = 0;
+

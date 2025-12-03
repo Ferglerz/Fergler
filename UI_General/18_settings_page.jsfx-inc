@@ -1,0 +1,237 @@
+// Settings Page Module
+// Settings page with menu items converted to custom buttons
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/17_page_buttons.jsfx-inc
+
+@init
+
+//==============================================================================
+// SETTINGS BUTTON DEFINITIONS
+//==============================================================================
+
+// Number of settings buttons (menu items)
+NUM_SETTINGS_BUTTONS = 5;
+
+// Button definitions
+// Button 0: Debug
+// Button 1: Histogram
+// Button 2: GR Meter
+// Button 3: Brickwall Limiter
+// Button 4: Hide Controls
+// Preview Filters moved to Filters page
+
+// Button dimensions
+SETTINGS_BUTTON_W = 160;  // 160px wide as requested
+SETTINGS_BUTTON_H = BUTTON_H;
+SETTINGS_BUTTON_SPACING = 10;  // Space between buttons
+
+// Button positions (will be calculated in @gfx)
+// Allocate arrays for button positions
+settings_button_x_base = 0;  // Base address for settings_button_x array
+settings_button_y_base = 0;  // Base address for settings_button_y array
+
+// Button label strings (use string slots 64-69)
+#settings_button_label_0 = 64;  // "Debug"
+#settings_button_label_1 = 65;  // "Histogram"
+#settings_button_label_2 = 66;  // "GR Meter"
+#settings_button_label_3 = 67;  // "Brickwall Limiter"
+#settings_button_label_4 = 68;  // "Hide Controls"
+#settings_button_label_5 = 69;  // "Preview Filters"
+
+//==============================================================================
+// STATE INITIALIZATION
+//==============================================================================
+
+function init_settings_page() (
+  // Memory allocation is done in allocate_memory() - just initialize values here
+  // Initialize button labels
+  strcpy(#settings_button_label_0, "Debug");
+  strcpy(#settings_button_label_1, "Histogram");
+  strcpy(#settings_button_label_2, "GR Meter");
+  strcpy(#settings_button_label_3, "Brickwall Limiter");
+  strcpy(#settings_button_label_4, "Hide Controls");
+);
+
+//==============================================================================
+// BUTTON POSITIONING
+//==============================================================================
+
+// Calculate settings button positions (centered in graph/meter area)
+function update_settings_button_positions() local(total_height, start_y, center_x, i) (
+  // Calculate total height needed
+  total_height = NUM_SETTINGS_BUTTONS * SETTINGS_BUTTON_H + (NUM_SETTINGS_BUTTONS - 1) * SETTINGS_BUTTON_SPACING;
+  
+  // Center vertically in graph area
+  start_y = GRAPH_Y + (GRAPH_SIZE - total_height) / 2;
+  
+  // Center horizontally in graph/meter area
+  // Graph area: GRAPH_X to GRAPH_X + GRAPH_SIZE
+  // Meter area: extends to meter_x + meter_w
+  meter_x = get_meter_x();
+  meter_w = get_meter_w();
+  area_right = meter_x + meter_w;
+  area_center_x = (GRAPH_X + area_right) / 2;
+  center_x = area_center_x - SETTINGS_BUTTON_W / 2;
+  
+  // Set positions for each button
+  i = 0;
+  while (i < NUM_SETTINGS_BUTTONS) (
+    settings_button_x_base[i] = center_x;
+    settings_button_y_base[i] = start_y + i * (SETTINGS_BUTTON_H + SETTINGS_BUTTON_SPACING);
+    i += 1;
+  );
+);
+
+//==============================================================================
+// BUTTON RENDERING
+//==============================================================================
+
+// Draw a settings button
+// Parameters:
+//   button_index: Button index (0-5)
+//   x, y: Position
+//   w, h: Dimensions
+//   is_enabled: 1 = enabled/on, 0 = disabled/off
+//   label: Button label text
+function draw_settings_button(button_index, x, y, w, h, is_enabled, label) local() (
+  // Draw button background
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+  ) : (
+    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
+  );
+  gfx_rect(x, y, w, h);
+  
+  // Draw button border
+  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
+  gfx_rect(x, y, w, h, 0);
+  
+  // Draw button text
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  gfx_x = x + 5; gfx_y = y + 5;
+  gfx_drawstr(label);
+  
+  // Draw checkmark if enabled
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+    gfx_x = x + w - 15;
+    gfx_y = y + 5;
+    gfx_drawstr("v");  // Checkmark
+  );
+);
+
+// Render settings page
+function render_settings_page() (
+  // Only render if Settings page should be visible
+  should_render_page(PAGE_SETTINGS) ? (
+    // Get page opacity for fade transitions
+    page_opacity = get_page_fade_amount(PAGE_SETTINGS);
+    page_opacity > 0.01 ? (
+      // Update positions
+      gfx_w > 0 ? (
+        update_settings_button_positions();
+        
+        // Apply opacity
+        gfx_a = page_opacity;
+        
+        // Draw all settings buttons
+        i = 0;
+        while (i < NUM_SETTINGS_BUTTONS) (
+          // Get button state
+          is_enabled = (i == 0 && menu_debug_enabled > 0.5) ||
+                       (i == 1 && menu_histogram_enabled > 0.5) ||
+                       (i == 2 && menu_gr_meter_enabled > 0.5) ||
+                       (i == 3 && menu_brickwall_limiter_enabled > 0.5) ||
+                       (i == 4 && menu_controls_hidden > 0.5);
+          
+          // Get label string slot based on button index
+          i == 0 ? label_slot = #settings_button_label_0 :
+          i == 1 ? label_slot = #settings_button_label_1 :
+          i == 2 ? label_slot = #settings_button_label_2 :
+          i == 3 ? label_slot = #settings_button_label_3 :
+          i == 4 ? label_slot = #settings_button_label_4 : 0;
+          
+          // Draw button
+          draw_settings_button(i, settings_button_x_base[i], settings_button_y_base[i], 
+                              SETTINGS_BUTTON_W, SETTINGS_BUTTON_H, 
+                              is_enabled, label_slot);
+          i += 1;
+        );
+        
+        // Reset opacity
+        gfx_a = 1.0;
+      );
+    );
+  );
+);
+
+//==============================================================================
+// BUTTON INTERACTION
+//==============================================================================
+
+// Check if point is inside a settings button
+function is_point_in_settings_button(x, y, button_index) (
+  settings_button_x_base[button_index] >= 0 && settings_button_y_base[button_index] >= 0 ? (
+    x >= settings_button_x_base[button_index] && x <= settings_button_x_base[button_index] + SETTINGS_BUTTON_W &&
+    y >= settings_button_y_base[button_index] && y <= settings_button_y_base[button_index] + SETTINGS_BUTTON_H;
+  ) : (
+    0;
+  );
+);
+
+// Handle click on a settings button
+// Parameters:
+//   button_index: Button index that was clicked (0-5)
+function handle_settings_button_click(button_index) (
+  button_index == 0 ? (
+    // Toggle debug
+    menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
+  ) : button_index == 1 ? (
+    // Toggle histogram
+    menu_histogram_enabled = menu_histogram_enabled > 0.5 ? 0 : 1;
+  ) : button_index == 2 ? (
+    // Toggle GR meter
+    menu_gr_meter_enabled = menu_gr_meter_enabled > 0.5 ? 0 : 1;
+  ) : button_index == 3 ? (
+    // Toggle brickwall limiter
+    menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
+    brickwall_limiter = menu_brickwall_limiter_enabled;
+    sliderchange(1 << (26 - 1)); // Update slider26
+  ) : button_index == 4 ? (
+    // Toggle hide controls
+    menu_controls_hidden = menu_controls_hidden > 0.5 ? 0 : 1;
+  );
+);
+
+// Process mouse input for settings buttons
+// Returns: 1 if a settings button was clicked, 0 otherwise
+// Note: Only processes if Settings page is visible (skip click detection for invisible UI as requested)
+function process_settings_button_input() local(clicked, i) (
+  clicked = 0;
+  // Only process if Settings page should be visible
+  should_render_page(PAGE_SETTINGS) ? (
+    gfx_w > 0 ? (
+      update_settings_button_positions();
+      
+      MOUSE_LEFT_BUTTON && !settings_mouse_down ? (
+        settings_mouse_down = 1;
+        
+        // Check each button
+        i = 0;
+        while (i < NUM_SETTINGS_BUTTONS && !clicked) (
+          is_point_in_settings_button(mouse_x, mouse_y, i) ? (
+            handle_settings_button_click(i);
+            clicked = 1;
+          );
+          i += 1;
+        );
+      ) : !MOUSE_LEFT_BUTTON ? (
+        settings_mouse_down = 0;
+      );
+    );
+  );
+  clicked;
+);
+
+// Settings button mouse state
+settings_mouse_down = 0;
+

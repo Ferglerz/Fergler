@@ -196,7 +196,7 @@ function process_complete_audio_chain() (
       processed_r = audio_to_compress_r * gain_reduction_linear;
     );
 
-    harmonic_type > 0 && abs(target_gr_db) > 0.0001 ? (
+    harmonic_mix > 0.0001 && abs(target_gr_db) > 0.0001 ? (
       harmonic_envelope_amount = abs(global_smoothed_gain_db) / 30.0;
       harmonic_abs_gr = abs(target_gr_db);
       harmonic_envelope_factor = 1 + harmonic_envelope_amount * 0.2;

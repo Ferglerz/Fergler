@@ -109,7 +109,8 @@ function apply_soft_clipping(input, clip_threshold, compensation_factor) local(
 function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_level, type, drive, mix, even_boost, odd_boost) (
   debug_counter_harmonics += 1;
   
-  type == 0 ? input : (
+  // Early exit if mix is 0% (harmonics off)
+  mix <= 0.0001 ? input : (
     // OPTIMIZATION: Use pre-calculated global values (shared between L/R channels)
     dry_signal = input;
     driven = input;
@@ -117,7 +118,8 @@ function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_l
     drive_factor = (drive / 100.0) * 0.5;
     harmonic_amount_driven = harmonic_amount * drive_factor;
     
-    processed = type == 1 ? (
+    // type: 0 = Tape, 1 = Tube (Off removed, mix=0% means off)
+    processed = type == 0 ? (
       apply_enhanced_tape_processing(driven, harmonic_amount_driven, harmonic_combined_factor, even_boost, odd_boost)
     ) : (
       apply_enhanced_tube_processing(driven, harmonic_amount_driven, harmonic_combined_factor, even_boost, odd_boost)

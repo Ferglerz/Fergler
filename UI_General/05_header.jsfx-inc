@@ -87,6 +87,6 @@ function draw_header() (
   gfx_rect(0, 0, gfx_w, HEADER_HEIGHT);
   gfx_set(HEADER_BORDER_R, HEADER_BORDER_G, HEADER_BORDER_B, 1);
   gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_BORDER_HEIGHT);
-  draw_menu_button();
+  // Menu button removed - functionality moved to Settings page
 );
 

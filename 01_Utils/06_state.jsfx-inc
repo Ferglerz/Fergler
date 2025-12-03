@@ -37,6 +37,15 @@ function init_state_variables() (
   // Initialize trail state (UI_Graph/12_dot_trail.jsfx-inc)
   init_trail_state();
   
+  // Initialize custom button state (UI_General/15_custom_buttons.jsfx-inc)
+  init_custom_button_state();
+  
+  // Initialize settings page (UI_General/18_settings_page.jsfx-inc)
+  init_settings_page();
+  
+  // Initialize filters page (UI_General/19_filters_page.jsfx-inc)
+  init_filters_page();
+  
   // Calculate lookahead samples (must be done after max_lookahead_samples is set in memory allocation)
   // Update function is defined in 02_InputProcessing/01_dsp_utils.jsfx-inc
   update_lookahead_samples();
