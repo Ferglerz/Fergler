@@ -110,9 +110,15 @@ function is_double_click_control(control_index) local(current_time, is_double) (
 );
 
 // Handle control click based on control type
-function handle_control_click(control_index) local(option_count, step_count, min_val, max_val, normalized_pos, ctrl_x, ctrl_y, ctrl_w, ctrl_h, group_idx, ctrl_x_rel, group_x_val, slider_config, slider_orientation, format_options, raw_value, increment, array_index) (
-  control_type = control_defs[control_index*11 + 0];
-  param_index = control_defs[control_index*11 + 5];
+function handle_control_click(control_index) local(option_count, step_count, min_val, max_val, normalized_pos, ctrl_x, ctrl_y, ctrl_w, ctrl_h, group_idx, ctrl_x_rel, group_x_val, slider_config, slider_orientation, format_options, raw_value, increment, array_index, cached_min_val, cached_max_val, cached_param_index, cached_control_type) (
+  // Cache frequently used control_defs values to avoid repeated array lookups
+  cached_control_type = control_defs[control_index*11 + 0];
+  cached_param_index = control_defs[control_index*11 + 5];
+  cached_min_val = control_defs[control_index*11 + 6];
+  cached_max_val = control_defs[control_index*11 + 7];
+  
+  control_type = cached_control_type;
+  param_index = cached_param_index;
   current_value = slider(param_index);
   
   // Debug logging removed per user request
@@ -135,8 +141,8 @@ function handle_control_click(control_index) local(option_count, step_count, min
         (option_count > 0 || step_count > 0) ? (
           // Stepped slider with CTRL: calculate smooth value from mouse position
           get_slider_config(control_index, control_type);
-          min_val = control_defs[control_index*11 + 6];
-          max_val = control_defs[control_index*11 + 7];
+          min_val = cached_min_val;
+          max_val = cached_max_val;
           
           slider_orientation == ORIENTATION_VERTICAL ? (
             ctrl_y = get_control_y_with_group_offset(control_index);
@@ -159,8 +165,8 @@ function handle_control_click(control_index) local(option_count, step_count, min
         ) : (
           // Continuous slider with CTRL: calculate smooth value (no increment snapping)
           get_slider_config(control_index, control_type);
-          min_val = control_defs[control_index*11 + 6];
-          max_val = control_defs[control_index*11 + 7];
+          min_val = cached_min_val;
+          max_val = cached_max_val;
           
           slider_orientation == ORIENTATION_VERTICAL ? (
             ctrl_y = get_control_y_with_group_offset(control_index);
@@ -190,8 +196,8 @@ function handle_control_click(control_index) local(option_count, step_count, min
       handle_preview_filters(param_index, 1);  // is_drag_start = 1
     ) : control_type == 1 ? (
       // Button - toggle or set specific value for radio buttons
-      min_val = control_defs[control_index*11 + 6];
-      max_val = control_defs[control_index*11 + 7];
+      min_val = cached_min_val;
+      max_val = cached_max_val;
       // If min == max, this is a radio button - use helper function
       min_val == max_val ? (
         handle_radio_button_click(control_index, param_index, min_val);
@@ -214,7 +220,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
 );
 
 // Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_orientation, format_options, snapped_value, ctrl_just_released, increment, slider_w) (
+function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_orientation, format_options, snapped_value, ctrl_just_released, increment, slider_w, cached_min_val, cached_max_val, cached_param_index, cached_control_type) (
   // Apply fine drag multiplier when ctrl/cmd is held
   fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
   
@@ -222,14 +228,20 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
   ctrl_just_released = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
   
   ui_drag_control >= 0 ? (
+    // Cache frequently used control_defs values to avoid repeated array lookups
+    cached_control_type = control_defs[ui_drag_control*11 + 0];
+    cached_param_index = control_defs[ui_drag_control*11 + 5];
+    cached_min_val = control_defs[ui_drag_control*11 + 6];
+    cached_max_val = control_defs[ui_drag_control*11 + 7];
+    
     // Update dragged control
-    param_index = control_defs[ui_drag_control*11 + 5];
-    control_type = control_defs[ui_drag_control*11 + 0];
+    param_index = cached_param_index;
+    control_type = cached_control_type;
 
     (control_type == 0 || control_type == 3) ? ( // Slider or Parallax Fader - unified system
       get_slider_config(ui_drag_control, control_type);
-      min_val = control_defs[ui_drag_control*11 + 6];
-      max_val = control_defs[ui_drag_control*11 + 7];
+      min_val = cached_min_val;
+      max_val = cached_max_val;
       current_value = slider(param_index);
       
       // Check if this slider has enumerated options or step-points
