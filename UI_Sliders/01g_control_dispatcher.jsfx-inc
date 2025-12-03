@@ -63,10 +63,13 @@ function get_control_suffix(control_index) (
 //==============================================================================
 
 // Helper function to render a control from the control_defs array
-function render_control(index) local(
+// Parameters:
+//   index: Control index to render
+//   opacity: Opacity (0-1) to apply to the control rendering
+function render_control(index, opacity) local(
   group_idx, type, x, y, w, h, param_index, min_val, max_val, slider_config,
   slider_orientation, display_mode, fill_direction, formatting, format_options, current_value,
-  option_count, suffix_str, label_slot
+  option_count, suffix_str, label_slot, fade_alpha
 ) (
   type = control_defs[index*11 + 0];
   x = control_defs[index*11 + 1];
@@ -84,6 +87,10 @@ function render_control(index) local(
     x += group_defs[group_idx*6 + 0];
     y += group_defs[group_idx*6 + 1];
   );
+  
+  // Apply provided opacity
+  fade_alpha = opacity;
+  gfx_a = fade_alpha;
 
   // Get current parameter value
   current_value = slider(param_index);

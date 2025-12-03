@@ -210,7 +210,8 @@ function render_all_groups() (
   // Draw all group backgrounds
   i = 0;
   while (i < NUM_GROUPS) (
-    draw_group(i);
+    // Render all groups with full opacity
+    draw_group(i, 1.0);
     i += 1;
   );
 );

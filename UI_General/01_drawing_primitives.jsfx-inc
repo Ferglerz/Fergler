@@ -68,7 +68,7 @@ function draw_rounded_rect_outline(x, y, w, h, radius) local(segments) (
 // GROUP RENDERING
 //==============================================================================
 
-function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x) (
+function draw_group(group_index, fade_amount) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x, current_alpha) (
   gx = group_defs[group_index*6 + 0];
   gy = group_defs[group_index*6 + 1];
   gw = group_defs[group_index*6 + 2];
@@ -76,12 +76,15 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
   show_title = group_defs[group_index*6 + 4];
   title_ptr = group_defs[group_index*6 + 5];
   
+  // Apply fade amount (default to 1.0 if not provided)
+  current_alpha = fade_amount > 0 ? fade_amount : 1.0;
+  
   // Draw main group background (disabled - no background)
   // gfx_set(GROUP_BG_R, GROUP_BG_G, GROUP_BG_B, 1);
   // draw_rounded_rect(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
   
   // Draw group border
-  gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, 1);
+  gfx_set(GROUP_BORDER_R, GROUP_BORDER_G, GROUP_BORDER_B, current_alpha);
   draw_rounded_rect_outline(gx, gy, gw, gh, GROUP_BORDER_RADIUS);
   
   // Draw title if enabled
@@ -103,7 +106,7 @@ function draw_group(group_index) local(gx, gy, gw, gh, show_title, title_ptr, ti
     // draw_rounded_rect_outline(title_area_x, gy, title_area_w, GROUP_TITLE_HEIGHT, GROUP_BORDER_RADIUS);
     
     // Draw title text (centered)
-    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, 1);
+    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, current_alpha);
     title_x = title_area_x + GROUP_TITLE_PADDING;
     title_y = gy + (GROUP_TITLE_HEIGHT - title_h) / 2;
     gfx_x = title_x;
