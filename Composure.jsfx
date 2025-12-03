@@ -219,6 +219,21 @@ function update_parameter_conversions() (
 );
 
 //==============================================================================
+// AUDIO PARAMETER UPDATE HELPERS
+//==============================================================================
+
+// Update all audio processing parameters (filters, envelope, RMS, lookahead)
+// Called from @init, @slider, and @block sections to ensure consistent update order
+function update_all_audio_parameters() (
+  update_filter_coefficients();
+  update_lookahead_samples();
+  update_attack_coefficient();
+  update_release_coefficient();
+  update_hold_samples();
+  update_rms_coefficient();
+);
+
+//==============================================================================
 // INITIALIZATION SEQUENCE
 //==============================================================================
 
@@ -265,18 +280,10 @@ setup_control_layout();
 // 7. Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
 update_parameter_conversions();
 
-// 8. Update lookahead samples using dedicated function
-// Update functions are defined in 02_InputProcessing/
-update_lookahead_samples();
-
-// 9. Update all parameter coefficients using dedicated update functions
+// 8. Update all audio processing parameters (filters, envelope, RMS, lookahead)
 // This ensures coefficients are correctly initialized even after samplerate changes
-// Update functions are defined in 03_Compression/Envelope/
-update_filter_coefficients();
-update_attack_coefficient();
-update_release_coefficient();
-update_hold_samples();
-update_rms_coefficient();
+// Update functions are defined in 02_InputProcessing/ and 03_Compression/Envelope/
+update_all_audio_parameters();
 
 // 10. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
@@ -292,20 +299,14 @@ compression_init_complete = 1;
 update_parameter_conversions();
 
 // --- Envelope Parameters (1-6) ---
-// Update attack and release coefficients using dedicated functions
+// Update attack and release coefficients (part of update_all_audio_parameters)
 // Update functions are defined in 03_Compression/Envelope/
-update_attack_coefficient();
-update_release_coefficient();
-update_hold_samples();
 
 // --- Detection Parameters (7-12) ---
-// Update RMS coefficients using dedicated function
-update_rms_coefficient();
+// Update RMS coefficients and lookahead (part of update_all_audio_parameters)
+// Update functions are defined in 02_InputProcessing/ and 03_Compression/Envelope/
 // Start smoothing immediately when slider changes (also smoothed in @block for continuous updates)
 smooth_rms_coefficient();
-// Update lookahead samples using dedicated function
-// Update functions are defined in 02_InputProcessing/
-update_lookahead_samples();
 
 // --- Compression Parameters (13-14) ---
 // Note: Strength is now used directly in gain reduction calculation
@@ -316,8 +317,7 @@ update_lookahead_samples();
 // Sliders use enumerated indices - get actual frequency value from option
 // hp_freq: index 0 = Off, other indices = filter frequency
 // lp_freq: index 31 = Off, other indices = filter frequency
-// Update filter coefficients (runs every @slider execution)
-update_filter_coefficients();
+// Update filter coefficients (part of update_all_audio_parameters)
 
 // --- Harmonics Parameters (19-23) ---
 // Cache harmonic drive compensation reciprocal to avoid per-sample division
@@ -378,15 +378,10 @@ gr_db_before_strength_block_max = 0;
 // Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
 update_parameter_conversions();
 
-// Update coefficients every block for real-time response
+// Update all audio processing parameters every block for real-time response
 // This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
 // Update functions are defined in 03_Compression/Envelope/ and 02_InputProcessing/
-update_filter_coefficients();
-update_lookahead_samples();
-update_attack_coefficient();
-update_release_coefficient();
-update_hold_samples();
-update_rms_coefficient();
+update_all_audio_parameters();
 // Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
 smooth_rms_coefficient();
 
