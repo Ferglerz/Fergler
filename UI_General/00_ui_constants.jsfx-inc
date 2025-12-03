@@ -68,7 +68,7 @@ HISTOGRAM_STEP_SIZE = 1;  // For GRAPH_SIZE=263: floor(263/200) = 1
 BEZIER_STEPS = 20; // Number of line segments to approximate Bezier curves
 
 // Control Dimensions (75% of original)
-SLIDER_W = 101;  // 135 * 0.75 = 101.25 rounded down
+SLIDER_W = 123;  // 101 + 22 (increased by 22 pixels)
 SLIDER_H = 15;   // 20 * 0.75
 SLIDER_W_VERTICAL = 15;  // 20 * 0.75
 SLIDER_H_VERTICAL = 101; // 135 * 0.75 = 101.25 rounded down
