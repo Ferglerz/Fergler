@@ -11,6 +11,28 @@
 @init
 
 //==============================================================================
+// SLIDER CONFIG EXTRACTION HELPERS
+//==============================================================================
+
+// Extract slider configuration from control_defs or parallax_slider_configs
+// Sets slider_config, slider_orientation, and format_options in calling scope
+// Parameters: control_index, control_type
+// Note: slider_config, slider_orientation, and format_options must be declared in calling scope (not local)
+function get_slider_config(control_index, control_type) (
+  control_type == 3 ? (
+    // Parallax fader: get config from separate array
+    slider_config = parallax_slider_configs[control_index];
+    format_options = (slider_config >> 8) & 0xFF;
+    slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+  ) : (
+    // Regular slider: get config from control_defs
+    slider_config = control_defs[control_index*11 + 8];
+    slider_orientation = slider_config & 0xFF;
+    format_options = (slider_config >> 32) & 0xFF;
+  );
+);
+
+//==============================================================================
 // BASIC UI UTILITIES
 //==============================================================================
 
@@ -67,14 +89,12 @@ function get_step_points_base(param_index) (
   0
 );
 
-function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options, array_index) (
-  slider_config = control_defs[control_index*11 + 8];
-  slider_orientation = slider_config & 0xFF;  // Extract slider orientation from config
-  format_options = (slider_config >> 32) & 0xFF;  // Extract format options
+function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options, slider_config, array_index) (
+  control_type = control_defs[control_index*11 + 0];
+  get_slider_config(control_index, control_type);
   min_val = control_defs[control_index*11 + 6];
   max_val = control_defs[control_index*11 + 7];
   group_idx = control_defs[control_index*11 + 10];
-  control_type = control_defs[control_index*11 + 0];
   param_index = control_defs[control_index*11 + 5];
 
   slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
