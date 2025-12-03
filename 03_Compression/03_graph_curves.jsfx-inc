@@ -89,10 +89,6 @@ function calculate_bezier_control_points(point_index, curve_amount) (
   bezier_p3_y = invisible2_y;
 );
 
-function evaluate_bezier_curve(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) (
-  evaluate_bezier_at_t(t, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y);
-);
-
 //==============================================================================
 // CURVE SEGMENT GENERATION (dB Space) 
 //==============================================================================

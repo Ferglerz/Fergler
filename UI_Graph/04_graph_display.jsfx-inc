@@ -19,7 +19,7 @@ function draw_graph_background() (
 
 function draw_grid() (
   debug_counter_grid += 1;
-  gfx_set(0.4, 0.4, 0.4, 1);
+  gfx_set(0.4, 0.4, 0.4, 0.33);  // 33% opacity
   grid_step = GRAPH_SIZE / 6;
   i = 0;
   while (i <= 6) (
@@ -55,29 +55,5 @@ function draw_compression_threshold_overlay() (
     gfx_set(0.8, 0.8, 0.8, 0.7);
     gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
   );
-);
-
-//==============================================================================
-// MOUSE HINTS
-//==============================================================================
-
-function draw_mouse_hints() (
-  hint_margin = 11;
-  hint_y = GRAPH_Y + GRAPH_SIZE - hint_margin;
-  line_height = 9;
-  gfx_setfont(1, "Arial", 9);
-  gfx_set(0.7, 0.7, 0.7, 0.8);
-  char_width = 5;
-  graph_right = GRAPH_X + GRAPH_SIZE;
-  gfx_x = graph_right - hint_margin - (22 * char_width);
-  gfx_y = hint_y - line_height * 2;
-  gfx_drawstr("Cmd+drag point: Curve");
-  gfx_x = graph_right - hint_margin - (35 * char_width);
-  gfx_y = hint_y - line_height;
-  gfx_drawstr("Right-click/Alt+click point: Delete");
-  gfx_x = graph_right - hint_margin - (17 * char_width);
-  gfx_y = hint_y;
-  gfx_drawstr("Click empty: Add");
-  gfx_setfont(1, "Arial", 11);
 );
 

@@ -42,6 +42,10 @@ button_state = 0;  // Will be allocated as array
 // Fade amounts for each page (0-1, where 1 = fully visible, 0 = fully hidden)
 page_fade_amounts = 0;  // Will be initialized to array of fade amounts
 
+// Blur amounts for each page (0-1, where 1 = fully blurred, 0 = no blur)
+// Blur is active during fade-out phase of transitions
+page_blur_amounts = 0;  // Will be initialized to array of blur amounts
+
 //==============================================================================
 // PAGE BUTTON INITIALIZATION
 //==============================================================================
@@ -62,11 +66,13 @@ function init_page_buttons() (
   i = 0;
   while (i < NUM_PAGES) (
     page_fade_amounts[i] = 0.0;
+    page_blur_amounts[i] = 0.0;  // No blur initially
     i += 1;
   );
   
   // Set initial page (Graph) to visible
   page_fade_amounts[PAGE_GRAPH] = 1.0;
+  page_blur_amounts[PAGE_GRAPH] = 0.0;  // No blur initially
 );
 
 //==============================================================================
@@ -103,11 +109,26 @@ function turn_off_page_button(button_index) local(page_idx) (
   );
 );
 
+// Turn off all other active buttons in a radio group
+// Parameters:
+//   active_button_index: Button index that should remain active
+//   total_buttons: Total number of buttons in the group (default 16)
+function turn_off_other_radio_buttons(active_button_index, total_buttons) local(i) (
+  i = 0;
+  while (i < total_buttons) (
+    (i != active_button_index && button_state[i*4 + 1] > 0.5) ? (
+      // This other button is active, turn it off
+      turn_off_page_button(i);
+    );
+    i += 1;
+  );
+);
+
 // Turn on a button's page (fade in)
 // This button will also send "turn off" commands to other active buttons
 // Parameters:
 //   button_index: Button index to turn on
-function turn_on_page_button(button_index) local(page_idx, i, other_page_idx) (
+function turn_on_page_button(button_index) local(page_idx) (
   // Get this button's page index
   page_idx = button_state[button_index*4 + 0];
   page_idx >= 0 ? (
@@ -116,15 +137,8 @@ function turn_on_page_button(button_index) local(page_idx, i, other_page_idx) (
       // Already active or transitioning, ignore click
       0;
     ) : (
-      // Turn off all other active buttons first
-      i = 0;
-      while (i < 16) (
-        (i != button_index && button_state[i*4 + 1] > 0.5) ? (
-          // This other button is active, turn it off
-          turn_off_page_button(i);
-        );
-        i += 1;
-      );
+      // Turn off all other active buttons first (using helper)
+      turn_off_other_radio_buttons(button_index, 16);
       
       // Now turn on this button's page
       button_state[button_index*4 + 1] = 1;  // Mark as active
@@ -163,6 +177,8 @@ function update_button_transition(button_index) local(page_idx, is_active, trans
         ) : (
           page_fade_amounts[page_idx] = 0.0;  // Fully hidden
         );
+        // No blur when transition complete
+        page_blur_amounts[page_idx] = 0.0;
       ) : (
         // Transition in progress
         is_active > 0.5 ? (
@@ -170,24 +186,30 @@ function update_button_transition(button_index) local(page_idx, is_active, trans
           elapsed < PAGE_FADE_OUT_DURATION ? (
             // Still in fade-out phase (shouldn't happen, but handle gracefully)
             page_fade_amounts[page_idx] = 0.0;
+            page_blur_amounts[page_idx] = 0.0;
           ) : elapsed < (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION) ? (
             // Delay phase
             page_fade_amounts[page_idx] = 0.0;
+            page_blur_amounts[page_idx] = 0.0;
           ) : (
             // Fade-in phase
             fade_in_elapsed = elapsed - (PAGE_FADE_OUT_DURATION + PAGE_DELAY_DURATION);
             fade_in_progress = fade_in_elapsed / PAGE_FADE_IN_DURATION;
             page_fade_amounts[page_idx] = fade_in_progress;
+            page_blur_amounts[page_idx] = 0.0;  // No blur during fade-in
           );
         ) : (
           // Fading out
           elapsed < PAGE_FADE_OUT_DURATION ? (
-            // Fade-out phase
+            // Fade-out phase - apply blur during this phase
             fade_out_progress = elapsed / PAGE_FADE_OUT_DURATION;
             page_fade_amounts[page_idx] = 1.0 - fade_out_progress;
+            // Blur ramps up during fade-out (0 to 1)
+            page_blur_amounts[page_idx] = fade_out_progress;
           ) : (
             // After fade-out: fully hidden
             page_fade_amounts[page_idx] = 0.0;
+            page_blur_amounts[page_idx] = 0.0;  // No blur when fully hidden
           );
         );
       );
@@ -229,17 +251,21 @@ function is_button_active(button_index) (
   button_state[button_index*4 + 1] > 0.5;
 );
 
-// Check if a button is currently transitioning
+//==============================================================================
+// PAGE BLUR QUERIES
+//==============================================================================
+
+// Get blur amount for a specific page (0-1, where 1 = fully blurred, 0 = no blur)
 // Parameters:
-//   button_index: Button index to check
-function is_button_transitioning(button_index) (
-  button_state[button_index*4 + 2] > 0.5;
+//   page_index: Page index to query
+function get_page_blur_amount(page_index) (
+  page_blur_amounts[page_index];
 );
 
-// Get the page index controlled by a button
+// Check if a page should be blurred (blur amount > threshold)
 // Parameters:
-//   button_index: Button index
-function get_button_page_index(button_index) (
-  button_state[button_index*4 + 0];
+//   page_index: Page index to check
+function should_blur_page(page_index) (
+  page_blur_amounts[page_index] > 0.01;
 );
 

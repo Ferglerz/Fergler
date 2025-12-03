@@ -229,9 +229,17 @@ function handle_control_click(control_index) local(option_count, step_count, min
       update_pdc_delay_if_needed(param_index);
       handle_preview_filters(param_index, 1);  // is_drag_start = 1
     ) : control_type == 1 ? (
-      // Button - toggle (don't start drag for buttons)
-      slider(param_index) = current_value > 0.5 ? 0 : 1;
-      sliderchange(1 << (param_index - 1));
+      // Button - toggle or set specific value for radio buttons
+      min_val = control_defs[control_index*11 + 6];
+      max_val = control_defs[control_index*11 + 7];
+      // If min == max, this is a radio button - use helper function
+      min_val == max_val ? (
+        handle_radio_button_click(control_index, param_index, min_val);
+      ) : (
+        // Regular button - toggle
+        slider(param_index) = current_value > 0.5 ? 0 : 1;
+        sliderchange(1 << (param_index - 1));
+      );
       ui_drag_control = -2; // Special value to prevent further checks
     ) : control_type == 2 ? (
       // Dropdown - cycle (don't start drag for dropdowns)

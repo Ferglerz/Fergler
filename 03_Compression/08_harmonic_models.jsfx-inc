@@ -61,48 +61,6 @@ function apply_enhanced_tube_processing(driven, amount, combined_factor, even_bo
 );
 
 //==============================================================================
-// TUBE-STYLE TECHNIQUES (Helper Functions)
-//==============================================================================
-
-function apply_asymmetric_sharpening(input, sharpening_amount) local(
-  sharpen, result
-) (
-  sharpen = -input;
-  (sharpen > 0.0) ? (
-    sharpen = 1.0 + sqrt(sharpen)
-  ) : (
-    sharpen = 1.0 - sqrt(-sharpen)
-  );
-  result = input - input * abs(input) * sharpen * sharpening_amount;
-  result;
-);
-
-function apply_power_factor_saturation(input, power_factor, gain_scaling) local(
-  factor, result
-) (
-  // OPTIMIZATION: Use native pow() instead of loop-based multiplication
-  factor = pow(input, power_factor + 1);
-
-  ((power_factor % 2 == 1) && (input != 0.0)) ? (
-    factor = (factor / input) * abs(input)
-  );
-
-  factor *= gain_scaling;
-  result = input - factor;
-  result;
-);
-
-function apply_soft_clipping(input, clip_threshold, compensation_factor) local(
-  result
-) (
-  result = input;
-  (result > clip_threshold) ? result = clip_threshold;
-  (result < -clip_threshold) ? result = -clip_threshold;
-  result *= compensation_factor;
-  result;
-);
-
-//==============================================================================
 // HARMONIC PROCESSING APPLICATION
 //==============================================================================
 

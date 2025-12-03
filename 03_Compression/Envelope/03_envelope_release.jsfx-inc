@@ -235,10 +235,10 @@ function select_program_release_coef(target_gr_abs, detector_level_db, current_g
 
   prog_release_type == 0 ? release_coeff :
   prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
-  prog_release_type == 2 ? release_gr_dependent(current_gr_abs) :
-  prog_release_type == 3 ? release_rate_of_change(det_delta) :
+  prog_release_type == 2 ? release_input_dependent_inverse(input_level_db) :
+  prog_release_type == 3 ? release_gr_dependent(current_gr_abs) :
   prog_release_type == 4 ? release_gr_dependent(current_gr_abs) :  // Will use inverse in orchestration
-  prog_release_type == 5 ? release_input_dependent_inverse(input_level_db) :
+  prog_release_type == 5 ? release_rate_of_change(det_delta) :
   release_coeff
 );
 

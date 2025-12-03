@@ -25,7 +25,7 @@ function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_lev
   abs(release_curve) >= 0.001 ? (
     // Release curve is active
     prog_release_type > 0 ? (
-      (prog_release_type == 2 || prog_release_type == 4) ? (
+      (prog_release_type == 3 || prog_release_type == 4) ? (
         // GR dependent mode (or inverse) with curve: use pre-strength GR for threshold comparison
         // Use appropriate threshold based on GR sign (cut vs boost)
         // Note: Curve shaping for inverse mode would need special handling, but for now use same logic
@@ -42,7 +42,7 @@ function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_lev
   ) : (
     // No release curve
     prog_release_type > 0 ? (
-      prog_release_type == 2 ? (
+      prog_release_type == 5 ? (
         // GR dependent mode: use pre-strength GR for threshold comparison
         // Use dual thresholds based on GR sign (cut vs boost)
         rel_coef_use = release_gr_dependent_dual(current_gr_abs_before_strength, is_negative_gr);

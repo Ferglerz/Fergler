@@ -70,14 +70,78 @@ function render_complete_interface() (
       draw_labels_and_info();       // 05j
       draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
       gfx_a = 1.0;
+      
+      // Apply blur effect if blur transition is active
+      should_blur_page(PAGE_GRAPH) ? (
+        // Apply blur to graph and meter area using gfx_blurto
+        // gfx_blurto(x, y) blurs the region between current gfx_x,gfx_y and x,y
+        // Blur from 10px up/left of graph to 10px down/right of meter bottom-right
+        blur_amount = get_page_blur_amount(PAGE_GRAPH);
+        blur_amount > 0.01 ? (
+          // Calculate blur region coordinates
+          blur_start_x = GRAPH_X - 10;
+          blur_start_y = GRAPH_Y - 10;
+          meter_x = get_meter_x();
+          meter_y = get_meter_y();
+          meter_w = get_meter_w();
+          meter_h = get_meter_h();
+          blur_end_x = meter_x + meter_w + 10;
+          blur_end_y = meter_y + meter_h + 10;
+          
+          // Set starting position for blur
+          gfx_x = blur_start_x;
+          gfx_y = blur_start_y;
+          
+          // Apply blur (gfx_blurto blurs the region from current position to end position)
+          gfx_blurto(blur_end_x, blur_end_y);
+        );
+      );
     );
   );
 
   // PAGE 2: Input (ungrouped controls - visibility handled in render_all_controls_with_page_filtering)
   render_filters_page_buttons();
   
+  // Apply blur to Filters page if blur transition is active
+  should_blur_page(PAGE_FILTERS) ? (
+    blur_amount = get_page_blur_amount(PAGE_FILTERS);
+    blur_amount > 0.01 ? (
+      // Blur the filter controls area (graph area)
+      blur_start_x = GRAPH_X - 10;
+      blur_start_y = GRAPH_Y - 10;
+      blur_end_x = GRAPH_X + GRAPH_SIZE + 10;
+      blur_end_y = GRAPH_Y + GRAPH_SIZE + 10;
+      
+      // Set starting position for blur
+      gfx_x = blur_start_x;
+      gfx_y = blur_start_y;
+      
+      // Apply blur
+      gfx_blurto(blur_end_x, blur_end_y);
+    );
+  );
+  
   // PAGE 3: Settings
   render_settings_page();
+  
+  // Apply blur to Settings page if blur transition is active
+  should_blur_page(PAGE_SETTINGS) ? (
+    blur_amount = get_page_blur_amount(PAGE_SETTINGS);
+    blur_amount > 0.01 ? (
+      // Blur the settings area (graph area)
+      blur_start_x = GRAPH_X - 10;
+      blur_start_y = GRAPH_Y - 10;
+      blur_end_x = GRAPH_X + GRAPH_SIZE + 10;
+      blur_end_y = GRAPH_Y + GRAPH_SIZE + 10;
+      
+      // Set starting position for blur
+      gfx_x = blur_start_x;
+      gfx_y = blur_start_y;
+      
+      // Apply blur
+      gfx_blurto(blur_end_x, blur_end_y);
+    );
+  );
   
   // Blur reflection area separately, all the time
   // Reflection is 3 pixels tall, between graph left side and meter right side, plus 10px either side

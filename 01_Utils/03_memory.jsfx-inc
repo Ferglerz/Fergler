@@ -95,6 +95,10 @@ function allocate_memory() (
   !page_fade_amounts ? page_fade_amounts = freemem;
   freemem += 4;  // NUM_PAGES = 4
   
+  // Page blur amounts array (NUM_PAGES slots, NUM_PAGES = 4)
+  !page_blur_amounts ? page_blur_amounts = freemem;
+  freemem += 4;  // NUM_PAGES = 4
+  
   // Page button position arrays (NUM_PAGE_BUTTONS = 4)
   !page_button_x_base ? page_button_x_base = freemem;
   freemem += 4;  // NUM_PAGE_BUTTONS = 4
@@ -102,11 +106,11 @@ function allocate_memory() (
   !page_button_y_base ? page_button_y_base = freemem;
   freemem += 4;  // NUM_PAGE_BUTTONS = 4
   
-  // Settings button position arrays (NUM_SETTINGS_BUTTONS = 6)
+  // Settings button position arrays (NUM_SETTINGS_BUTTONS = 6, includes blank row)
   !settings_button_x_base ? settings_button_x_base = freemem;
-  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6
+  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6 (5 buttons + 1 blank row)
   
   !settings_button_y_base ? settings_button_y_base = freemem;
-  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6
+  freemem += 6;  // NUM_SETTINGS_BUTTONS = 6 (5 buttons + 1 blank row)
 );
 

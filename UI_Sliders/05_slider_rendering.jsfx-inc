@@ -108,8 +108,8 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
 
   orientation == ORIENTATION_VERTICAL ? (
     // Vertical slider
-    // Draw slider background
-    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 1);
+    // Draw slider background (33% opacity)
+    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 0.33);
     gfx_rect(x, y, w, h);
 
     // Draw slider fill from bottom
@@ -132,8 +132,8 @@ function draw_slider(x, y, w, h, value, min_val, max_val, label, param_index, or
     );
   ) : (
     // Horizontal slider
-    // Draw slider background
-    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 1);
+    // Draw slider background (33% opacity)
+    gfx_set(slider_style_bg_r, slider_style_bg_g, slider_style_bg_b, 0.33);
     gfx_rect(x, y, w, h);
 
     // Draw slider fill based on fill direction

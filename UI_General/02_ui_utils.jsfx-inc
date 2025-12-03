@@ -201,18 +201,6 @@ function find_closest_step_point(value, step_points_base, step_count) local(clos
 );
 
 //==============================================================================
-// SLIDER PROPERTIES SYSTEM
-//==============================================================================
-
-// Set slider property for a control
-function set_slider_property(control_index, property_index, value) (
-  array_index = control_index * 4 + property_index;
-  array_index >= 0 && array_index < NUM_CONTROLS * 4 ? (
-    slider_properties_base[array_index] = value;
-  );
-);
-
-//==============================================================================
 // COORDINATE CLAMPING HELPERS
 //==============================================================================
 
@@ -246,20 +234,5 @@ function draw_text_at(r, g, b, a, x, y, format_str, value) (
   gfx_x = x;
   gfx_y = y;
   gfx_printf(format_str, value);
-);
-
-//==============================================================================
-// DISPLAY FORMATTING FUNCTIONS
-//==============================================================================
-
-// Calculate decimal places based on increment
-function get_decimal_places(increment) (
-  increment <= 0 ? 2 : (
-    increment >= 1 ? 0 : (
-      increment >= 0.1 ? 1 : (
-        increment >= 0.01 ? 2 : 3
-      )
-    )
-  )
 );
 

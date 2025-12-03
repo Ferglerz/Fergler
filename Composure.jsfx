@@ -5,34 +5,33 @@ desc:Composure
 //==============================================================================
 // Reordered to match UI layout (logical grouping)
 
-// GROUP 0: ENVELOPE (1-6)
+// GROUP 0: ENVELOPE (1-6, 13)
 slider1:attack=10<0.01,5000,0.01>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 slider3:hold_ms=0<0,1000,1>-Hold
 slider4:release_ms=100<0.01,5000,0.01>-Release
 slider5:release_curve=0<-2,2,0.01>-Release Curve
-slider6:prog_release_type=0<0,5,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,GR Dep Inverse,Input Dep Inverse}>-Program Release
+slider6:prog_release_type=0<0,5,1{Fixed Release,Input-Dependent,Input Dep Inverse,GR Dependent,GR Dep Inverse,Rate-of-Change}>-Program Release
+slider13:strength=100<0,400,5>-Strength
 
-// GROUP 1: DETECTION (7-11)
+// INPUT PAGE CONTROLS (7-11, 15-18)
+// Time Unit (7) - shown as custom buttons on Input page
 slider7:time_multiplier=0<0,1,1{Milliseconds,Microseconds}>-Time Unit
 slider8:rms_size_ms=0<0,100,0.1>-RMS Window
-slider9:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
+slider9:rms_normalization=0<0,1,1{Off,On}>-Normalize
 slider10:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider11:lookahead_ms=0<0,2000,1>-Lookahead
-
-// GROUP 2: COMPRESSION (13-14)
-slider13:strength=100<0,400,5>-Strength
-slider14:input_offset_db=0<-30,30,0.25>-Input Offset
-
-// GROUP 4: SOURCE (15-18)
 slider15:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
 slider16:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
 slider17:hp_freq=0<0,6000,1>-High Pass
 slider18:lp_freq=0<0,14000,1>-Low Pass
 
+// HEADER (14, 25)
+slider14:input_offset_db=0<-30,30,0.25>-Input Offset
+
 // GROUP 3: HARMONICS (19-23)
 slider19:harmonic_type=0<0,1,1{Tape,Tube}>-Type
-slider20:harmonic_drive=50<0,100,1>-Drive
+slider20:harmonic_drive=0<0,100,1>-Drive
 slider21:harmonic_mix=0<0,100,1>-Mix
 slider22:harmonic_even_boost=0<0,200,1>-Even
 slider23:harmonic_odd_boost=0<0,200,1>-Odd
@@ -42,6 +41,7 @@ slider25:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 
 // ADVANCED/HIDDEN PARAMETERS (26-34)
 slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+slider38:metering_enabled=1<0,1,1{Off,On}>-Metering
 slider27:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
 slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
 slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
@@ -132,8 +132,9 @@ import UI_Sliders/06_parallax_fader_rendering.jsfx-inc
 import UI_Sliders/07_button_rendering.jsfx-inc
 import UI_Sliders/08_dropdown_rendering.jsfx-inc
 import UI_Sliders/10_slider_objects.jsfx-inc
-import UI_Sliders/09_control_dispatcher.jsfx-inc
 import UI_Sliders/02_control_definitions.jsfx-inc
+import UI_General/15_radio_button_groups.jsfx-inc
+import UI_Sliders/09_control_dispatcher.jsfx-inc
 import UI_Sliders/11_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
@@ -313,6 +314,10 @@ drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
 // --- Header Parameters (24-25) ---
 // Convert Makeup Gain from dB to linear scale
 makeup_gain_linear = db_to_linear(makeup_gain_db);
+
+// --- Settings Parameters (26, 38) ---
+// Sync brickwall_limiter variable with slider26
+brickwall_limiter = slider(26);
 
 // --- Plugin Delay Compensation ---
 // Cockos pattern: Calculate and set unconditionally every @slider execution

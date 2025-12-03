@@ -254,7 +254,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
   gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1);
 
   // Only draw orange/blue meters when histogram (metering) is enabled
-  menu_histogram_enabled > 0.5 ? (
+  slider(38) > 0.5 ? (
     is_audio_active = (play_state == 1) || (play_state == 5);
 
     is_audio_active ? (
@@ -575,7 +575,7 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
 //==============================================================================
 
 function draw_input_histogram() (
-  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && menu_histogram_enabled ? (
+  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38) > 0.5 ? (
     draw_input_histogram_line(
       input_histogram_buffer,
       input_histogram_pos,
@@ -593,7 +593,7 @@ function draw_input_histogram() (
 //==============================================================================
 
 function draw_histogram() (
-  HISTOGRAM_ENABLED && menu_histogram_enabled ? (
+  HISTOGRAM_ENABLED && slider(38) > 0.5 ? (
     histogram_before_strength_pixel_initialized ? (
       // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
       draw_gr_histogram_neg_line_pixel(
