@@ -63,31 +63,36 @@ function draw_horizontal_slider_value_text(x, y, w, h, normalized_pos, param_ind
       text_x = x + w - value_str_w - 3;
     );
     
-    // For reverse fill (FILL_RIGHT_TO_LEFT), determine if text is over filled (yellow) or unfilled (grey) area
-    fill_direction == FILL_RIGHT_TO_LEFT ? (
-      // Reverse fill: filled area is from (x + normalized_pos * w) to (x + w) on the right
-      // Unfilled area is from x to (x + normalized_pos * w) on the left
-      normalized_pos > 0.5 ? (
-        // Text on left - check if it's in unfilled area (grey background)
-        // Left side is unfilled when normalized_pos > 0.5, so text is over grey = white text
-        is_over_fill = 0;
-      ) : (
-        // Text on right - check if it's in filled area (yellow fill)
-        // Right side is filled when normalized_pos <= 0.5, so text is over yellow = black text
-        is_over_fill = 1;
-      );
-      // Set color: black over yellow (filled), white over grey (unfilled)
-      is_over_fill ? (
-        gfx_set(0, 0, 0, 1);  // Black over yellow fill
-      ) : (
-        gfx_set(1, 1, 1, 1);   // White over grey background
-      );
+    // Use provided color if valid (not -1), otherwise use smart color selection
+    (text_r >= 0 && text_g >= 0 && text_b >= 0) ? (
+      gfx_set(text_r, text_g, text_b, 1);
     ) : (
-      // Normal fill (FILL_LEFT_TO_RIGHT or FILL_CENTER_OUT): use original logic
-      normalized_pos > 0.5 ? (
-        gfx_set(0, 0, 0, 1);  // Black
+      // For reverse fill (FILL_RIGHT_TO_LEFT), determine if text is over filled (yellow) or unfilled (grey) area
+      fill_direction == FILL_RIGHT_TO_LEFT ? (
+        // Reverse fill: filled area is from (x + normalized_pos * w) to (x + w) on the right
+        // Unfilled area is from x to (x + normalized_pos * w) on the left
+        normalized_pos > 0.5 ? (
+          // Text on left - check if it's in unfilled area (grey background)
+          // Left side is unfilled when normalized_pos > 0.5, so text is over grey = white text
+          is_over_fill = 0;
+        ) : (
+          // Text on right - check if it's in filled area (yellow fill)
+          // Right side is filled when normalized_pos <= 0.5, so text is over yellow = black text
+          is_over_fill = 1;
+        );
+        // Set color: black over yellow (filled), white over grey (unfilled)
+        is_over_fill ? (
+          gfx_set(0, 0, 0, 1);  // Black over yellow fill
+        ) : (
+          gfx_set(1, 1, 1, 1);   // White over grey background
+        );
       ) : (
-        gfx_set(1, 1, 1, 1);  // White
+        // Normal fill (FILL_LEFT_TO_RIGHT or FILL_CENTER_OUT): use original logic
+        normalized_pos > 0.5 ? (
+          gfx_set(0, 0, 0, 1);  // Black
+        ) : (
+          gfx_set(1, 1, 1, 1);  // White
+        );
       );
     );
     
