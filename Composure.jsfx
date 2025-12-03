@@ -204,6 +204,12 @@ while (i < num_points) (
 );
 
 //==============================================================================
+// INITIALIZATION SEQUENCE
+//==============================================================================
+
+@init
+
+//==============================================================================
 // PARAMETER CONVERSION HELPERS
 //==============================================================================
 
@@ -232,12 +238,6 @@ function update_all_audio_parameters() (
   update_hold_samples();
   update_rms_coefficient();
 );
-
-//==============================================================================
-// INITIALIZATION SEQUENCE
-//==============================================================================
-
-@init
 
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
 read_slider_definitions("Composure.jsfx");

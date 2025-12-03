@@ -503,49 +503,87 @@ class JSFXFunctionAnalyzer:
         return result
     
     def check_intra_file_function_order(self) -> Dict[str, List[str]]:
-        """Check for function declaration order issues within individual files"""
+        """Check for function declaration order issues within individual files
+        Also checks execution section ordering (@init, @slider, @block, etc.)"""
         order_issues = defaultdict(list)
         
         for filename, content in self.modules.items():
-            if filename.endswith('.jsfx-inc'):
-                # Parse function declarations with line numbers
-                function_declarations = {}
-                function_calls_with_lines = []
+            # Parse function declarations with line numbers and execution sections
+            function_declarations = {}  # func_name -> (line_num, section_type, section_start_line)
+            function_calls_with_lines = []  # (func_name, line_num, section_type, section_start_line)
+            
+            lines = content.split('\n')
+            current_section = 'global'  # 'global', '@init', '@slider', '@block', '@sample', '@gfx'
+            section_start_line = 0
+            
+            for line_num, line in enumerate(lines, 1):
+                # Check for execution section markers
+                stripped = line.strip()
+                if re.match(r'^@(init|slider|block|sample|gfx)', stripped, re.IGNORECASE):
+                    section_match = re.match(r'^@(\w+)', stripped, re.IGNORECASE)
+                    if section_match:
+                        current_section = '@' + section_match.group(1).lower()
+                        section_start_line = line_num
+                    continue
                 
-                lines = content.split('\n')
-                for line_num, line in enumerate(lines, 1):
-                    # Skip comments
-                    stripped = line.strip()
-                    if stripped.startswith('//') or stripped.startswith('/*'):
-                        continue
-                    
-                    # Remove inline comments
-                    if '//' in line:
-                        line = line[:line.find('//')]
-                    
-                    # Find function declarations
-                    func_decl_match = re.search(r'function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', line)
-                    if func_decl_match:
-                        func_name = func_decl_match.group(1)
-                        function_declarations[func_name] = line_num
-                    
-                    # Find function calls
-                    call_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\('
-                    matches = re.finditer(call_pattern, line)
-                    for match in matches:
-                        func_name = match.group(1)
-                        # Skip builtins and single letters
-                        if (func_name not in self.builtin_functions and 
-                            len(func_name) > 1 and
-                            not line[:match.start()].strip().endswith('function')):
-                            function_calls_with_lines.append((func_name, line_num))
+                # Skip comments
+                if stripped.startswith('//') or stripped.startswith('/*'):
+                    continue
                 
-                # Check for order issues
-                for func_call, call_line in function_calls_with_lines:
-                    if func_call in function_declarations:
-                        decl_line = function_declarations[func_call]
+                # Remove inline comments
+                if '//' in line:
+                    line = line[:line.find('//')]
+                
+                # Find function declarations
+                func_decl_match = re.search(r'function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', line)
+                if func_decl_match:
+                    func_name = func_decl_match.group(1)
+                    function_declarations[func_name] = (line_num, current_section, section_start_line)
+                
+                # Find function calls
+                call_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\('
+                matches = re.finditer(call_pattern, line)
+                for match in matches:
+                    func_name = match.group(1)
+                    # Skip builtins and single letters
+                    if (func_name not in self.builtin_functions and 
+                        len(func_name) > 1 and
+                        not line[:match.start()].strip().endswith('function')):
+                        function_calls_with_lines.append((func_name, line_num, current_section, section_start_line))
+            
+            # Check for order issues
+            for func_call, call_line, call_section, call_section_start in function_calls_with_lines:
+                if func_call in function_declarations:
+                    decl_line, decl_section, decl_section_start = function_declarations[func_call]
+                    
+                    # Functions in global scope are available everywhere
+                    if decl_section == 'global':
+                        # Global functions are available, but check if called before definition in same file
                         if decl_line > call_line:
-                            order_issues[filename].append(f"{func_call} called at line {call_line} but declared at line {decl_line}")
+                            order_issues[filename].append(
+                                f"{func_call} called at line {call_line} but declared at line {decl_line}"
+                            )
+                    else:
+                        # Functions in execution sections are only available after that section executes
+                        # If called in same execution section, must be defined before call
+                        if call_section == decl_section:
+                            if decl_line > call_line:
+                                order_issues[filename].append(
+                                    f"{func_call} called at line {call_line} in {call_section} but declared at line {decl_line} in same section"
+                                )
+                        # If function is in @init and called in @init of imported file, it might not be available yet
+                        # This is a more complex case - for now, we'll flag if it's in a different section
+                        elif call_section != 'global' and decl_section == '@init':
+                            # Function defined in @init but called in another section - this is OK
+                            pass
+                        elif call_section == '@init' and decl_section != 'global':
+                            # Function defined in non-global section but called in @init - might be issue
+                            # This depends on import order, which is complex to track
+                            # For now, we'll only flag if it's in the same file
+                            if decl_line > call_line:
+                                order_issues[filename].append(
+                                    f"{func_call} called at line {call_line} in {call_section} but declared at line {decl_line} in {decl_section} (may not be available yet)"
+                                )
         
         return order_issues
 
