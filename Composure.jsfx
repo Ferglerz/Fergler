@@ -204,6 +204,21 @@ while (i < num_points) (
 );
 
 //==============================================================================
+// PARAMETER CONVERSION HELPERS
+//==============================================================================
+
+// Update all parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
+// Called from @init, @slider, and @block sections to avoid code duplication
+function update_parameter_conversions() (
+  // Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
+  strength_multiplier = strength / 100.0;
+  // Convert Makeup Gain from dB to linear scale
+  makeup_gain_linear = db_to_linear(makeup_gain_db);
+  // Cache sample rate inverse for performance
+  srate_inv = 1.0 / srate;
+);
+
+//==============================================================================
 // INITIALIZATION SEQUENCE
 //==============================================================================
 
@@ -247,13 +262,14 @@ setup_control_layout();
   update_corner_points();
 );
 
-// 7. Cache frequently used time calculations (sample rate dependent)
-srate_inv = 1.0 / srate;
-// Update lookahead samples using dedicated function
+// 7. Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
+update_parameter_conversions();
+
+// 8. Update lookahead samples using dedicated function
 // Update functions are defined in 02_InputProcessing/
 update_lookahead_samples();
 
-// 8. Update all parameter coefficients using dedicated update functions
+// 9. Update all parameter coefficients using dedicated update functions
 // This ensures coefficients are correctly initialized even after samplerate changes
 // Update functions are defined in 03_Compression/Envelope/
 update_filter_coefficients();
@@ -261,12 +277,8 @@ update_attack_coefficient();
 update_release_coefficient();
 update_hold_samples();
 update_rms_coefficient();
-// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-strength_multiplier = strength / 100.0;
-// Convert Makeup Gain from dB to linear scale
-makeup_gain_linear = db_to_linear(makeup_gain_db);
 
-// 9. Mark compression system as ready (prevents LUT race condition)
+// 10. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
 
 //==============================================================================
@@ -275,9 +287,11 @@ compression_init_complete = 1;
 
 @slider
 
+// --- Parameter Conversions ---
+// Update all parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
+update_parameter_conversions();
+
 // --- Envelope Parameters (1-6) ---
-// Update cached sample rate calculations
-srate_inv = 1.0 / srate;
 // Update attack and release coefficients using dedicated functions
 // Update functions are defined in 03_Compression/Envelope/
 update_attack_coefficient();
@@ -294,8 +308,6 @@ smooth_rms_coefficient();
 update_lookahead_samples();
 
 // --- Compression Parameters (13-14) ---
-// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-strength_multiplier = strength / 100.0;
 // Note: Strength is now used directly in gain reduction calculation
 // Input offset is applied at lookup time (shifts input level before curve lookup).
 
@@ -310,10 +322,6 @@ update_filter_coefficients();
 // --- Harmonics Parameters (19-23) ---
 // Cache harmonic drive compensation reciprocal to avoid per-sample division
 drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
-
-// --- Header Parameters (24-25) ---
-// Convert Makeup Gain from dB to linear scale
-makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 // --- Settings Parameters (26, 38) ---
 // Sync brickwall_limiter variable with slider26
@@ -367,6 +375,9 @@ detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
 gr_db_before_strength_block_max = 0;
 
+// Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
+update_parameter_conversions();
+
 // Update coefficients every block for real-time response
 // This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
 // Update functions are defined in 03_Compression/Envelope/ and 02_InputProcessing/
@@ -378,10 +389,6 @@ update_hold_samples();
 update_rms_coefficient();
 // Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
 smooth_rms_coefficient();
-// Convert Strength from percentage (0-400%) to multiplier (0.0-4.0)
-strength_multiplier = strength / 100.0;
-// Convert Makeup Gain from dB to linear scale
-makeup_gain_linear = db_to_linear(makeup_gain_db);
 
 
 //==============================================================================
