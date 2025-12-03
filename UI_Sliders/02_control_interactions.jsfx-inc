@@ -11,6 +11,9 @@
 // Control States
 ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
 
+// Preview Filters: Track initial state of Listen to Detection when dragging HP/LP filters
+preview_filters_listen_initial_state = -1;  // -1 = not tracking, 0 = was off, 1 = was on
+
 // Mouse position tracking for delta calculations
 ui_prev_mouse_x = 0;
 ui_prev_mouse_y = 0;
@@ -40,6 +43,43 @@ function update_pdc_delay_if_needed(param_index) (
       pdc_top_ch = 2;
     );
   );
+);
+
+// Preview Filters: Auto-enable Listen when adjusting HP/LP filters
+function handle_preview_filters(param_index, is_drag_start) (
+  // If Preview Filters is enabled and adjusting HP or LP filter
+  menu_preview_filters_enabled > 0.5 && (param_index == 17 || param_index == 18) ? (
+    is_drag_start ? (
+      // Drag start: Save initial state of Listen to Detection
+      preview_filters_listen_initial_state = slider(16) > 0.5 ? 1 : 0;
+      
+      // If it was off, enable it temporarily
+      preview_filters_listen_initial_state < 0.5 ? (
+        listen_to_sidechain = 1;
+        slider(16) = 1;
+        sliderchange(1 << (16 - 1));
+      );
+    ) : (
+      // During drag: Keep it enabled if it was off initially
+      preview_filters_listen_initial_state < 0.5 ? (
+        listen_to_sidechain = 1;
+        slider(16) = 1;
+        sliderchange(1 << (16 - 1));
+      );
+    );
+  );
+);
+
+// Preview Filters: Restore Listen state on drag end
+function handle_preview_filters_drag_end() (
+  // If we were tracking and Listen was off initially, restore it to off
+  preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
+    listen_to_sidechain = 0;
+    slider(16) = 0;
+    sliderchange(1 << (16 - 1));
+  );
+  // Reset tracking state
+  preview_filters_listen_initial_state = -1;
 );
 
 //==============================================================================
@@ -187,6 +227,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
       );
       sliderchange(1 << (param_index - 1));
       update_pdc_delay_if_needed(param_index);
+      handle_preview_filters(param_index, 1);  // is_drag_start = 1
     ) : control_type == 1 ? (
       // Button - toggle (don't start drag for buttons)
       slider(param_index) = current_value > 0.5 ? 0 : 1;
@@ -414,6 +455,7 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
       
       sliderchange(1 << (param_index - 1));
       update_pdc_delay_if_needed(param_index);
+      handle_preview_filters(param_index, 0);  // is_drag_start = 0 (during drag)
     ) : (
       // Other control types - no drag handling needed
       0; // Empty statement to satisfy JSFX syntax
@@ -465,6 +507,8 @@ function handle_ui_mouse_input() (
     );
   ) : (
     // Mouse released - reset drag state
+    // Check if we need to restore Listen to Detection state
+    handle_preview_filters_drag_end();
     ui_drag_control = -1;
     ui_fine_drag_accum = 0; // Reset accumulator
   );
