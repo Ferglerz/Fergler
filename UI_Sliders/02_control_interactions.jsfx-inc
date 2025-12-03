@@ -246,7 +246,7 @@ function handle_control_click(control_index) local(option_count, step_count, min
 );
 
 // Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options, snapped_value, ctrl_just_released, increment) (
+function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_style, format_options, snapped_value, ctrl_just_released, increment, slider_w) (
   // Apply fine drag multiplier when ctrl/cmd is held
   fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
   
@@ -467,6 +467,24 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
 );
 
 //==============================================================================
+// CONTROL VISIBILITY CHECK
+//==============================================================================
+
+// Check if a control should be interactive based on page visibility
+// Returns: 1 if control should be interactive, 0 if it's on a hidden page
+function is_control_interactive(control_index) (
+  // Input page controls (indices 7, 8, 15, 16) are on Input page
+  // Note: index 14 (Listen) is handled as custom button, not as regular control
+  (control_index == 7 || control_index == 8 || control_index == 15 || control_index == 16) ? (
+    // Only interactive if Input page is visible
+    should_render_page(PAGE_FILTERS);
+  ) : (
+    // All other controls are always interactive (they're not page-specific)
+    1;
+  );
+);
+
+//==============================================================================
 // UI CONTROL MOUSE INPUT
 //==============================================================================
 
@@ -496,15 +514,32 @@ function handle_ui_mouse_input() (
         // Check controls until we find one under the mouse
         i = 0;
         while (i < control_count && ui_drag_control == -1) (
-          // Control is visible, check if mouse is over it
-          is_point_in_control(mouse_x, mouse_y, i) ? (
-            handle_control_click(i);
+          // Only check if control is interactive (visible on current page)
+          is_control_interactive(i) ? (
+            // Control is visible, check if mouse is over it
+            is_point_in_control(mouse_x, mouse_y, i) ? (
+              handle_control_click(i);
+            );
           );
           i += 1;
         );
       );
     ) : ( // Continue drag
-      handle_drag_continuation();
+      ui_drag_control == -2 ? (
+        // Button was clicked - don't do anything until mouse is released
+        // (ui_drag_control == -2 means "clicked but not draggable")
+        0;
+      ) : (
+        // Only allow drag continuation if the control is still interactive
+        ui_drag_control >= 0 && is_control_interactive(ui_drag_control) ? (
+          handle_drag_continuation();
+        ) : (
+          // Control became hidden during drag - cancel it
+          handle_preview_filters_drag_end();
+          ui_drag_control = -1;
+          ui_fine_drag_accum = 0;
+        );
+      );
     );
   ) : (
     // Mouse released - reset drag state

@@ -14,7 +14,7 @@ slider5:release_curve=0<-2,2,0.01>-Release Curve
 slider6:prog_release_type=0<0,5,1{Fixed Release,Input-Dependent,GR Dependent,Rate-of-Change,GR Dep Inverse,Input Dep Inverse}>-Program Release
 
 // GROUP 1: DETECTION (7-11)
-slider7:time_multiplier=1<0,1,1{Milliseconds,Microseconds}>-Time Unit
+slider7:time_multiplier=0<0,1,1{Milliseconds,Microseconds}>-Time Unit
 slider8:rms_size_ms=0<0,100,0.1>-RMS Window
 slider9:rms_normalization=0<0,1,1{Off,On}>-RMS Normalization
 slider10:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
@@ -38,14 +38,14 @@ slider22:harmonic_even_boost=0<0,200,1>-Even
 slider23:harmonic_odd_boost=0<0,200,1>-Odd
 
 // HEADER (25)
-slider25:makeup_gain_db=0<-20,20,0.1>Makeup Gain
+slider25:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 
 // ADVANCED/HIDDEN PARAMETERS (26-34)
 slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 slider27:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
 slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
 slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider30:harmonic_amount=1<0,1,0.01>Amount
+slider30:harmonic_amount=1<0,1,0.01>-Amount
 slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
 slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 slider33:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)

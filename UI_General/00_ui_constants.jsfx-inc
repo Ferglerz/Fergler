@@ -9,14 +9,8 @@
 MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
 
 // === DISPLAY MODE CONSTANTS ===
-DISPLAY_NORMAL = 0;        // Normal display (no suffix)
+DISPLAY_NORMAL = 0;        // Normal display (value shown with optional suffix)
 DISPLAY_HIDE_VALUE = 2;    // Hide value display (e.g., Attack Curve)
-DISPLAY_PERCENT = 3;       // Display with % suffix
-DISPLAY_DB = 4;            // Display with dB suffix  
-DISPLAY_MS = 5;            // Display with ms suffix
-DISPLAY_US = 6;            // Display with us (microseconds) suffix
-DISPLAY_S = 7;             // Display with s (seconds) suffix
-DISPLAY_HZ = 8;            // Display with Hz suffix (k for >999)
 
 // === HISTOGRAM CONFIGURATION ===
 HISTOGRAM_ENABLED = 1; // Set to 0 to disable histogram completely
@@ -172,7 +166,7 @@ OPTION_HIDE_LABEL = 0x10;     // Bit 4: Hide the slider label/title
 // Single UI control configuration function - ALL PARAMETERS REQUIRED
 // Parameters:
 //   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL
-//   display_mode: DISPLAY_NORMAL, DISPLAY_PERCENT, DISPLAY_DB, DISPLAY_MS, DISPLAY_HZ, DISPLAY_HIDE_VALUE, etc.
+//   display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
 //   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
 //   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
 //   format_options: OPTION_ROUNDED, OPTION_AUTO_STEP, OPTION_BIDIRECTIONAL, OPTION_REVERSE (can be combined with |)
