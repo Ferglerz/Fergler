@@ -144,21 +144,8 @@ function handle_control_click(control_index) local(option_count, step_count, min
           min_val = cached_min_val;
           max_val = cached_max_val;
           
-          slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = get_control_y_with_group_offset(control_index);
-            ctrl_h = control_defs[control_index*11 + 4];
-            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
-            normalized_pos = max(0, min(1, normalized_pos));
-            normalized_pos = 1 - normalized_pos;
-          ) : (
-            ctrl_x = get_control_x_with_group_offset(control_index);
-            ctrl_w = control_defs[control_index*11 + 3];
-            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
-            normalized_pos = max(0, min(1, normalized_pos));
-            format_options & OPTION_REVERSE ? (
-              normalized_pos = 1.0 - normalized_pos;
-            );
-          );
+          // Calculate normalized position using helper function
+          normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
           // Calculate smooth value (no snapping)
           raw_value = min_val + normalized_pos * (max_val - min_val);
           slider(param_index) = raw_value;
@@ -168,21 +155,8 @@ function handle_control_click(control_index) local(option_count, step_count, min
           min_val = cached_min_val;
           max_val = cached_max_val;
           
-          slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = get_control_y_with_group_offset(control_index);
-            ctrl_h = control_defs[control_index*11 + 4];
-            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
-            normalized_pos = max(0, min(1, normalized_pos));
-            normalized_pos = 1 - normalized_pos;
-          ) : (
-            ctrl_x = get_control_x_with_group_offset(control_index);
-            ctrl_w = control_defs[control_index*11 + 3];
-            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
-            normalized_pos = max(0, min(1, normalized_pos));
-            format_options & OPTION_REVERSE ? (
-              normalized_pos = 1.0 - normalized_pos;
-            );
-          );
+          // Calculate normalized position using helper function
+          normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
           // Calculate smooth value (no increment snapping when CTRL is held)
           raw_value = min_val + normalized_pos * (max_val - min_val);
           slider(param_index) = raw_value;
@@ -254,21 +228,8 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           // CTRL held: allow smooth adjustment (ignore stepping) - use position-based calculation
           get_slider_config(ui_drag_control, control_type);
           group_idx = control_defs[ui_drag_control*11 + 10];
-          slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = get_control_y_with_group_offset(ui_drag_control);
-            ctrl_h = control_defs[ui_drag_control*11 + 4];
-            normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
-            normalized_pos = max(0, min(1, normalized_pos));
-            normalized_pos = 1 - normalized_pos;
-          ) : (
-            ctrl_x = get_control_x_with_group_offset(ui_drag_control);
-            ctrl_w = control_defs[ui_drag_control*11 + 3];
-            normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
-            normalized_pos = max(0, min(1, normalized_pos));
-            format_options & OPTION_REVERSE ? (
-              normalized_pos = 1.0 - normalized_pos;
-            );
-          );
+          // Calculate normalized position using helper function
+          normalized_pos = calculate_normalized_position(ui_drag_control, mouse_x, mouse_y, slider_orientation, format_options);
           // Calculate smooth value directly from mouse position (no stepping)
           new_value = min_val + normalized_pos * (max_val - min_val);
           slider(param_index) = new_value;

@@ -77,6 +77,38 @@ function get_control_y_with_group_offset(control_index) local(group_idx, ctrl_y_
 );
 
 //==============================================================================
+// NORMALIZED POSITION CALCULATION HELPERS
+//==============================================================================
+
+// Calculate normalized position (0-1) from mouse coordinates
+// Handles both vertical and horizontal orientations, including reverse option
+// Parameters: control_index, mouse_x, mouse_y, slider_orientation, format_options
+// Returns: normalized position (0-1) where 0 is min value and 1 is max value
+function calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options) local(ctrl_x, ctrl_y, ctrl_w, ctrl_h, pos) (
+  slider_orientation == ORIENTATION_VERTICAL ? (
+    // Vertical slider: use Y coordinate
+    ctrl_y = get_control_y_with_group_offset(control_index);
+    ctrl_h = control_defs[control_index*11 + 4];
+    pos = (mouse_y - ctrl_y) / ctrl_h;
+    pos = max(0, min(1, pos));
+    // Invert for vertical slider (0 at top, 1 at bottom)
+    1 - pos
+  ) : (
+    // Horizontal slider: use X coordinate
+    ctrl_x = get_control_x_with_group_offset(control_index);
+    ctrl_w = control_defs[control_index*11 + 3];
+    pos = (mouse_x - ctrl_x) / ctrl_w;
+    pos = max(0, min(1, pos));
+    // Handle reverse sliders - invert the normalized position
+    format_options & OPTION_REVERSE ? (
+      1.0 - pos
+    ) : (
+      pos
+    )
+  )
+);
+
+//==============================================================================
 // BASIC UI UTILITIES
 //==============================================================================
 
@@ -131,26 +163,8 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(control_type
   max_val = control_defs[control_index*11 + 7];
   param_index = control_defs[control_index*11 + 5];
 
-  slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
-    ctrl_y = get_control_y_with_group_offset(control_index);
-    ctrl_h = control_defs[control_index*11 + 4];
-
-    normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
-    normalized_pos = max(0, min(1, normalized_pos));
-    // Invert for vertical slider (0 at top, 1 at bottom)
-    normalized_pos = 1 - normalized_pos;
-  ) : ( // Horizontal slider (normal or reverse)
-    ctrl_x = get_control_x_with_group_offset(control_index);
-    ctrl_w = control_defs[control_index*11 + 3];
-    
-    normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
-    normalized_pos = max(0, min(1, normalized_pos));
-    
-    // Handle reverse sliders - invert the normalized position
-    format_options & OPTION_REVERSE ? (
-      normalized_pos = 1.0 - normalized_pos;
-    );
-  );
+  // Calculate normalized position using helper function
+  normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
   
   // Check if this slider has enumerated options or step-points
   option_count = get_dropdown_option_count(param_index);
