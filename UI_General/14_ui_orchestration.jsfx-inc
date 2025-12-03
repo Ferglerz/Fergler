@@ -73,7 +73,7 @@ function render_complete_interface() (
     );
   );
 
-  // PAGE 2: Filters (ungrouped controls - visibility handled in render_all_controls_with_page_filtering)
+  // PAGE 2: Input (ungrouped controls - visibility handled in render_all_controls_with_page_filtering)
   render_filters_page_buttons();
   
   // PAGE 3: Settings

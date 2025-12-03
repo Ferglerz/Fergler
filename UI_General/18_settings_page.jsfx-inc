@@ -9,15 +9,14 @@
 //==============================================================================
 
 // Number of settings buttons (menu items)
-NUM_SETTINGS_BUTTONS = 5;
+NUM_SETTINGS_BUTTONS = 4;
 
 // Button definitions
 // Button 0: Debug
-// Button 1: Histogram
-// Button 2: GR Meter
-// Button 3: Brickwall Limiter
-// Button 4: Hide Controls
-// Preview Filters moved to Filters page
+// Button 1: Metering (formerly Histogram)
+// Button 2: Brickwall Limiter
+// Button 3: Hide Controls
+// Preview Filters moved to Input page
 
 // Button dimensions
 SETTINGS_BUTTON_W = 160;  // 160px wide as requested
@@ -29,13 +28,11 @@ SETTINGS_BUTTON_SPACING = 10;  // Space between buttons
 settings_button_x_base = 0;  // Base address for settings_button_x array
 settings_button_y_base = 0;  // Base address for settings_button_y array
 
-// Button label strings (use string slots 64-69)
+// Button label strings (use string slots 64-68)
 #settings_button_label_0 = 64;  // "Debug"
-#settings_button_label_1 = 65;  // "Histogram"
-#settings_button_label_2 = 66;  // "GR Meter"
-#settings_button_label_3 = 67;  // "Brickwall Limiter"
-#settings_button_label_4 = 68;  // "Hide Controls"
-#settings_button_label_5 = 69;  // "Preview Filters"
+#settings_button_label_1 = 65;  // "Metering"
+#settings_button_label_2 = 66;  // "Brickwall Limiter"
+#settings_button_label_3 = 67;  // "Hide Controls"
 
 //==============================================================================
 // STATE INITIALIZATION
@@ -45,10 +42,9 @@ function init_settings_page() (
   // Memory allocation is done in allocate_memory() - just initialize values here
   // Initialize button labels
   strcpy(#settings_button_label_0, "Debug");
-  strcpy(#settings_button_label_1, "Histogram");
-  strcpy(#settings_button_label_2, "GR Meter");
-  strcpy(#settings_button_label_3, "Brickwall Limiter");
-  strcpy(#settings_button_label_4, "Hide Controls");
+  strcpy(#settings_button_label_1, "Metering");
+  strcpy(#settings_button_label_2, "Brickwall Limiter");
+  strcpy(#settings_button_label_3, "Hide Controls");
 );
 
 //==============================================================================
@@ -139,16 +135,14 @@ function render_settings_page() (
           // Get button state
           is_enabled = (i == 0 && menu_debug_enabled > 0.5) ||
                        (i == 1 && menu_histogram_enabled > 0.5) ||
-                       (i == 2 && menu_gr_meter_enabled > 0.5) ||
-                       (i == 3 && menu_brickwall_limiter_enabled > 0.5) ||
-                       (i == 4 && menu_controls_hidden > 0.5);
+                       (i == 2 && menu_brickwall_limiter_enabled > 0.5) ||
+                       (i == 3 && menu_controls_hidden > 0.5);
           
           // Get label string slot based on button index
           i == 0 ? label_slot = #settings_button_label_0 :
           i == 1 ? label_slot = #settings_button_label_1 :
           i == 2 ? label_slot = #settings_button_label_2 :
-          i == 3 ? label_slot = #settings_button_label_3 :
-          i == 4 ? label_slot = #settings_button_label_4 : 0;
+          i == 3 ? label_slot = #settings_button_label_3 : 0;
           
           // Draw button
           draw_settings_button(i, settings_button_x_base[i], settings_button_y_base[i], 
@@ -186,17 +180,14 @@ function handle_settings_button_click(button_index) (
     // Toggle debug
     menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
   ) : button_index == 1 ? (
-    // Toggle histogram
+    // Toggle metering (histogram)
     menu_histogram_enabled = menu_histogram_enabled > 0.5 ? 0 : 1;
   ) : button_index == 2 ? (
-    // Toggle GR meter
-    menu_gr_meter_enabled = menu_gr_meter_enabled > 0.5 ? 0 : 1;
-  ) : button_index == 3 ? (
     // Toggle brickwall limiter
     menu_brickwall_limiter_enabled = menu_brickwall_limiter_enabled > 0.5 ? 0 : 1;
     brickwall_limiter = menu_brickwall_limiter_enabled;
     sliderchange(1 << (26 - 1)); // Update slider26
-  ) : button_index == 4 ? (
+  ) : button_index == 3 ? (
     // Toggle hide controls
     menu_controls_hidden = menu_controls_hidden > 0.5 ? 0 : 1;
   );

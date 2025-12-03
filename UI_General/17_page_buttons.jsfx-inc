@@ -9,7 +9,7 @@
 //==============================================================================
 
 PAGE_GRAPH = 0;      // Graph page
-PAGE_FILTERS = 1;    // Filters page
+PAGE_FILTERS = 1;    // Input page (formerly Filters)
 PAGE_SETTINGS = 2;   // Settings page
 PAGE_BLANK = 3;      // Blank placeholder page
 

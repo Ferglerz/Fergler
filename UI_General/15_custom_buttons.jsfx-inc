@@ -49,7 +49,7 @@ function init_custom_button_state() (
   
   // Initialize button labels
   strcpy(#page_button_label_0, "Graph");
-  strcpy(#page_button_label_1, "Filters");
+  strcpy(#page_button_label_1, "Input");
   strcpy(#page_button_label_2, "Settings");
   strcpy(#page_button_label_3, "Blank");
   

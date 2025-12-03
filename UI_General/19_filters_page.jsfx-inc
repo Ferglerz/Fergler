@@ -1,43 +1,57 @@
-// Filters Page Module
-// Filters page with filter controls and Preview Filters button
+// Input Page Module
+// Input page with filter controls, RMS controls, Detection Mode buttons, and Preview Filters button
 // Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/17_page_buttons.jsfx-inc
 
 @init
 
 //==============================================================================
-// FILTERS PAGE BUTTON DEFINITIONS
+// INPUT PAGE BUTTON DEFINITIONS
 //==============================================================================
 
 // Preview Filters button (moved from Settings page)
 // Button dimensions
-FILTERS_PAGE_BUTTON_W = 160;  // 160px wide to match Settings buttons
-FILTERS_PAGE_BUTTON_H = BUTTON_H;
+INPUT_PAGE_BUTTON_W = 160;  // 160px wide to match Settings buttons
+INPUT_PAGE_BUTTON_H = BUTTON_H;
 
-// Button position (will be calculated in @gfx)
+// Detection Mode radio buttons (Forward and Feedback)
+// Button dimensions (matching regular button size)
+DETECTION_BUTTON_W = BUTTON_W;
+DETECTION_BUTTON_H = BUTTON_H;
+DETECTION_BUTTON_SPACING = 10;  // Space between Forward and Feedback buttons
+
+// Button positions (will be calculated in @gfx)
 preview_filters_button_x = 0;
 preview_filters_button_y = 0;
+listen_button_x = 0;
+listen_button_y = 0;
+forward_button_x = 0;
+forward_button_y = 0;
+feedback_button_x = 0;
+feedback_button_y = 0;
 
-// Button label string (use string slot 70)
+// Button label strings (use string slots 70-72)
 #preview_filters_button_label = 70;  // "Preview Filters"
+#forward_button_label = 71;  // "Forward"
+#feedback_button_label = 72;  // "Feedback"
 
 //==============================================================================
 // STATE INITIALIZATION
 //==============================================================================
 
 function init_filters_page() (
-  // Initialize button label
+  // Initialize button labels
   strcpy(#preview_filters_button_label, "Preview Filters");
+  strcpy(#forward_button_label, "Forward");
+  strcpy(#feedback_button_label, "Feedback");
 );
 
 //==============================================================================
 // BUTTON POSITIONING
 //==============================================================================
 
-// Calculate Preview Filters button position (beneath Listen button)
-function update_preview_filters_button_position() local(listen_button_y) (
-  // Get Listen button position (control index 14)
-  // Listen button is at: filter_controls_start_y + FILTER_SLIDER_SPACING + FILTER_SLIDER_H + 10
-  // We need to calculate this from the filter controls area
+// Calculate Input page button positions
+function update_input_page_button_positions() local(rms_button_y, listen_preview_total_width, listen_preview_start_x, total_button_width, start_x) (
+  // Get filter controls area
   filters_area_x = GRAPH_X;
   filters_area_y = GRAPH_Y;
   filters_area_w = (GRAPH_X + GRAPH_SIZE + 15 + 23) - GRAPH_X;
@@ -46,19 +60,63 @@ function update_preview_filters_button_position() local(listen_button_y) (
   FILTER_SLIDER_W = SLIDER_W * 2;
   FILTER_SLIDER_H = SLIDER_H * 2;
   FILTER_SLIDER_SPACING = FILTER_SLIDER_H + 10;
-  filter_controls_start_y = filters_area_y + filters_area_h / 2 - (FILTER_SLIDER_H + FILTER_SLIDER_SPACING / 2);
+  filter_controls_start_y = filters_area_y + 10;  // Start just below top of graph
   
-  // Listen button Y position
-  listen_button_y = filter_controls_start_y + FILTER_SLIDER_SPACING + FILTER_SLIDER_H + 10;
+  // RMS Normalization button Y position (beneath RMS Window slider)
+  rms_button_y = filter_controls_start_y + FILTER_SLIDER_SPACING * 2 + FILTER_SLIDER_H + 10;
   
-  // Preview Filters button is beneath Listen button
-  preview_filters_button_x = filter_controls_center_x - FILTERS_PAGE_BUTTON_W / 2;
-  preview_filters_button_y = listen_button_y + BUTTON_H + 10;  // 10px spacing
+  // Listen and Preview Filters buttons - side by side beneath RMS Normalization
+  listen_preview_total_width = BUTTON_W * 2 + DETECTION_BUTTON_SPACING;  // Use same spacing as detection buttons
+  listen_preview_start_x = filter_controls_center_x - listen_preview_total_width / 2;
+  listen_button_x = listen_preview_start_x;
+  listen_button_y = rms_button_y + BUTTON_H + 10;  // 10px spacing
+  preview_filters_button_x = listen_preview_start_x + BUTTON_W + DETECTION_BUTTON_SPACING;
+  preview_filters_button_y = listen_button_y;
+  
+  // Detection Mode buttons (Forward/Feedback) - side by side beneath Listen/Preview
+  total_button_width = DETECTION_BUTTON_W * 2 + DETECTION_BUTTON_SPACING;
+  start_x = filter_controls_center_x - total_button_width / 2;
+  forward_button_x = start_x;
+  forward_button_y = listen_button_y + BUTTON_H + 10;  // 10px spacing
+  feedback_button_x = start_x + DETECTION_BUTTON_W + DETECTION_BUTTON_SPACING;
+  feedback_button_y = forward_button_y;
 );
 
 //==============================================================================
 // BUTTON RENDERING
 //==============================================================================
+
+// Draw a detection mode button (Forward or Feedback)
+// Parameters:
+//   x, y: Position
+//   is_active: 1 = active/on, 0 = inactive/off
+//   label: Button label text
+function draw_detection_button(x, y, is_active, label) local() (
+  // Draw button background
+  is_active ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+  ) : (
+    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
+  );
+  gfx_rect(x, y, DETECTION_BUTTON_W, DETECTION_BUTTON_H);
+  
+  // Draw button border
+  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
+  gfx_rect(x, y, DETECTION_BUTTON_W, DETECTION_BUTTON_H, 0);
+  
+  // Draw button text
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  gfx_x = x + 5; gfx_y = y + 5;
+  gfx_drawstr(label);
+  
+  // Draw checkmark if active
+  is_active ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+    gfx_x = x + DETECTION_BUTTON_W - 15;
+    gfx_y = y + 5;
+    gfx_drawstr("v");  // Checkmark
+  );
+);
 
 // Draw Preview Filters button
 // Parameters:
@@ -70,11 +128,11 @@ function draw_preview_filters_button(is_enabled) local() (
   ) : (
     gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
   );
-  gfx_rect(preview_filters_button_x, preview_filters_button_y, FILTERS_PAGE_BUTTON_W, FILTERS_PAGE_BUTTON_H);
+  gfx_rect(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H);
   
   // Draw button border
   gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
-  gfx_rect(preview_filters_button_x, preview_filters_button_y, FILTERS_PAGE_BUTTON_W, FILTERS_PAGE_BUTTON_H, 0);
+  gfx_rect(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, 0);
   
   // Draw button text
   gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
@@ -84,29 +142,66 @@ function draw_preview_filters_button(is_enabled) local() (
   // Draw checkmark if enabled
   is_enabled ? (
     gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
-    gfx_x = preview_filters_button_x + FILTERS_PAGE_BUTTON_W - 15;
+    gfx_x = preview_filters_button_x + INPUT_PAGE_BUTTON_W - 15;
     gfx_y = preview_filters_button_y + 5;
     gfx_drawstr("v");  // Checkmark
   );
 );
 
-// Render filters page buttons
+// Draw Listen button (same style as Preview Filters)
+function draw_listen_button(is_enabled) local() (
+  // Draw button background
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+  ) : (
+    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
+  );
+  gfx_rect(listen_button_x, listen_button_y, BUTTON_W, BUTTON_H);
+  
+  // Draw button border
+  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
+  gfx_rect(listen_button_x, listen_button_y, BUTTON_W, BUTTON_H, 0);
+  
+  // Draw button text (get label from control definition)
+  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+  gfx_x = listen_button_x + 5; gfx_y = listen_button_y + 5;
+  // Use control index 14, param 16 - get label from slider definition
+  gfx_drawstr(S16.label);
+  
+  // Draw checkmark if enabled
+  is_enabled ? (
+    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
+    gfx_x = listen_button_x + BUTTON_W - 15;
+    gfx_y = listen_button_y + 5;
+    gfx_drawstr("v");  // Checkmark
+  );
+);
+
+// Render input page buttons
 function render_filters_page_buttons() (
-  // Only render if Filters page should be visible
+  // Only render if Input page should be visible
   should_render_page(PAGE_FILTERS) ? (
     // Get page opacity for fade transitions
     page_opacity = get_page_fade_amount(PAGE_FILTERS);
     page_opacity > 0.01 ? (
       // Update positions
       gfx_w > 0 ? (
-        update_preview_filters_button_position();
+        update_input_page_button_positions();
         
         // Apply opacity
         gfx_a = page_opacity;
         
-        // Draw Preview Filters button
-        is_enabled = menu_preview_filters_enabled > 0.5;
-        draw_preview_filters_button(is_enabled);
+        // Draw Listen and Preview Filters buttons - side by side
+        listen_enabled = slider(16) > 0.5;
+        draw_listen_button(listen_enabled);
+        preview_enabled = menu_preview_filters_enabled > 0.5;
+        draw_preview_filters_button(preview_enabled);
+        
+        // Draw Detection Mode buttons (Forward/Feedback) - radio button behavior
+        forward_active = detection_mode > 0.5;  // 1 = Feedforward (Forward)
+        feedback_active = detection_mode <= 0.5;  // 0 = Feedback
+        draw_detection_button(forward_button_x, forward_button_y, forward_active, #forward_button_label);
+        draw_detection_button(feedback_button_x, feedback_button_y, feedback_active, #feedback_button_label);
         
         // Reset opacity
         gfx_a = 1.0;
@@ -119,14 +214,58 @@ function render_filters_page_buttons() (
 // BUTTON INTERACTION
 //==============================================================================
 
-// Check if point is inside Preview Filters button
-function is_point_in_preview_filters_button(x, y) (
-  preview_filters_button_x >= 0 && preview_filters_button_y >= 0 ? (
-    x >= preview_filters_button_x && x <= preview_filters_button_x + FILTERS_PAGE_BUTTON_W &&
-    y >= preview_filters_button_y && y <= preview_filters_button_y + FILTERS_PAGE_BUTTON_H;
+// Check if point is inside a detection button
+function is_point_in_detection_button(x, y, button_x, button_y) (
+  button_x >= 0 && button_y >= 0 ? (
+    x >= button_x && x <= button_x + DETECTION_BUTTON_W &&
+    y >= button_y && y <= button_y + DETECTION_BUTTON_H;
   ) : (
     0;
   );
+);
+
+// Check if point is inside Listen button
+function is_point_in_listen_button(x, y) (
+  listen_button_x >= 0 && listen_button_y >= 0 ? (
+    x >= listen_button_x && x <= listen_button_x + BUTTON_W &&
+    y >= listen_button_y && y <= listen_button_y + BUTTON_H;
+  ) : (
+    0;
+  );
+);
+
+// Check if point is inside Preview Filters button
+function is_point_in_preview_filters_button(x, y) (
+  preview_filters_button_x >= 0 && preview_filters_button_y >= 0 ? (
+    x >= preview_filters_button_x && x <= preview_filters_button_x + INPUT_PAGE_BUTTON_W &&
+    y >= preview_filters_button_y && y <= preview_filters_button_y + INPUT_PAGE_BUTTON_H;
+  ) : (
+    0;
+  );
+);
+
+// Handle click on Listen button
+function handle_listen_button_click() (
+  // Toggle listen to detection signal
+  listen_to_sidechain = listen_to_sidechain > 0.5 ? 0 : 1;
+  slider(16) = listen_to_sidechain;
+  sliderchange(1 << (16 - 1));
+);
+
+// Handle click on Forward button
+function handle_forward_button_click() (
+  // Set detection mode to Feedforward (1)
+  detection_mode = 1;
+  slider(10) = 1;
+  sliderchange(1 << (10 - 1));
+);
+
+// Handle click on Feedback button
+function handle_feedback_button_click() (
+  // Set detection mode to Feedback (0)
+  detection_mode = 0;
+  slider(10) = 0;
+  sliderchange(1 << (10 - 1));
 );
 
 // Handle click on Preview Filters button
@@ -135,21 +274,31 @@ function handle_preview_filters_button_click() (
   menu_preview_filters_enabled = menu_preview_filters_enabled > 0.5 ? 0 : 1;
 );
 
-// Process mouse input for filters page buttons
-// Returns: 1 if a filters page button was clicked, 0 otherwise
+// Process mouse input for input page buttons
+// Returns: 1 if an input page button was clicked, 0 otherwise
 function process_filters_page_button_input() local(clicked) (
   clicked = 0;
-  // Only process if Filters page should be visible
+  // Only process if Input page should be visible
   should_render_page(PAGE_FILTERS) ? (
     gfx_w > 0 ? (
-      update_preview_filters_button_position();
+      update_input_page_button_positions();
       
       MOUSE_LEFT_BUTTON && !filters_page_mouse_down ? (
         filters_page_mouse_down = 1;
         
-        // Check Preview Filters button
-        is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
+        // Check Listen and Preview Filters buttons (side by side)
+        is_point_in_listen_button(mouse_x, mouse_y) ? (
+          handle_listen_button_click();
+          clicked = 1;
+        ) : is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
           handle_preview_filters_button_click();
+          clicked = 1;
+        ) : is_point_in_detection_button(mouse_x, mouse_y, forward_button_x, forward_button_y) ? (
+          // Check Detection Mode buttons (Forward/Feedback)
+          handle_forward_button_click();
+          clicked = 1;
+        ) : is_point_in_detection_button(mouse_x, mouse_y, feedback_button_x, feedback_button_y) ? (
+          handle_feedback_button_click();
           clicked = 1;
         );
       ) : !MOUSE_LEFT_BUTTON ? (

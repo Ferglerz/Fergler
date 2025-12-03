@@ -6,3 +6,9 @@ final_analysis.txt
 FUNCTION_REFERENCE.md
 JSFX_ARCHITECTURE_RULES.md
 /Backup
+.DS_Store
+backups/15_custom_buttons_pagination_backup.jsfx-inc
+backups/16_page_transitions.jsfx-inc.backup
+Images/.DS_Store
+.DS_Store
+Images/.DS_Store

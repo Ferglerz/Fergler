@@ -240,19 +240,21 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
 //==============================================================================
 
 function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
-  menu_gr_meter_enabled ? (
-    gr_meter_x = get_meter_x();
-    gr_meter_y = get_meter_y();
-    gr_meter_w = get_meter_w();
-    gr_meter_h = get_meter_h();
-    meter_center_y = gr_meter_y + gr_meter_h / 2;
+  // Always draw meter background (no conditional)
+  gr_meter_x = get_meter_x();
+  gr_meter_y = get_meter_y();
+  gr_meter_w = get_meter_w();
+  gr_meter_h = get_meter_h();
+  meter_center_y = gr_meter_y + gr_meter_h / 2;
 
-    gfx_set(0.2, 0.2, 0.2, 0.5);
-    gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  gfx_set(0.2, 0.2, 0.2, 0.5);
+  gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 
-    gfx_set(0.6, 0.6, 0.6, 1);
-    gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1);
+  gfx_set(0.6, 0.6, 0.6, 1);
+  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1);
 
+  // Only draw orange/blue meters when histogram (metering) is enabled
+  menu_histogram_enabled > 0.5 ? (
     is_audio_active = (play_state == 1) || (play_state == 5);
 
     is_audio_active ? (
@@ -282,13 +284,13 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
         gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
       );
     );
-  
-    render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
-    render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
-    
-    // Draw meter reflection below the meter (on same plane as histogram reflection)
-    draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
   );
+  
+  render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  
+  // Draw meter reflection below the meter (on same plane as histogram reflection)
+  draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 );
 
 //==============================================================================
