@@ -58,6 +58,23 @@ function render_complete_interface() (
   
   draw_threshold_lines_on_graph();    // 05h
   
+  // Blur reflection area separately, all the time
+  // Reflection is 3 pixels tall, between graph left side and meter right side, plus 10px either side
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 16;  // Same Y position as reflection
+  meter_x = get_meter_x();
+  meter_w = get_meter_w();
+  reflection_blur_start_x = GRAPH_X - 10;
+  reflection_blur_start_y = reflection_y;
+  reflection_blur_end_x = meter_x + meter_w + 10;
+  reflection_blur_end_y = reflection_y + 3;  // 3 pixels tall
+  
+  // Set starting position for reflection blur
+  gfx_x = reflection_blur_start_x;
+  gfx_y = reflection_blur_start_y;
+  
+  // Apply blur to reflection area (always active) - single blur for testing
+  gfx_blurto(reflection_blur_end_x, reflection_blur_end_y);
+  
   // Draw mouse hints inside graph area
   draw_mouse_hints();         // 05j
   
