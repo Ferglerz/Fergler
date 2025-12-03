@@ -62,7 +62,13 @@ function render_background_image() (
 
   gfx_y = 0;
 
-function render_complete_interface() (
+function render_complete_interface() local(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) (
+  // Cache meter position calculations once per frame to avoid repeated function calls
+  cached_meter_x = get_meter_x();
+  cached_meter_y = get_meter_y();
+  cached_meter_w = get_meter_w();
+  cached_meter_h = get_meter_h();
+  
   // Set background color (fallback if image doesn't load)
   gfx_clear = 0x202020;
 
@@ -115,8 +121,8 @@ function render_complete_interface() (
       should_blur_page(PAGE_GRAPH) ? (
         blur_amount = get_page_blur_amount(PAGE_GRAPH);
         blur_amount > 0.01 ? (
-          // Apply blur to graph and meter area
-          apply_page_blur_graph_and_meter(get_meter_x(), get_meter_y(), get_meter_w(), get_meter_h());
+          // Apply blur to graph and meter area (using cached meter positions)
+          apply_page_blur_graph_and_meter(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h);
         );
       );
     );
@@ -148,7 +154,8 @@ function render_complete_interface() (
   
   // Blur reflection area separately, all the time
   // Reflection is 3 pixels tall, between graph left side and meter right side, plus 10px either side
-  apply_reflection_blur(get_meter_x(), get_meter_w());
+  // (using cached meter positions)
+  apply_reflection_blur(cached_meter_x, cached_meter_w);
   
   // Draw debug performance counters (only visible when debug mode is enabled)
   draw_debug_performance_counters();
