@@ -33,22 +33,57 @@ function get_slider_config(control_index, control_type) (
 );
 
 //==============================================================================
-// BASIC UI UTILITIES
+// GROUP OFFSET HELPERS
 //==============================================================================
 
-function is_point_in_control(x, y, control_index) local(group_idx) (
+// Get control position with group offset applied
+// Sets ctrl_x and ctrl_y in calling scope with group offset added if control is in a group
+// Parameters: control_index
+// Note: ctrl_x and ctrl_y must be declared in calling scope (not local)
+function get_control_position_with_group_offset(control_index) local(group_idx) (
   ctrl_x = control_defs[control_index*11 + 1];
   ctrl_y = control_defs[control_index*11 + 2];
-  ctrl_w = control_defs[control_index*11 + 3];
-  ctrl_h = control_defs[control_index*11 + 4];
   group_idx = control_defs[control_index*11 + 10];
-
-  // Add group offset if control is in a group
   group_idx >= 0 ? (
     ctrl_x += group_defs[group_idx*6 + 0];
     ctrl_y += group_defs[group_idx*6 + 1];
   );
-  
+);
+
+// Get control X position with group offset applied (when Y is not needed)
+// Parameters: control_index
+// Returns: ctrl_x with group offset applied
+function get_control_x_with_group_offset(control_index) local(group_idx, ctrl_x_rel) (
+  ctrl_x_rel = control_defs[control_index*11 + 1];
+  group_idx = control_defs[control_index*11 + 10];
+  group_idx >= 0 ? (
+    ctrl_x_rel + group_defs[group_idx*6 + 0]
+  ) : (
+    ctrl_x_rel
+  );
+);
+
+// Get control Y position with group offset applied (when X is not needed)
+// Parameters: control_index
+// Returns: ctrl_y with group offset applied
+function get_control_y_with_group_offset(control_index) local(group_idx, ctrl_y_rel) (
+  ctrl_y_rel = control_defs[control_index*11 + 2];
+  group_idx = control_defs[control_index*11 + 10];
+  group_idx >= 0 ? (
+    ctrl_y_rel + group_defs[group_idx*6 + 1]
+  ) : (
+    ctrl_y_rel
+  );
+);
+
+//==============================================================================
+// BASIC UI UTILITIES
+//==============================================================================
+
+function is_point_in_control(x, y, control_index) (
+  get_control_position_with_group_offset(control_index);
+  ctrl_w = control_defs[control_index*11 + 3];
+  ctrl_h = control_defs[control_index*11 + 4];
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
@@ -89,38 +124,24 @@ function get_step_points_base(param_index) (
   0
 );
 
-function update_slider_value(control_index, mouse_x, mouse_y) local(group_idx, control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, group_x_val, slider_orientation, format_options, slider_config, array_index) (
+function update_slider_value(control_index, mouse_x, mouse_y) local(control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, slider_orientation, format_options, slider_config, ctrl_x, ctrl_y, ctrl_w, ctrl_h, array_index) (
   control_type = control_defs[control_index*11 + 0];
   get_slider_config(control_index, control_type);
   min_val = control_defs[control_index*11 + 6];
   max_val = control_defs[control_index*11 + 7];
-  group_idx = control_defs[control_index*11 + 10];
   param_index = control_defs[control_index*11 + 5];
 
   slider_orientation == ORIENTATION_VERTICAL ? ( // Vertical slider
-    ctrl_y = control_defs[control_index*11 + 2];
+    ctrl_y = get_control_y_with_group_offset(control_index);
     ctrl_h = control_defs[control_index*11 + 4];
-
-    // Add group offset if control is in a group
-    group_idx >= 0 ? (
-      ctrl_y += group_defs[group_idx*6 + 1];
-    );
 
     normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
     normalized_pos = max(0, min(1, normalized_pos));
     // Invert for vertical slider (0 at top, 1 at bottom)
     normalized_pos = 1 - normalized_pos;
   ) : ( // Horizontal slider (normal or reverse)
-    ctrl_x_rel = control_defs[control_index*11 + 1];
+    ctrl_x = get_control_x_with_group_offset(control_index);
     ctrl_w = control_defs[control_index*11 + 3];
-
-    // Add group offset if control is in a group
-    group_idx >= 0 ? (
-      group_x_val = group_defs[group_idx*6 + 0];
-      ctrl_x = ctrl_x_rel + group_x_val;
-    ) : (
-      ctrl_x = ctrl_x_rel;
-    );
     
     normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
     normalized_pos = max(0, min(1, normalized_pos));

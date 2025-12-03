@@ -138,25 +138,15 @@ function handle_control_click(control_index) local(option_count, step_count, min
           min_val = control_defs[control_index*11 + 6];
           max_val = control_defs[control_index*11 + 7];
           
-          group_idx = control_defs[control_index*11 + 10];
           slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = control_defs[control_index*11 + 2];
+            ctrl_y = get_control_y_with_group_offset(control_index);
             ctrl_h = control_defs[control_index*11 + 4];
-            group_idx >= 0 ? (
-              ctrl_y += group_defs[group_idx*6 + 1];
-            );
             normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
             normalized_pos = max(0, min(1, normalized_pos));
             normalized_pos = 1 - normalized_pos;
           ) : (
-            ctrl_x_rel = control_defs[control_index*11 + 1];
+            ctrl_x = get_control_x_with_group_offset(control_index);
             ctrl_w = control_defs[control_index*11 + 3];
-            group_idx >= 0 ? (
-              group_x_val = group_defs[group_idx*6 + 0];
-              ctrl_x = ctrl_x_rel + group_x_val;
-            ) : (
-              ctrl_x = ctrl_x_rel;
-            );
             normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
             normalized_pos = max(0, min(1, normalized_pos));
             format_options & OPTION_REVERSE ? (
@@ -172,25 +162,15 @@ function handle_control_click(control_index) local(option_count, step_count, min
           min_val = control_defs[control_index*11 + 6];
           max_val = control_defs[control_index*11 + 7];
           
-          group_idx = control_defs[control_index*11 + 10];
           slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = control_defs[control_index*11 + 2];
+            ctrl_y = get_control_y_with_group_offset(control_index);
             ctrl_h = control_defs[control_index*11 + 4];
-            group_idx >= 0 ? (
-              ctrl_y += group_defs[group_idx*6 + 1];
-            );
             normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
             normalized_pos = max(0, min(1, normalized_pos));
             normalized_pos = 1 - normalized_pos;
           ) : (
-            ctrl_x_rel = control_defs[control_index*11 + 1];
+            ctrl_x = get_control_x_with_group_offset(control_index);
             ctrl_w = control_defs[control_index*11 + 3];
-            group_idx >= 0 ? (
-              group_x_val = group_defs[group_idx*6 + 0];
-              ctrl_x = ctrl_x_rel + group_x_val;
-            ) : (
-              ctrl_x = ctrl_x_rel;
-            );
             normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
             normalized_pos = max(0, min(1, normalized_pos));
             format_options & OPTION_REVERSE ? (
@@ -263,22 +243,14 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           get_slider_config(ui_drag_control, control_type);
           group_idx = control_defs[ui_drag_control*11 + 10];
           slider_orientation == ORIENTATION_VERTICAL ? (
-            ctrl_y = control_defs[ui_drag_control*11 + 2];
+            ctrl_y = get_control_y_with_group_offset(ui_drag_control);
             ctrl_h = control_defs[ui_drag_control*11 + 4];
-            group_idx >= 0 ? (
-              ctrl_y += group_defs[group_idx*6 + 1];
-            );
             normalized_pos = (mouse_y - ctrl_y) / ctrl_h;
             normalized_pos = max(0, min(1, normalized_pos));
             normalized_pos = 1 - normalized_pos;
           ) : (
-            ctrl_x_rel = control_defs[ui_drag_control*11 + 1];
+            ctrl_x = get_control_x_with_group_offset(ui_drag_control);
             ctrl_w = control_defs[ui_drag_control*11 + 3];
-            group_idx >= 0 ? (
-              ctrl_x = ctrl_x_rel + group_defs[group_idx*6 + 0];
-            ) : (
-              ctrl_x = ctrl_x_rel;
-            );
             normalized_pos = (mouse_x - ctrl_x) / ctrl_w;
             normalized_pos = max(0, min(1, normalized_pos));
             format_options & OPTION_REVERSE ? (
@@ -296,13 +268,7 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
           pixels_per_option = slider_w / total_options;
           
           // Get mouse position relative to slider
-          group_idx = control_defs[ui_drag_control*11 + 10];
-          ctrl_x_rel = control_defs[ui_drag_control*11 + 1];
-          group_idx >= 0 ? (
-            ctrl_x = ctrl_x_rel + group_defs[group_idx*6 + 0];
-          ) : (
-            ctrl_x = ctrl_x_rel;
-          );
+          ctrl_x = get_control_x_with_group_offset(ui_drag_control);
           
           mouse_pos_in_slider = mouse_x - ctrl_x;
           option_index = floor(mouse_pos_in_slider / pixels_per_option);
