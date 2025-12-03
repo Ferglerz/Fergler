@@ -75,14 +75,13 @@ filename:5,Images/para_horz_fader_bot_right.png
 //==============================================================================
 
 // 01_Utils: Foundation utilities (no dependencies)
-import 01_Utils/01_constants.jsfx-inc
+import 01_Utils/00_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
-import 01_Utils/03_debug_logging.jsfx-inc
 
-// UI_Sliders/00_file_reading: File reading (standalone, needed by 01_Utils/05_memory, 02_InputProcessing, and UI_General)
+// UI_Sliders/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and UI_General)
 import UI_Sliders/00_file_reading.jsfx-inc
 
-import 01_Utils/05_memory.jsfx-inc
+import 01_Utils/03_memory.jsfx-inc
 
 // 02_InputProcessing: Input signal conditioning (depends on 01_Utils)
 import 02_InputProcessing/01_dsp_utils.jsfx-inc
@@ -115,57 +114,60 @@ import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 import UI_General/00_ui_constants.jsfx-inc
 import UI_General/02_ui_utils.jsfx-inc
 import UI_General/01_drawing_primitives.jsfx-inc
-import UI_General/04_debug.jsfx-inc
-import UI_General/10_menu.jsfx-inc
-import UI_General/05_header.jsfx-inc
+import UI_General/03_debug.jsfx-inc
+import UI_General/04_header.jsfx-inc
 // Page buttons system (modular button-based pagination)
-import UI_General/17_page_buttons.jsfx-inc
+import UI_General/12_page_buttons.jsfx-inc
 // Coordinate conversion service (independent, used by graph and meter)
-import UI_General/12_coordinate_conversion.jsfx-inc
+import UI_General/07_coordinate_conversion.jsfx-inc
 // Threshold lines service (independent, used by graph and meter)
-import UI_General/11_threshold_lines.jsfx-inc
+import UI_General/06_threshold_lines.jsfx-inc
 
 // UI_Sliders: Slider control library (depends on UI_General)
-import UI_Sliders/00_slider_constants.jsfx-inc
-import UI_Sliders/01a_value_formatting.jsfx-inc
-import UI_Sliders/01b_value_text_rendering.jsfx-inc
-import UI_Sliders/01c_slider_rendering.jsfx-inc
-import UI_Sliders/01d_parallax_fader_rendering.jsfx-inc
-import UI_Sliders/01e_button_rendering.jsfx-inc
-import UI_Sliders/01f_dropdown_rendering.jsfx-inc
-import UI_Sliders/01h_slider_objects.jsfx-inc
-import UI_Sliders/01g_control_dispatcher.jsfx-inc
-import UI_Sliders/01_control_definitions.jsfx-inc
-import UI_Sliders/02_control_interactions.jsfx-inc
+import UI_Sliders/01_slider_constants.jsfx-inc
+import UI_Sliders/03_value_formatting.jsfx-inc
+import UI_Sliders/04_value_text_rendering.jsfx-inc
+import UI_Sliders/05_slider_rendering.jsfx-inc
+import UI_Sliders/06_parallax_fader_rendering.jsfx-inc
+import UI_Sliders/07_button_rendering.jsfx-inc
+import UI_Sliders/08_dropdown_rendering.jsfx-inc
+import UI_Sliders/10_slider_objects.jsfx-inc
+import UI_Sliders/09_control_dispatcher.jsfx-inc
+import UI_Sliders/02_control_definitions.jsfx-inc
+import UI_Sliders/11_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
-import UI_Controls/05_Composure_Controls.jsfx-inc
+import 04_UI_Controls/01_image_sets.jsfx-inc
+import 04_UI_Controls/02_step_points.jsfx-inc
+import 04_UI_Controls/03_control_layout.jsfx-inc
+import 04_UI_Controls/04_header_controls.jsfx-inc
+import 04_UI_Controls/05_control_rendering.jsfx-inc
 
 // UI_Graph: Graph rendering and interaction (depends on UI_General)
 // threshold_lines is now in UI_General and independent
-import UI_Graph/06_graph_cache.jsfx-inc
-import UI_Graph/07_graph_curves.jsfx-inc
-import UI_Graph/08_graph_meters.jsfx-inc
-import UI_Graph/09_graph_display.jsfx-inc
-import UI_Graph/12_dot_trail.jsfx-inc
-import UI_Graph/03_graph.jsfx-inc
+import UI_Graph/01_graph_cache.jsfx-inc
+import UI_Graph/02_graph_curves.jsfx-inc
+import UI_Graph/03_graph_meters.jsfx-inc
+import UI_Graph/04_graph_display.jsfx-inc
+import UI_Graph/05_dot_trail.jsfx-inc
+import UI_Graph/00_graph.jsfx-inc
 
 // UI_General: Custom buttons (depends on UI_General constants and drawing, and page buttons)
-// Must be imported before 01_Utils/06_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
-import UI_General/15_custom_buttons.jsfx-inc
+// Must be imported before 01_Utils/04_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
+import UI_General/10_custom_buttons.jsfx-inc
 // Settings page (depends on page buttons system)
-import UI_General/18_settings_page.jsfx-inc
+import UI_General/13_settings_page.jsfx-inc
 // Filters page (depends on page buttons system)
-import UI_General/19_filters_page.jsfx-inc
+import UI_General/14_filters_page.jsfx-inc
 
-// 01_Utils/06_state: State initialization (depends on all modules above)
+// 01_Utils/04_state: State initialization (depends on all modules above)
 // Must be imported after all init functions are defined
-import 01_Utils/06_state.jsfx-inc
+import 01_Utils/04_state.jsfx-inc
 
 // UI_General: UI orchestration (depends on UI_General, UI_Sliders, UI_Graph)
 // These must be imported last as they orchestrate all UI components
-import UI_General/13_ui_interaction.jsfx-inc
-import UI_General/14_ui_orchestration.jsfx-inc
+import UI_General/08_ui_interaction.jsfx-inc
+import UI_General/09_ui_orchestration.jsfx-inc
 
 
 //==============================================================================
@@ -427,9 +429,6 @@ INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
 
 // Render main interface
 render_complete_interface();
-
-// Render debug information (controlled by menu_debug_enabled toggle in right-click menu)
-debug_render();
 
 
 //==============================================================================

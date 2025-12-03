@@ -1,6 +1,6 @@
 // Button Rendering Module
 // Handles rendering of button controls
-// Dependencies: 01_Utils/01_constants.jsfx-inc
+// Dependencies: 01_Utils/00_constants.jsfx-inc
 
 @init
 

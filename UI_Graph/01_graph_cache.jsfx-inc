@@ -1,5 +1,5 @@
 // UI Graph Cache Module - Curve caching system for maximum rendering efficiency
-// Depends on: UI_General/00_ui_constants.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_General/12_coordinate_conversion.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc, 03_Compression/03_graph_curves.jsfx-inc
+// Depends on: UI_General/00_ui_constants.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_General/07_coordinate_conversion.jsfx-inc, 03_Compression/02_graph_data_core.jsfx-inc, 03_Compression/03_graph_curves.jsfx-inc
 
 @init
 

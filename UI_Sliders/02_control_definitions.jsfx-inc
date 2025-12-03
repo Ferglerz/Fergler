@@ -2,13 +2,13 @@
 // Generic control definition system for creating UI controls
 // This is a reusable library - no plugin-specific code
 // Dependencies: 
-//   - UI_Sliders/00_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
+//   - UI_Sliders/01_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
 //   - UI_General/01_drawing_primitives.jsfx-inc (for draw_group)
 //
 // USAGE:
 //   Use define_group(), define_slider(), define_button(), define_dropdown() to create controls
 //   Use render_all_groups() to draw group backgrounds
-//   Use render_control() from 01g_control_dispatcher.jsfx-inc to render individual controls
+//   Use render_control() from 09_control_dispatcher.jsfx-inc to render individual controls
 
 @init
 
@@ -48,10 +48,10 @@ function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
 
 // Control definitions - each control has: type, x, y, w, h, param_index, min_val, max_val, label, options
 // Type: 0=slider, 1=button, 2=dropdown
-// NUM_CONTROLS is defined in 01_Utils/01_constants.jsfx-inc as 256 (memory allocation size)
+// NUM_CONTROLS is defined in 01_Utils/00_constants.jsfx-inc as 256 (memory allocation size)
 // Actual control count is tracked dynamically by control_count variable
 
-// Control definitions memory is allocated in 01a_memory.jsfx-inc
+// Control definitions memory is allocated in 01_Utils/03_memory.jsfx-inc
 // control_defs pointer is set there
 
 // Note: Control x/y positions are now RELATIVE to their parent group

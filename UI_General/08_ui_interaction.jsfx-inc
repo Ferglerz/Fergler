@@ -1,11 +1,10 @@
 // UI Interaction Module - Main Orchestrator
 // Coordinates all user interaction across the interface
 // Dependencies:
-//   - UI_General/10_menu.jsfx-inc
 //   - UI_Sliders/02_control_interactions.jsfx-inc
-//   - UI_Graph/03_graph.jsfx-inc
-//   - UI_General/12_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
-//   - UI_General/11_threshold_lines.jsfx-inc
+//   - UI_Graph/00_graph.jsfx-inc
+//   - UI_General/07_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
+//   - UI_General/06_threshold_lines.jsfx-inc
 
 @init
 

@@ -1,7 +1,7 @@
 // Graph Data Core Module
 // Graph point data management and point manipulation
 // Depends on: 
-//   - 01_Utils/01_constants.jsfx-inc
+//   - 01_Utils/00_constants.jsfx-inc
 //   - 01_Utils/02_math_utils.jsfx-inc
 
 @init

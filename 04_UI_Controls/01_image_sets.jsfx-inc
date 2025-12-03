@@ -1,0 +1,58 @@
+// Image Set Objects and Initialization
+// Provides image set objects for parallax fader controls
+// Dependencies: UI_Sliders/01_control_definitions.jsfx-inc
+
+@init
+
+//==============================================================================
+// IMAGE SET OBJECTS (Namespace-based)
+//==============================================================================
+//
+// Image set objects provide a convenient way to store all properties for an
+// image set (e.g., parallax fader images) in one place, similar to Slider objects.
+// This allows easy reuse and maintenance of image set configurations.
+//
+
+//------------------------------------------------------------------------------
+// Constructor for an image set "object"
+//------------------------------------------------------------------------------
+// Fields populated:
+//   this.image_top_index  - Image index for top layer
+//   this.image_bot_index  - Image index for bottom layer
+//   this.image_w          - Image width in pixels
+//   this.image_h          - Image height in pixels
+//   this.para_depth       - Parallax depth (affects top image travel distance)
+//   this.y_offset         - Y offset to lower images (accounts for shadows)
+//   this.x_offset         - Manual X offset for bottom image
+//   this.image_scale      - Scale factor for images (1.0 = no scaling)
+function construct_image_set(image_top_index, image_bot_index, image_w, image_h, para_depth, y_offset, x_offset, image_scale) instance(image_top_index image_bot_index image_w image_h para_depth y_offset x_offset image_scale)
+(
+  this.image_top_index = image_top_index;
+  this.image_bot_index = image_bot_index;
+  this.image_w = image_w;
+  this.image_h = image_h;
+  this.para_depth = para_depth;
+  this.y_offset = y_offset;
+  this.x_offset = x_offset;
+  this.image_scale = image_scale;
+);
+
+//==============================================================================
+// PARALLAX FADER CONSTANTS
+//==============================================================================
+
+// Hard-coded parallax depth (original value 10, minus 7 = 3)
+PARALLAX_DEPTH = 3;
+
+//==============================================================================
+// IMAGE SET INITIALIZATION
+//==============================================================================
+
+// Initialize left parallax fader image set object
+// Images: para_horz_fader_top (index 3), para_horz_fader_bot_left (index 4)
+sm_fader_left.construct_image_set(3, 4, 36, 45, PARALLAX_DEPTH, 11, -PARALLAX_DEPTH+2, 1.0);
+
+// Initialize right parallax fader image set object
+// Images: para_horz_fader_top (index 3), para_horz_fader_bot_right (index 5)
+sm_fader_rt.construct_image_set(3, 5, 36, 45, PARALLAX_DEPTH, 11, PARALLAX_DEPTH, 1.0);
+

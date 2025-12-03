@@ -3,10 +3,10 @@
 // Contains control accessor functions and basic UI utilities
 //
 // Dependencies:
-// - 01_Utils/01_constants.jsfx-inc (for GRAPH_* and UI constants)
+// - 01_Utils/00_constants.jsfx-inc (for GRAPH_* and UI constants)
 // - UI_Sliders/00_file_reading.jsfx-inc (for get_slider_name function)
 // - UI_General/00_ui_constants.jsfx-inc (for UI constants)
-// - 01_Utils/05_memory.jsfx-inc (for control_defs array)
+// - 01_Utils/03_memory.jsfx-inc (for control_defs array)
 
 @init
 
@@ -30,11 +30,11 @@ function is_point_in_control(x, y, control_index) local(group_idx) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-// Step-point array base addresses (allocated inline in 05_Composure_Controls.jsfx-inc init_step_points())
+// Step-point array base addresses (allocated inline in 04_UI_Controls/02_step_points.jsfx-inc init_step_points())
 // These are declared here for early access by helper functions
 // Variables default to 0 in JSFX, no initialization needed
 
-// Step-point counts (initialized in 05_Composure_Controls.jsfx-inc)
+// Step-point counts (initialized in 04_UI_Controls/02_step_points.jsfx-inc)
 // Variables default to 0 in JSFX, no initialization needed
 
 // Helper function to get step-point count from slider object
@@ -217,7 +217,7 @@ function set_slider_property(control_index, property_index, value) (
 //==============================================================================
 
 // Note: Graph coordinate conversion functions (db_to_graph_x, db_to_graph_y, etc.)
-// are now defined in UI_General/12_coordinate_conversion.jsfx-inc
+// are now defined in UI_General/07_coordinate_conversion.jsfx-inc
 
 // Clamp x coordinate to graph bounds
 // Parameters: x (coordinate), graph_x (left edge), graph_size (graph size)

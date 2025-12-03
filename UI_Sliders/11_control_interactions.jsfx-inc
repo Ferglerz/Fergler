@@ -1,6 +1,6 @@
 // User Interactions - Controls Module
 // UI controls interaction handling
-// Dependencies: 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_Sliders/00_slider_constants.jsfx-inc, UI_Sliders/01_control_definitions.jsfx-inc
+// Dependencies: 01_Utils/02_math_utils.jsfx-inc, UI_General/02_ui_utils.jsfx-inc, UI_Sliders/01_slider_constants.jsfx-inc, UI_Sliders/02_control_definitions.jsfx-inc
 
 @init
 
@@ -496,33 +496,17 @@ function handle_ui_mouse_input() (
       ui_prev_mouse_y = mouse_y;
       ui_fine_drag_accum = 0; // Reset accumulator
       
-      is_menu_button_clicked() ? (
-          handle_menu_button_click();
-          ui_drag_control = -2; // Special value to prevent further checks
-        ) : menu_visible ? (
-          // Check menu items if menu is visible
-          hovered_item = get_hovered_menu_item();
-          hovered_item >= 0 ? (
-            handle_menu_item_click(hovered_item);
-            ui_drag_control = -2; // Special value to prevent further checks
-          ) : (
-            // Clicked outside menu - close it
-            menu_visible = 0;
-            menu_hovered_item = -1;
+      // Check controls until we find one under the mouse
+      i = 0;
+      while (i < control_count && ui_drag_control == -1) (
+        // Only check if control is interactive (visible on current page)
+        is_control_interactive(i) ? (
+          // Control is visible, check if mouse is over it
+          is_point_in_control(mouse_x, mouse_y, i) ? (
+            handle_control_click(i);
           );
-        ) : (
-        // Check controls until we find one under the mouse
-        i = 0;
-        while (i < control_count && ui_drag_control == -1) (
-          // Only check if control is interactive (visible on current page)
-          is_control_interactive(i) ? (
-            // Control is visible, check if mouse is over it
-            is_point_in_control(mouse_x, mouse_y, i) ? (
-              handle_control_click(i);
-            );
-          );
-          i += 1;
         );
+        i += 1;
       );
     ) : ( // Continue drag
       ui_drag_control == -2 ? (

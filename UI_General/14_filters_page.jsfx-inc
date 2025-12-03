@@ -1,6 +1,6 @@
 // Input Page Module
 // Input page with filter controls, RMS controls, Detection Mode buttons, and Preview Filters button
-// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/17_page_buttons.jsfx-inc
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/12_page_buttons.jsfx-inc
 
 @init
 

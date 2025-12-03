@@ -1,0 +1,39 @@
+// Header Controls Setup
+// Defines header controls that are always visible
+// Dependencies: UI_Sliders/01_control_definitions.jsfx-inc
+
+@init
+
+//==============================================================================
+// HEADER: UNGROUPED CONTROLS (always visible)
+//==============================================================================
+
+function setup_header_controls() (
+  // This must be called in @gfx when gfx_w is valid
+  gfx_w > 0 ? (
+    // Header controls are not in a group (absolute positioning)
+    set_control_group(-1);
+    
+    // Calculate header slider Y position (centered vertically)
+    header_slider_y = (HEADER_HEIGHT - SLIDER_H) / 2;
+    
+    // Lookahead slider (index 10, param 11) - HEADER
+    // Menu button right edge: MENU_BUTTON_X + MENU_BUTTON_SIZE = 8 + 15 = 23
+    // Add 5px spacing: 23 + 5 = 28
+    lookahead_slider_x = MENU_BUTTON_X + MENU_BUTTON_SIZE + 5;
+    define_slider(10, lookahead_slider_x, header_slider_y, SLIDER_W, SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " ms", 10));
+    
+    // Input Offset slider (index 12, param 14) - HEADER
+    // Position: to the left of Makeup Gain, moved 40px left
+    // Makeup Gain is at: gfx_w - 5 - SLIDER_W
+    // Input Offset should be: makeup_gain_x - SLIDER_W - 5 (5px spacing), then 40px further left
+    makeup_gain_x = gfx_w - 5 - SLIDER_W;
+    input_offset_x = makeup_gain_x - SLIDER_W - 5 - 40;
+    define_slider(12, input_offset_x, header_slider_y, SLIDER_W, SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_HIDE_LABEL, " dB", 12));
+    
+    // Makeup Gain slider (index 22, param 25) - HEADER
+    // Position: right edge of header
+    define_slider(22, makeup_gain_x, header_slider_y, SLIDER_W, SLIDER_H, 25, S25.min, S25.max, S25.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL, " dB", 22));
+  );
+);
+

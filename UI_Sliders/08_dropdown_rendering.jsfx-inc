@@ -1,6 +1,6 @@
 // Dropdown Rendering Module
 // Handles rendering of dropdown/combobox controls
-// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/00_file_reading.jsfx-inc
+// Dependencies: 01_Utils/00_constants.jsfx-inc, UI_Sliders/00_file_reading.jsfx-inc
 
 @init
 

@@ -1,0 +1,20 @@
+// UI Rendering - Header and Menu Module
+// Header, menu button, and custom menu rendering
+// Dependencies: 01_Utils/00_constants.jsfx-inc, UI_General/00_ui_constants.jsfx-inc
+
+@init
+
+
+//==============================================================================
+// HEADER RENDERING
+//==============================================================================
+
+function draw_header() (
+  gfx_set(HEADER_SHADOW_R, HEADER_SHADOW_G, HEADER_SHADOW_B, 0.5);
+  gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_SHADOW_HEIGHT);
+  gfx_set(HEADER_BG_R, HEADER_BG_G, HEADER_BG_B, 1);
+  gfx_rect(0, 0, gfx_w, HEADER_HEIGHT);
+  gfx_set(HEADER_BORDER_R, HEADER_BORDER_G, HEADER_BORDER_B, 1);
+  gfx_rect(0, HEADER_HEIGHT, gfx_w, HEADER_BORDER_HEIGHT);
+);
+

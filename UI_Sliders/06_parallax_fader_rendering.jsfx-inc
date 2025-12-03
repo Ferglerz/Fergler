@@ -1,6 +1,6 @@
 // Parallax Fader Rendering Module
 // Handles rendering of parallax fader controls with two-layer image effect
-// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01b_value_text_rendering.jsfx-inc
+// Dependencies: 01_Utils/00_constants.jsfx-inc, UI_Sliders/04_value_text_rendering.jsfx-inc
 
 @init
 

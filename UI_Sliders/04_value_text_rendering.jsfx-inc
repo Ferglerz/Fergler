@@ -1,6 +1,6 @@
 // Slider Value Text Rendering Module
 // Handles rendering of value text for controls
-// Dependencies: 01_Utils/01_constants.jsfx-inc, UI_Sliders/01a_value_formatting.jsfx-inc
+// Dependencies: 01_Utils/00_constants.jsfx-inc, UI_Sliders/03_value_formatting.jsfx-inc
 
 @init
 

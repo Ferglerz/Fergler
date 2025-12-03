@@ -1,6 +1,6 @@
 // Settings Page Module
 // Settings page with menu items converted to custom buttons
-// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/17_page_buttons.jsfx-inc
+// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/12_page_buttons.jsfx-inc
 
 @init
 
