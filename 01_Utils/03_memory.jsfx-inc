@@ -81,10 +81,32 @@ function allocate_memory() (
   // - Minimum interval: 10ms (slider31 min, still slider31 after reordering)
   // - Maximum dots needed: ceil(5000/10) + 10 = 510 dots
   // Store original allocated size to prevent buffer overflow
-  trail_max_dots_allocated = 510; // Maximum size based on slider ranges
+  // Use conditional allocation pattern to preserve buffer address when ext_noinit=1
+  !trail_max_dots_allocated ? (
+    trail_max_dots_allocated = 510; // Maximum size based on slider ranges
+  );
   trail_max_dots = trail_max_dots_allocated; // Current limit (may be reduced in @slider)
-  trail_buffer = freemem;
-  freemem += trail_max_dots_allocated * 4;
+  !trail_buffer ? (
+    trail_buffer = freemem;
+    freemem += trail_max_dots_allocated * 4;
+  );
+  
+  // Meter trail lines buffer allocation (3 values per line: gr_value_db, age, max_age)
+  // Allocate based on 2.5 second fade duration with one line per buffer
+  // Worst case: smallest buffer size (128 samples) at highest sample rate (192kHz)
+  // Buffers per second: 192000 / 128 = 1500
+  // Buffers in 2.5 seconds: 1500 * 2.5 = 3750
+  // Add 20% buffer for safety: 3750 * 1.2 = 4500
+  // Using freemem to ensure proper memory management and avoid conflicts with other UI components
+  // Use conditional allocation pattern to preserve buffer address when ext_noinit=1
+  !meter_trail_max_lines_allocated ? (
+    meter_trail_max_lines_allocated = 4500; // Maximum size based on worst case scenario (2.5 seconds)
+  );
+  meter_trail_max_lines = meter_trail_max_lines_allocated; // Current limit
+  !meter_trail_buffer ? (
+    meter_trail_buffer = freemem;
+    freemem += meter_trail_max_lines_allocated * 3;
+  );
   
   // Page button system memory allocation
   // Button state array (4 fields per button * 16 max buttons = 64 slots)

@@ -150,7 +150,9 @@ import UI_Graph/01_graph_cache.jsfx-inc
 import UI_Graph/02_graph_curves.jsfx-inc
 import UI_Graph/03_graph_meters.jsfx-inc
 import UI_Graph/04_graph_display.jsfx-inc
+import UI_Graph/04_trail_utils.jsfx-inc
 import UI_Graph/05_dot_trail.jsfx-inc
+import UI_Graph/06_meter_trail_lines.jsfx-inc
 import UI_Graph/00_graph.jsfx-inc
 
 // UI_General: Custom buttons (depends on UI_General constants and drawing, and page buttons)
@@ -251,6 +253,9 @@ init_state_variables();
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
 // Must be called after UI_General imports (specifically after 00_ui_constants.jsfx-inc)
 init_graph_optimization_constants();
+
+// 2.6. Update meter trail fade duration (depends on srate)
+update_meter_trail_fade_duration();
 
 
 // Initialize limiter constants (must be called after math_utils import)
@@ -431,6 +436,10 @@ HISTOGRAM_ENABLED ? (
   update_histogram_before_strength_state(gr_db_before_strength_for_histogram);
 );
 INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
+
+// Create meter trail line from block-max gain reduction (once per buffer)
+// Use gr_db_for_histogram which is the max GR from the previous block
+create_meter_trail_line(gr_db_for_histogram);
 
 // Strength now used directly - no need for strength_actual
 
