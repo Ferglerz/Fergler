@@ -53,28 +53,15 @@ function update_preview_filters_button_position() local(listen_x, listen_y, list
 // Parameters:
 //   is_enabled: 1 = enabled/on, 0 = disabled/off
 function draw_preview_filters_button(is_enabled) local() (
-  // Draw button background
-  is_enabled ? (
-    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
-  ) : (
-    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
-  );
-  gfx_rect(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H);
-  
-  // Draw button border
-  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
-  gfx_rect(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, 0);
-  
-  // Draw button text
-  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
-  gfx_x = preview_filters_button_x + 5; gfx_y = preview_filters_button_y + 5;
-  gfx_drawstr(#preview_filters_button_label);
+  draw_button_background(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, is_enabled);
+  draw_button_border(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H);
+  draw_button_text(preview_filters_button_x, preview_filters_button_y, #preview_filters_button_label);
   
   // Draw checkmark if enabled
   is_enabled ? (
     gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
     gfx_x = preview_filters_button_x + INPUT_PAGE_BUTTON_W - 15;
-    gfx_y = preview_filters_button_y + 5;
+    gfx_y = preview_filters_button_y + 8;
     gfx_drawstr("v");  // Checkmark
   );
 );

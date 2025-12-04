@@ -94,22 +94,9 @@ function update_page_button_positions() local(total_width, start_x, i) (
 //   is_active: 1 = active/on, 0 = inactive/off
 //   label: Button label text
 function draw_page_button(button_index, x, y, w, h, is_active, label) local() (
-  // Draw button background
-  is_active ? (
-    gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
-  ) : (
-    gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
-  );
-  gfx_rect(x, y, w, h);
-  
-  // Draw button border
-  gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
-  gfx_rect(x, y, w, h, 0);
-  
-  // Draw button text
-  gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
-  gfx_x = x + 5; gfx_y = y + 5;
-  gfx_drawstr(label);
+  draw_button_background(x, y, w, h, is_active);
+  draw_button_border(x, y, w, h);
+  draw_button_text(x, y, label);
 );
 
 // Render all page buttons

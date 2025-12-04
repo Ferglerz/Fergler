@@ -34,27 +34,51 @@ button_style_text_r = 1.0; button_style_text_g = 1.0; button_style_text_b = 1.0;
 button_style_border_r = 0.6; button_style_border_g = 0.6; button_style_border_b = 0.6;
 
 //==============================================================================
-// BUTTON RENDERING FUNCTION
+// BUTTON RENDERING HELPER FUNCTIONS
 //==============================================================================
 
-// Draw button control - uses style configuration variables
-function draw_generic_button(x, y, w, h, is_on, label) local() (
-  // Draw button background
+// Draw button background with appropriate color based on state
+// Parameters:
+//   x, y: Position
+//   w, h: Dimensions
+//   is_on: Button state (0=off, 1=on)
+function draw_button_background(x, y, w, h, is_on) local() (
   is_on ? (
     gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
   ) : (
     gfx_set(button_style_off_r, button_style_off_g, button_style_off_b, 1);
   );
   gfx_rect(x, y, w, h);
+);
 
-  // Draw button border
+// Draw button border
+// Parameters:
+//   x, y: Position
+//   w, h: Dimensions
+function draw_button_border(x, y, w, h) local() (
   gfx_set(button_style_border_r, button_style_border_g, button_style_border_b, 1);
   gfx_rect(x, y, w, h, 0);
+);
 
-  // Draw button text
+// Draw button text with standard padding
+// Parameters:
+//   x, y: Position
+//   label: Button label text (string slot or string literal)
+function draw_button_text(x, y, label) local() (
   gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
-  gfx_x = x + 5; gfx_y = y + 5;
+  gfx_x = x + 8; gfx_y = y + 8;
   gfx_drawstr(label);
+);
+
+//==============================================================================
+// BUTTON RENDERING FUNCTION
+//==============================================================================
+
+// Draw button control - uses style configuration variables
+function draw_generic_button(x, y, w, h, is_on, label) local() (
+  draw_button_background(x, y, w, h, is_on);
+  draw_button_border(x, y, w, h);
+  draw_button_text(x, y, label);
 );
 
 //==============================================================================
