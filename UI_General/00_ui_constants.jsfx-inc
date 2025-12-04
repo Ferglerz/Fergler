@@ -67,7 +67,7 @@ SLIDER_H = 15;   // 20 * 0.75
 SLIDER_W_VERTICAL = 15;  // 20 * 0.75
 SLIDER_H_VERTICAL = 101; // 135 * 0.75 = 101.25 rounded down
 BUTTON_W = 60;   // 80 * 0.75
-BUTTON_H = 19;   // 25 * 0.75 = 18.75 rounded up
+BUTTON_H = 27;   // Increased from 19 to add more padding (8px top + ~11px text + 8px bottom)
 DROPDOWN_W = 90; // 120 * 0.75
 DROPDOWN_H = 19; // 25 * 0.75 = 18.75 rounded up
 

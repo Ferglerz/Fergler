@@ -9,9 +9,12 @@
 //==============================================================================
 
 // Preview Filters button (custom button, not a slider)
-// Button dimensions
-INPUT_PAGE_BUTTON_W = 160;  // 160px wide
+// Button dimensions - match HP/LP slider width
+// FILTER_SLIDER_W = SLIDER_W * 2 (from control_layout.jsfx-inc)
+// FILTER_HP_LP_SLIDER_W = (FILTER_SLIDER_W / 2) - 5
+INPUT_PAGE_BUTTON_W = (SLIDER_W * 2 / 2) - 5;  // Same as FILTER_HP_LP_SLIDER_W
 INPUT_PAGE_BUTTON_H = BUTTON_H;
+FILTER_HP_LP_GAP = 10;  // Same gap as HP/LP controls
 
 // Button position (will be calculated in @gfx based on Listen button position)
 preview_filters_button_x = 0;
@@ -40,8 +43,8 @@ function update_preview_filters_button_position() local(listen_x, listen_y, list
   listen_y = control_defs[9*11 + 2];  // Y position
   listen_w = control_defs[9*11 + 3];  // Width
   
-  // Position Preview Filters button to the right of Listen button with 10px gap
-  preview_filters_button_x = listen_x + listen_w + 10;
+  // Position Preview Filters button to the right of Listen button with same gap as HP/LP
+  preview_filters_button_x = listen_x + listen_w + FILTER_HP_LP_GAP;
   preview_filters_button_y = listen_y;
 );
 

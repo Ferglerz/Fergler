@@ -108,30 +108,25 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
-  // ROW 2: RMS Window and Normalize button (side by side)
+  // ROW 2: Listen and Preview Filters buttons (side by side)
   // ============================================================================
-  RMS_SLIDER_GAP = 5;  // 5px gap between RMS slider and Normalize button
-  RMS_SLIDER_W = SLIDER_W - BUTTON_W - RMS_SLIDER_GAP;  // RMS slider width (total width = SLIDER_W)
-  rms_normalize_total_width = RMS_SLIDER_W + RMS_SLIDER_GAP + BUTTON_W;  // Should equal SLIDER_W (123px)
-  rms_normalize_start_x = filter_controls_center_x - rms_normalize_total_width / 2;
-  
-  // RMS Window slider (left side)
-  define_slider(7, rms_normalize_start_x, row_y, RMS_SLIDER_W, FILTER_SLIDER_H, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
-  // Normalize button (right side, 5px gap)
-  define_button(8, rms_normalize_start_x + RMS_SLIDER_W + RMS_SLIDER_GAP, row_y, BUTTON_W, BUTTON_H, 9, S9.min, S9.max, S9.label);
+  // Use same layout as HP/LP row: same width and spacing
+  // Listen button (left side) - matches HP slider width and position
+  define_button(9, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
+  // Preview Filters button (right side) - matches LP slider width and position
+  // Note: Preview Filters is a custom button (not defined here, handled separately)
   
   // Move to next row
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
-  // ROW 3: Listen and Preview Filters buttons (side by side)
+  // ROW 3: RMS Window and Normalize button (side by side)
   // ============================================================================
-  listen_preview_total_width = BUTTON_W * 2 + 10;  // Two buttons with 10px gap
-  listen_preview_start_x = filter_controls_center_x - listen_preview_total_width / 2;
-  
-  // Listen button (left side) - real button, slider 16
-  define_button(9, listen_preview_start_x, row_y, BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
-  // Preview Filters button (right side, 10px gap) - custom button (not defined here, handled separately)
+  // Use same layout as HP/LP row: same width and spacing
+  // RMS Window slider (left side) - matches HP slider width and position
+  define_slider(7, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
+  // Normalize button (right side) - matches LP slider width and position
+  define_button(8, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 9, S9.min, S9.max, S9.label);
   
   // Move to next row
   row_y += FILTER_SLIDER_SPACING;
@@ -139,13 +134,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   // ============================================================================
   // ROW 4: Forward and Feedback buttons (radio buttons, side by side)
   // ============================================================================
-  detection_total_width = BUTTON_W * 2 + 10;  // Two buttons with 10px gap
-  detection_start_x = filter_controls_center_x - detection_total_width / 2;
-  
-  // Forward button (left side) - radio button, slider 10 = 1 (option index 1 = "Feedforward")
-  define_button(23, detection_start_x, row_y, BUTTON_W, BUTTON_H, 10, 1, 1, #forward_button_label);
-  // Feedback button (right side, 10px gap) - radio button, slider 10 = 0 (option index 0 = "Feedback")
-  define_button(24, detection_start_x + BUTTON_W + 10, row_y, BUTTON_W, BUTTON_H, 10, 0, 0, #feedback_button_label);
+  // Use same layout as HP/LP row: same width and spacing
+  // Forward button (left side) - matches HP slider width and position, radio button, slider 10 = 1 (option index 1 = "Feedforward")
+  define_button(23, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 10, 1, 1, #forward_button_label);
+  // Feedback button (right side) - matches LP slider width and position, radio button, slider 10 = 0 (option index 0 = "Feedback")
+  define_button(24, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 10, 0, 0, #feedback_button_label);
   
   // Move to next row
   row_y += FILTER_SLIDER_SPACING;
@@ -153,12 +146,10 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   // ============================================================================
   // ROW 5: Milliseconds and Microseconds buttons (radio buttons, side by side)
   // ============================================================================
-  time_unit_total_width = BUTTON_W * 2 + 10;  // Two buttons with 10px gap
-  time_unit_start_x = filter_controls_center_x - time_unit_total_width / 2;
-  
-  // Milliseconds button (left side) - radio button, slider 7 = 0 (option index 0 = "Milliseconds")
-  define_button(25, time_unit_start_x, row_y, BUTTON_W, BUTTON_H, 7, 0, 0, #milliseconds_button_label);
-  // Microseconds button (right side, 10px gap) - radio button, slider 7 = 1 (option index 1 = "Microseconds")
-  define_button(26, time_unit_start_x + BUTTON_W + 10, row_y, BUTTON_W, BUTTON_H, 7, 1, 1, #microseconds_button_label);
+  // Use same layout as HP/LP row: same width and spacing
+  // Milliseconds button (left side) - matches HP slider width and position, radio button, slider 7 = 0 (option index 0 = "Milliseconds")
+  define_button(25, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 7, 0, 0, #milliseconds_button_label);
+  // Microseconds button (right side) - matches LP slider width and position, radio button, slider 7 = 1 (option index 1 = "Microseconds")
+  define_button(26, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 7, 1, 1, #microseconds_button_label);
 );
 
