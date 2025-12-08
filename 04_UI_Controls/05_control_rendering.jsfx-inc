@@ -5,6 +5,18 @@
 @init
 
 //==============================================================================
+// CONTROL PAGE ASSIGNMENT
+//==============================================================================
+
+// Check if a control is on the Filters page
+// Returns: 1 if control is on Filters page, 0 otherwise
+// Filters page controls: 7, 8, 9, 13, 15, 16, 23, 24, 25, 26
+// Note: Control 12 = Input Offset (header), Control 22 = Output Gain (header) - NOT on Filters page
+function is_control_on_filters_page(control_index) (
+  (control_index == 7 || control_index == 8 || control_index == 9 || control_index == 13 || control_index == 15 || control_index == 16 || control_index == 23 || control_index == 24 || control_index == 25 || control_index == 26) ? 1 : 0;
+);
+
+//==============================================================================
 // CONTROL RENDERING
 //==============================================================================
 
@@ -12,9 +24,8 @@
 function render_all_controls_with_page_filtering() (
   i = 0;
   while (i < control_count) (
-    // Input page controls (indices 7, 8, 9, 13, 15, 16, 23, 24, 25, 26) - only render if Input page should be visible
-    // Note: Control 12 = Input Offset (header), Control 22 = Output Gain (header) - NOT on Input page
-    (i == 7 || i == 8 || i == 9 || i == 13 || i == 15 || i == 16 || i == 23 || i == 24 || i == 25 || i == 26) ? (
+    // Input page controls - only render if Input page should be visible
+    is_control_on_filters_page(i) ? (
       should_render_page(PAGE_FILTERS) ? (
         // Render with fade opacity
         render_control(i, get_page_fade_amount(PAGE_FILTERS));

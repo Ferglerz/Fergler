@@ -135,7 +135,6 @@ import UI_Sliders/10_slider_objects.jsfx-inc
 import UI_Sliders/02_control_definitions.jsfx-inc
 import UI_General/15_radio_button_groups.jsfx-inc
 import UI_Sliders/09_control_dispatcher.jsfx-inc
-import UI_Sliders/11_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
@@ -143,6 +142,7 @@ import 04_UI_Controls/02_step_points.jsfx-inc
 import 04_UI_Controls/03_control_layout.jsfx-inc
 import 04_UI_Controls/04_header_controls.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
+import UI_Sliders/11_control_interactions.jsfx-inc
 
 // UI_Graph: Graph rendering and interaction (depends on UI_General)
 // threshold_lines is now in UI_General and independent

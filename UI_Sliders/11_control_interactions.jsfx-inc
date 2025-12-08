@@ -377,11 +377,11 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
 
 // Check if a control should be interactive based on page visibility
 // Returns: 1 if control should be interactive, 0 if it's on a hidden page
+// Uses the same page assignment logic as rendering (is_control_on_filters_page)
 function is_control_interactive(control_index) (
-  // Input page controls (indices 7, 8, 15, 16) are on Input page
-  // Note: index 14 (Listen) is handled as custom button, not as regular control
-  (control_index == 7 || control_index == 8 || control_index == 15 || control_index == 16) ? (
-    // Only interactive if Input page is visible
+  // Check if control is on Filters page - if so, only interactive when page is visible
+  is_control_on_filters_page(control_index) ? (
+    // Only interactive if Filters page is visible
     should_render_page(PAGE_FILTERS);
   ) : (
     // All other controls are always interactive (they're not page-specific)
