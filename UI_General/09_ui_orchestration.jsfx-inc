@@ -165,4 +165,7 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
 
   // Handle all user interactions
   process_mouse_input();
+  
+  // Update cursor based on button hover state
+  update_cursor();
 );

@@ -45,3 +45,91 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
     handle_graph_mouse_input();
   );
 );
+
+//==============================================================================
+// CURSOR MANAGEMENT
+//==============================================================================
+
+// Update cursor based on button and graph point hover state
+// Sets cursor to hand pointer (32650) when hovering over buttons, crosshair (429) for graph points, arrow (32512) otherwise
+function update_cursor() local(is_hovering_button, is_hovering_point, i, control_type) (
+  is_hovering_button = 0;
+  is_hovering_point = 0;
+  
+  // Only check if gfx_w is valid (button positions need to be calculated)
+  gfx_w > 0 ? (
+    // Check page navigation buttons
+    update_page_button_positions();
+    i = 0;
+    while (i < NUM_PAGE_BUTTONS && !is_hovering_button) (
+      is_point_in_page_button(mouse_x, mouse_y, i) ? (
+        is_hovering_button = 1;
+      );
+      i += 1;
+    );
+    
+    // Check settings page buttons (only if Settings page is visible)
+    !is_hovering_button && should_render_page(PAGE_SETTINGS) ? (
+      update_settings_button_positions();
+      i = 0;
+      while (i < NUM_SETTINGS_BUTTONS && !is_hovering_button) (
+        // Skip blank row at index 3
+        i != 3 ? (
+          is_point_in_settings_button(mouse_x, mouse_y, i) ? (
+            is_hovering_button = 1;
+          );
+        );
+        i += 1;
+      );
+    );
+    
+    // Check Preview Filters button (only if Filters page is visible)
+    !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
+      update_preview_filters_button_position();
+      is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
+        is_hovering_button = 1;
+      );
+    );
+    
+    // Check custom buttons (Listen, Normalise, Milliseconds, Microseconds)
+    // Only check if Input page is visible
+    !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
+      // Listen button (control index 9)
+      is_point_in_control(mouse_x, mouse_y, 9) && control_defs[9*11 + 0] == 1 ? (
+        is_hovering_button = 1;
+      ) : (
+        // Normalise button (control index 8)
+        is_point_in_control(mouse_x, mouse_y, 8) && control_defs[8*11 + 0] == 1 ? (
+          is_hovering_button = 1;
+        ) : (
+          // Milliseconds button (control index 25)
+          is_point_in_control(mouse_x, mouse_y, 25) && control_defs[25*11 + 0] == 1 ? (
+            is_hovering_button = 1;
+          ) : (
+            // Microseconds button (control index 26)
+            is_point_in_control(mouse_x, mouse_y, 26) && control_defs[26*11 + 0] == 1 ? (
+              is_hovering_button = 1;
+            );
+          );
+        );
+      );
+    );
+    
+    // Check graph points (only if Graph page is visible and not hovering over button)
+    !is_hovering_button && should_render_page(PAGE_GRAPH) ? (
+      hovered_point >= 0 ? (
+        is_hovering_point = 1;
+      );
+    );
+    
+    // Set cursor based on hover state (buttons take priority over graph points)
+    is_hovering_button ? (
+      gfx_setcursor(32512);  // TODO replace with better hand pointer
+    ) : is_hovering_point ? (
+      gfx_setcursor(187);     //  Move cursor for graph points
+    ) : (
+      gfx_setcursor(32512);   // Default arrow cursor
+    );
+  );
+);
+
