@@ -24,6 +24,11 @@ function get_slider_config(control_index, control_type) (
     slider_config = parallax_slider_configs[control_index];
     format_options = (slider_config >> 8) & 0xFF;
     slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
+  ) : control_type == 4 ? (
+    // Knob: get config from control_defs (orientation is unused for knobs)
+    slider_config = control_defs[control_index*11 + 8];
+    slider_orientation = ORIENTATION_HORIZONTAL; // Unused for knobs, but set for compatibility
+    format_options = (slider_config >> 32) & 0xFF;
   ) : (
     // Regular slider: get config from control_defs
     slider_config = control_defs[control_index*11 + 8];
@@ -105,6 +110,45 @@ function calculate_normalized_position(control_index, mouse_x, mouse_y, slider_o
     ) : (
       pos
     )
+  )
+);
+
+// Calculate normalized position (0-1) for knobs from mouse coordinates
+// Knobs accept both horizontal and vertical mouse movement
+// Knobs go from 7:30 to 4:30 (as if it were a clock face)
+// Parameters: control_index, mouse_x, mouse_y, format_options
+// Returns: normalized position (0-1) where 0 is 7:30 and 1 is 4:30
+function calculate_knob_normalized_position(control_index, mouse_x, mouse_y, format_options) local(ctrl_x, ctrl_y, ctrl_w, center_x, center_y, dx, dy, angle_deg, normalized_pos) (
+  get_control_position_with_group_offset(control_index);
+  ctrl_w = control_defs[control_index*11 + 3];
+  center_x = ctrl_x + ctrl_w * 0.5;
+  center_y = ctrl_y + ctrl_w * 0.5;
+  
+  // Calculate angle from center to mouse position
+  dx = mouse_x - center_x;
+  dy = mouse_y - center_y;
+  angle_rad = atan2(dy, dx);
+  angle_deg = angle_rad * 180 / $pi;
+  
+  // Convert angle to normalized position
+  // Knobs go from 7:30 (-135 degrees) to 4:30 (45 degrees)
+  // Normalize angle to 0-1 range: -135 to 45 degrees = 270 degrees total
+  angle_deg < -135 ? (
+    // Angle is below 7:30, clamp to 7:30
+    normalized_pos = 0.0;
+  ) : angle_deg > 45 ? (
+    // Angle is above 4:30, clamp to 4:30
+    normalized_pos = 1.0;
+  ) : (
+    // Normalize: -135 to 45 degrees -> 0.0 to 1.0
+    normalized_pos = (angle_deg + 135) / 270;
+  );
+  
+  // Handle reverse option
+  format_options & OPTION_REVERSE ? (
+    1.0 - normalized_pos
+  ) : (
+    normalized_pos
   )
 );
 
@@ -215,6 +259,7 @@ function update_slider_value(control_index, mouse_x, mouse_y) local(control_type
     );
   );
 );
+
 
 
 // Find the index of the closest step-point for a given value
