@@ -66,9 +66,17 @@ filename:0,Images/Composure_BG1.png
 filename:1,Images/toggle_left2.png
 filename:2,Images/toggle_right2.png
 // Load parallax fader images
-filename:3,Images/para_horz_fader_top.png
-filename:4,Images/para_horz_fader_bot_left.png
-filename:5,Images/para_horz_fader_bot_right.png
+filename:3,Images/Paralax_Fader/para_horz_fader_top.png
+filename:4,Images/Paralax_Fader/para_horz_fader_bot_left.png
+filename:5,Images/Paralax_Fader/para_horz_fader_bot_right.png
+filename:6,Images/Paralax_Fader/para_horz_fader_bg.png
+// Load feedback/feedforward button images
+filename:7,Images/Feed/feedfwrd_off.png
+filename:8,Images/Feed/feedfwrd_on.png
+filename:9,Images/Feed/feedback_off.png
+filename:10,Images/Feed/feedback_on.png
+// Load knob background image
+filename:11,Images/knob.png
 
 //==============================================================================
 // INCLUDE MODULES
@@ -109,13 +117,12 @@ import 03_Compression/09_audio_processing_chain.jsfx-inc
 // 03_Compression/Envelope/05_envelope_parameters: Parameter updates (depends on clear_rms_state from 09_audio_processing_chain)
 import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 
-// UI_General: General UI components (constants, utils, drawing, debug, header, menu)
+// UI_General: General UI components (constants, utils, drawing, debug, menu)
 // These are foundational and must be imported first
 import UI_General/00_ui_constants.jsfx-inc
 import UI_General/02_ui_utils.jsfx-inc
 import UI_General/01_drawing_primitives.jsfx-inc
 import UI_General/03_debug.jsfx-inc
-import UI_General/04_header.jsfx-inc
 // Page buttons system (modular button-based pagination)
 import UI_General/12_page_buttons.jsfx-inc
 // Coordinate conversion service (independent, used by graph and meter)
@@ -140,7 +147,6 @@ import UI_Sliders/09_control_dispatcher.jsfx-inc
 import 04_UI_Controls/01_image_sets.jsfx-inc
 import 04_UI_Controls/02_step_points.jsfx-inc
 import 04_UI_Controls/03_control_layout.jsfx-inc
-import 04_UI_Controls/04_header_controls.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
 import UI_Sliders/11_control_interactions.jsfx-inc
 
@@ -242,6 +248,7 @@ function update_all_audio_parameters() (
 );
 
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
+freemem = 0;
 read_slider_definitions("Composure.jsfx");
 
 // 2. Initialize all constants, memory, and state variables
@@ -395,7 +402,15 @@ smooth_rms_coefficient();
 // GFX RUNTIME
 //==============================================================================
 
-@gfx 1066 428 // Width: 1066 (half of 2132), Height: 428
+@gfx 1066 489 // Width: 1066 (half of 2132), Height: 489
+
+// Clear updated slider values cache at start of each frame
+// This ensures cached values are only valid for one frame
+i = 0;
+while (i < 256) (
+  updated_slider_values[i] = -999;
+  i += 1;
+);
 
 // Update mouse state constants dynamically (evaluated every frame)
 MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button
@@ -442,6 +457,9 @@ INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
 create_meter_trail_line(gr_db_for_histogram);
 
 // Strength now used directly - no need for strength_actual
+
+// Handle all user interactions (must be called before rendering)
+process_mouse_input();
 
 // Render main interface
 render_complete_interface();

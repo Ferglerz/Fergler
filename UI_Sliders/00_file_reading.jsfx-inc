@@ -18,9 +18,10 @@ SLIDER_NAMES_BASE = 100; // This will need to be changed to use non-string memor
 DROPDOWN_OPTIONS_BASE = 200; // This will need to be changed to use non-string memory
 // No hardcoded max - using actual max value from slider definition (stored in slider_params_base)
 
-dropdown_option_counts_base = 10000;
-dropdown_option_values_base = 10100;
-slider_params_base = 11000;
+// Arrays will be allocated from freemem in read_slider_definitions
+dropdown_option_counts_base = 0;
+dropdown_option_values_base = 0;
+slider_params_base = 0;
 
 slider_names_count = 0;
 slider_names_loaded = 0;
@@ -381,7 +382,22 @@ function finalize_slider_reading(max_slider_num, success) (
 
 // Read slider definitions from a JSFX file
 // filename: Name of the JSFX file to read (e.g., "Composure.jsfx")
-function read_slider_definitions(filename) (
+function read_slider_definitions(filename) local(handle, max_slider_num, line_count, result, total_options, i) (
+  // Allocate memory for slider definitions dynamically
+  // NUM_CONTROLS is defined in 01_Utils/00_constants.jsfx-inc (imported before this module)
+  
+  // 1. Dropdown option counts (one per slider)
+  dropdown_option_counts_base = freemem;
+  freemem += NUM_CONTROLS;
+  
+  // 2. Slider parameters (4 values per slider: default, min, max, inc)
+  slider_params_base = freemem;
+  freemem += NUM_CONTROLS * 4;
+  
+  // 3. Dropdown option values (variable size)
+  // We allocate the start here, and will increment freemem by the total used size after parsing
+  dropdown_option_values_base = freemem;
+  
   handle = open_slider_file(filename);
   handle != -1 ? (
     max_slider_num = 0;
@@ -397,6 +413,16 @@ function read_slider_definitions(filename) (
       );
     );
     file_close(handle);
+    
+    // Calculate total size used by dropdown options and update freemem
+    total_options = 0;
+    i = 0;
+    while (i < max_slider_num) (
+       total_options += dropdown_option_counts_base[i];
+       i += 1;
+    );
+    freemem += total_options;
+    
     finalize_slider_reading(max_slider_num, 1);
   ) : (
     finalize_slider_reading(0, 0);

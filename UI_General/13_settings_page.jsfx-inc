@@ -9,33 +9,32 @@
 //==============================================================================
 
 // Number of settings buttons (menu items)
-NUM_SETTINGS_BUTTONS = 4;  // 3 buttons + 1 blank row
+NUM_SETTINGS_BUTTONS = 1;  // 1 button: Brickwall Limiter (Debug moved to top-left invisible button)
 
 // Button definitions (reordered)
-// Button 0: Brickwall Limiter
-// Button 1: (blank row - not drawn)
-// Button 2: Debug
-// Button 3: Hide Controls
+// Button 0: Brickwall Limiter (Row 0, centered full width)
+// Debug button moved to top-left invisible button (handled separately)
 // Feedforward/Feedback and Milliseconds/Microseconds are rendered by control system (controls 23-26)
 // Metering moved to small button below meter
 // Use Sidechain moved to Input page
 // Preview Filters moved to Input page
 
-// Button dimensions
-SETTINGS_BUTTON_W = 160;  // 160px wide as requested
+// Button dimensions (matching Input page layout)
+// Calculate directly to avoid dependency on control_layout.jsfx-inc execution order
+// FILTER_HP_LP_SLIDER_W = (SLIDER_W * 2) / 2 - 5 = SLIDER_W - 5
+SETTINGS_BUTTON_W = SLIDER_W - 5;  // Same as HP/LP sliders
 SETTINGS_BUTTON_H = BUTTON_H;
-SETTINGS_BUTTON_SPACING = 10;  // Space between buttons
+SETTINGS_BUTTON_GAP = 10;  // 10px gap (same as HP/LP)
+// FILTER_SLIDER_SPACING = FILTER_SLIDER_H + 24, where FILTER_SLIDER_H = SLIDER_H * 2
+SETTINGS_ROW_SPACING = (SLIDER_H * 2) + 24;  // Same row spacing as Input page
 
 // Button positions (will be calculated in @gfx)
 // Allocate arrays for button positions
 settings_button_x_base = 0;  // Base address for settings_button_x array
 settings_button_y_base = 0;  // Base address for settings_button_y array
 
-// Button label strings (use string slots 64-69)
+// Button label strings (use string slots 64-67)
 #settings_button_label_0 = 64;  // "Brickwall Limiter"
-#settings_button_label_1 = 65;  // (blank - not used)
-#settings_button_label_2 = 66;  // "Debug"
-#settings_button_label_3 = 67;  // "Hide Controls"
 
 //==============================================================================
 // STATE INITIALIZATION
@@ -43,27 +42,16 @@ settings_button_y_base = 0;  // Base address for settings_button_y array
 
 function init_settings_page() (
   // Memory allocation is done in allocate_memory() - just initialize values here
-  // Initialize button labels (reordered)
+  // Initialize button labels
   strcpy(#settings_button_label_0, "Brickwall Limiter");
-  // Label 1 is blank (not used)
-  strcpy(#settings_button_label_2, "Debug");
-  strcpy(#settings_button_label_3, "Hide Controls");
 );
 
 //==============================================================================
 // BUTTON POSITIONING
 //==============================================================================
 
-// Calculate settings button positions (centered in graph/meter area)
-function update_settings_button_positions() local(total_height, start_y, center_x, i, button_index, y_pos) (
-  // Calculate total height needed (3 buttons + 1 blank row)
-  // Layout: 1 button, blank row (extra spacing), 2 buttons
-  // = 1 button + 1 spacing + 1 extra spacing (blank) + 2 buttons + 1 spacing
-  total_height = 3 * SETTINGS_BUTTON_H + 2 * SETTINGS_BUTTON_SPACING + SETTINGS_BUTTON_SPACING;  // Extra spacing for blank row
-  
-  // Center vertically in graph area
-  start_y = GRAPH_Y + (GRAPH_SIZE - total_height) / 2;
-  
+// Calculate settings button positions (arranged in rows like Input page)
+function update_settings_button_positions() local(area_center_x, two_button_total_width, two_button_start_x, row_y, full_width_start_x) (
   // Center horizontally in graph/meter area
   // Graph area: GRAPH_X to GRAPH_X + GRAPH_SIZE
   // Meter area: extends to meter_x + meter_w
@@ -71,26 +59,17 @@ function update_settings_button_positions() local(total_height, start_y, center_
   meter_w = get_meter_w();
   area_right = meter_x + meter_w;
   area_center_x = (GRAPH_X + area_right) / 2;
-  center_x = area_center_x - SETTINGS_BUTTON_W / 2;
   
-  // Set positions for each button (skip index 1 for blank row)
-  y_pos = start_y;
-  i = 0;
-  while (i < NUM_SETTINGS_BUTTONS) (
-    i == 1 ? (
-      // Blank row - don't set position (will be skipped in rendering)
-      settings_button_x_base[i] = -999;  // Invalid position
-      settings_button_y_base[i] = -999;
-      // Add extra spacing for blank row
-      y_pos += SETTINGS_BUTTON_SPACING;
-    ) : (
-      // Regular button
-      settings_button_x_base[i] = center_x;
-      settings_button_y_base[i] = y_pos;
-      y_pos += SETTINGS_BUTTON_H + SETTINGS_BUTTON_SPACING;
-    );
-    i += 1;
-  );
+  // Start at same Y as Input page
+  row_y = GRAPH_Y + 10;
+  
+  // ============================================================================
+  // ROW 0: Brickwall Limiter (centered, full width like Input Offset)
+  // ============================================================================
+  // FILTER_SLIDER_W = SLIDER_W * 2 (from control_layout.jsfx-inc)
+  full_width_start_x = area_center_x - (SLIDER_W * 2) / 2;
+  settings_button_x_base[0] = full_width_start_x;
+  settings_button_y_base[0] = row_y;
 );
 
 //==============================================================================
@@ -132,26 +111,23 @@ function render_settings_page() (
         // Apply opacity
         gfx_a = page_opacity;
         
-        // Draw all settings buttons (skip blank row at index 1)
+        // Draw all settings buttons
         i = 0;
         while (i < NUM_SETTINGS_BUTTONS) (
-          // Skip blank row (index 1)
-          i != 1 ? (
-            // Get button state (using sliders for Brickwall Limiter)
-            is_enabled = (i == 0 && slider(26) > 0.5) ||  // Brickwall Limiter (slider26)
-                         (i == 2 && menu_debug_enabled > 0.5) ||  // Debug
-                         (i == 3 && menu_controls_hidden > 0.5);  // Hide Controls
-            
-            // Get label string slot based on button index
-            i == 0 ? label_slot = #settings_button_label_0 :
-            i == 2 ? label_slot = #settings_button_label_2 :
-            i == 3 ? label_slot = #settings_button_label_3 : 0;
-            
-            // Draw button
-            draw_settings_button(i, settings_button_x_base[i], settings_button_y_base[i], 
-                                SETTINGS_BUTTON_W, SETTINGS_BUTTON_H, 
-                                is_enabled, label_slot);
-          );
+          // Get button state (using sliders for Brickwall Limiter)
+          is_enabled = (i == 0 && slider(26) > 0.5);  // Brickwall Limiter (slider26)
+          
+          // Get label string slot based on button index
+          i == 0 ? label_slot = #settings_button_label_0 : 0;
+          
+          // Button width: full width for all buttons (centered, full width like Input Offset)
+          // FILTER_SLIDER_W = SLIDER_W * 2 (from control_layout.jsfx-inc)
+          button_w = SLIDER_W * 2;
+          
+          // Draw button
+          draw_settings_button(i, settings_button_x_base[i], settings_button_y_base[i], 
+                              button_w, SETTINGS_BUTTON_H, 
+                              is_enabled, label_slot);
           i += 1;
         );
         
@@ -167,9 +143,12 @@ function render_settings_page() (
 //==============================================================================
 
 // Check if point is inside a settings button
-function is_point_in_settings_button(x, y, button_index) (
+function is_point_in_settings_button(x, y, button_index) local(button_w) (
   settings_button_x_base[button_index] >= 0 && settings_button_y_base[button_index] >= 0 ? (
-    x >= settings_button_x_base[button_index] && x <= settings_button_x_base[button_index] + SETTINGS_BUTTON_W &&
+    // Button width: full width for all buttons (centered, full width like Input Offset)
+    // FILTER_SLIDER_W = SLIDER_W * 2 (from control_layout.jsfx-inc)
+    button_w = SLIDER_W * 2;
+    x >= settings_button_x_base[button_index] && x <= settings_button_x_base[button_index] + button_w &&
     y >= settings_button_y_base[button_index] && y <= settings_button_y_base[button_index] + SETTINGS_BUTTON_H;
   ) : (
     0;
@@ -178,19 +157,13 @@ function is_point_in_settings_button(x, y, button_index) (
 
 // Handle click on a settings button
 // Parameters:
-//   button_index: Button index that was clicked (0-3, skip 1 for blank row)
+//   button_index: Button index that was clicked (0)
 function handle_settings_button_click(button_index) (
   button_index == 0 ? (
     // Toggle brickwall limiter (slider26)
     slider(26) = slider(26) > 0.5 ? 0 : 1;
     brickwall_limiter = slider(26);
     sliderchange(1 << (26 - 1));
-  ) : button_index == 2 ? (
-    // Toggle debug
-    menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
-  ) : button_index == 3 ? (
-    // Toggle hide controls
-    menu_controls_hidden = menu_controls_hidden > 0.5 ? 0 : 1;
   );
 );
 
@@ -207,14 +180,12 @@ function process_settings_button_input() local(clicked, i) (
       MOUSE_LEFT_BUTTON && !settings_mouse_down ? (
         settings_mouse_down = 1;
         
-        // Check each button (skip blank row at index 1)
+        // Check each button
         i = 0;
         while (i < NUM_SETTINGS_BUTTONS && !clicked) (
-          i != 1 ? (
-            is_point_in_settings_button(mouse_x, mouse_y, i) ? (
-              handle_settings_button_click(i);
-              clicked = 1;
-            );
+          is_point_in_settings_button(mouse_x, mouse_y, i) ? (
+            handle_settings_button_click(i);
+            clicked = 1;
           );
           i += 1;
         );

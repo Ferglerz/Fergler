@@ -12,6 +12,11 @@ MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
 DISPLAY_NORMAL = 0;        // Normal display (value shown with optional suffix)
 DISPLAY_HIDE_VALUE = 2;    // Hide value display (e.g., Attack Curve)
 
+// === DRAG MODE CONSTANTS ===
+DRAG_MODE_HORIZONTAL = 0;
+DRAG_MODE_VERTICAL = 1;
+DRAG_MODE_BIDIRECTIONAL = 2;
+
 // === HISTOGRAM CONFIGURATION ===
 HISTOGRAM_ENABLED = 1; // Set to 0 to disable histogram completely
 HISTOGRAM_WINDOW_SECONDS = 3; // 3-second window for history
@@ -38,12 +43,10 @@ HEADER_SHADOW_HEIGHT = 4;
 HEADER_TOTAL_HEIGHT = HEADER_HEIGHT + HEADER_BORDER_HEIGHT + HEADER_SHADOW_HEIGHT;
 
 // Visual configuration (matches background image at 0.5 scale)
-GFX_WIDTH = 1066;  // Half of 2132 (background image width)
-GFX_HEIGHT = 440;  // Plugin height
 
 // UI Panel Configuration (now on LEFT side)
 UI_PANEL_X = 25;  // Left side of interface
-UI_PANEL_Y = 25 + HEADER_TOTAL_HEIGHT + 16;  
+UI_PANEL_Y = 70;  // Header removed, start at top margin (moved down 45px)  
 UI_PANEL_W = 600;  // 800 * 0.75
 UI_PANEL_H = 263;  // 350 * 0.75 = 262.5 rounded up
 
@@ -116,7 +119,7 @@ MENU_HOVER_R = 0.4; MENU_HOVER_G = 0.4; MENU_HOVER_B = 0.4;  // Hover background
 MENU_CHECKMARK_R = 0.0; MENU_CHECKMARK_G = 1.0; MENU_CHECKMARK_B = 0.0;  // Green checkmark
 
 // Group Configuration
-NUM_GROUPS = 5;  // Total number of groups (FILTERS removed - controls are ungrouped)
+NUM_GROUPS = 7;  // Total number of groups (Attack, Envelope, Release, Harmonics, Input, Settings)
 GROUP_BORDER_RADIUS = 5;  // Rounded corner radius
 GROUP_TITLE_HEIGHT = 22;  // Height of title area
 GROUP_TITLE_PADDING = 8;  // Horizontal padding around title text
@@ -163,16 +166,9 @@ OPTION_BIDIRECTIONAL = 0x04;   // Bit 2: Enable bidirectional drag (up/down and 
 OPTION_REVERSE = 0x08;         // Bit 3: Reverse the slider direction/fill
 OPTION_HIDE_LABEL = 0x10;     // Bit 4: Hide the slider label/title
 
-// Single UI control configuration function - ALL PARAMETERS REQUIRED
-// Parameters:
-//   orientation: ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL
-//   display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
-//   fill_direction: FILL_LEFT_TO_RIGHT, FILL_RIGHT_TO_LEFT, FILL_CENTER_OUT
-//   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
-//   format_options: OPTION_ROUNDED, OPTION_AUTO_STEP, OPTION_BIDIRECTIONAL, OPTION_REVERSE (can be combined with |)
-function create_ui_control(orientation, display_mode, fill_direction, formatting, format_options) (
-  orientation | (display_mode << 8) | (fill_direction << 16) | (formatting << 24) | (format_options << 32);
-);
+// NOTE: create_ui_control() is now defined in UI_Sliders/01_slider_constants.jsfx-inc
+// with 7 parameters (adds suffix_str and control_index for suffix string storage)
+// This allows suffix strings to be stored per-control in string slots (61+)
 
 //==============================================================================
 // DEBUG PANEL LAYOUT CONSTANTS

@@ -70,8 +70,8 @@ function update_page_button_positions() local(total_width, start_x, i) (
   // Calculate starting X position (center horizontally, then move 200px right)
   start_x = (gfx_w - total_width) / 2 + 200;
   
-  // Position buttons below graph
-  button_y = GRAPH_Y + GRAPH_SIZE + 20;
+  // Position buttons below graph (moved down 64px from original position: 45px baseline + 19px additional)
+  button_y = GRAPH_Y + GRAPH_SIZE + 84;
   
   // Set positions for each button
   i = 0;
