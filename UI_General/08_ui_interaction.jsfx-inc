@@ -12,12 +12,24 @@
 // MAIN MOUSE INPUT PROCESSING
 //==============================================================================
 
-function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked, metering_button_clicked) (
+function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked, metering_button_clicked, debug_button_clicked) (
   // Calculate meter position using shared functions
   gr_meter_x = get_meter_x();
   gr_meter_y = get_meter_y();
   gr_meter_w = get_meter_w();
   gr_meter_h = get_meter_h();
+
+  // Handle invisible debug button at top left (30x30, always functional, no rendering)
+  debug_button_clicked = 0;
+  MOUSE_LEFT_BUTTON && !debug_button_mouse_down ? (
+    debug_button_mouse_down = 1;
+    mouse_x >= 0 && mouse_x <= 30 && mouse_y >= 0 && mouse_y <= 30 ? (
+      menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
+      debug_button_clicked = 1;
+    );
+  ) : !MOUSE_LEFT_BUTTON ? (
+    debug_button_mouse_down = 0;
+  );
 
   // Handle page navigation buttons first (they have highest priority)
   custom_button_clicked = process_custom_button_input();
@@ -41,25 +53,27 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
   );
 
   // Handle custom UI controls (they have priority over graph)
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && !debug_button_clicked ? (
     handle_ui_mouse_input();
   );
 
   // Handle threshold line interactions (before graph interactions)
   // Pass meter position and graph bounds as parameters
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && ui_drag_control == -1 ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && !debug_button_clicked && ui_drag_control == -1 ? (
     handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
   );
 
   // Only process graph mouse input if not interacting with UI controls, buttons, or threshold lines
   // Also only process if Graph page is visible
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && !debug_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) ? (
     handle_graph_mouse_input();
   );
 );
 
 // Metering button mouse state
 metering_button_mouse_down = 0;
+// Debug button mouse state (invisible button at top-left, 30x30)
+debug_button_mouse_down = 0;
 
 //==============================================================================
 // CURSOR MANAGEMENT

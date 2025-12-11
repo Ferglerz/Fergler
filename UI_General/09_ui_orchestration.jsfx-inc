@@ -38,7 +38,7 @@ function apply_page_blur_graph_and_meter(meter_x, meter_y, meter_w, meter_h) (
 
 // Apply reflection blur (always active)
 function apply_reflection_blur(meter_x, meter_w) (
-  reflection_y = GRAPH_Y + GRAPH_SIZE + 16;
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 61;  // Moved down 45 pixels (was 16)
   reflection_blur_start_x = GRAPH_X - 10;
   reflection_blur_start_y = reflection_y;
   reflection_blur_end_x = meter_x + meter_w + 10;
@@ -52,15 +52,12 @@ function apply_reflection_blur(meter_x, meter_w) (
 
 function render_background_image() (
   // Render background image first (before everything else)
-  // Set position to top-left corner
+  // Set position to top-left corner (no header offset)
   gfx_x = 0;
-  gfx_y = 8;
+  gfx_y = 0;
   // Blit image at index 0, scale 1 (no scaling), rotation 0
   gfx_blit(0, 1, 0);
 );
-
-
-  gfx_y = 0;
 
 function render_complete_interface() local(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) (
   // Cache meter position calculations once per frame to avoid repeated function calls
@@ -74,10 +71,6 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
 
   // Draw background image first (before everything else)
   render_background_image();
-
-  // Draw header elements
-  draw_header();
-  setup_header_controls();
   
   // Draw all group backgrounds and titles (only if controls are visible)
   menu_controls_hidden < 0.5 ? (
@@ -163,9 +156,6 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
   
   // Draw page navigation buttons (below graph)
   render_custom_buttons();
-
-  // Handle all user interactions
-  process_mouse_input();
   
   // Update cursor based on button hover state
   update_cursor();
