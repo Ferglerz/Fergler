@@ -34,6 +34,9 @@ function init_state_variables() (
   // Initialize trail state (UI_Graph/05_dot_trail.jsfx-inc)
   init_trail_state();
   
+  // Initialize meter trail lines state (UI_Graph/06_meter_trail_lines.jsfx-inc)
+  init_meter_trail_lines_state();
+  
   // Initialize custom button state (UI_General/10_custom_buttons.jsfx-inc)
   init_custom_button_state();
   

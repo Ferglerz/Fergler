@@ -1,0 +1,109 @@
+// UI Trail Utilities Module - Shared utilities for trail visualizations
+// Provides common functions for trail buffer management, aging, and fading
+// Used by: 05_dot_trail.jsfx-inc, 06_meter_trail_lines.jsfx-inc
+// Depends on: 01_Utils/00_constants.jsfx-inc
+
+@init
+
+//==============================================================================
+// GENERIC TRAIL BUFFER CLEARING
+//==============================================================================
+
+// Clear a trail buffer (zero all values)
+// Parameters:
+//   buffer: buffer array pointer
+//   max_items: maximum number of items
+//   values_per_item: number of values per item (e.g., 3 for lines, 4 for dots)
+function clear_trail_buffer(buffer, max_items, values_per_item) local(i) (
+  i = 0;
+  while (i < max_items * values_per_item) (
+    buffer[i] = 0;
+    i += 1;
+  );
+);
+
+//==============================================================================
+// GENERIC TRAIL AGING AND UPDATE
+//==============================================================================
+
+// Generic function to age trail items and remove expired ones
+// Parameters:
+//   buffer: buffer array pointer
+//   count: current count (passed by value, returns new count)
+//   values_per_item: number of values per item
+//   age_index: index of age value within item (e.g., 2 for dots, 1 for lines)
+//   max_age_index: index of max_age value within item (e.g., 3 for dots, 2 for lines)
+//   samples_per_frame: samples to age per frame (typically srate / 60)
+// Returns: new count after removing expired items
+function update_trail_items_generic(buffer, count, values_per_item, age_index, max_age_index, samples_per_frame) local(i, item_idx, item_age, j, j_idx, next_idx, k) (
+  i = 0;
+  while (i < count) (
+    item_idx = i * values_per_item;
+    item_age = buffer[item_idx + age_index] + samples_per_frame;
+    buffer[item_idx + age_index] = item_age;
+    item_age >= buffer[item_idx + max_age_index] ? (
+      // Remove expired item by shifting remaining items
+      j = i;
+      while (j < count - 1) (
+        j_idx = j * values_per_item;
+        next_idx = (j + 1) * values_per_item;
+        // Copy all values for this item
+        k = 0;
+        while (k < values_per_item) (
+          buffer[j_idx + k] = buffer[next_idx + k];
+          k += 1;
+        );
+        j += 1;
+      );
+      count -= 1;
+    ) : (
+      i += 1;
+    );
+  );
+  count  // Return new count
+);
+
+//==============================================================================
+// GENERIC FADE ALPHA CALCULATION
+//==============================================================================
+
+// Calculate fade alpha for a trail item (linear decay)
+// Parameters:
+//   age: current age in samples
+//   max_age: maximum age in samples
+//   base_alpha: base alpha multiplier (e.g., 1.0 for lines, 0.5 for dots)
+// Returns: alpha value (0.0 to base_alpha)
+function calculate_trail_alpha(age, max_age, base_alpha) (
+  base_alpha * (1 - age / max_age)
+);
+
+// Calculate fade alpha for a trail item (exponential decay)
+// Uses exponential decay: alpha = base_alpha * exp(-decay_rate * normalized_age)
+// BEHAVIOR: Faster decay at the start, slows down as it fades (standard exponential, NOT negative exponential)
+//   - At t=0: alpha = base_alpha (full opacity)
+//   - At t=0.5: alpha ≈ base_alpha * 0.29 (with decay_rate=2.5, ~29% remaining)
+//   - At t=1.0: alpha ≈ 0 (nearly invisible)
+// This is the standard exp(-k*t) curve, which decays quickly initially then asymptotically approaches zero
+// Parameters:
+//   age: current age in samples
+//   max_age: maximum age in samples
+//   base_alpha: base alpha multiplier (e.g., 0.5 for lines, 0.5 for dots)
+//   decay_rate: decay rate constant (higher = faster initial decay, typical: 2.0-3.0)
+// Returns: alpha value (0.0 to base_alpha)
+function calculate_trail_alpha_exponential(age, max_age, base_alpha, decay_rate) local(normalized_age) (
+  normalized_age = age / max_age;
+  normalized_age >= 1.0 ? 0.0 : (
+    base_alpha * exp(-decay_rate * normalized_age)
+  )
+);
+
+//==============================================================================
+// SAMPLES PER FRAME CALCULATION
+//==============================================================================
+
+// Calculate approximate samples per frame (for aging calculations)
+// Uses 60fps as standard frame rate
+function get_samples_per_frame() (
+  srate / 60
+);
+
