@@ -9,15 +9,16 @@
 //==============================================================================
 
 // Number of settings buttons (menu items)
-NUM_SETTINGS_BUTTONS = 6;  // 5 buttons + 1 blank row
+NUM_SETTINGS_BUTTONS = 4;  // 3 buttons + 1 blank row
 
 // Button definitions (reordered)
-// Button 0: Metering
-// Button 1: Brickwall Limiter
-// Button 2: Use Sidechain
-// Button 3: (blank row - not drawn)
-// Button 4: Debug
-// Button 5: Hide Controls
+// Button 0: Brickwall Limiter
+// Button 1: (blank row - not drawn)
+// Button 2: Debug
+// Button 3: Hide Controls
+// Feedforward/Feedback and Milliseconds/Microseconds are rendered by control system (controls 23-26)
+// Metering moved to small button below meter
+// Use Sidechain moved to Input page
 // Preview Filters moved to Input page
 
 // Button dimensions
@@ -31,12 +32,10 @@ settings_button_x_base = 0;  // Base address for settings_button_x array
 settings_button_y_base = 0;  // Base address for settings_button_y array
 
 // Button label strings (use string slots 64-69)
-#settings_button_label_0 = 64;  // "Metering"
-#settings_button_label_1 = 65;  // "Brickwall Limiter"
-#settings_button_label_2 = 66;  // "Use Sidechain"
-#settings_button_label_3 = 67;  // (blank - not used)
-#settings_button_label_4 = 68;  // "Debug"
-#settings_button_label_5 = 69;  // "Hide Controls"
+#settings_button_label_0 = 64;  // "Brickwall Limiter"
+#settings_button_label_1 = 65;  // (blank - not used)
+#settings_button_label_2 = 66;  // "Debug"
+#settings_button_label_3 = 67;  // "Hide Controls"
 
 //==============================================================================
 // STATE INITIALIZATION
@@ -45,12 +44,10 @@ settings_button_y_base = 0;  // Base address for settings_button_y array
 function init_settings_page() (
   // Memory allocation is done in allocate_memory() - just initialize values here
   // Initialize button labels (reordered)
-  strcpy(#settings_button_label_0, "Metering");
-  strcpy(#settings_button_label_1, "Brickwall Limiter");
-  strcpy(#settings_button_label_2, "Use Sidechain");
-  // Label 3 is blank (not used)
-  strcpy(#settings_button_label_4, "Debug");
-  strcpy(#settings_button_label_5, "Hide Controls");
+  strcpy(#settings_button_label_0, "Brickwall Limiter");
+  // Label 1 is blank (not used)
+  strcpy(#settings_button_label_2, "Debug");
+  strcpy(#settings_button_label_3, "Hide Controls");
 );
 
 //==============================================================================
@@ -59,10 +56,10 @@ function init_settings_page() (
 
 // Calculate settings button positions (centered in graph/meter area)
 function update_settings_button_positions() local(total_height, start_y, center_x, i, button_index, y_pos) (
-  // Calculate total height needed (5 buttons + 1 blank row)
-  // Layout: 3 buttons, blank row (extra spacing), 2 buttons
-  // = 3 buttons + 3 spacings + 1 extra spacing (blank) + 2 buttons + 1 spacing
-  total_height = 5 * SETTINGS_BUTTON_H + 4 * SETTINGS_BUTTON_SPACING + SETTINGS_BUTTON_SPACING;  // Extra spacing for blank row
+  // Calculate total height needed (3 buttons + 1 blank row)
+  // Layout: 1 button, blank row (extra spacing), 2 buttons
+  // = 1 button + 1 spacing + 1 extra spacing (blank) + 2 buttons + 1 spacing
+  total_height = 3 * SETTINGS_BUTTON_H + 2 * SETTINGS_BUTTON_SPACING + SETTINGS_BUTTON_SPACING;  // Extra spacing for blank row
   
   // Center vertically in graph area
   start_y = GRAPH_Y + (GRAPH_SIZE - total_height) / 2;
@@ -76,11 +73,11 @@ function update_settings_button_positions() local(total_height, start_y, center_
   area_center_x = (GRAPH_X + area_right) / 2;
   center_x = area_center_x - SETTINGS_BUTTON_W / 2;
   
-  // Set positions for each button (skip index 3 for blank row)
+  // Set positions for each button (skip index 1 for blank row)
   y_pos = start_y;
   i = 0;
   while (i < NUM_SETTINGS_BUTTONS) (
-    i == 3 ? (
+    i == 1 ? (
       // Blank row - don't set position (will be skipped in rendering)
       settings_button_x_base[i] = -999;  // Invalid position
       settings_button_y_base[i] = -999;
@@ -135,24 +132,20 @@ function render_settings_page() (
         // Apply opacity
         gfx_a = page_opacity;
         
-        // Draw all settings buttons (skip blank row at index 3)
+        // Draw all settings buttons (skip blank row at index 1)
         i = 0;
         while (i < NUM_SETTINGS_BUTTONS) (
-          // Skip blank row (index 3)
-          i != 3 ? (
-            // Get button state (using sliders for Metering, Brickwall Limiter, Use Sidechain)
-            is_enabled = (i == 0 && slider(38) > 0.5) ||  // Metering (slider38)
-                         (i == 1 && slider(26) > 0.5) ||  // Brickwall Limiter (slider26)
-                         (i == 2 && slider(15) > 0.5) ||  // Use Sidechain (slider15)
-                         (i == 4 && menu_debug_enabled > 0.5) ||  // Debug
-                         (i == 5 && menu_controls_hidden > 0.5);  // Hide Controls
+          // Skip blank row (index 1)
+          i != 1 ? (
+            // Get button state (using sliders for Brickwall Limiter)
+            is_enabled = (i == 0 && slider(26) > 0.5) ||  // Brickwall Limiter (slider26)
+                         (i == 2 && menu_debug_enabled > 0.5) ||  // Debug
+                         (i == 3 && menu_controls_hidden > 0.5);  // Hide Controls
             
             // Get label string slot based on button index
             i == 0 ? label_slot = #settings_button_label_0 :
-            i == 1 ? label_slot = #settings_button_label_1 :
             i == 2 ? label_slot = #settings_button_label_2 :
-            i == 4 ? label_slot = #settings_button_label_4 :
-            i == 5 ? label_slot = #settings_button_label_5 : 0;
+            i == 3 ? label_slot = #settings_button_label_3 : 0;
             
             // Draw button
             draw_settings_button(i, settings_button_x_base[i], settings_button_y_base[i], 
@@ -185,26 +178,17 @@ function is_point_in_settings_button(x, y, button_index) (
 
 // Handle click on a settings button
 // Parameters:
-//   button_index: Button index that was clicked (0-5, skip 3 for blank row)
+//   button_index: Button index that was clicked (0-3, skip 1 for blank row)
 function handle_settings_button_click(button_index) (
   button_index == 0 ? (
-    // Toggle metering (slider38)
-    slider(38) = slider(38) > 0.5 ? 0 : 1;
-    sliderchange(1 << (38 - 1));
-  ) : button_index == 1 ? (
     // Toggle brickwall limiter (slider26)
     slider(26) = slider(26) > 0.5 ? 0 : 1;
     brickwall_limiter = slider(26);
     sliderchange(1 << (26 - 1));
   ) : button_index == 2 ? (
-    // Toggle use sidechain (slider15)
-    slider(15) = slider(15) > 0.5 ? 0 : 1;
-    use_sidechain = slider(15);
-    sliderchange(1 << (15 - 1));
-  ) : button_index == 4 ? (
     // Toggle debug
     menu_debug_enabled = menu_debug_enabled > 0.5 ? 0 : 1;
-  ) : button_index == 5 ? (
+  ) : button_index == 3 ? (
     // Toggle hide controls
     menu_controls_hidden = menu_controls_hidden > 0.5 ? 0 : 1;
   );
@@ -223,10 +207,10 @@ function process_settings_button_input() local(clicked, i) (
       MOUSE_LEFT_BUTTON && !settings_mouse_down ? (
         settings_mouse_down = 1;
         
-        // Check each button (skip blank row at index 3)
+        // Check each button (skip blank row at index 1)
         i = 0;
         while (i < NUM_SETTINGS_BUTTONS && !clicked) (
-          i != 3 ? (
+          i != 1 ? (
             is_point_in_settings_button(mouse_x, mouse_y, i) ? (
               handle_settings_button_click(i);
               clicked = 1;

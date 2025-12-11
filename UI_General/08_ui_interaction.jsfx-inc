@@ -12,7 +12,7 @@
 // MAIN MOUSE INPUT PROCESSING
 //==============================================================================
 
-function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked) (
+function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked, metering_button_clicked) (
   // Calculate meter position using shared functions
   gr_meter_x = get_meter_x();
   gr_meter_y = get_meter_y();
@@ -27,24 +27,39 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
   
   // Handle settings page buttons (if Settings page is visible)
   settings_button_clicked = process_settings_button_input();
+  
+  // Handle Metering button (always visible, below meter)
+  metering_button_clicked = 0;
+  MOUSE_LEFT_BUTTON && !metering_button_mouse_down ? (
+    metering_button_mouse_down = 1;
+    is_point_in_metering_button(mouse_x, mouse_y) ? (
+      handle_metering_button_click();
+      metering_button_clicked = 1;
+    );
+  ) : !MOUSE_LEFT_BUTTON ? (
+    metering_button_mouse_down = 0;
+  );
 
   // Handle custom UI controls (they have priority over graph)
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked ? (
     handle_ui_mouse_input();
   );
 
   // Handle threshold line interactions (before graph interactions)
   // Pass meter position and graph bounds as parameters
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && ui_drag_control == -1 ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && ui_drag_control == -1 ? (
     handle_threshold_line_mouse(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, GRAPH_MIN_DB, GRAPH_MAX_DB);
   );
 
   // Only process graph mouse input if not interacting with UI controls, buttons, or threshold lines
   // Also only process if Graph page is visible
-  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) ? (
+  !custom_button_clicked && !settings_button_clicked && !filters_page_button_clicked && !metering_button_clicked && ui_drag_control == -1 && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) ? (
     handle_graph_mouse_input();
   );
 );
+
+// Metering button mouse state
+metering_button_mouse_down = 0;
 
 //==============================================================================
 // CURSOR MANAGEMENT
@@ -91,24 +106,36 @@ function update_cursor() local(is_hovering_button, is_hovering_point, i, control
       );
     );
     
-    // Check custom buttons (Listen, Normalise, Milliseconds, Microseconds)
+    // Check Metering button (always visible, below meter)
+    !is_hovering_button ? (
+      is_point_in_metering_button(mouse_x, mouse_y) ? (
+        is_hovering_button = 1;
+      );
+    );
+    
+    // Check custom buttons (Listen, Use Sidechain, Normalise, Milliseconds, Microseconds)
     // Only check if Input page is visible
     !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
       // Listen button (control index 9)
       is_point_in_control(mouse_x, mouse_y, 9) && control_defs[9*11 + 0] == 1 ? (
         is_hovering_button = 1;
       ) : (
-        // Normalise button (control index 8)
-        is_point_in_control(mouse_x, mouse_y, 8) && control_defs[8*11 + 0] == 1 ? (
+        // Use Sidechain button (control index 27)
+        is_point_in_control(mouse_x, mouse_y, 27) && control_defs[27*11 + 0] == 1 ? (
           is_hovering_button = 1;
         ) : (
-          // Milliseconds button (control index 25)
-          is_point_in_control(mouse_x, mouse_y, 25) && control_defs[25*11 + 0] == 1 ? (
+          // Normalise button (control index 8)
+          is_point_in_control(mouse_x, mouse_y, 8) && control_defs[8*11 + 0] == 1 ? (
             is_hovering_button = 1;
           ) : (
-            // Microseconds button (control index 26)
-            is_point_in_control(mouse_x, mouse_y, 26) && control_defs[26*11 + 0] == 1 ? (
+            // Milliseconds button (control index 25)
+            is_point_in_control(mouse_x, mouse_y, 25) && control_defs[25*11 + 0] == 1 ? (
               is_hovering_button = 1;
+            ) : (
+              // Microseconds button (control index 26)
+              is_point_in_control(mouse_x, mouse_y, 26) && control_defs[26*11 + 0] == 1 ? (
+                is_hovering_button = 1;
+              );
             );
           );
         );

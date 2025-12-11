@@ -92,6 +92,15 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row_y = filters_area_y + 10;
   
   // ============================================================================
+  // ROW 0: Input Offset (before HP/LP row)
+  // ============================================================================
+  // Input Offset slider - centered, full width
+  define_slider(12, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 12));
+  
+  // Move to next row
+  row_y += FILTER_SLIDER_SPACING;
+  
+  // ============================================================================
   // ROW 1: High Pass and Low Pass (side by side)
   // ============================================================================
   FILTER_HP_LP_SLIDER_W = (FILTER_SLIDER_W / 2) - 5;  // Half width minus 5px
@@ -108,13 +117,24 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
-  // ROW 2: Listen and Preview Filters buttons (side by side)
+  // ROW 2: Listen, Auto-preview, and Use Sidechain buttons (three buttons side by side)
   // ============================================================================
-  // Use same layout as HP/LP row: same width and spacing
-  // Listen button (left side) - matches HP slider width and position
-  define_button(9, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
-  // Preview Filters button (right side) - matches LP slider width and position
-  // Note: Preview Filters is a custom button (not defined here, handled separately)
+  // Calculate widths for 3 buttons with 10px gaps
+  // Total width: FILTER_SLIDER_W = 246
+  // Total gaps: 2 * 10 = 20
+  // Available for buttons: 246 - 20 = 226
+  // Width per button: 226 / 3 = 75 (rounded down)
+  FILTER_THREE_BUTTON_W = 75;  // Width for each of the three buttons
+  FILTER_THREE_BUTTON_GAP = 10;  // Gap between buttons
+  filter_three_button_total_width = FILTER_THREE_BUTTON_W * 3 + FILTER_THREE_BUTTON_GAP * 2;
+  filter_three_button_start_x = filter_controls_center_x - filter_three_button_total_width / 2;
+  
+  // Listen button (left side)
+  define_button(9, filter_three_button_start_x, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
+  // Auto-preview button (middle) - custom button (not defined here, handled separately)
+  // Use Sidechain button (right side) - positioned after Auto-preview
+  define_button(27, filter_three_button_start_x + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label);
+  // Auto-preview button position (calculated in filters_page.jsfx-inc, positioned between Listen and Use Sidechain)
   
   // Move to next row
   row_y += FILTER_SLIDER_SPACING;
@@ -132,24 +152,41 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, row, group
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
-  // ROW 4: Forward and Feedback buttons (radio buttons, side by side)
+  // ROW 4: Lookahead (after RMS row)
   // ============================================================================
-  // Use same layout as HP/LP row: same width and spacing
-  // Forward button (left side) - matches HP slider width and position, radio button, slider 10 = 1 (option index 1 = "Feedforward")
-  define_button(23, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 10, 1, 1, #forward_button_label);
-  // Feedback button (right side) - matches LP slider width and position, radio button, slider 10 = 0 (option index 0 = "Feedback")
-  define_button(24, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 10, 0, 0, #feedback_button_label);
-  
-  // Move to next row
-  row_y += FILTER_SLIDER_SPACING;
+  // Lookahead slider - centered, full width
+  define_slider(10, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 10));
   
   // ============================================================================
-  // ROW 5: Milliseconds and Microseconds buttons (radio buttons, side by side)
+  // SETTINGS PAGE: Feedforward/Feedback and Milliseconds/Microseconds buttons
   // ============================================================================
-  // Use same layout as HP/LP row: same width and spacing
-  // Milliseconds button (left side) - matches HP slider width and position, radio button, slider 7 = 0 (option index 0 = "Milliseconds")
-  define_button(25, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 7, 0, 0, #milliseconds_button_label);
-  // Microseconds button (right side) - matches LP slider width and position, radio button, slider 7 = 1 (option index 1 = "Microseconds")
-  define_button(26, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 7, 1, 1, #microseconds_button_label);
+  // Position these controls in the Settings page area (graph/meter area)
+  // They will be filtered to only show on Settings page via page filtering
+  // Calculate center of Settings page area (graph + meter area)
+  meter_x = GRAPH_X + GRAPH_SIZE + 15;  // get_meter_x() equivalent
+  meter_w = 23;  // get_meter_w() equivalent
+  area_right = meter_x + meter_w;
+  settings_area_center_x = (GRAPH_X + area_right) / 2;
+  
+  // Use same button width and gap as Input page three-button row
+  settings_button_w = FILTER_THREE_BUTTON_W;  // 75px
+  settings_button_gap = FILTER_THREE_BUTTON_GAP;  // 10px
+  settings_two_button_total_width = settings_button_w * 2 + settings_button_gap;
+  settings_two_button_start_x = settings_area_center_x - settings_two_button_total_width / 2;
+  
+  // Calculate Y position - position after Hide Controls button area
+  // Settings page buttons: Brickwall (0), blank (1), Debug (2), Hide Controls (3)
+  // After Hide Controls, add spacing and position radio buttons
+  // Settings buttons are centered vertically, so calculate position after them
+  settings_controls_y = GRAPH_Y + GRAPH_SIZE * 0.65;  // Position in lower 35% of graph area
+  
+  // Feedforward/Feedback buttons (side by side)
+  define_button(23, settings_two_button_start_x, settings_controls_y, settings_button_w, BUTTON_H, 10, 1, 1, #forward_button_label);
+  define_button(24, settings_two_button_start_x + settings_button_w + settings_button_gap, settings_controls_y, settings_button_w, BUTTON_H, 10, 0, 0, #feedback_button_label);
+  
+  // Milliseconds/Microseconds buttons (side by side, below Feedforward/Feedback)
+  settings_controls_y += BUTTON_H + settings_button_gap;
+  define_button(25, settings_two_button_start_x, settings_controls_y, settings_button_w, BUTTON_H, 7, 0, 0, #milliseconds_button_label);
+  define_button(26, settings_two_button_start_x + settings_button_w + settings_button_gap, settings_controls_y, settings_button_w, BUTTON_H, 7, 1, 1, #microseconds_button_label);
 );
 

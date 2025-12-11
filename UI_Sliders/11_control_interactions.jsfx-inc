@@ -377,12 +377,15 @@ function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_
 
 // Check if a control should be interactive based on page visibility
 // Returns: 1 if control should be interactive, 0 if it's on a hidden page
-// Uses the same page assignment logic as rendering (is_control_on_filters_page)
+// Uses the same page assignment logic as rendering (is_control_on_filters_page, is_control_on_settings_page)
 function is_control_interactive(control_index) (
   // Check if control is on Filters page - if so, only interactive when page is visible
   is_control_on_filters_page(control_index) ? (
     // Only interactive if Filters page is visible
     should_render_page(PAGE_FILTERS);
+  ) : is_control_on_settings_page(control_index) ? (
+    // Only interactive if Settings page is visible
+    should_render_page(PAGE_SETTINGS);
   ) : (
     // All other controls are always interactive (they're not page-specific)
     1;

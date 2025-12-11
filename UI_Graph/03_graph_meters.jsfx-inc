@@ -236,6 +236,57 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
 );
 
 //==============================================================================
+// METERING BUTTON
+//==============================================================================
+
+// Draw small 10x10 pixel 75% opaque white Metering button below the meter
+// Parameters: meter_x, meter_y, meter_w, meter_h - meter position and dimensions
+function draw_metering_button(meter_x, meter_y, meter_w, meter_h) local(button_x, button_y, button_w, button_h, is_enabled) (
+  button_w = 10;
+  button_h = 10;
+  // Center horizontally on meter, 5 pixels below
+  button_x = meter_x + (meter_w - button_w) / 2;
+  button_y = meter_y + meter_h + 5;
+  is_enabled = slider(38) > 0.5;
+  
+  // Draw button background (75% opaque white when enabled, darker when disabled)
+  is_enabled ? (
+    gfx_set(1, 1, 1, 0.75);  // 75% opaque white
+  ) : (
+    gfx_set(0.3, 0.3, 0.3, 0.75);  // 75% opaque dark gray
+  );
+  gfx_rect(button_x, button_y, button_w, button_h);
+  
+  // Draw border
+  gfx_set(0.6, 0.6, 0.6, 0.75);
+  gfx_line(button_x, button_y, button_x + button_w, button_y, 1);
+  gfx_line(button_x + button_w, button_y, button_x + button_w, button_y + button_h, 1);
+  gfx_line(button_x + button_w, button_y + button_h, button_x, button_y + button_h, 1);
+  gfx_line(button_x, button_y + button_h, button_x, button_y, 1);
+);
+
+// Check if point is inside Metering button
+function is_point_in_metering_button(x, y) local(meter_x, meter_y, meter_w, meter_h, button_x, button_y, button_w, button_h) (
+  meter_x = get_meter_x();
+  meter_y = get_meter_y();
+  meter_w = get_meter_w();
+  meter_h = get_meter_h();
+  button_w = 10;
+  button_h = 10;
+  button_x = meter_x + (meter_w - button_w) / 2;
+  button_y = meter_y + meter_h + 5;
+  x >= button_x && x <= button_x + button_w &&
+  y >= button_y && y <= button_y + button_h;
+);
+
+// Handle click on Metering button
+function handle_metering_button_click() (
+  // Toggle metering (slider38)
+  slider(38) = slider(38) > 0.5 ? 0 : 1;
+  sliderchange(1 << (38 - 1));
+);
+
+//==============================================================================
 // GAIN REDUCTION METER
 //==============================================================================
 
@@ -291,6 +342,9 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
   
   // Draw meter reflection below the meter (on same plane as histogram reflection)
   draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  
+  // Draw small Metering button below the meter (10x10 pixels, 5 pixels below meter)
+  draw_metering_button(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 );
 
 //==============================================================================

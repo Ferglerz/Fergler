@@ -9,19 +9,18 @@
 //==============================================================================
 
 // Preview Filters button (custom button, not a slider)
-// Button dimensions - match HP/LP slider width
-// FILTER_SLIDER_W = SLIDER_W * 2 (from control_layout.jsfx-inc)
-// FILTER_HP_LP_SLIDER_W = (FILTER_SLIDER_W / 2) - 5
-INPUT_PAGE_BUTTON_W = (SLIDER_W * 2 / 2) - 5;  // Same as FILTER_HP_LP_SLIDER_W
+// Button dimensions - match three-button row width
+// FILTER_THREE_BUTTON_W = 75 (from control_layout.jsfx-inc)
+INPUT_PAGE_BUTTON_W = 75;  // Same as FILTER_THREE_BUTTON_W
 INPUT_PAGE_BUTTON_H = BUTTON_H;
-FILTER_HP_LP_GAP = 10;  // Same gap as HP/LP controls
+FILTER_THREE_BUTTON_GAP = 10;  // Same gap as three-button row
 
 // Button position (will be calculated in @gfx based on Listen button position)
 preview_filters_button_x = 0;
 preview_filters_button_y = 0;
 
 // Button label string (use string slot 70)
-#preview_filters_button_label = 70;  // "Preview Filters"
+#preview_filters_button_label = 70;  // "Auto-preview"
 
 //==============================================================================
 // STATE INITIALIZATION
@@ -29,22 +28,25 @@ preview_filters_button_y = 0;
 
 function init_filters_page() (
   // Initialize button label
-  strcpy(#preview_filters_button_label, "Preview Filters");
+  strcpy(#preview_filters_button_label, "Auto-preview");
 );
 
 //==============================================================================
 // BUTTON POSITIONING
 //==============================================================================
 
-// Calculate Preview Filters button position (next to Listen button, control index 9)
-function update_preview_filters_button_position() local(listen_x, listen_y, listen_w) (
+// Calculate Auto-preview button position (between Listen and Use Sidechain buttons)
+function update_preview_filters_button_position() local(listen_x, listen_y, listen_w, use_sidechain_x) (
   // Get Listen button position from control_defs (control index 9)
   listen_x = control_defs[9*11 + 1];  // X position
   listen_y = control_defs[9*11 + 2];  // Y position
   listen_w = control_defs[9*11 + 3];  // Width
   
-  // Position Preview Filters button to the right of Listen button with same gap as HP/LP
-  preview_filters_button_x = listen_x + listen_w + FILTER_HP_LP_GAP;
+  // Get Use Sidechain button position from control_defs (control index 27)
+  use_sidechain_x = control_defs[27*11 + 1];  // X position
+  
+  // Position Auto-preview button between Listen and Use Sidechain buttons
+  preview_filters_button_x = listen_x + listen_w + FILTER_THREE_BUTTON_GAP;
   preview_filters_button_y = listen_y;
 );
 
