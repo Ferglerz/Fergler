@@ -17,6 +17,8 @@
 //   1 = Button (toggle)
 //   2 = Dropdown (combobox)
 //   3 = Parallax Fader
+//   4 = Knob
+//   4 = Knob
 //
 // USAGE:
 //   render_control(control_index, opacity);
@@ -42,7 +44,7 @@
 //   [index*11 + 6] = min_val
 //   [index*11 + 7] = max_val
 //   [index*11 + 8] = config (for sliders: orientation, display_mode, fill_direction, formatting, format_options)
-//   [index*11 + 9] = (unused)
+//   [index*11 + 9] = label (string slot index for control label)
 //   [index*11 + 10] = group_idx (-1 if not in group)
 //
 
@@ -204,6 +206,64 @@ function render_control(index, opacity) local(
         draw_parallax_fader(x, y, w, h, current_value, min_val, max_val, label_slot, param_index,
                             image_top_index, image_bot_index, image_w, image_h,
                             paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+      );
+    ) : type == 4 ? ( // Knob - extract config and call renderer directly
+      knob_config = control_defs[index*11 + 8];
+      
+      // Check if this knob uses an image background (image_index > 0)
+      image_index = knob_config & 0xFF;  // Bits 0-7: image index
+      image_index > 0 ? (
+        // Image knob: decode image configuration and get slider_config from separate array
+        image_w = (knob_config >> 8) & 0xFF;   // Bits 8-15: image width
+        image_h = (knob_config >> 16) & 0xFF;  // Bits 16-23: image height
+        slider_config = knob_slider_configs[index]; // Get slider_config from separate array
+        // Get image properties from separate arrays
+        offset_x = knob_image_offsets_x[index];
+        offset_y = knob_image_offsets_y[index];
+        image_scale = knob_image_scales[index];
+      ) : (
+        // No image: slider_config is stored directly in control_defs
+        slider_config = knob_config;
+        image_index = 0;
+        image_w = 0;
+        image_h = 0;
+        offset_x = 0;
+        offset_y = 0;
+        image_scale = 1.0;
+      );
+      
+      // Get line offset from separate array (defaults to 3 if not set)
+      line_offset = knob_line_offsets[index];
+      
+      // Extract configuration parameters from slider_config
+      slider_orientation = slider_config & 0xFF;             // Bits 0-7: slider orientation (unused for knobs)
+      display_mode = (slider_config >> 8) & 0xFF;           // Bits 8-15: display mode
+      fill_direction = (slider_config >> 16) & 0xFF;        // Bits 16-23: fill direction (unused for knobs)
+      formatting = (slider_config >> 24) & 0xFF;            // Bits 24-31: formatting
+      format_options = (slider_config >> 32) & 0xFF;        // Bits 32-39: format options
+      
+      // Retrieve stored suffix string for this control
+      get_control_suffix(index);
+      suffix_str = #value_str;
+      
+      // Apply dynamic suffix override for Attack knob (param_index 1) based on time unit selector
+      // Only Attack knob responds to the time unit selector (time_multiplier variable)
+      param_index == 1 ? (
+        time_multiplier == 0 ? strcpy(#value_str, " ms") :
+        time_multiplier == 1 ? strcpy(#value_str, " us") :
+        strcpy(#value_str, " s");
+        suffix_str = #value_str;
+      );
+      
+      // For enumerated knobs, ignore min_val/max_val from control_defs
+      // They use option_count instead (0 to option_count-1)
+      option_count = get_dropdown_option_count(param_index);
+      option_count > 0 ? (
+        // Enumerated knob: use 0 and option_count-1 as min/max
+        draw_knob(x, y, w, current_value, 0, option_count - 1, label_slot, param_index, suffix_str, formatting, format_options, display_mode, image_index, image_w, image_h, offset_x, offset_y, image_scale, line_offset);
+      ) : (
+        // Continuous knob: use min_val/max_val from control_defs
+        draw_knob(x, y, w, current_value, min_val, max_val, label_slot, param_index, suffix_str, formatting, format_options, display_mode, image_index, image_w, image_h, offset_x, offset_y, image_scale, line_offset);
       );
     ) : (
       0; // Unknown control type

@@ -136,6 +136,7 @@ import UI_Sliders/03_value_formatting.jsfx-inc
 import UI_Sliders/04_value_text_rendering.jsfx-inc
 import UI_Sliders/05_slider_rendering.jsfx-inc
 import UI_Sliders/06_parallax_fader_rendering.jsfx-inc
+import UI_Sliders/06_knob_rendering.jsfx-inc
 import UI_Sliders/07_button_rendering.jsfx-inc
 import UI_Sliders/08_dropdown_rendering.jsfx-inc
 import UI_Sliders/10_slider_objects.jsfx-inc
