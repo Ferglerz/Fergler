@@ -61,6 +61,8 @@ function define_group(index, x, y, w, h, show_title, title) local(title_slot) (
 current_control_group = -1;  // -1 = no group (absolute positioning)
 
 // Global counter to track actual number of controls defined (auto-incremented)
+// Always reset to 0 at start of @init - setup_control_layout() will set it correctly
+// This ensures control_count is accurate even if @init runs multiple times
 control_count = 0;  // Tracks highest index + 1 of all defined controls
 
 //==============================================================================
@@ -144,6 +146,61 @@ function define_dropdown(index, x, y, w, h, param_index, min_val, max_val, label
   control_defs[index*11 + 8] = 0;         // Reserved
   control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
   control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+  // Track control count (highest index + 1)
+  control_count = max(control_count, index + 1);
+);
+
+// Define knob control
+// Parameters:
+//   index: Control index
+//   x, y: Position (relative to group if group set)
+//   w, h: Dimensions (will be forced to square)
+//   param_index: Parameter index
+//   min_val, max_val: Value range
+//   label: Label string slot
+//   slider_config: Unified slider configuration
+//   image_index: Image index for background (0 = no image, use default rendering)
+//   image_w, image_h: Image dimensions (only used if image_index > 0)
+//   offset_x, offset_y: Pixel offsets to fine-tune knob center position (only used if image_index > 0)
+//   image_scale: Scale factor for image (e.g., 1.0 for no scaling, only used if image_index > 0)
+//   line_offset: Pixel offset of indicator line from outside edge (default 3 if not specified)
+function define_knob(index, x, y, w, h, param_index, min_val, max_val, label, slider_config, image_index, image_w, image_h, offset_x, offset_y, image_scale, line_offset) local(knob_size, knob_config) (
+  // Force width and height to be the same (use maximum of the two)
+  knob_size = max(w, h);
+  control_defs[index*11 + 0] = 4;         // 4=knob
+  control_defs[index*11 + 1] = x;         // X position (relative to group if group set)
+  control_defs[index*11 + 2] = y;         // Y position (relative to group if group set)
+  control_defs[index*11 + 3] = knob_size; // Width (forced to square)
+  control_defs[index*11 + 4] = knob_size; // Height (forced to square)
+  control_defs[index*11 + 5] = param_index; // Parameter index
+  control_defs[index*11 + 6] = min_val;   // Min value
+  control_defs[index*11 + 7] = max_val;   // Max value
+  
+  // If image_index > 0, encode image configuration similar to parallax faders
+  // Encode: (image_index) | (image_w << 8) | (image_h << 16)
+  // Store slider_config separately in knob_slider_configs array
+  image_index > 0 ? (
+    knob_config = image_index | ((image_w | 0) << 8) | ((image_h | 0) << 16);
+    control_defs[index*11 + 8] = knob_config;  // Image configuration
+    knob_slider_configs[index] = slider_config; // Store slider_config separately
+  ) : (
+    control_defs[index*11 + 8] = slider_config; // Unified slider configuration (no image)
+  );
+  
+  control_defs[index*11 + 9] = label;     // Label string slot (passed directly from slider object)
+  control_defs[index*11 + 10] = current_control_group; // Group index (-1 = no group)
+  
+  // Store image properties in separate arrays (only used if image_index > 0)
+  knob_image_indices[index] = image_index;
+  knob_image_widths[index] = image_w;
+  knob_image_heights[index] = image_h;
+  knob_image_offsets_x[index] = offset_x;
+  knob_image_offsets_y[index] = offset_y;
+  knob_image_scales[index] = image_scale;
+  
+  // Store line offset (default to 3 if not specified)
+  knob_line_offsets[index] = line_offset > 0 ? line_offset : 3;
+  
   // Track control count (highest index + 1)
   control_count = max(control_count, index + 1);
 );

@@ -1,0 +1,209 @@
+// Knob Rendering Module
+// Handles rendering of knob controls
+// Dependencies: UI_Sliders/01_slider_constants.jsfx-inc, UI_Sliders/03_value_formatting.jsfx-inc, UI_Sliders/04_value_text_rendering.jsfx-inc
+
+@init
+
+//==============================================================================
+// KNOB RENDERING
+//==============================================================================
+//
+// This module provides knob rendering functionality.
+// It handles:
+// - Circular knob background
+// - Position indicator (small circle at edge)
+// - Value display
+// - Label rendering
+//
+// Knobs go from 7:30 to 4:30 (as if it were a clock face)
+// Position indicator is 3 pixels wide and 1 pixel from the outside edge
+//
+// USAGE:
+//   draw_knob(x, y, size, value, min_val, max_val, label, param_index, suffix_str, formatting, format_options, display_mode);
+
+//==============================================================================
+// KNOB STYLE CONFIGURATION (Module-level variables)
+//==============================================================================
+
+// Style configuration variables - set these before rendering
+knob_style_label_height = 11;
+knob_style_text_r = 1.0; knob_style_text_g = 1.0; knob_style_text_b = 1.0;
+knob_style_bg_r = 0.02; knob_style_bg_g = 0.02; knob_style_bg_b = 0.02;
+knob_style_indicator_r = 1.0; knob_style_indicator_g = 1.0; knob_style_indicator_b = 1.0;
+
+//==============================================================================
+// KNOB RENDERING FUNCTION
+//==============================================================================
+
+// Draw knob control
+// suffix_str: Suffix string to append (e.g., " ms", " dB"). Empty string means no suffix.
+// display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+// image_index: Image index for background (0 = no image, use default rendering)
+// image_w, image_h: Image dimensions (only used if image_index > 0)
+// offset_x, offset_y: Pixel offsets to fine-tune knob center position (only used if image_index > 0)
+// image_scale: Scale factor for image (e.g., 1.0 for no scaling, only used if image_index > 0)
+// line_offset: Pixel offset of indicator line from outside edge
+function draw_knob(x, y, size, value, min_val, max_val, label, param_index, suffix_str, formatting, format_options, display_mode, image_index, image_w, image_h, offset_x, offset_y, image_scale, line_offset) local(
+  center_x, center_y, radius, normalized_pos, angle, indicator_x, indicator_y, option_count, step_count, total_options, value_index, stepped_value, display_value, reverse_mode, label_w, label_h,
+  scaled_w, scaled_h, image_x, image_y
+) (
+  // Calculate center position with offset for fine-tuning (only used if image_index > 0)
+  image_index > 0 ? (
+    center_x = x + size * 0.5 + offset_x;
+    center_y = y + size * 0.5 + offset_y;
+  ) : (
+    center_x = x + size * 0.5;
+    center_y = y + size * 0.5;
+  );
+  radius = size * 0.5;
+  
+  // Check if this knob has enumerated options or step-points (stepped behavior)
+  option_count = get_dropdown_option_count(param_index);
+  step_count = get_step_point_count(param_index);
+  total_options = option_count > 0 ? option_count : step_count;
+  
+  // Calculate stepped value if knob has enumerated options or step-points
+  total_options > 0 ? (
+    option_count > 0 ? (
+      // Enumerated knob: value IS the index
+      value_index = floor(value);
+      value_index = max(0, min(option_count - 1, value_index));
+      // Get the actual discrete value from our cached enumerated list
+      stepped_value = get_dropdown_option_value(param_index, value_index);
+    ) : (
+      // Step-point knob: find closest step-point index
+      step_points_base = get_step_points_base(param_index);
+      value_index = find_step_point_index(value, step_points_base, step_count);
+      stepped_value = step_points_base[value_index];
+    );
+    
+    // Calculate normalized position based on index in stepped list
+    reverse_mode = (format_options & OPTION_REVERSE);
+    total_options > 1 ? (
+      reverse_mode ? (
+        // For reverse knobs, first option is at 4:30 (1.0), last option is at 7:30 (0.0)
+        normalized_pos = 1.0 - (value_index / (total_options - 1));
+      ) : (
+        // For normal knobs, first option is at 7:30 (0.0), last option is at 4:30 (1.0)
+        normalized_pos = value_index / (total_options - 1);
+      );
+    ) : (
+      // Only one option - center it
+      normalized_pos = 0.5;
+    );
+    
+    // Use stepped value for display
+    display_value = stepped_value;
+  ) : (
+    // No enumerated options, use continuous range
+    normalized_pos = (value - min_val) / (max_val - min_val);
+    display_value = value;
+  );
+  
+  // Draw label (unless OPTION_HIDE_LABEL is set)
+  !(format_options & OPTION_HIDE_LABEL) ? (
+    gfx_set(knob_style_text_r, knob_style_text_g, knob_style_text_b, 1);
+    gfx_measurestr(label, label_w, label_h);
+    gfx_x = center_x - label_w * 0.5;
+    gfx_y = y - knob_style_label_height;
+    gfx_drawstr(label);
+  );
+  
+  // Draw knob background (image or default circle)
+  image_index > 0 ? (
+    // Draw background image
+    scaled_w = image_w * image_scale;
+    scaled_h = image_h * image_scale;
+    // Position image centered on knob with offset applied
+    image_x = center_x - scaled_w * 0.5;
+    image_y = center_y - scaled_h * 0.5;
+    gfx_x = image_x;
+    gfx_y = image_y;
+    gfx_blit(image_index, image_scale, 0);
+  ) : (
+    // Draw default knob background circle (33% opacity)
+    gfx_set(knob_style_bg_r, knob_style_bg_g, knob_style_bg_b, 0.33);
+    gfx_circle(center_x, center_y, radius, 1, 1);
+  );
+  
+  // Calculate angle for position indicator
+  // Knobs go from 7:30 to 4:30 (270 degrees total)
+  // 7:30 = 135 degrees
+  // 4:30 = 405 degrees (or 45 degrees)
+  // Range: 135 to 405 degrees (270 degrees total)
+  // Normalized position 0.0 = 7:30 (135 degrees), 1.0 = 4:30 (405 degrees)
+  angle = 135 + normalized_pos * 270;
+  angle_rad = angle * $pi / 180.0;
+  
+  // Calculate position indicator location (line_offset pixels from outside edge)
+  indicator_radius = radius - line_offset;
+  indicator_x = center_x + cos(angle_rad) * indicator_radius;
+  indicator_y = center_y + sin(angle_rad) * indicator_radius;
+  
+  // Draw position indicator as a line (1/4 of knob radius long)
+  // Line extends from closer to center outward to indicator position
+  line_length = radius * 0.25;
+  line_start_radius = indicator_radius - line_length;
+  line_start_x = center_x + cos(angle_rad) * line_start_radius;
+  line_start_y = center_y + sin(angle_rad) * line_start_radius;
+  line_end_x = center_x + cos(angle_rad) * indicator_radius;
+  line_end_y = center_y + sin(angle_rad) * indicator_radius;
+  
+  gfx_set(knob_style_indicator_r, knob_style_indicator_g, knob_style_indicator_b, 1);
+  gfx_line(line_start_x, line_start_y, line_end_x, line_end_y, 1);
+  
+  // Draw value text below knob (centered)
+  // For enumerated knobs, pass the raw value (index) to format_slider_value, not the converted value
+  // format_slider_value will handle the conversion and formatting
+  display_mode == DISPLAY_HIDE_VALUE ? 0 : (
+    option_count > 0 ? (
+      formatted_str = format_slider_value(param_index, value, suffix_str, formatting, format_options);
+    ) : (
+      formatted_str = format_slider_value(param_index, display_value, suffix_str, formatting, format_options);
+    );
+    gfx_measurestr(formatted_str, value_str_w, value_str_h);
+    gfx_set(knob_style_text_r, knob_style_text_g, knob_style_text_b, 1);
+    gfx_x = center_x - value_str_w * 0.5;
+    gfx_y = y + size + 5;
+    gfx_drawstr(formatted_str);
+  );
+  
+  // Draw min/max text labels at knob's min/max positions (left/right of knob)
+  // Min position: 7:30 (135 degrees), Max position: 4:30 (45 degrees)
+  // Only show for continuous knobs (not enumerated)
+  total_options == 0 ? (
+    // Format min value
+    min_formatted_str = format_slider_value(param_index, min_val, suffix_str, formatting, format_options);
+    // Format max value
+    max_formatted_str = format_slider_value(param_index, max_val, suffix_str, formatting, format_options);
+    
+    // Measure text widths for positioning
+    gfx_measurestr(min_formatted_str, min_str_w, min_str_h);
+    gfx_measurestr(max_formatted_str, max_str_w, max_str_h);
+    
+    // Calculate positions at min/max angles
+    // Min angle: 135 degrees (7:30 position - left side)
+    min_angle_rad = 135 * $pi / 180.0;
+    min_text_radius = radius + 8;  // Position text 8 pixels outside knob edge
+    min_text_x = center_x + cos(min_angle_rad) * min_text_radius;
+    min_text_y = center_y + sin(min_angle_rad) * min_text_radius;
+    
+    // Max angle: 45 degrees (4:30 position - right side)
+    max_angle_rad = 45 * $pi / 180.0;
+    max_text_radius = radius + 8;  // Position text 8 pixels outside knob edge
+    max_text_x = center_x + cos(max_angle_rad) * max_text_radius;
+    max_text_y = center_y + sin(max_angle_rad) * max_text_radius;
+    
+    // Position min text (left side) - align right edge to position
+    gfx_set(knob_style_text_r, knob_style_text_g, knob_style_text_b, 1);
+    gfx_x = min_text_x - min_str_w;  // Right-align text to position
+    gfx_y = min_text_y - min_str_h * 0.5;  // Center vertically
+    gfx_drawstr(min_formatted_str);
+    
+    // Position max text (right side) - align left edge to position
+    gfx_x = max_text_x;  // Left-align text to position
+    gfx_y = max_text_y - max_str_h * 0.5;  // Center vertically
+    gfx_drawstr(max_formatted_str);
+  );
+);
+
