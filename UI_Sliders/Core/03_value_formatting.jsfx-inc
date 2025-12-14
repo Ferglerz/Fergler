@@ -54,6 +54,16 @@ function format_value_with_decimals(value, decimal_places) (
   #temp_display_str;
 );
 
+// Get attack time unit suffix based on time_multiplier setting
+// Writes suffix string to target_str_slot (" ms", " us", or " s")
+// Parameters: target_str_slot - string slot to write the suffix to
+// This eliminates duplication across slider/knob/parallax fader rendering
+function get_attack_time_unit_suffix(target_str_slot) (
+  time_multiplier == 0 ? strcpy(target_str_slot, " ms") :
+  time_multiplier == 1 ? strcpy(target_str_slot, " us") :
+  strcpy(target_str_slot, " s")
+);
+
 //==============================================================================
 // MAIN FORMATTING FUNCTION
 //==============================================================================

@@ -1,0 +1,134 @@
+// UI Graph Histogram State Module
+// Histogram state initialization and update functions
+// Depends on: 
+//   - UI_General/00_ui_constants.jsfx-inc (for HISTOGRAM_ENABLED, INPUT_HISTOGRAM_ENABLED, HISTOGRAM_WINDOW_SECONDS, HISTOGRAM_UPDATE_RATE, HISTOGRAM_SMOOTHING)
+
+@init
+
+//==============================================================================
+// HISTOGRAM STATE INITIALIZATION
+//==============================================================================
+
+function init_histogram_state() (
+  histogram_pixel_buffer = 0;
+  histogram_pixel_pos = 0;
+  histogram_pixel_idx = 0;
+  histogram_pixel_max_samples = 0;
+  histogram_pixel_initialized = 0;
+  histogram_pixel_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_pixel_buffer = freemem;
+    freemem += histogram_pixel_max_samples;
+    
+    i = 0;
+    while (i < histogram_pixel_max_samples) (
+      histogram_pixel_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_pixel_idx = 0;
+    histogram_pixel_frame_counter = 0;
+    histogram_pixel_initialized = 1;
+  );
+
+  input_histogram_buffer = 0;
+  input_histogram_max_samples = 0;
+  input_histogram_pos = 0;
+  input_histogram_initialized = 0;
+  input_histogram_frame_counter = 0;
+  input_histogram_prev_level = 0;
+
+  INPUT_HISTOGRAM_ENABLED ? (
+    input_histogram_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    input_histogram_buffer = freemem;
+    freemem += input_histogram_max_samples;
+    
+    i = 0;
+    while (i < input_histogram_max_samples) (
+      input_histogram_buffer[i] = 0;
+      i += 1;
+    );
+    
+    input_histogram_pos = 0;
+    input_histogram_initialized = 1;
+  );
+  
+  // Pre-strength GR histogram buffers (for ghost line visualization)
+  histogram_before_strength_pixel_buffer = 0;
+  histogram_before_strength_pixel_pos = 0;
+  histogram_before_strength_pixel_idx = 0;
+  histogram_before_strength_pixel_max_samples = 0;
+  histogram_before_strength_pixel_initialized = 0;
+  histogram_before_strength_pixel_frame_counter = 0;
+  
+  HISTOGRAM_ENABLED ? (
+    histogram_before_strength_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
+    histogram_before_strength_pixel_buffer = freemem;
+    freemem += histogram_before_strength_pixel_max_samples;
+    
+    i = 0;
+    while (i < histogram_before_strength_pixel_max_samples) (
+      histogram_before_strength_pixel_buffer[i] = 0;
+      i += 1;
+    );
+    
+    histogram_before_strength_pixel_idx = 0;
+    histogram_before_strength_pixel_frame_counter = 0;
+    histogram_before_strength_pixel_initialized = 1;
+  );
+);
+
+//==============================================================================
+// HISTOGRAM UPDATE FUNCTIONS
+//==============================================================================
+
+function update_histogram_state(gr_value) (
+  histogram_pixel_initialized ? (
+    abs(gr_value) > abs(histogram_pixel_buffer[histogram_pixel_idx]) ? (
+      histogram_pixel_buffer[histogram_pixel_idx] = gr_value;
+    );
+    
+    histogram_pixel_frame_counter += 1;
+    (histogram_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_pixel_frame_counter = 0;
+      histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
+      histogram_pixel_buffer[histogram_pixel_idx] = 0;
+    );
+  );
+);
+
+function update_histogram_before_strength_state(gr_value) (
+  histogram_before_strength_pixel_initialized ? (
+    abs(gr_value) > abs(histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx]) ? (
+      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = gr_value;
+    );
+    
+    histogram_before_strength_pixel_frame_counter += 1;
+    (histogram_before_strength_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      histogram_before_strength_pixel_frame_counter = 0;
+      histogram_before_strength_pixel_idx = (histogram_before_strength_pixel_idx + 1) % histogram_before_strength_pixel_max_samples;
+      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = 0;
+    );
+  );
+);
+
+function update_input_histogram_state(input_level_db) (
+  input_histogram_initialized ? (
+    input_histogram_frame_counter += 1;
+    (input_histogram_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
+      input_histogram_frame_counter = 0;
+      
+      smoothed_level = HISTOGRAM_SMOOTHING ? (
+        0.7 * input_level_db + 0.3 * input_histogram_prev_level
+      ) : (
+        input_level_db
+      );
+      
+      input_histogram_buffer[input_histogram_pos] = smoothed_level;
+      input_histogram_pos = (input_histogram_pos + 1) % input_histogram_max_samples;
+      input_histogram_prev_level = smoothed_level;
+    );
+  );
+);

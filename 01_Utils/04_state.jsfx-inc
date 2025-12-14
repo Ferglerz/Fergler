@@ -25,7 +25,7 @@ function init_state_variables() (
   // Initialize lookahead and limiter state (02_InputProcessing/01_dsp_utils.jsfx-inc)
   init_lookahead_limiter_state();
   
-  // Initialize histogram state (UI_Graph/03_graph_meters.jsfx-inc)
+  // Initialize histogram state (UI_Graph/03_histogram_state.jsfx-inc)
   init_histogram_state();
   
   // Initialize debug state (UI_General/03_debug.jsfx-inc)

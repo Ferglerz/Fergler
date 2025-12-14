@@ -1,0 +1,109 @@
+// UI Threshold Lines Render Module
+// Rendering functions for threshold lines
+// Depends on: 
+//   - UI_General/06_threshold_lines_core.jsfx-inc (for constants and conversion functions)
+//   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
+//   - UI_General/07_coordinate_conversion.jsfx-inc (for db_to_graph_y)
+
+@init
+
+//==============================================================================
+// THRESHOLD LINE RENDERING FUNCTIONS
+//==============================================================================
+// These functions can be called by graph and meter modules to render threshold lines
+
+// Convert knee size in dB to pixel height on meter
+// Parameters: knee_db (knee size in dB), meter_h (meter height)
+function gr_knee_db_to_pixels(knee_db, meter_h) (
+  // GR meter range: -20dB to +20dB (40dB total)
+  meter_range_db = 40;
+  (knee_db / meter_range_db) * meter_h
+);
+
+// Render GR blend threshold lines on meter (both reduction and addition)
+// Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
+function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y, knee_height, knee_top, knee_bottom) (
+  (prog_release_type == 3 || prog_release_type == 4) ? (
+    // Render reduction threshold line (negative GR area, top portion)
+    line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
+    
+    // Draw transparent knee bar behind the line (25% white opacity)
+    gr_blend_threshold_reduction_knee_db > 0 ? (
+      knee_height = gr_knee_db_to_pixels(gr_blend_threshold_reduction_knee_db, meter_h);
+      knee_top = line_y - knee_height * 0.5;
+      knee_bottom = line_y + knee_height * 0.5;
+      gfx_set(1, 1, 1, 0.25);  // 25% white opacity
+      gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
+    );
+    
+    // Draw 2-pixel tall pure white line
+    gfx_set(1, 1, 1, 1);  // Pure white
+    gfx_rect(meter_x, line_y - 1, meter_w, 2);  // 2 pixels tall, centered on line_y
+    
+    // Draw label (just dB value, no prefix)
+    gfx_x = meter_x + meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("%.1f dB", gr_blend_threshold_reduction_db);
+    
+    // Render addition threshold line (positive GR area, from bottom)
+    line_y = gr_boost_db_to_meter_y(gr_blend_threshold_addition_db, meter_y, meter_h);
+    
+    // Draw transparent knee bar behind the line (25% white opacity)
+    gr_blend_threshold_addition_knee_db > 0 ? (
+      knee_height = gr_knee_db_to_pixels(gr_blend_threshold_addition_knee_db, meter_h);
+      knee_top = line_y - knee_height * 0.5;
+      knee_bottom = line_y + knee_height * 0.5;
+      gfx_set(1, 1, 1, 0.25);  // 25% white opacity
+      gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
+    );
+    
+    // Draw 2-pixel tall pure white line
+    gfx_set(1, 1, 1, 1);  // Pure white
+    gfx_rect(meter_x, line_y - 1, meter_w, 2);  // 2 pixels tall, centered on line_y
+    
+    // Draw label (just dB value, no prefix)
+    gfx_x = meter_x + meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("%.1f dB", gr_blend_threshold_addition_db);
+  );
+);
+
+// Render rate of change threshold modifier line on meter
+// Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
+function render_rate_change_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y) (
+  prog_release_type == 5 ? (
+    line_y = rate_change_modifier_to_meter_y(rate_change_threshold_modifier, meter_y, meter_h);
+    set_threshold_line_color(THRESHOLD_RATE_CHANGE_MODIFIER, 
+      hovered_threshold_line == THRESHOLD_RATE_CHANGE_MODIFIER, 
+      dragging_threshold_line == THRESHOLD_RATE_CHANGE_MODIFIER);
+    
+    // Draw line across meter
+    gfx_line(meter_x, line_y, meter_x + meter_w, line_y, 1);
+    
+    // Draw label with modifier amount (x1.1, x1.2, etc.)
+    gfx_x = meter_x + meter_w + 5;
+    gfx_y = line_y - 6;
+    gfx_printf("x%.1f", rate_change_threshold_modifier);
+  );
+);
+
+// Render input level threshold line on graph
+// Parameters: graph_x, graph_y, graph_size - graph position and size
+// Note: Uses global db_to_graph_y() function from graph module
+function render_input_level_threshold_line(graph_x, graph_y, graph_size) (
+  (prog_release_type == 1 || prog_release_type == 2) ? (
+    line_y = db_to_graph_y(input_level_threshold_db);
+    set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
+      hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 
+      dragging_threshold_line == THRESHOLD_INPUT_LEVEL);
+    
+    // Draw line across graph
+    graph_right = graph_x + graph_size;
+    gfx_line(graph_x, line_y, graph_right, line_y, 1);
+    
+    // Draw label
+    gfx_x = graph_x + 5;
+    gfx_y = line_y - 15;
+    gfx_printf("Input: %.1f dB", input_level_threshold_db);
+  );
+);
