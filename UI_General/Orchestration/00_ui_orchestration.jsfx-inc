@@ -1,6 +1,6 @@
 // UI Orchestration Module
 // Main interface coordination and rendering orchestration
-// Coordinates all UI elements: header, controls, graph, interactions
+// Coordinates all UI elements: controls, graph, interactions
 // Depends on: all other UI modules
 //   - UI_General/07_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
 
@@ -52,7 +52,7 @@ function apply_reflection_blur(meter_x, meter_w) (
 
 function render_background_image() (
   // Render background image first (before everything else)
-  // Set position to top-left corner (no header offset)
+  // Set position to top-left corner
   gfx_x = 0;
   gfx_y = 0;
   // Blit image at index 0, scale 1 (no scaling), rotation 0

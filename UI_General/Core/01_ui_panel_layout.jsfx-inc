@@ -1,0 +1,17 @@
+// UI Panel Layout Constants Module (Part 1 of UI Constants)
+// Core UI panel positioning constants - moved from root to subfolder
+// Dependencies: None
+
+@init
+
+//==============================================================================
+// UI LAYOUT CONFIGURATION - CRITICAL PANEL POSITIONING CONSTANTS
+//==============================================================================
+
+// Visual configuration (matches background image at 0.5 scale)
+
+// UI Panel Configuration (now on LEFT side)
+UI_PANEL_X = 25;  // Left side of interface
+UI_PANEL_Y = 70;  // Start at top margin
+UI_PANEL_W = 600;  // 800 * 0.75
+UI_PANEL_H = 263;  // 350 * 0.75 = 262.5 rounded up

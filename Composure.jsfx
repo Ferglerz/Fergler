@@ -26,7 +26,6 @@ slider16:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
 slider17:hp_freq=0<0,6000,1>-High Pass
 slider18:lp_freq=0<0,14000,1>-Low Pass
 
-// HEADER (14, 25)
 slider14:input_offset_db=0<-30,30,0.25>-Input Offset
 
 // GROUP 3: HARMONICS (19-23)
@@ -36,7 +35,6 @@ slider21:harmonic_mix=0<0,100,1>-Mix
 slider22:harmonic_even_boost=0<0,200,1>-Even
 slider23:harmonic_odd_boost=0<0,200,1>-Odd
 
-// HEADER (25)
 slider25:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 
 // ADVANCED/HIDDEN PARAMETERS (26-34)
@@ -119,18 +117,27 @@ import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 
 // UI_General: General UI components (constants, utils, drawing, debug, menu)
 // These are foundational and must be imported first
-import UI_General/00_ui_constants.jsfx-inc
-import UI_General/02_ui_utils.jsfx-inc
-import UI_General/01_drawing_primitives.jsfx-inc
-import UI_General/03_debug.jsfx-inc
-// Page buttons system (modular button-based pagination)
-import UI_General/12_page_buttons.jsfx-inc
-// Coordinate conversion service (independent, used by graph and meter)
-import UI_General/07_coordinate_conversion.jsfx-inc
-// Threshold lines service (independent, used by graph and meter)
-import UI_General/06_threshold_lines_core.jsfx-inc
-import UI_General/11_threshold_lines_interaction.jsfx-inc
-import UI_General/16_threshold_lines_render.jsfx-inc
+// Constants - all moved to subfolder for testing
+// Part 1: Core UI panel positioning constants (UI_PANEL_X, UI_PANEL_Y, etc.)
+import UI_General/Core/01_ui_panel_layout.jsfx-inc
+// Part 2: Display constants, histogram config, control dimensions, spacing, slider properties
+import UI_General/Core/02_ui_layout.jsfx-inc
+// Part 3: Colors and configuration
+import UI_General/Core/00_ui_config.jsfx-inc
+// Part 4: Graph positioning constants (GRAPH_X, GRAPH_Y, GRAPH_SIZE, etc.)
+import UI_General/Core/03_ui_graph_layout.jsfx-inc
+// Core modules (drawing primitives, utilities)
+import UI_General/Core/01_drawing_primitives.jsfx-inc
+import UI_General/Core/02_utils.jsfx-inc
+// Debug module
+import UI_General/Debug/00_debug.jsfx-inc
+// Services (coordinate conversion, threshold lines)
+import UI_General/Services/00_coordinate_conversion.jsfx-inc
+import UI_General/Services/01_threshold_lines_core.jsfx-inc
+import UI_General/Services/02_threshold_lines_interaction.jsfx-inc
+import UI_General/Services/03_threshold_lines_render.jsfx-inc
+// Interaction modules (page buttons, custom buttons, radio groups)
+import UI_General/Interaction/00_page_buttons.jsfx-inc
 
 // UI_Sliders: Slider control library (depends on UI_General)
 // Core modules (constants, definitions, formatting)
@@ -146,7 +153,7 @@ import UI_Sliders/Render/03_button_rendering.jsfx-inc
 import UI_Sliders/Render/04_dropdown_rendering.jsfx-inc
 // Runtime modules (slider objects, control dispatcher)
 import UI_Sliders/Runtime/00_slider_objects.jsfx-inc
-import UI_General/15_radio_button_groups.jsfx-inc
+import UI_General/Interaction/02_radio_groups.jsfx-inc
 import UI_Sliders/Runtime/01_control_dispatcher.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
@@ -175,11 +182,10 @@ import UI_Graph/Core/00_graph.jsfx-inc
 
 // UI_General: Custom buttons (depends on UI_General constants and drawing, and page buttons)
 // Must be imported before 01_Utils/04_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
-import UI_General/10_custom_buttons.jsfx-inc
-// Settings page (depends on page buttons system)
-import UI_General/13_settings_page.jsfx-inc
-// Filters page (depends on page buttons system)
-import UI_General/14_filters_page.jsfx-inc
+import UI_General/Interaction/01_custom_buttons.jsfx-inc
+// Pages (settings, filters)
+import UI_General/Pages/01_settings_page.jsfx-inc
+import UI_General/Pages/02_filters_page.jsfx-inc
 
 // 01_Utils/04_state: State initialization (depends on all modules above)
 // Must be imported after all init functions are defined
@@ -187,8 +193,8 @@ import 01_Utils/04_state.jsfx-inc
 
 // UI_General: UI orchestration (depends on UI_General, UI_Sliders, UI_Graph)
 // These must be imported last as they orchestrate all UI components
-import UI_General/08_ui_interaction.jsfx-inc
-import UI_General/09_ui_orchestration.jsfx-inc
+import UI_General/Interaction/03_ui_interaction.jsfx-inc
+import UI_General/Orchestration/00_ui_orchestration.jsfx-inc
 
 
 //==============================================================================

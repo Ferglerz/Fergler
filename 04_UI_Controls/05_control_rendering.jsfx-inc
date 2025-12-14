@@ -11,7 +11,7 @@
 // Check if a control is on the Filters page
 // Returns: 1 if control is on Filters page, 0 otherwise
 // Filters page controls: 7, 8, 9, 10, 12, 15, 16, 27
-// Note: Control 13 = Strength (Envelope group), Control 22 = Makeup Gain (header) - NOT on Filters page
+// Note: Control 13 = Strength (Envelope group), Control 22 = Makeup Gain - NOT on Filters page
 // Control 23, 24, 25, 26 moved to Settings page
 function is_control_on_filters_page(control_index) (
   (control_index == 7 || control_index == 8 || control_index == 9 || control_index == 10 || control_index == 12 || control_index == 15 || control_index == 16 || control_index == 27) ? 1 : 0;
