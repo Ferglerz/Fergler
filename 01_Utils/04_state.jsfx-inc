@@ -25,26 +25,26 @@ function init_state_variables() (
   // Initialize lookahead and limiter state (02_InputProcessing/01_dsp_utils.jsfx-inc)
   init_lookahead_limiter_state();
   
-  // Initialize histogram state (Interface/Pages/Graph/Meters/00_histogram_state.jsfx-inc)
+  // Initialize histogram state (Interface/Pages/01_Graph_Page/Meters/00_histogram_state.jsfx-inc)
   init_histogram_state();
   
   // Initialize debug state (Interface/Debug/01_debug.jsfx-inc)
   init_debug_state();
   
-  // Initialize trail state (Interface/Pages/Graph/Trails/01_dot_trail.jsfx-inc)
+  // Initialize trail state (Interface/Pages/01_Graph_Page/Trails/01_dot_trail.jsfx-inc)
   init_trail_state();
   
-  // Initialize meter trail lines state (Interface/Pages/Graph/Trails/02_meter_trail_lines.jsfx-inc)
+  // Initialize meter trail lines state (Interface/Pages/01_Graph_Page/Trails/02_meter_trail_lines.jsfx-inc)
   init_meter_trail_lines_state();
   
   // Initialize custom button state (Interface/Interaction/01_custom_buttons.jsfx-inc)
   init_custom_button_state();
   
-  // Initialize settings page (Interface/Pages/01_settings_page.jsfx-inc)
+  // Initialize settings page (Interface/Pages/03_settings_page.jsfx-inc)
   init_settings_page();
   
-  // Initialize filters page (Interface/Pages/02_filters_page.jsfx-inc)
-  init_filters_page();
+  // Initialize input page (Interface/Pages/02_input_page.jsfx-inc)
+  init_input_page();
   
   // Calculate lookahead samples (must be done after max_lookahead_samples is set in memory allocation)
   // Update function is defined in 02_InputProcessing/01_dsp_utils.jsfx-inc

@@ -42,7 +42,8 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_
   
   // 1. GR blend reduction line (on meter) - negative GR area
   // Note: Uses gr_blend_db_to_meter_y() with meter position parameters
-  (prog_release_type == 3 || prog_release_type == 4) ? (
+  // prog_release_mode == 1 = GR Dependent
+  prog_release_mode == 1 ? (
     line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
     found_line = check_threshold_line(
       mouse_x, mouse_y,
@@ -71,8 +72,9 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_
   );
   
   // 3. Rate of change modifier line (on meter)
+  // prog_release_mode == 2 = Rate-of-Change
   found_line < 0 ? (
-    prog_release_type == 5 ? (
+    prog_release_mode == 2 ? (
       line_y = rate_change_modifier_to_meter_y(rate_change_threshold_modifier, meter_y, meter_h);
       found_line = check_threshold_line(
         mouse_x, mouse_y,
@@ -89,8 +91,9 @@ function find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_
   
   // 4. Input level line (on graph)
   // Note: Uses global db_to_graph_y() function from graph module
+  // prog_release_mode == 0 = Input-Dependent
   found_line < 0 ? (
-    (prog_release_type == 1 || prog_release_type == 2) ? (
+    prog_release_mode == 0 ? (
       line_y = db_to_graph_y(input_level_threshold_db);
       found_line = check_threshold_line(
         mouse_x, mouse_y,

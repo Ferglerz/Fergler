@@ -11,7 +11,9 @@ slider2:attack_curve=0<-2,2,0.01>-Attack Curve
 slider3:hold_ms=0<0,1000,1>-Hold
 slider4:release_ms=100<0.01,5000,0.01>-Release
 slider5:release_curve=0<-2,2,0.01>-Release Curve
-slider6:prog_release_type=0<0,5,1{Fixed Release,Input-Dependent,Input Dep Inverse,GR Dependent,GR Dep Inverse,Rate-of-Change}>-Program Release
+slider6:prog_release_mode=0<0,2,1{Input-Dependent,GR Dependent,Rate-of-Change}>-Program Release Mode
+slider39:prog_release_inverse=0<0,1,1{Normal,Inverse}>-Program Release Inverse
+slider40:prog_release_blend=0<0,100,1>-Program Release Blend
 slider13:strength=100<0,400,5>-Strength
 
 // INPUT PAGE CONTROLS (7-11, 15-18)
@@ -170,26 +172,26 @@ import UI_Sliders/Interaction/00_control_interactions.jsfx-inc
 // Graph: Graph rendering and interaction (depends on Interface)
 // threshold_lines is now in Interface and independent
 // Core modules (graph, cache, curves, display)
-import Interface/Pages/Graph/Core/01_graph_cache.jsfx-inc
-import Interface/Pages/Graph/Core/02_graph_curves.jsfx-inc
-import Interface/Pages/Graph/Core/03_graph_display.jsfx-inc
+import Interface/Pages/01_Graph_Page/Core/01_graph_cache.jsfx-inc
+import Interface/Pages/01_Graph_Page/Core/02_graph_curves.jsfx-inc
+import Interface/Pages/01_Graph_Page/Core/03_graph_display.jsfx-inc
 // Meter modules (histogram state, meter rendering, histogram rendering)
-import Interface/Pages/Graph/Meters/00_histogram_state.jsfx-inc
-import Interface/Pages/Graph/Meters/01_meter_render.jsfx-inc
-import Interface/Pages/Graph/Meters/02_histogram_render.jsfx-inc
+import Interface/Pages/01_Graph_Page/Meters/00_histogram_state.jsfx-inc
+import Interface/Pages/01_Graph_Page/Meters/01_meter_render.jsfx-inc
+import Interface/Pages/01_Graph_Page/Meters/02_histogram_render.jsfx-inc
 // Trail modules (trail utils, dot trail, meter trail lines)
-import Interface/Pages/Graph/Trails/00_trail_utils.jsfx-inc
-import Interface/Pages/Graph/Trails/01_dot_trail.jsfx-inc
-import Interface/Pages/Graph/Trails/02_meter_trail_lines.jsfx-inc
+import Interface/Pages/01_Graph_Page/Trails/00_trail_utils.jsfx-inc
+import Interface/Pages/01_Graph_Page/Trails/01_dot_trail.jsfx-inc
+import Interface/Pages/01_Graph_Page/Trails/02_meter_trail_lines.jsfx-inc
 // Graph orchestration (must be last)
-import Interface/Pages/Graph/Core/00_graph.jsfx-inc
+import Interface/Pages/01_Graph_Page/Core/00_graph.jsfx-inc
 
 // Interface: Custom buttons (depends on Interface constants and drawing, and page buttons)
 // Must be imported before 01_Utils/04_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
 import Interface/Interaction/01_custom_buttons.jsfx-inc
 // Pages (settings, filters)
-import Interface/Pages/01_settings_page.jsfx-inc
-import Interface/Pages/02_filters_page.jsfx-inc
+import Interface/Pages/03_settings_page.jsfx-inc
+import Interface/Pages/02_input_page.jsfx-inc
 
 // 01_Utils/04_state: State initialization (depends on all modules above)
 // Must be imported after all init functions are defined

@@ -41,8 +41,8 @@ function construct_image_set(image_top_index, image_bot_index, image_w, image_h,
 // PARALLAX FADER CONSTANTS
 //==============================================================================
 
-// Hard-coded parallax depth (original value 10, minus 7 = 3)
-PARALLAX_DEPTH = 3;
+// Hard-coded parallax depth (increased by 1 from 3 to 4)
+PARALLAX_DEPTH = 4;
 
 //==============================================================================
 // IMAGE SET INITIALIZATION

@@ -23,7 +23,7 @@ function gr_knee_db_to_pixels(knee_db, meter_h) (
 // Render GR blend threshold lines on meter (both reduction and addition)
 // Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
 function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y, knee_height, knee_top, knee_bottom) (
-  (prog_release_type == 3 || prog_release_type == 4) ? (
+  prog_release_mode == 1 ? (
     // Render reduction threshold line (negative GR area, top portion)
     line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
     
@@ -71,7 +71,7 @@ function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) loca
 // Render rate of change threshold modifier line on meter
 // Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
 function render_rate_change_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y) (
-  prog_release_type == 5 ? (
+  prog_release_mode == 2 ? (
     line_y = rate_change_modifier_to_meter_y(rate_change_threshold_modifier, meter_y, meter_h);
     set_threshold_line_color(THRESHOLD_RATE_CHANGE_MODIFIER, 
       hovered_threshold_line == THRESHOLD_RATE_CHANGE_MODIFIER, 
@@ -91,7 +91,7 @@ function render_rate_change_threshold_line(meter_x, meter_y, meter_w, meter_h) l
 // Parameters: graph_x, graph_y, graph_size - graph position and size
 // Note: Uses global db_to_graph_y() function from graph module
 function render_input_level_threshold_line(graph_x, graph_y, graph_size) (
-  (prog_release_type == 1 || prog_release_type == 2) ? (
+  prog_release_mode == 0 ? (
     line_y = db_to_graph_y(input_level_threshold_db);
     set_threshold_line_color(THRESHOLD_INPUT_LEVEL, 
       hovered_threshold_line == THRESHOLD_INPUT_LEVEL, 

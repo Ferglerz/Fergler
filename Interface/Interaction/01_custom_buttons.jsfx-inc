@@ -24,8 +24,8 @@ page_button_x_base = 0;  // Base address for page_button_x array
 page_button_y_base = 0;  // Base address for page_button_y array
 page_button_w = 38;  // Button width (half of image size: 76/2 = 38)
 page_button_h = 38;  // Button height (half of image size: 76/2 = 38)
-page_button_spacing = 10;  // Space between buttons
-page_button_label_offset_y = -50;  // Label position: 50 pixels above button
+page_button_spacing = 50;  // Space between buttons (increased by 60 pixels: 10 + 60 = 70)
+page_button_label_offset_y = -35;  // Label position: 50 pixels above button
 
 // Button label strings (use string slots 60-63)
 #page_button_label_0 = 60;  // "Graph"
@@ -68,8 +68,8 @@ function update_page_button_positions() local(i) (
   // Start buttons at Graph X value
   start_x = GRAPH_X;
   
-  // Position buttons below graph (moved down 64px from original position: 45px baseline + 19px additional)
-  button_y = GRAPH_Y + GRAPH_SIZE + 84;
+  // Position buttons below graph (moved up 15 pixels from previous position)
+  button_y = GRAPH_Y + GRAPH_SIZE + 73;
   
   // Set positions for each button
   i = 0;

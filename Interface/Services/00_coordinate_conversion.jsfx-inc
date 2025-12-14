@@ -64,7 +64,7 @@ function is_point_in_graph(x, y) (
 // Calculate gain reduction meter position relative to graph
 // Since JSFX functions return single values, we use separate functions for each property
 function get_meter_x() (
-  GRAPH_X + GRAPH_SIZE + 15  // 20 * 0.75
+  GRAPH_X + GRAPH_SIZE + 19  // 15 + 4 (moved 4 pixels to the right)
 );
 
 function get_meter_y() (

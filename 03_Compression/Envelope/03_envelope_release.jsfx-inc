@@ -111,6 +111,27 @@ function release_rate_of_change(det_delta) local(blend_fast, blend_slow, normali
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
+//--- Type 3 Inverse: Rate-of-Change Inverse ---
+// Inverse of rate-of-change: when level is dropping fast, use slow release (opposite behavior)
+// det_delta: change in detector level (positive = level dropping, negative = level rising)
+function release_rate_of_change_inverse(det_delta) local(blend_fast, blend_slow, normalized_delta, effective_sensitivity) (
+  // Apply threshold modifier to sensitivity with 10x base sensitivity boost
+  effective_sensitivity = rate_change_sensitivity_db / (rate_change_threshold_modifier * 10);
+  
+  // Normalize delta based on effective sensitivity
+  normalized_delta = det_delta / effective_sensitivity;
+  
+  // Smooth blend: at sensitivity threshold = 50% slow, at 2x sensitivity = 100% slow
+  // Clamp to prevent overshoot
+  normalized_delta = max(0, min(2.0, normalized_delta));
+  // Inverse: swap fast and slow - when dropping fast, use slow release
+  blend_slow = clamp_coeff(normalized_delta * 0.5);
+  blend_fast = clamp_coeff(1.0 - blend_slow);
+  
+  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+  normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
+);
+
 //--- Type 4: GR-Dependent Inverse ---
 // Inverse of GR-dependent: high GR = slow release, low GR = fast release
 // gr_amount: current GR amount (absolute value)
@@ -225,21 +246,30 @@ function calculate_gr_dependent_curve_release_coeff(current_gr_abs, release_curv
 //--- Program-Dependent Release Coefficient Selection ---
 // For GR-dependent mode, current_gr_abs should be abs(global_smoothed_gain_db)
 // NOTE: Cached coefficients are calculated in @slider in Composure.jsfx
-function select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs) local(
-  det_delta, input_level_db
+// prog_release_mode: 0=Input-Dependent, 1=GR Dependent, 2=Rate-of-Change
+// prog_release_inverse: 0=Normal, 1=Inverse
+function select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs, is_negative_gr) local(
+  det_delta, input_level_db, mode, is_inverse
 ) (
   debug_counter_prog_release += 1;
 
   det_delta = prev_detector_db - detector_level_db;
   input_level_db = detector_level_db;
+  mode = prog_release_mode;
+  is_inverse = prog_release_inverse > 0.5;
 
-  prog_release_type == 0 ? release_coeff :
-  prog_release_type == 1 ? release_input_dependent_single(input_level_db) :
-  prog_release_type == 2 ? release_input_dependent_inverse(input_level_db) :
-  prog_release_type == 3 ? release_gr_dependent(current_gr_abs) :
-  prog_release_type == 4 ? release_gr_dependent(current_gr_abs) :  // Will use inverse in orchestration
-  prog_release_type == 5 ? release_rate_of_change(det_delta) :
-  release_coeff
+  mode == 0 ? (
+    // Input-Dependent
+    is_inverse ? release_input_dependent_inverse(input_level_db) : release_input_dependent_single(input_level_db)
+  ) : mode == 1 ? (
+    // GR Dependent
+    is_inverse ? release_gr_dependent_inverse_dual(current_gr_abs, is_negative_gr) : release_gr_dependent_dual(current_gr_abs, is_negative_gr)
+  ) : mode == 2 ? (
+    // Rate-of-Change
+    is_inverse ? release_rate_of_change_inverse(det_delta) : release_rate_of_change(det_delta)
+  ) : (
+    release_coeff
+  )
 );
 
 

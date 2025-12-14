@@ -2,7 +2,7 @@
 // Coordinates all user interaction across the interface
 // Dependencies:
 //   - UI_Sliders/02_control_interactions.jsfx-inc
-//   - Interface/Pages/Graph/Core/00_graph.jsfx-inc
+//   - Interface/Pages/01_Graph_Page/Core/00_graph.jsfx-inc
 //   - Interface/Services/00_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
 //   - Interface/Services/01_threshold_lines_core.jsfx-inc
 
@@ -79,11 +79,12 @@ debug_button_mouse_down = 0;
 // CURSOR MANAGEMENT
 //==============================================================================
 
-// Update cursor based on button and graph point hover state
-// Sets cursor to hand pointer (32650) when hovering over buttons, crosshair (429) for graph points, arrow (32512) otherwise
-function update_cursor() local(is_hovering_button, is_hovering_point, i, control_type) (
+// Update cursor based on button, graph point, and threshold line hover state
+// Sets cursor to hand pointer (32650) when hovering over buttons, move cursor (187) for graph points and threshold lines, arrow (32512) otherwise
+function update_cursor() local(is_hovering_button, is_hovering_point, is_hovering_threshold, i, control_type, meter_x, meter_y, meter_w, meter_h) (
   is_hovering_button = 0;
   is_hovering_point = 0;
+  is_hovering_threshold = 0;
   
   // Only check if gfx_w is valid (button positions need to be calculated)
   gfx_w > 0 ? (
@@ -163,11 +164,22 @@ function update_cursor() local(is_hovering_button, is_hovering_point, i, control
       );
     );
     
-    // Set cursor based on hover state (buttons take priority over graph points)
+    // Check threshold lines (only if Graph page is visible and not hovering over button or point)
+    !is_hovering_button && !is_hovering_point && should_render_page(PAGE_GRAPH) ? (
+      meter_x = get_meter_x();
+      meter_y = get_meter_y();
+      meter_w = get_meter_w();
+      meter_h = get_meter_h();
+      hovered_threshold_line >= 0 ? (
+        is_hovering_threshold = 1;
+      );
+    );
+    
+    // Set cursor based on hover state (buttons take priority over graph points and threshold lines)
     is_hovering_button ? (
       gfx_setcursor(32512);  // TODO replace with better hand pointer
-    ) : is_hovering_point ? (
-      gfx_setcursor(187);     //  Move cursor for graph points
+    ) : is_hovering_point || is_hovering_threshold ? (
+      gfx_setcursor(187);     // Move cursor for graph points and threshold lines
     ) : (
       gfx_setcursor(32512);   // Default arrow cursor
     );

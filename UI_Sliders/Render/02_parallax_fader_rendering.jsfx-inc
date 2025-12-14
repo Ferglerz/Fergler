@@ -58,11 +58,12 @@ parallax_style_text_r = 1.0; parallax_style_text_g = 1.0; parallax_style_text_b 
 //   formatting: FORMAT_NORMAL, FORMAT_K, FORMAT_NONE
 //   format_options: OPTION_* flags
 //   display_mode: DISPLAY_NORMAL (show value) or DISPLAY_HIDE_VALUE (hide value)
+//   control_index: Control index for group-specific top image offset adjustments
 function draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_index,
                              image_top_index, image_bot_index, image_w, image_h,
-                             paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode) local(
+                             paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode, control_index) local(
   label_w, label_h, normalized_pos, fader_x, top_travel_distance, top_fader_x, top_x, bot_x, top_y, bot_y, scaled_w, scaled_h,
-  option_count, step_count, total_options, value_index, reverse_mode, stepped_value, display_value
+  option_count, step_count, total_options, value_index, reverse_mode, stepped_value, display_value, top_offset_adjustment
 ) (
   // Apply image scale to dimensions
   scaled_w = image_w * image_scale;
@@ -125,16 +126,6 @@ function draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_i
   // Calculate fader position (0 to w - scaled_w)
   fader_x = normalized_pos * (w - scaled_w);
   
-  // Calculate parallax offsets
-  // Top image moves at a different rate: travel distance reduced/increased by paralax_depth
-  // Positive paralax_depth: top moves more (increased travel distance)
-  // Negative parallax_depth: top moves less (reduced travel distance)
-  // The parallax effect is applied to the travel distance, not the position
-  // So if fader moves from 0 to (w - scaled_w), top moves from 0 to (w - scaled_w + paralax_depth)
-  // Inverted: adding paralax_depth instead of subtracting to reverse the movement direction
-  top_travel_distance = (w - scaled_w) + paralax_depth;
-  top_fader_x = normalized_pos * top_travel_distance;
-  
   // Calculate image positions
   // Both images use the same vertical positioning to prevent stretching
   // Center vertically within the slider height, then apply Y offset for shadows
@@ -143,16 +134,59 @@ function draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_i
   
   // Bottom image: follows fader position, shifted right by manual X offset
   // This offset is independent of parallax depth, allowing fine control of starting position
-  bot_x = x + fader_x + parallax_x_offset;
+  // Round bottom position to ensure consistent pixel alignment
+  bot_x = ceil(x + fader_x + parallax_x_offset);
   
-  // Top image: uses reduced/increased travel distance for parallax effect
-  top_x = x + top_fader_x;
+  // Top image: calculated as an offset from the bottom image to keep them in sync
+  // Parallax effect: top image moves at a different rate based on normalized position
+  // Positive paralax_depth: top moves more (faster) than bottom
+  // Negative parallax_depth: top moves less (slower) than bottom
+  // Use strict ceiling on parallax offset to ensure once depth moves a pixel, it never goes back
+  // This prevents flickering by ensuring the offset always rounds up
   
-  // Draw static background image first (centered vertically, 11px tall)
+  // Attack curve (control 1): inverse behavior - bottom exposed at left, top travels faster at right
+  // At far left: top should be LEFT of bottom (negative offset) to expose bottom
+  // At far right: top should be RIGHT of bottom (positive offset) so top travels faster
+  // Formula: (normalized_pos * 2 - 1) * depth gives -depth at left, +depth at right
+  control_index == 1 ? (
+    // Parallax offset: negative at left (top left of bottom), positive at right (top right of bottom)
+    // normalized_pos = 0: (0 * 2 - 1) * depth = -depth (top left, bottom exposed)
+    // normalized_pos = 1: (1 * 2 - 1) * depth = +depth (top right, top travels faster)
+    parallax_offset = (normalized_pos * 2 - 1) * paralax_depth;
+    // No base offset needed
+    base_top_offset = 0;
+    // Top image offset aligned (moved 1 pixel to the right from -1 to 0)
+    top_offset_adjustment = 0;
+  ) : (
+    // All other faders: normal calculation
+    parallax_offset = normalized_pos * paralax_depth;
+    
+    // Left-side faders need a constant base offset so image is always exposed
+    // This offset is always applied regardless of drag position
+    // Right-side faders don't need this as their x_offset already handles it
+    base_top_offset = parallax_x_offset < 0 ? paralax_depth : 0;
+    
+    // Apply group-specific top image offset adjustments
+    // These fine-tune the top image position relative to the bottom for visual alignment
+    top_offset_adjustment = 0;
+    control_index >= 0 ? (
+      // Release group (controls 2, 4): top moves 1 pixel right
+      (control_index == 2 || control_index == 4) ? top_offset_adjustment = 1 :
+      // Harmonics group (controls 18-21): top moves 2 pixels left
+      (control_index >= 18 && control_index <= 21) ? top_offset_adjustment = -2 :
+      0
+    );
+  );
+  
+  top_x = bot_x + ceil(parallax_offset) + base_top_offset + top_offset_adjustment;
+  
+  // Draw static background image first (centered vertically and horizontally, 11px tall, 107px wide)
   bg_image_index = 6;  // Background image index from filename definition
   bg_height = 11;  // Background image height in pixels
+  bg_width = 107;  // Background image width in pixels
   bg_y = y + (h - bg_height) / 2;  // Center vertically within fader height
-  gfx_x = x;
+  bg_x = x + (w - bg_width) / 2;  // Center horizontally within fader width
+  gfx_x = bg_x;
   gfx_y = bg_y;
   gfx_blit(bg_image_index, 1.0, 0);  // Draw at full scale, no rotation
   

@@ -21,42 +21,44 @@ function determine_attack_or_release(target_gr_abs, current_gr_abs) local(hyster
 
 // Calculate release coefficient based on release curve and program release type
 // Handles all release coefficient calculation logic
-function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_level_db, current_gr_abs, current_gr_abs_before_strength, is_negative_gr) local(rel_coef_use, base_rel_coef, fixed_rel_coef) (
+// prog_release_blend: 0-100, blends between fixed release (0%) and program dependent (100%)
+function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_level_db, current_gr_abs, current_gr_abs_before_strength, is_negative_gr) local(rel_coef_use, base_rel_coef, fixed_rel_coef, prog_rel_coef, blend_amount) (
+  blend_amount = prog_release_blend * 0.01;  // Convert 0-100 to 0-1
+  
   abs(release_curve) >= 0.001 ? (
     // Release curve is active
-    prog_release_type > 0 ? (
-      (prog_release_type == 3 || prog_release_type == 4) ? (
-        // GR dependent mode (or inverse) with curve: use pre-strength GR for threshold comparison
-        // Use appropriate threshold based on GR sign (cut vs boost)
-        // Note: Curve shaping for inverse mode would need special handling, but for now use same logic
-        rel_coef_use = calculate_gr_dependent_curve_release_coeff(current_gr_abs_before_strength, release_curve, is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db);
+    // Calculate fixed release with curve
+    fixed_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, -1);
+    
+    // Calculate program dependent release with curve
+    prog_release_mode >= 0 ? (
+      (prog_release_mode == 1) ? (
+        // GR dependent mode with curve: use pre-strength GR for threshold comparison
+        prog_rel_coef = calculate_gr_dependent_curve_release_coeff(current_gr_abs_before_strength, release_curve, is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db);
       ) : (
-        base_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
-        rel_coef_use = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, base_rel_coef);
+        base_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs, is_negative_gr);
+        prog_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, base_rel_coef);
       );
-      rel_coef_use
+      // Blend fixed and program dependent
+      rel_coef_use = fixed_rel_coef + (prog_rel_coef - fixed_rel_coef) * blend_amount;
     ) : (
-      fixed_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, -1);
-      fixed_rel_coef
+      rel_coef_use = fixed_rel_coef;
     );
+    rel_coef_use
   ) : (
     // No release curve
-    prog_release_type > 0 ? (
-      prog_release_type == 5 ? (
-        // GR dependent mode: use pre-strength GR for threshold comparison
-        // Use dual thresholds based on GR sign (cut vs boost)
-        rel_coef_use = release_gr_dependent_dual(current_gr_abs_before_strength, is_negative_gr);
-      ) : prog_release_type == 4 ? (
-        // GR dependent inverse mode: use pre-strength GR for threshold comparison
-        // Use dual thresholds based on GR sign (cut vs boost) with inverse behavior
-        rel_coef_use = release_gr_dependent_inverse_dual(current_gr_abs_before_strength, is_negative_gr);
-      ) : (
-        rel_coef_use = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs);
-      );
-      rel_coef_use
+    // Calculate fixed release (no curve)
+    fixed_rel_coef = release_coeff;
+    
+    // Calculate program dependent release (no curve)
+    prog_release_mode >= 0 ? (
+      prog_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs, is_negative_gr);
+      // Blend fixed and program dependent
+      rel_coef_use = fixed_rel_coef + (prog_rel_coef - fixed_rel_coef) * blend_amount;
     ) : (
-      release_coeff
+      rel_coef_use = fixed_rel_coef;
     );
+    rel_coef_use
   );
 );
 

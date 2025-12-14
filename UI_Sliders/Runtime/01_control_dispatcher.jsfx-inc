@@ -196,12 +196,12 @@ function render_control(index, opacity) local(
         // Enumerated slider: use 0 and option_count-1 as min/max
         draw_parallax_fader(x, y, w, h, current_value, 0, option_count - 1, label_slot, param_index,
                             image_top_index, image_bot_index, image_w, image_h,
-                            paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+                            paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode, index);
       ) : (
         // Continuous or step-point slider: use min_val/max_val from control_defs
         draw_parallax_fader(x, y, w, h, current_value, min_val, max_val, label_slot, param_index,
                             image_top_index, image_bot_index, image_w, image_h,
-                            paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode);
+                            paralax_depth, parallax_y_offset, parallax_x_offset, image_scale, suffix_str, formatting, format_options, display_mode, index);
       );
     ) : type == 4 ? ( // Knob - extract config and call renderer directly
       knob_config = control_defs[index*11 + 8];
