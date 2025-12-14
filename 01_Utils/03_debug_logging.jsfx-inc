@@ -1,5 +1,5 @@
 // Debug Logging Module
 // This module is now empty - debug_log() calls have been removed
-// Function run counts (debug boxes) are handled in UI_General/03_debug.jsfx-inc
+// Function run counts (debug boxes) are handled in Interface/Debug/01_debug.jsfx-inc
 
 @init

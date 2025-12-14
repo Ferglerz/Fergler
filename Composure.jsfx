@@ -84,7 +84,7 @@ filename:11,Images/knob.png
 import 01_Utils/00_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
 
-// UI_Sliders/Core/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and UI_General)
+// UI_Sliders/Core/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
 import UI_Sliders/Core/00_file_reading.jsfx-inc
 
 import 01_Utils/03_memory.jsfx-inc
@@ -115,31 +115,32 @@ import 03_Compression/09_audio_processing_chain.jsfx-inc
 // 03_Compression/Envelope/05_envelope_parameters: Parameter updates (depends on clear_rms_state from 09_audio_processing_chain)
 import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 
-// UI_General: General UI components (constants, utils, drawing, debug, menu)
+// Interface: General UI components (constants, utils, drawing, debug, menu)
 // These are foundational and must be imported first
 // Constants - all moved to subfolder for testing
 // Part 1: Core UI panel positioning constants (UI_PANEL_X, UI_PANEL_Y, etc.)
-import UI_General/Core/01_ui_panel_layout.jsfx-inc
+import Interface/Core/01_ui_panel_layout.jsfx-inc
 // Part 2: Display constants, histogram config, control dimensions, spacing, slider properties
-import UI_General/Core/02_ui_layout.jsfx-inc
+import Interface/Core/02_ui_layout.jsfx-inc
 // Part 3: Colors and configuration
-import UI_General/Core/00_ui_config.jsfx-inc
+import Interface/Core/00_ui_config.jsfx-inc
 // Part 4: Graph positioning constants (GRAPH_X, GRAPH_Y, GRAPH_SIZE, etc.)
-import UI_General/Core/03_ui_graph_layout.jsfx-inc
+import Interface/Core/03_ui_graph_layout.jsfx-inc
 // Core modules (drawing primitives, utilities)
-import UI_General/Core/01_drawing_primitives.jsfx-inc
-import UI_General/Core/02_utils.jsfx-inc
-// Debug module
-import UI_General/Debug/00_debug.jsfx-inc
+import Interface/Core/01_drawing_primitives.jsfx-inc
+import Interface/Core/02_utils.jsfx-inc
+// Debug module (constants first, then debug functions)
+import Interface/Debug/00_debug_constants.jsfx-inc
+import Interface/Debug/01_debug.jsfx-inc
 // Services (coordinate conversion, threshold lines)
-import UI_General/Services/00_coordinate_conversion.jsfx-inc
-import UI_General/Services/01_threshold_lines_core.jsfx-inc
-import UI_General/Services/02_threshold_lines_interaction.jsfx-inc
-import UI_General/Services/03_threshold_lines_render.jsfx-inc
+import Interface/Services/00_coordinate_conversion.jsfx-inc
+import Interface/Services/01_threshold_lines_core.jsfx-inc
+import Interface/Services/02_threshold_lines_interaction.jsfx-inc
+import Interface/Services/03_threshold_lines_render.jsfx-inc
 // Interaction modules (page buttons, custom buttons, radio groups)
-import UI_General/Interaction/00_page_buttons.jsfx-inc
+import Interface/Interaction/00_page_buttons.jsfx-inc
 
-// UI_Sliders: Slider control library (depends on UI_General)
+// UI_Sliders: Slider control library (depends on Interface)
 // Core modules (constants, definitions, formatting)
 import UI_Sliders/Core/01_slider_constants.jsfx-inc
 import UI_Sliders/Core/02_control_definitions.jsfx-inc
@@ -153,7 +154,7 @@ import UI_Sliders/Render/03_button_rendering.jsfx-inc
 import UI_Sliders/Render/04_dropdown_rendering.jsfx-inc
 // Runtime modules (slider objects, control dispatcher)
 import UI_Sliders/Runtime/00_slider_objects.jsfx-inc
-import UI_General/Interaction/02_radio_groups.jsfx-inc
+import Interface/Interaction/02_radio_groups.jsfx-inc
 import UI_Sliders/Runtime/01_control_dispatcher.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
@@ -163,38 +164,38 @@ import 04_UI_Controls/03_control_layout.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
 import UI_Sliders/Interaction/00_control_interactions.jsfx-inc
 
-// UI_Graph: Graph rendering and interaction (depends on UI_General)
-// threshold_lines is now in UI_General and independent
+// Graph: Graph rendering and interaction (depends on Interface)
+// threshold_lines is now in Interface and independent
 // Core modules (graph, cache, curves, display)
-import UI_Graph/Core/01_graph_cache.jsfx-inc
-import UI_Graph/Core/02_graph_curves.jsfx-inc
-import UI_Graph/Core/03_graph_display.jsfx-inc
+import Interface/Pages/Graph/Core/01_graph_cache.jsfx-inc
+import Interface/Pages/Graph/Core/02_graph_curves.jsfx-inc
+import Interface/Pages/Graph/Core/03_graph_display.jsfx-inc
 // Meter modules (histogram state, meter rendering, histogram rendering)
-import UI_Graph/Meters/00_histogram_state.jsfx-inc
-import UI_Graph/Meters/01_meter_render.jsfx-inc
-import UI_Graph/Meters/02_histogram_render.jsfx-inc
+import Interface/Pages/Graph/Meters/00_histogram_state.jsfx-inc
+import Interface/Pages/Graph/Meters/01_meter_render.jsfx-inc
+import Interface/Pages/Graph/Meters/02_histogram_render.jsfx-inc
 // Trail modules (trail utils, dot trail, meter trail lines)
-import UI_Graph/Trails/00_trail_utils.jsfx-inc
-import UI_Graph/Trails/01_dot_trail.jsfx-inc
-import UI_Graph/Trails/02_meter_trail_lines.jsfx-inc
+import Interface/Pages/Graph/Trails/00_trail_utils.jsfx-inc
+import Interface/Pages/Graph/Trails/01_dot_trail.jsfx-inc
+import Interface/Pages/Graph/Trails/02_meter_trail_lines.jsfx-inc
 // Graph orchestration (must be last)
-import UI_Graph/Core/00_graph.jsfx-inc
+import Interface/Pages/Graph/Core/00_graph.jsfx-inc
 
-// UI_General: Custom buttons (depends on UI_General constants and drawing, and page buttons)
+// Interface: Custom buttons (depends on Interface constants and drawing, and page buttons)
 // Must be imported before 01_Utils/04_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
-import UI_General/Interaction/01_custom_buttons.jsfx-inc
+import Interface/Interaction/01_custom_buttons.jsfx-inc
 // Pages (settings, filters)
-import UI_General/Pages/01_settings_page.jsfx-inc
-import UI_General/Pages/02_filters_page.jsfx-inc
+import Interface/Pages/01_settings_page.jsfx-inc
+import Interface/Pages/02_filters_page.jsfx-inc
 
 // 01_Utils/04_state: State initialization (depends on all modules above)
 // Must be imported after all init functions are defined
 import 01_Utils/04_state.jsfx-inc
 
-// UI_General: UI orchestration (depends on UI_General, UI_Sliders, UI_Graph)
+// Interface: UI orchestration (depends on Interface, UI_Sliders, Graph)
 // These must be imported last as they orchestrate all UI components
-import UI_General/Interaction/03_ui_interaction.jsfx-inc
-import UI_General/Orchestration/00_ui_orchestration.jsfx-inc
+import Interface/Interaction/03_ui_interaction.jsfx-inc
+import Interface/Orchestration/00_ui_orchestration.jsfx-inc
 
 
 //==============================================================================
@@ -276,7 +277,7 @@ init_step_points();
 init_state_variables();
 
 // 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
-// Must be called after UI_General imports (specifically after 00_ui_constants.jsfx-inc)
+// Must be called after Interface imports (specifically after Core/03_ui_graph_layout.jsfx-inc)
 init_graph_optimization_constants();
 
 // 2.6. Update meter trail fade duration (depends on srate)

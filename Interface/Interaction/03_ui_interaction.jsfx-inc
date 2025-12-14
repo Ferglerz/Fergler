@@ -2,9 +2,9 @@
 // Coordinates all user interaction across the interface
 // Dependencies:
 //   - UI_Sliders/02_control_interactions.jsfx-inc
-//   - UI_General/Pages/Graph/Core/00_graph.jsfx-inc
-//   - UI_General/07_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
-//   - UI_General/06_threshold_lines.jsfx-inc
+//   - Interface/Pages/Graph/Core/00_graph.jsfx-inc
+//   - Interface/Services/00_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
+//   - Interface/Services/01_threshold_lines_core.jsfx-inc
 
 @init
 

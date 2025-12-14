@@ -5,7 +5,7 @@
 //   - UI_General/02_ui_utils.jsfx-inc
 //   - UI_General/07_coordinate_conversion.jsfx-inc
 //   - 03_Compression/02_graph_data_core.jsfx-inc
-//   - UI_Graph/04_trail_utils.jsfx-inc (for shared trail utilities)
+//   - Interface/Pages/Graph/Trails/00_trail_utils.jsfx-inc (for shared trail utilities)
 
 @init
 

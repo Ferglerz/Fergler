@@ -3,7 +3,7 @@
 // Depends on: 
 //   - UI_General/00_ui_constants.jsfx-inc (for HISTOGRAM_ENABLED, INPUT_HISTOGRAM_ENABLED, HISTOGRAM_OPACITY, INPUT_HISTOGRAM_OPACITY, INPUT_HISTOGRAM_COLOR_*, GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_MIN_DB, GRAPH_MAX_DB)
 //   - UI_General/07_coordinate_conversion.jsfx-inc (for DB_TO_PIXEL_SCALE, GR_PIXELS_PER_DB, HISTOGRAM_Y_OFFSET, db_to_graph_x, db_to_graph_y)
-//   - UI_Graph/03_histogram_state.jsfx-inc (for histogram buffers and state variables)
+//   - Interface/Pages/Graph/Meters/00_histogram_state.jsfx-inc (for histogram buffers and state variables)
 //   - 01_Utils/02_math_utils.jsfx-inc (for clamp function)
 //   - 03_Compression/02_graph_data_core.jsfx-inc (for graph_points, num_points)
 
