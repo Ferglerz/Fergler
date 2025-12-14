@@ -23,7 +23,7 @@ function draw_group(group_index, fade_amount) local(gx, gy, gw, gh, show_title, 
   // Draw title if enabled
   show_title > 0.5 ? (
     // Measure title text width (use monospace font, uppercase)
-    gfx_setfont(1, "Courier", 11);  // System monospace font
+    gfx_setfont(1, "Courier", 13);  // System monospace font (13, reduced from 15)
     gfx_measurestr(title_ptr, title_w, title_h);
     
     // Calculate title area dimensions (text width + padding)

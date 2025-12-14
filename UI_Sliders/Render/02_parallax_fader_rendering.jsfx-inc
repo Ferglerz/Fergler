@@ -148,9 +148,9 @@ function draw_parallax_fader(x, y, w, h, value, min_val, max_val, label, param_i
   // Top image: uses reduced/increased travel distance for parallax effect
   top_x = x + top_fader_x;
   
-  // Draw static background image first (centered vertically, 15px tall)
+  // Draw static background image first (centered vertically, 11px tall)
   bg_image_index = 6;  // Background image index from filename definition
-  bg_height = 15;  // Background image height in pixels
+  bg_height = 11;  // Background image height in pixels
   bg_y = y + (h - bg_height) / 2;  // Center vertically within fader height
   gfx_x = x;
   gfx_y = bg_y;

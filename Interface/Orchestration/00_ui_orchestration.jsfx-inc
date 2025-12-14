@@ -106,7 +106,6 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
       // Draw meters and info outside graph area (these don't fade, they're outside the graph)
       draw_gain_reduction_meter();  // 05i
       update_and_render_meter_trail_lines();  // 06 - Meter trail lines (fading lines showing GR hotspots)
-      draw_processing_state_indicator();  // 05i - Red/green indicator showing early exit state
       draw_labels_and_info();       // 05j
       draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
       gfx_a = 1.0;

@@ -111,15 +111,59 @@ function draw_image_toggle_button(x, y, w, h, is_on, image_left_index, image_rig
   // Select image based on state
   img_index = is_on ? image_right_index : image_left_index;
   
-  // Image dimensions (84x56)
-  img_w = 84;
-  img_h = 56;
+  // Image dimensions (84x56 for toggle buttons, 109x81 for feedforward/feedback)
+  // Use button dimensions to determine image size (button w/h should match image size)
+  img_w = w;  // Use button width (image should match button size)
+  img_h = h;  // Use button height (image should match button size)
   
-  // Center the image within the button by offsetting by half the image size
+  // Position image at button's top-left corner (x, y)
+  // This ensures the image starts at the button's X position, not centered
   // x, y are the button's coordinates (already include group offset from dispatcher)
   // gfx_blit uses gfx_x and gfx_y as the position for the image's top-left corner
-  gfx_x = x + (w - img_w) / 2;
-  gfx_y = y + (h - img_h) / 2;
+  gfx_x = x;
+  gfx_y = y;
   gfx_blit(img_index, 1, 0);  // Scale 1.0 = no scaling
+);
+
+//==============================================================================
+// MOMENTARY BUTTON RENDERING
+//==============================================================================
+
+// Draw momentary button (shows depressed image only when clicked)
+// Parameters:
+//   x, y: Position (button top-left corner)
+//   w, h: Dimensions (button size)
+//   is_pressed: 1 = button is currently pressed, 0 = not pressed
+//   image_normal_index: Image index for normal state
+//   image_depressed_index: Image index for depressed/pressed state
+//   label: Label string slot (0 or empty string = no label)
+//   label_offset_y: Y offset for label (negative = above button)
+// Note: Images are 76x76 pixels
+function draw_momentary_button(x, y, w, h, is_pressed, image_normal_index, image_depressed_index, label, label_offset_y) local(img_index, img_w, img_h, label_w, label_h, label_x, image_scale, scaled_w, scaled_h) (
+  // Draw label above button only if label is provided (non-zero string slot)
+  label > 0 ? (
+    gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
+    // Measure label to center it
+    gfx_measurestr(label, label_w, label_h);
+    label_x = x + (w - label_w) / 2;  // Center label horizontally
+    gfx_x = label_x;
+    gfx_y = y + label_offset_y;  // Position label with offset (negative = above)
+    gfx_drawstr(label);
+  );
+  
+  // Select image based on pressed state
+  img_index = is_pressed ? image_depressed_index : image_normal_index;
+  
+  // Image dimensions (76x76) - scale to 0.5 for 38x38 button
+  img_w = 76;
+  img_h = 76;
+  image_scale = 0.5;  // Half size to match 38x38 button
+  
+  // Center the scaled image within the button
+  scaled_w = img_w * image_scale;
+  scaled_h = img_h * image_scale;
+  gfx_x = x + (w - scaled_w) / 2;
+  gfx_y = y + (h - scaled_h) / 2;
+  gfx_blit(img_index, image_scale, 0);  // Scale 0.5 = half size
 );
 

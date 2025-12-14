@@ -8,26 +8,6 @@
 @init
 
 //==============================================================================
-// PROCESSING STATE INDICATOR
-//==============================================================================
-
-function draw_processing_state_indicator() (
-  indicator_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8;
-  indicator_y = GRAPH_Y + GRAPH_SIZE / 2;
-  indicator_radius = 5;
-  
-  gfx_set(0.15, 0.15, 0.15, 0.5);
-  gfx_circle(indicator_x, indicator_y, indicator_radius + 1, 1, 1);
-  
-  gr_processing_skipped ? (
-    gfx_set(0.8, 0.2, 0.2, 0.5);
-  ) : (
-    gfx_set(0.2, 0.8, 0.3, 0.5);
-  );
-  gfx_circle(indicator_x, indicator_y, indicator_radius, 1, 1);
-);
-
-//==============================================================================
 // METER REFLECTION
 //==============================================================================
 

@@ -75,6 +75,9 @@ filename:9,Images/Feed/feedback_off.png
 filename:10,Images/Feed/feedback_on.png
 // Load knob background image
 filename:11,Images/knob.png
+// Load page button images
+filename:12,Images/page_button.png
+filename:13,Images/page_button_depressed.png
 
 //==============================================================================
 // INCLUDE MODULES
