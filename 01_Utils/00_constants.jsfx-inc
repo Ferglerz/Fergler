@@ -31,6 +31,13 @@ LIMITER_SCALE = 0.95;                           // Limiter input scale factor
 // Note: LIMITER_TANH_NORM is calculated after math_utils import (see end of @init)
 LIMITER_TANH_NORM = 0;                          // Placeholder, calculated below
 
+// === GRAPH CONSTANTS ===
+// Shared constants for graph display and compression processing
+
+GRAPH_RANGE_DB = 20;
+GRAPH_MIN_DB = -20;
+GRAPH_MAX_DB = 0;
+
 // === PERFORMANCE CONSTANTS ===
 
 DENORMAL_THRESHOLD = pow(10, -15); // Faster than eps for denormal checks

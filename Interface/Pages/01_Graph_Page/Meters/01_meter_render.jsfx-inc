@@ -160,20 +160,7 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
     is_audio_active = (play_state == 1) || (play_state == 5);
 
     is_audio_active ? (
-      // Render ghost line (pre-strength GR) first (behind, 50% opacity)
-      current_gr_db_before_strength < 0 ? (
-        gr_height_ghost = abs(current_gr_db_before_strength) * GR_PIXELS_PER_DB;
-        gr_height_ghost = min(gr_height_ghost, gr_meter_h);
-        gfx_set(1, 0.5, 0, 0.5);  // Half opacity for ghost line
-        gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height_ghost);
-      ) : current_gr_db_before_strength > 0 ? (
-        gr_height_ghost = current_gr_db_before_strength * GR_PIXELS_PER_DB;
-        gr_height_ghost = min(gr_height_ghost, gr_meter_h);
-        gfx_set(0.2, 0.5, 1, 0.5);  // Half opacity for ghost line
-        gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height_ghost, gr_meter_w, gr_height_ghost);
-      );
-      
-      // Render full color line (post-strength GR) on top (100% opacity)
+      // Render gain reduction meter
       current_gr_db < 0 ? (
         gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
         gr_height = min(gr_height, gr_meter_h);

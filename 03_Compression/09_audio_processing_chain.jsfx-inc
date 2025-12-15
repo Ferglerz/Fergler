@@ -62,10 +62,9 @@ function init_audio_processing_state() (
   final_r_prev = 0;
   current_input_db = GRAPH_MIN_DB;
   current_gr_db = 0;
-  current_gr_db_before_strength = 0;
+  current_gr_db_before_strength = 0;  // Still needed for envelope processing
   detector_level_block_max = MIN_DETECTOR_LEVEL;
   gr_db_block_max = 0;
-  gr_db_before_strength_block_max = 0;
   gr_processing_skipped = 0;
   compression_history = 0;
   program_release_timer = 0;
@@ -170,9 +169,6 @@ function process_complete_audio_chain() (
     // Track smoothed pre-strength GR for visualization (ghost line)
     // This represents the "true" GR used in calculations before strength multiplier
     current_gr_db_before_strength = global_smoothed_gain_db_before_strength;
-    abs(current_gr_db_before_strength) > abs(gr_db_before_strength_block_max) ? (
-      gr_db_before_strength_block_max = current_gr_db_before_strength;
-    );
 
     lookahead_ms > 0 ? (
       process_lookahead_audio(input_l_orig, input_r_orig);

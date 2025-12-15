@@ -55,29 +55,6 @@ function init_histogram_state() (
     input_histogram_initialized = 1;
   );
   
-  // Pre-strength GR histogram buffers (for ghost line visualization)
-  histogram_before_strength_pixel_buffer = 0;
-  histogram_before_strength_pixel_pos = 0;
-  histogram_before_strength_pixel_idx = 0;
-  histogram_before_strength_pixel_max_samples = 0;
-  histogram_before_strength_pixel_initialized = 0;
-  histogram_before_strength_pixel_frame_counter = 0;
-  
-  HISTOGRAM_ENABLED ? (
-    histogram_before_strength_pixel_max_samples = ceil(HISTOGRAM_WINDOW_SECONDS * 60);
-    histogram_before_strength_pixel_buffer = freemem;
-    freemem += histogram_before_strength_pixel_max_samples;
-    
-    i = 0;
-    while (i < histogram_before_strength_pixel_max_samples) (
-      histogram_before_strength_pixel_buffer[i] = 0;
-      i += 1;
-    );
-    
-    histogram_before_strength_pixel_idx = 0;
-    histogram_before_strength_pixel_frame_counter = 0;
-    histogram_before_strength_pixel_initialized = 1;
-  );
 );
 
 //==============================================================================
@@ -95,21 +72,6 @@ function update_histogram_state(gr_value) (
       histogram_pixel_frame_counter = 0;
       histogram_pixel_idx = (histogram_pixel_idx + 1) % histogram_pixel_max_samples;
       histogram_pixel_buffer[histogram_pixel_idx] = 0;
-    );
-  );
-);
-
-function update_histogram_before_strength_state(gr_value) (
-  histogram_before_strength_pixel_initialized ? (
-    abs(gr_value) > abs(histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx]) ? (
-      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = gr_value;
-    );
-    
-    histogram_before_strength_pixel_frame_counter += 1;
-    (histogram_before_strength_pixel_frame_counter >= HISTOGRAM_UPDATE_RATE) ? (
-      histogram_before_strength_pixel_frame_counter = 0;
-      histogram_before_strength_pixel_idx = (histogram_before_strength_pixel_idx + 1) % histogram_before_strength_pixel_max_samples;
-      histogram_before_strength_pixel_buffer[histogram_before_strength_pixel_idx] = 0;
     );
   );
 );

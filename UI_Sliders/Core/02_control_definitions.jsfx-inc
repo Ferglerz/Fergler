@@ -3,7 +3,7 @@
 // This is a reusable library - no plugin-specific code
 // Dependencies: 
 //   - UI_Sliders/01_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
-//   - Interface/Core/01_drawing_primitives.jsfx-inc (for draw_group)
+//   - Interface/Core/04_drawing_primitives.jsfx-inc (for draw_group)
 //
 // USAGE:
 //   Use define_group(), define_slider(), define_button(), define_dropdown() to create controls

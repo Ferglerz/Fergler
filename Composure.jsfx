@@ -132,8 +132,8 @@ import Interface/Core/00_ui_config.jsfx-inc
 // Part 4: Graph positioning constants (GRAPH_X, GRAPH_Y, GRAPH_SIZE, etc.)
 import Interface/Core/03_ui_graph_layout.jsfx-inc
 // Core modules (drawing primitives, utilities)
-import Interface/Core/01_drawing_primitives.jsfx-inc
-import Interface/Core/02_utils.jsfx-inc
+import Interface/Core/04_drawing_primitives.jsfx-inc
+import Interface/Core/05_utils.jsfx-inc
 // Debug module (constants first, then debug functions)
 import Interface/Debug/00_debug_constants.jsfx-inc
 import Interface/Debug/01_debug.jsfx-inc
@@ -321,6 +321,10 @@ update_parameter_conversions();
 // Update functions are defined in 02_InputProcessing/ and 03_Compression/Envelope/
 update_all_audio_parameters();
 
+// 9. Initialize UI state variables
+// Initialize mouse state tracking (used for optimized mouse state updates in @gfx)
+mouse_cap_prev = -1;
+
 // 10. Mark compression system as ready (prevents LUT race condition)
 compression_init_complete = 1;
 
@@ -404,12 +408,10 @@ abs(new_trail_max_dots - trail_max_dots) > 5 ? (
 // Apply input offset to histogram so it shows offset-adjusted input level (what compressor sees)
 input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL)) + input_offset_db;
 gr_db_for_histogram = gr_db_block_max;
-gr_db_before_strength_for_histogram = gr_db_before_strength_block_max;
 
 // Reset max trackers for next block
 detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
-gr_db_before_strength_block_max = 0;
 
 // Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
 update_parameter_conversions();
@@ -436,22 +438,25 @@ while (i < 256) (
   i += 1;
 );
 
-// Update mouse state constants dynamically (evaluated every frame)
-MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button
-MOUSE_RIGHT_BUTTON = mouse_cap & 2 ? 1 : 0;     // Right mouse button
-MOUSE_MIDDLE_BUTTON = mouse_cap & 64 ? 1 : 0;   // Middle mouse button (wheel click)
-MOUSE_CTRL_KEY = mouse_cap & 4 ? 1 : 0;         // Ctrl/Cmd key held
-MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
-MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
+// Update mouse state constants dynamically (only when mouse_cap changes)
+// Optimization: Updates constants only when mouse_cap changes, reducing redundant assignments
+// These constants are provided for backward compatibility with existing code
+// Note: mouse_cap_prev is initialized to -1 to ensure first frame always updates
+(mouse_cap_prev == -1 || mouse_cap_prev != mouse_cap) ? (
+  MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button
+  MOUSE_RIGHT_BUTTON = mouse_cap & 2 ? 1 : 0;     // Right mouse button
+  MOUSE_MIDDLE_BUTTON = mouse_cap & 64 ? 1 : 0;   // Middle mouse button (wheel click)
+  MOUSE_CTRL_KEY = mouse_cap & 4 ? 1 : 0;         // Ctrl/Cmd key held
+  MOUSE_SHIFT_KEY = mouse_cap & 8 ? 1 : 0;        // Shift key held
+  MOUSE_ALT_KEY = mouse_cap & 16 ? 1 : 0;         // Alt key held
+  mouse_cap_prev = mouse_cap;
+);
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
 // Apply input offset so dot shows offset-adjusted input level (what compressor sees)
 current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL)) + input_offset_db;
 
 // Get current GR values for display (post-strength is already available as current_gr_db)
-// Pre-strength GR represents the "true" GR used in calculations before strength multiplier
-// This is tracked in the audio processing chain (@sample section) and available for visualization
-// current_gr_db_before_strength is set in process_complete_audio_chain()
 
 // Get latest input histogram value (if available)
 input_histogram_db = current_input_db;  // Default to current input if histogram not available
@@ -472,7 +477,6 @@ is_audio_active = (play_state == 1) || (play_state == 5);
 // Update histograms with block-max values (most efficient and smooth)
 HISTOGRAM_ENABLED ? (
   update_histogram_state(gr_db_for_histogram);
-  update_histogram_before_strength_state(gr_db_before_strength_for_histogram);
 );
 INPUT_HISTOGRAM_ENABLED ? update_input_histogram_state(input_db_for_histogram);
 

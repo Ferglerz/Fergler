@@ -2,7 +2,7 @@
 // Mouse interaction and dragging for threshold lines
 // Depends on: 
 //   - UI_General/06_threshold_lines_core.jsfx-inc (for constants and conversion functions)
-//   - UI_General/07_coordinate_conversion.jsfx-inc (for db_to_graph_y, graph_y_to_db, is_point_in_graph)
+//   - Interface/Services/00_coordinate_conversion.jsfx-inc (for db_to_graph_y, graph_y_to_db, is_point_in_graph)
 //   - UI_General/00_ui_constants.jsfx-inc (for MOUSE_LEFT_BUTTON, MOUSE_CTRL_KEY)
 
 @init

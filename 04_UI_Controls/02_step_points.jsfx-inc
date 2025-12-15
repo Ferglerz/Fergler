@@ -39,7 +39,7 @@
 // Odd: 0 to 200 in 10% increments (21 values)
 #odd_step_points_str = "0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200";
 
-// Array base addresses are defined in Interface/Core/02_utils.jsfx-inc for early access
+// Array base addresses are defined in Interface/Core/05_utils.jsfx-inc for early access
 // Step-point counts will be set by parsing function below
 
 // Helper function to parse comma-separated step-point string into array

@@ -3,7 +3,7 @@
 // Depends on: 
 //   - UI_General/06_threshold_lines_core.jsfx-inc (for constants and conversion functions)
 //   - UI_General/01_drawing_primitives.jsfx-inc (for set_threshold_line_color)
-//   - UI_General/07_coordinate_conversion.jsfx-inc (for db_to_graph_y)
+//   - Interface/Services/00_coordinate_conversion.jsfx-inc (for db_to_graph_y)
 
 @init
 

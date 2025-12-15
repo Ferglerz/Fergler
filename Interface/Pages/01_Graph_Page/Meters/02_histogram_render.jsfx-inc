@@ -311,23 +311,8 @@ function draw_input_histogram() (
 
 function draw_histogram() (
   HISTOGRAM_ENABLED && slider(38) > 0.5 ? (
-    histogram_before_strength_pixel_initialized ? (
-      // Render ghost lines (pre-strength GR) first (behind, 50% opacity)
-      draw_gr_histogram_neg_line_pixel(
-        histogram_before_strength_pixel_buffer,
-        1, 0.5, 0,
-        HISTOGRAM_OPACITY * 0.5
-      );
-      
-      draw_gr_histogram_pos_line_pixel(
-        histogram_before_strength_pixel_buffer,
-        0.2, 0.5, 1,
-        HISTOGRAM_OPACITY * 0.5
-      );
-    );
-    
     histogram_pixel_initialized ? (
-      // Render full color lines (post-strength GR) on top (100% opacity)
+      // Render histogram lines
       draw_gr_histogram_neg_line_pixel(
         histogram_pixel_buffer,
         1, 0.5, 0,

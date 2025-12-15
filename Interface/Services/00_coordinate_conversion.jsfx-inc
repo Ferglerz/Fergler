@@ -2,8 +2,8 @@
 // Handles coordinate conversion between dB values and graph pixel coordinates
 // Independent service used by graph, meters, and other UI modules
 // Depends on:
-//   - UI_General/00_ui_constants.jsfx-inc (for GRAPH_X, GRAPH_Y, GRAPH_SIZE)
-//   - 03_Compression/02_graph_data_core.jsfx-inc (for GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
+//   - Interface/Core/03_ui_graph_layout.jsfx-inc (for GRAPH_X, GRAPH_Y, GRAPH_SIZE)
+//   - 01_Utils/00_constants.jsfx-inc (for GRAPH_MIN_DB, GRAPH_MAX_DB, GRAPH_RANGE_DB)
 
 @init
 
