@@ -10,7 +10,9 @@
 
 function update_hold_samples() (
   // Update hold samples for real-time response
-  hold_samples = clamp(floor(hold_ms * 0.001 * srate), 0, 44100);  // Max 1 second at 44.1kHz
+  // hold_ms is the slider variable (0 to 1000, guaranteed by slider definition)
+  // At 44.1kHz, 1000ms = 44100 samples, so no clamping needed
+  hold_samples = floor(hold_ms * 0.001 * srate);
 );
 
 //==============================================================================

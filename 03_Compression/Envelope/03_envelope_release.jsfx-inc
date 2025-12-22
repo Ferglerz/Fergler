@@ -8,39 +8,65 @@
 // RELEASE COEFFICIENT UPDATE
 //==============================================================================
 
+// Fixed dB amount for linear release calculations (10dB reduction)
+LINEAR_RELEASE_FIXED_DB = 10.0;
+
+// Linear release rate (dB per sample) - calculated when release_ms or srate changes
+linear_release_db_per_sample = 0;
+
+// Calculate linear release rate (dB per sample)
+// Uses release_time_ms (time to reduce by LINEAR_RELEASE_FIXED_DB) for consistency with exponential release
+// Linear release should take the same amount of time as exponential release to reduce by LINEAR_RELEASE_FIXED_DB
+function calculate_linear_release_rate() (
+  // Calculate dB per second: fixed_db_amount / time_in_seconds
+  // release_time_ms is the time (in ms) to reduce by LINEAR_RELEASE_FIXED_DB (10 dB)
+  db_per_second = LINEAR_RELEASE_FIXED_DB / (release_time_ms * 0.001);
+  // Convert to dB per sample
+  linear_release_db_per_sample = db_per_second / srate;
+);
+
 function update_release_coefficient() (
-  // Clamp release time to valid range
-  release_ms = max(0.01, min(5000, release_ms));
+  // release_ms is the slider variable containing dB/s values (2 to 250, guaranteed by slider definition)
+  release_db_per_sec = release_ms;
+  // Convert release from dB/s to milliseconds for audio processing (use separate variable to avoid overwriting slider)
+  // Formula: ms = 10000 / dB_per_sec
+  // This gives the time (in ms) to reduce by 10 dB at the specified dB/s rate
+  release_time_ms = 10000.0 / release_db_per_sec;
   // Update cached sample rate calculations
-  release_ms_srate = release_ms * srate;
+  release_ms_srate = release_time_ms * srate;
   
-  // Calculate release coefficient using standard time constant formula
-  // Note: For valid release_ms values, exp() will never return 0 or 1, so no clamping needed here
+  // Calculate linear release rate (always calculated, used when linear mode is active)
+  calculate_linear_release_rate();
+  
+  // Calculate release coefficient using standard time constant formula (exponential)
+  // This is used when linear_program_release_modes is OFF for program-dependent modes
+  // Fixed mode always uses linear
+  // Note: For valid release_time_ms values, exp() will never return 0 or 1, so no clamping needed here
   // The safety clamp in apply_envelope_smoothing() handles edge cases
-  release_ms > 0 ? (
-    release_coeff = exp(-1000 / (release_ms * srate));
+  release_time_ms > 0 ? (
+    release_coeff = exp(-1000 / (release_time_ms * srate));
   ) : (
-    // Edge case: release_ms is 0 or invalid - use very fast but not instant to prevent clicks
+    // Edge case: release_time_ms is 0 or invalid - use very fast but not instant to prevent clicks
     release_coeff = 1 - EPS;
   );
   
-  // Cache program-dependent release coefficients (calculated when release_ms or srate changes)
+  // Cache program-dependent release coefficients (calculated when release_time_ms or srate changes)
   // These are used by program release modes and curve shaping functions
   // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
-  rel_mult = 0.5 + (release_ms / 2000.0) * 1.5;
+  rel_mult = 0.5 + (release_time_ms / 2000.0) * 1.5;
   rel_fast_cached = exp(-1/(base_fast_s * rel_mult * srate));
   rel_med_cached  = exp(-1/(base_med_s  * rel_mult * srate));
   rel_slow_cached = exp(-1/(base_slow_s * rel_mult * srate));
   
-    // Cache curve shaping coefficients (only recalculate when release_ms or srate changes)
+    // Cache curve shaping coefficients (only recalculate when release_time_ms or srate changes)
     // CURVE_FAST_MULTIPLIER and CURVE_SLOW_MULTIPLIER are defined in 00_envelope_utils.jsfx-inc
     // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
-    release_ms > 0 ? (
-      curve_fast_coeff_cached = exp(-1000 / ((release_ms / CURVE_FAST_MULTIPLIER) * srate));
-      curve_slow_coeff_cached = exp(-1000 / ((release_ms * CURVE_SLOW_MULTIPLIER) * srate));
+    release_time_ms > 0 ? (
+      curve_fast_coeff_cached = exp(-1000 / ((release_time_ms / CURVE_FAST_MULTIPLIER) * srate));
+      curve_slow_coeff_cached = exp(-1000 / ((release_time_ms * CURVE_SLOW_MULTIPLIER) * srate));
       
       // Cache input-dependent fast coefficient (4x faster than user's release setting)
-      rel_input_fast_cached = exp(-1000 / ((release_ms * 0.25) * srate));
+      rel_input_fast_cached = exp(-1000 / ((release_time_ms * 0.25) * srate));
     ) : (
       // Edge case: release_ms is 0 or invalid - use very fast but not instant
       curve_fast_coeff_cached = 1 - EPS;

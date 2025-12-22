@@ -142,16 +142,6 @@ function update_cursor() local(is_hovering_button, is_hovering_point, is_hoverin
           // Normalise button (control index 8)
           is_point_in_control(mouse_x, mouse_y, 8) && control_defs[8*11 + 0] == 1 ? (
             is_hovering_button = 1;
-          ) : (
-            // Milliseconds button (control index 25)
-            is_point_in_control(mouse_x, mouse_y, 25) && control_defs[25*11 + 0] == 1 ? (
-              is_hovering_button = 1;
-            ) : (
-              // Microseconds button (control index 26)
-              is_point_in_control(mouse_x, mouse_y, 26) && control_defs[26*11 + 0] == 1 ? (
-                is_hovering_button = 1;
-              );
-            );
           );
         );
       );

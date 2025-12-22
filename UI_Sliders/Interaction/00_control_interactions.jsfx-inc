@@ -33,9 +33,9 @@ ui_prev_ctrl_key = 0;  // Previous frame's CTRL key state
 // HELPER FUNCTIONS
 //==============================================================================
 
-// Update PDC delay for lookahead slider (param_index 11 = lookahead_ms)
+// Update PDC delay for lookahead slider (param_index 13 = lookahead_ms)
 function update_pdc_delay_if_needed(param_index) (
-  param_index == 11 ? (
+  param_index == 13 ? (
     pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
     pdc_delay > 0 ? (
       pdc_bot_ch = 0;
@@ -47,23 +47,23 @@ function update_pdc_delay_if_needed(param_index) (
 // Preview Filters: Auto-enable Listen when adjusting HP/LP filters
 function handle_preview_filters(param_index, is_drag_start) (
   // If Preview Filters is enabled and adjusting HP or LP filter
-  menu_preview_filters_enabled > 0.5 && (param_index == 17 || param_index == 18) ? (
+  menu_preview_filters_enabled > 0.5 && (param_index == 16 || param_index == 17) ? (
     is_drag_start ? (
       // Drag start: Save initial state of Listen to Detection
-      preview_filters_listen_initial_state = slider(16) > 0.5 ? 1 : 0;
+      preview_filters_listen_initial_state = slider(15) > 0.5 ? 1 : 0;
       
       // If it was off, enable it temporarily
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(16) = 1;
-        sliderchange(1 << (16 - 1));
+        slider(15) = 1;
+        sliderchange(1 << (15 - 1));
       );
     ) : (
       // During drag: Keep it enabled if it was off initially
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(16) = 1;
-        sliderchange(1 << (16 - 1));
+        slider(15) = 1;
+        sliderchange(1 << (15 - 1));
       );
     );
   );
@@ -74,8 +74,8 @@ function handle_preview_filters_drag_end() (
   // If we were tracking and Listen was off initially, restore it to off
   preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
     listen_to_sidechain = 0;
-    slider(16) = 0;
-    sliderchange(1 << (16 - 1));
+    slider(15) = 0;
+    sliderchange(1 << (15 - 1));
   );
   // Reset tracking state
   preview_filters_listen_initial_state = -1;

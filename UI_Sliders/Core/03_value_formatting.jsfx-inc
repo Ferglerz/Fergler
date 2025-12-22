@@ -38,10 +38,6 @@
 //   formatted_str = format_slider_value(param_index, value, " Hz", FORMAT_K, 0);
 //   gfx_drawstr(formatted_str);
 //
-//   // Dynamic suffix example (handled by caller)
-//   suffix_str = time_multiplier == 0 ? " ms" : (time_multiplier == 1 ? " us" : " s");
-//   formatted_str = format_slider_value(1, attack_value, suffix_str, FORMAT_NORMAL, 0);
-//
 
 //==============================================================================
 // HELPER FUNCTIONS
@@ -54,14 +50,35 @@ function format_value_with_decimals(value, decimal_places) (
   #temp_display_str;
 );
 
-// Get attack time unit suffix based on time_multiplier setting
-// Writes suffix string to target_str_slot (" ms", " us", or " s")
-// Parameters: target_str_slot - string slot to write the suffix to
-// This eliminates duplication across slider/knob/parallax fader rendering
-function get_attack_time_unit_suffix(target_str_slot) (
-  time_multiplier == 0 ? strcpy(target_str_slot, " ms") :
-  time_multiplier == 1 ? strcpy(target_str_slot, " us") :
-  strcpy(target_str_slot, " s")
+
+// Convert milliseconds to dB/s
+// Uses the same fixed dB amount (10dB) as linear release calculations
+// Formula: dB/s = 10 / (ms * 0.001) = 10000 / ms
+// Parameters: ms_value - value in milliseconds
+// Returns: value in dB/s
+function ms_to_db_per_second(ms_value) (
+  ms_value > 0.001 ? (10000.0 / ms_value) : 10000000.0
+);
+
+// Convert dB/s to milliseconds
+// Inverse of ms_to_db_per_second: ms = 10000 / dB_per_sec
+// Parameters: db_per_sec - value in dB/s
+// Returns: value in milliseconds
+function db_per_second_to_ms(db_per_sec) (
+  db_per_sec > 0.001 ? (10000.0 / db_per_sec) : 10000000.0
+);
+
+// Format dB/s value with integer rounding and k suffix for >= 1000
+// Parameters: db_per_sec - value in dB/s
+// Returns: formatted string slot (uses #temp_display_str)
+function format_db_per_second(db_per_sec) local(rounded_int) (
+  rounded_int = floor(db_per_sec + 0.5);  // Round to nearest integer
+  rounded_int >= 1000 ? (
+    sprintf(#temp_display_str, "%.1fk", rounded_int / 1000.0)
+  ) : (
+    sprintf(#temp_display_str, "%.0f", rounded_int)
+  );
+  #temp_display_str;
 );
 
 //==============================================================================
@@ -100,22 +117,29 @@ function format_slider_value(param_index, value, suffix_str, formatting, format_
       actual_value == 0 ? (
         strcpy(#temp_display_str, "Off");
       ) : (
-        // Apply formatting based on formatting parameter
-        formatting == FORMAT_K ? (
-          // Format_K: add "k" suffix for values >= 1000
-          actual_value >= 1000 ? (
-            sprintf(#temp_display_str, "%.1fk%s", actual_value / 1000, suffix_str);
-          ) : actual_value >= 100 ? (
-            sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
-          ) : (
-            sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
-          );
-        ) : formatting == FORMAT_NONE ? (
-          sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
+        // Format dB/s for attack and release knobs (param_index 1 and 4 use " dB/s" suffix)
+        // Values are already in dB/s, so just format with integer rounding and k suffix
+        (param_index == 1 || param_index == 4) ? (
+          format_db_per_second(actual_value);
+          sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str);
         ) : (
-          // FORMAT_NORMAL: for enumerated sliders, use %g to display full precision without rounding
-          // %g automatically chooses the best representation (no trailing zeros, preserves precision)
-          sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
+          // Apply formatting based on formatting parameter
+          formatting == FORMAT_K ? (
+            // Format_K: add "k" suffix for values >= 1000
+            actual_value >= 1000 ? (
+              sprintf(#temp_display_str, "%.1fk%s", actual_value / 1000, suffix_str);
+            ) : actual_value >= 100 ? (
+              sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
+            ) : (
+              sprintf(#temp_display_str, "%.0f%s", actual_value, suffix_str);
+            );
+          ) : formatting == FORMAT_NONE ? (
+            sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
+          ) : (
+            // FORMAT_NORMAL: for enumerated sliders, use %g to display full precision without rounding
+            // %g automatically chooses the best representation (no trailing zeros, preserves precision)
+            sprintf(#temp_display_str, "%g%s", actual_value, suffix_str);
+          );
         );
       );
     ) : (
@@ -128,19 +152,26 @@ function format_slider_value(param_index, value, suffix_str, formatting, format_
     decimal_places = increment >= 1 ? 0 : (increment >= 0.1 ? 1 : (increment >= 0.01 ? 2 : 3));
     rounded_value = floor(value / increment + 0.5) * increment;
     
-    // Apply formatting based on mutually exclusive formatting parameter
-    formatting == FORMAT_K ? (
-      rounded_value >= 1000 ? sprintf(#temp_display_str, "%.1fk", rounded_value / 1000) :
-      rounded_value >= 100 ? sprintf(#temp_display_str, "%.0f", rounded_value) :
-      format_value_with_decimals(rounded_value, decimal_places);
-    ) : formatting == FORMAT_NONE ? (
-      sprintf(#temp_display_str, "%g", rounded_value);
+    // Format dB/s for attack and release knobs (param_index 1 and 4 use " dB/s" suffix)
+    // Values are already in dB/s, so just format with integer rounding and k suffix
+    (param_index == 1 || param_index == 4) ? (
+      format_db_per_second(rounded_value);
+      sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str);
     ) : (
-      format_value_with_decimals(rounded_value, decimal_places);
+      // Apply formatting based on mutually exclusive formatting parameter
+      formatting == FORMAT_K ? (
+        rounded_value >= 1000 ? sprintf(#temp_display_str, "%.1fk", rounded_value / 1000) :
+        rounded_value >= 100 ? sprintf(#temp_display_str, "%.0f", rounded_value) :
+        format_value_with_decimals(rounded_value, decimal_places);
+      ) : formatting == FORMAT_NONE ? (
+        sprintf(#temp_display_str, "%g", rounded_value);
+      ) : (
+        format_value_with_decimals(rounded_value, decimal_places);
+      );
+      
+      // Append suffix string if provided
+      strlen(suffix_str) > 0 ? sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str) : 0;
     );
-    
-    // Append suffix string if provided
-    strlen(suffix_str) > 0 ? sprintf(#temp_display_str, "%s%s", #temp_display_str, suffix_str) : 0;
   );
   
   #temp_display_str;

@@ -116,13 +116,6 @@ function render_control(index, opacity) local(
       get_control_suffix(index);
       suffix_str = #value_str;
       
-      // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
-      // Only Attack slider responds to the time unit selector (time_multiplier variable)
-      param_index == 1 ? (
-        get_attack_time_unit_suffix(#value_str);
-        suffix_str = #value_str;
-      );
-      
       // For enumerated sliders, ignore min_val/max_val from control_defs
       // They use option_count instead (0 to option_count-1)
       option_count = get_dropdown_option_count(param_index);
@@ -181,13 +174,6 @@ function render_control(index, opacity) local(
       format_options = (slider_config >> 8) & 0xFF;   // Bits 8-15: format options
       display_mode = (slider_config >> 16) & 0xFF;    // Bits 16-23: display mode
       
-      // Apply dynamic suffix override for Attack slider (param_index 1) based on time unit selector
-      // Only Attack slider responds to the time unit selector (time_multiplier variable)
-      param_index == 1 ? (
-        get_attack_time_unit_suffix(#value_str);
-        suffix_str = #value_str;
-      );
-      
       // For enumerated sliders, ignore min_val/max_val from control_defs
       // They use option_count instead (0 to option_count-1)
       // Parallax faders support stepped sliders the same way as regular sliders
@@ -242,12 +228,8 @@ function render_control(index, opacity) local(
       get_control_suffix(index);
       suffix_str = #value_str;
       
-      // Apply dynamic suffix override for Attack knob (param_index 1) based on time unit selector
-      // Only Attack knob responds to the time unit selector (time_multiplier variable)
-      param_index == 1 ? (
-        get_attack_time_unit_suffix(#value_str);
-        suffix_str = #value_str;
-      );
+      // Note: Attack and Release knobs now use " dB/s" suffix
+      // The value conversion from ms to dB/s is handled in format_slider_value()
       
       // For enumerated knobs, ignore min_val/max_val from control_defs
       // They use option_count instead (0 to option_count-1)
