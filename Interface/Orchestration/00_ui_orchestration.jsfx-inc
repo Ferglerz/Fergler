@@ -42,7 +42,7 @@ function apply_reflection_blur(meter_x, meter_w) (
   reflection_blur_start_x = GRAPH_X - 10;
   reflection_blur_start_y = reflection_y;
   reflection_blur_end_x = meter_x + meter_w + 10;
-  reflection_blur_end_y = reflection_y + 3;  // 3 pixels tall
+  reflection_blur_end_y = reflection_y + 5;  // 5 pixels tall
   apply_blur_region(reflection_blur_start_x, reflection_blur_start_y, reflection_blur_end_x, reflection_blur_end_y);
 );
 
@@ -103,11 +103,10 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
       
       draw_threshold_lines_on_graph();    // 05h
       
-      // Draw meters and info outside graph area (these don't fade, they're outside the graph)
-      draw_gain_reduction_meter();  // 05i
-      update_and_render_meter_trail_lines();  // 06 - Meter trail lines (fading lines showing GR hotspots)
+      // Draw labels and info outside graph area
       draw_labels_and_info();       // 05j
       draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
+      draw_ctrl_hint();             // 05j - Ctrl/cmd hint when hovering over points/thresholds
       gfx_a = 1.0;
       
       // Apply blur effect if blur transition is active
@@ -121,16 +120,43 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
     );
   );
 
-  // PAGE 2: Input (ungrouped controls - visibility handled in render_all_controls_with_page_filtering)
-  render_filters_page_buttons();
-  
-  // Apply blur to Filters page if blur transition is active
-  should_blur_page(PAGE_FILTERS) ? (
-    blur_amount = get_page_blur_amount(PAGE_FILTERS);
-    blur_amount > 0.01 ? (
-      // Blur the filter controls area (graph area)
-      apply_page_blur_graph_area();
+  // PAGE 2: Input - show graph with reduced opacity (50% for histogram/grid) and no interactive elements
+  should_render_page(PAGE_FILTERS) ? (
+    page_opacity = get_page_fade_amount(PAGE_FILTERS);
+    page_opacity > 0.01 ? (
+      // Render graph background with 15% opacity, no interactive elements
+      gfx_a = 0.15;
+      draw_graph_background();  // Graph background (no 1:1 line when on Input page)
+      
+      // Render histogram and grid at half opacity (functions handle opacity based on page)
+      draw_input_histogram();   // Input signal histogram
+      draw_histogram();         // GR histogram
+      draw_grid();              // Grid
+      
+      // Do not render compression curve or threshold lines when not on graph page
+      // draw_mixed_curves() removed - only show on graph page
+      // draw_threshold_lines_on_graph() removed - only show on graph page
+      
+      update_and_render_trail_dots();  // Trail dots
+      
+      // Do not render green dot when not on graph page
+      
+      gfx_a = 1.0;
+      
+      // Render Input page buttons on top
+      render_filters_page_buttons();
+      
+      // Apply blur to Filters page if blur transition is active
+      should_blur_page(PAGE_FILTERS) ? (
+        blur_amount = get_page_blur_amount(PAGE_FILTERS);
+        blur_amount > 0.01 ? (
+          apply_page_blur_graph_area();
+        );
+      );
     );
+  ) : (
+    // If Filters page is not active, still render buttons if transitioning
+    render_filters_page_buttons();
   );
   
   // PAGE 3: Settings
@@ -145,8 +171,12 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
     );
   );
   
+  // Always render meter and meter trail lines on all pages (using cached meter positions)
+  draw_gain_reduction_meter();
+  update_and_render_meter_trail_lines();  // Meter trail lines (fading lines showing GR hotspots)
+  
   // Blur reflection area separately, all the time
-  // Reflection is 3 pixels tall, between graph left side and meter right side, plus 10px either side
+  // Reflection is 5 pixels tall, between graph left side and meter right side, plus 10px either side
   // (using cached meter positions)
   apply_reflection_blur(cached_meter_x, cached_meter_w);
   
