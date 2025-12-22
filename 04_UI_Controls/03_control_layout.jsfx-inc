@@ -5,14 +5,10 @@
 
 #forward_button_label = 90;
 #feedback_button_label = 91;
-#milliseconds_button_label = 92;
-#microseconds_button_label = 93;
 
 function init_radio_button_labels() (
-  strcpy(#feedback_button_label, get_dropdown_option(10, 0));
-  strcpy(#forward_button_label, get_dropdown_option(10, 1));
-  strcpy(#milliseconds_button_label, get_dropdown_option(7, 0));
-  strcpy(#microseconds_button_label, get_dropdown_option(7, 1));
+  strcpy(#feedback_button_label, get_dropdown_option(12, 0));
+  strcpy(#forward_button_label, get_dropdown_option(12, 1));
 );
 
 //==============================================================================
@@ -75,7 +71,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   attack_knob_y = current_y + get_label_hidden_row_start_offset(attack_knob_format_options);
   attack_knob_w = SLIDER_W * 1.0;
   attack_knob_x = center_in_group_x(group_w, attack_knob_w);
-  define_knob(0, attack_knob_x, attack_knob_y, attack_knob_w, SLIDER_H * 1.0, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, attack_knob_format_options, " ms", 0), 11, 163, 163, 0, 0, 0.755, 24);
+  define_knob(0, attack_knob_x, attack_knob_y, attack_knob_w, SLIDER_H * 1.0, 1, S1.min, S1.max, S1.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, attack_knob_format_options, " dB/s", 0), 11, 163, 163, 0, 0, 0.755, 24);
   current_y = advance_group_row_y(attack_knob_y, control_h, 40);  // Use 40px padding to maintain current spacing
   
   control_h = SLIDER_H;
@@ -99,7 +95,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   strength_knob_y = current_y + get_label_hidden_row_start_offset(strength_knob_format_options);
   strength_knob_w = SLIDER_W * 0.65;
   strength_knob_x = center_in_group_x(group_w, strength_knob_w);
-  define_knob(11, strength_knob_x, strength_knob_y, strength_knob_w, SLIDER_H * 0.65, 13, S13.min, S13.max, S13.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, strength_knob_format_options, " %", 11), 11, 163, 163, 0, 0, 0.49075, 24);
+  define_knob(11, strength_knob_x, strength_knob_y, strength_knob_w, SLIDER_H * 0.65, 9, S9.min, S9.max, S9.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, strength_knob_format_options, " %", 11), 11, 163, 163, 0, 0, 0.49075, 24);
   current_y = advance_group_row_y(strength_knob_y, control_h, 0);
   // Note: Hold (control 2, slider 3) moved to Release group after Release Curve
   dropdown_w = DROPDOWN_W;
@@ -111,17 +107,21 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   TOGGLE_BUTTON_W = 84;  // Toggle button image width
   TOGGLE_BUTTON_H = 56;  // Toggle button image height
   rel_x_button = center_in_group_x(group_w, TOGGLE_BUTTON_W);
-  prog_release_inverse_label_slot = S39.label;  // Use slider label for title above button
+  prog_release_inverse_label_slot = S7.label;  // Use slider label for title above button
   // Label is drawn 15 pixels above button (label_height + spacing = 11 + 4)
   // Button clickable area starts at current_y, label is drawn above it
   prog_release_inverse_y = current_y;
-  define_image_button(28, rel_x_button, prog_release_inverse_y, TOGGLE_BUTTON_W, TOGGLE_BUTTON_H, 39, S39.min, S39.max, prog_release_inverse_label_slot, 1, 2, 1);
+  define_image_button(28, rel_x_button, prog_release_inverse_y, TOGGLE_BUTTON_W, TOGGLE_BUTTON_H, 7, S7.min, S7.max, prog_release_inverse_label_slot, 1, 2, 1);
   // Advance by button height (label is drawn above, doesn't take row space)
   current_y = advance_group_row_y(prog_release_inverse_y, TOGGLE_BUTTON_H, 0);
-  control_h = SLIDER_H;
-  slider_w = SLIDER_W;
-  slider_x = center_in_group_x(group_w, slider_w);
-  define_parallax_fader(29, slider_x, current_y, slider_w, control_h, 40, S40.min, S40.max, S40.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  // Program Release Blend: converted from parallax fader to knob
+  control_h = SLIDER_W * 0.65;
+  prog_release_blend_knob_format_options = 0;
+  prog_release_blend_knob_y = current_y + get_label_hidden_row_start_offset(prog_release_blend_knob_format_options);
+  prog_release_blend_knob_w = SLIDER_W * 0.65;
+  prog_release_blend_knob_x = center_in_group_x(group_w, prog_release_blend_knob_w);
+  define_knob(29, prog_release_blend_knob_x, prog_release_blend_knob_y, prog_release_blend_knob_w, SLIDER_H * 0.65, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, prog_release_blend_knob_format_options, " %", 29), 11, 163, 163, 0, 0, 0.49075, 24);
+  current_y = advance_group_row_y(prog_release_blend_knob_y, control_h, 0);
   
   // GROUP 5: RELEASE (moved up by 26 pixels)
   group_x = groups_start_x + (group_width + group_spacing) * 2;
@@ -137,7 +137,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   release_knob_y = current_y + get_label_hidden_row_start_offset(release_knob_format_options);
   release_knob_w = SLIDER_W * 1.0;
   release_knob_x = center_in_group_x(group_w, release_knob_w);
-  define_knob(3, release_knob_x, release_knob_y, release_knob_w, SLIDER_H * 1.0, 4, S4.min, S4.max, S4.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, release_knob_format_options, " ms", 3), 11, 163, 163, 0, 0, 0.755, 24);
+  define_knob(3, release_knob_x, release_knob_y, release_knob_w, SLIDER_H * 1.0, 4, S4.min, S4.max, S4.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, release_knob_format_options, " dB/s", 3), 11, 163, 163, 0, 0, 0.755, 24);
   current_y = advance_group_row_y(release_knob_y, control_h, 40);  // Use 40px padding to maintain current spacing
   
   control_h = SLIDER_H;
@@ -147,11 +147,14 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   define_parallax_fader(4, slider_x, current_y, slider_w, control_h, 5, S5.min, S5.max, S5.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth - 1, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, "", FORMAT_NORMAL, OPTION_HIDE_LABEL, DISPLAY_HIDE_VALUE);
   current_y = advance_group_row_y(current_y, control_h, 0);
   
-  // Hold (moved from Attack group) - Release group: reduce parallax depth by 1 (4 - 1 = 3)
-  control_h = SLIDER_H;
-  slider_w = SLIDER_W;
-  slider_x = center_in_group_x(group_w, slider_w);
-  define_parallax_fader(2, slider_x, current_y, slider_w, control_h, 3, S3.min, S3.max, S3.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth - 1, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, " ms", FORMAT_NORMAL, 0, DISPLAY_HIDE_VALUE);
+  // Hold: converted from parallax fader to knob
+  control_h = SLIDER_W * 0.65;
+  hold_knob_format_options = 0;
+  hold_knob_y = current_y + get_label_hidden_row_start_offset(hold_knob_format_options);
+  hold_knob_w = SLIDER_W * 0.65;
+  hold_knob_x = center_in_group_x(group_w, hold_knob_w);
+  define_knob(2, hold_knob_x, hold_knob_y, hold_knob_w, SLIDER_H * 0.65, 3, S3.min, S3.max, S3.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, hold_knob_format_options, " ms", 2), 11, 163, 163, 0, 0, 0.49075, 24);
+  current_y = advance_group_row_y(hold_knob_y, control_h, 0);
   
   // GROUP 3: HARMONICS (moved up by 26 pixels)
   group_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8 + 6 + 15 + 16;
@@ -167,21 +170,21 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;
   current_y = rel_y;
   // Harmonic type: use slider label for title above button (84x56 image size)
-  harmonic_type_label_slot = S19.label;  // Use slider label for title above button
+  harmonic_type_label_slot = S20.label;  // Use slider label for title above button
   // Label is drawn 15 pixels above button (label_height + spacing = 11 + 4)
   // Button clickable area starts at current_y, label is drawn above it
   harmonic_type_y = current_y;
-  define_image_button(17, rel_x_button, harmonic_type_y, TOGGLE_BUTTON_W, TOGGLE_BUTTON_H, 19, S19.min, S19.max, harmonic_type_label_slot, 1, 2, 1);
+  define_image_button(17, rel_x_button, harmonic_type_y, TOGGLE_BUTTON_W, TOGGLE_BUTTON_H, 20, S20.min, S20.max, harmonic_type_label_slot, 1, 2, 1);
   // Advance by button height (label is drawn above, doesn't take row space)
   current_y = advance_group_row_y(harmonic_type_y, TOGGLE_BUTTON_H, 0);
   control_h = SLIDER_H;
-  define_parallax_fader(18, rel_x_slider, current_y, SLIDER_W, control_h, 20, S20.min, S20.max, S20.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, "", FORMAT_NORMAL, 0, DISPLAY_HIDE_VALUE);
+  define_parallax_fader(18, rel_x_slider, current_y, SLIDER_W, control_h, 21, S21.min, S21.max, S21.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, "", FORMAT_NORMAL, 0, DISPLAY_HIDE_VALUE);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(19, rel_x_slider, current_y, SLIDER_W, control_h, 21, S21.min, S21.max, S21.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  define_parallax_fader(19, rel_x_slider, current_y, SLIDER_W, control_h, 22, S22.min, S22.max, S22.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(20, rel_x_slider, current_y, SLIDER_W, control_h, 22, S22.min, S22.max, S22.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  define_parallax_fader(20, rel_x_slider, current_y, SLIDER_W, control_h, 23, S23.min, S23.max, S23.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(21, rel_x_slider, current_y, SLIDER_W, control_h, 23, S23.min, S23.max, S23.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  define_parallax_fader(21, rel_x_slider, current_y, SLIDER_W, control_h, 24, S24.min, S24.max, S24.label, sm_fader_rt.image_top_index, sm_fader_rt.image_bot_index, sm_fader_rt.image_w, sm_fader_rt.image_h, sm_fader_rt.para_depth - 1, sm_fader_rt.y_offset, sm_fader_rt.x_offset, sm_fader_rt.image_scale, " %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
   current_y = advance_group_row_y(current_y, control_h, 0);
   
   // Makeup knob: advance by its actual size (1.5x half-size knob = 0.75x full size)
@@ -207,22 +210,16 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   row_y = filters_area_y + 10;
   
   // ============================================================================
-  // ROW 0: Input Offset
-  // ============================================================================
-  define_slider(12, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 14, S14.min, S14.max, S14.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 12));
-  
-  row_y += FILTER_SLIDER_SPACING;
-  
-  // ============================================================================
-  // ROW 1: High Pass and Low Pass
+  // ROW 0: High Pass and Low Pass
+  // Note: Input Offset has been moved to vertical slider on left side of graph
   // ============================================================================
   FILTER_HP_LP_SLIDER_W = (FILTER_SLIDER_W / 2) - 5;
   FILTER_HP_LP_GAP = 10;
   filter_hp_lp_total_width = FILTER_HP_LP_SLIDER_W * 2 + FILTER_HP_LP_GAP;
   filter_hp_lp_start_x = filter_controls_center_x - filter_hp_lp_total_width / 2;
   
-  define_slider(15, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 17, S17.min, S17.max, S17.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
-  define_slider(16, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
+  define_slider(15, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 16, S16.min, S16.max, S16.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 15));
+  define_slider(16, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 17, S17.min, S17.max, S17.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 16));
   
   row_y += FILTER_SLIDER_SPACING;
   
@@ -234,23 +231,30 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   filter_three_button_total_width = FILTER_THREE_BUTTON_W * 3 + FILTER_THREE_BUTTON_GAP * 2;
   filter_three_button_start_x = filter_controls_center_x - filter_three_button_total_width / 2;
   
-  define_button(9, filter_three_button_start_x, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 16, S16.min, S16.max, S16.label);
-  define_button(27, filter_three_button_start_x + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label);
+  define_button(9, filter_three_button_start_x, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 15, S15.min, S15.max, S15.label);
+  define_button(27, filter_three_button_start_x + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP + FILTER_THREE_BUTTON_W + FILTER_THREE_BUTTON_GAP, row_y, FILTER_THREE_BUTTON_W, BUTTON_H, 14, S14.min, S14.max, S14.label);
   
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
   // ROW 3: RMS Window and Normalize button
   // ============================================================================
-  define_slider(7, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 8, S8.min, S8.max, S8.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
-  define_button(8, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 9, S9.min, S9.max, S9.label);
+  define_slider(7, filter_hp_lp_start_x, row_y, FILTER_HP_LP_SLIDER_W, FILTER_SLIDER_H, 10, S10.min, S10.max, S10.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7));
+  define_button(8, filter_hp_lp_start_x + FILTER_HP_LP_SLIDER_W + FILTER_HP_LP_GAP, row_y, FILTER_HP_LP_SLIDER_W, BUTTON_H, 11, S11.min, S11.max, S11.label);
   
   row_y += FILTER_SLIDER_SPACING;
   
   // ============================================================================
   // ROW 4: Lookahead
   // ============================================================================
-  define_slider(10, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 11, S11.min, S11.max, S11.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 10));
+  define_slider(10, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 13, S13.min, S13.max, S13.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 10));
+  
+  row_y += FILTER_SLIDER_SPACING;
+  
+  // ============================================================================
+  // ROW 5: Input Offset
+  // ============================================================================
+  define_slider(12, filter_controls_center_x - FILTER_SLIDER_W / 2, row_y, FILTER_SLIDER_W, FILTER_SLIDER_H, 18, S18.min, S18.max, S18.label, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 12));
   
   // ============================================================================
   // SETTINGS PAGE
@@ -280,17 +284,10 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   // ============================================================================
   // ROW 1: Feedforward/Feedback buttons
   // ============================================================================
-  // Use same X position as milliseconds/microseconds buttons (settings_two_button_start_x)
-  define_image_button(23, settings_two_button_start_x, settings_row_y, SETTINGS_IMAGE_BUTTON_W, SETTINGS_IMAGE_BUTTON_H, 10, 1, 1, 0, 7, 8, 1);
-  define_image_button(24, settings_two_button_start_x + SETTINGS_IMAGE_BUTTON_W + settings_button_gap, settings_row_y, SETTINGS_IMAGE_BUTTON_W, SETTINGS_IMAGE_BUTTON_H, 10, 0, 0, 0, 9, 10, 1);
+  define_image_button(23, settings_two_button_start_x, settings_row_y, SETTINGS_IMAGE_BUTTON_W, SETTINGS_IMAGE_BUTTON_H, 12, 1, 1, 0, 7, 8, 1);
+  define_image_button(24, settings_two_button_start_x + SETTINGS_IMAGE_BUTTON_W + settings_button_gap, settings_row_y, SETTINGS_IMAGE_BUTTON_W, SETTINGS_IMAGE_BUTTON_H, 12, 0, 0, 0, 9, 10, 1);
   
   settings_row_y += SETTINGS_IMAGE_BUTTON_H + 24;
-  
-  // ============================================================================
-  // ROW 2: Milliseconds/Microseconds buttons
-  // ============================================================================
-  define_button(25, settings_two_button_start_x, settings_row_y, settings_standard_button_w, BUTTON_H, 7, 0, 0, #milliseconds_button_label);
-  define_button(26, settings_two_button_start_x + settings_standard_button_w + settings_button_gap, settings_row_y, settings_standard_button_w, BUTTON_H, 7, 1, 1, #microseconds_button_label);
   
   settings_row_y += settings_row_spacing;
   

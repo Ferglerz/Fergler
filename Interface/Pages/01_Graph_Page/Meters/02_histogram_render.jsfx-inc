@@ -170,22 +170,31 @@ function draw_histogram_reflection_unified_pixel() local(
       acc_g = min(1.0, acc_g / max(acc_alpha, 0.001));
       acc_b = min(1.0, acc_b / max(acc_alpha, 0.001));
       
-      // Draw 3-pixel tall reflection with gradient opacity
-      // Top and bottom at 50% of middle opacity
+      // Draw 5-pixel tall reflection with gradient opacity
+      // Top and bottom at 50% of middle opacity, second and fourth at 75%
       middle_alpha = total_alpha;
       edge_alpha = total_alpha * 0.5;
+      mid_edge_alpha = total_alpha * 0.75;
       
       // Top pixel
       gfx_set(acc_r, acc_g, acc_b, edge_alpha);
       gfx_rect(GRAPH_X + i, reflection_y, 1, 1);
       
+      // Second pixel
+      gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
+      gfx_rect(GRAPH_X + i, reflection_y + 1, 1, 1);
+      
       // Middle pixel
       gfx_set(acc_r, acc_g, acc_b, middle_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 1, 1, 1);
+      gfx_rect(GRAPH_X + i, reflection_y + 2, 1, 1);
+      
+      // Fourth pixel
+      gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
+      gfx_rect(GRAPH_X + i, reflection_y + 3, 1, 1);
       
       // Bottom pixel
       gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 2, 1, 1);
+      gfx_rect(GRAPH_X + i, reflection_y + 4, 1, 1);
     );
     
     i += 1;
@@ -291,8 +300,11 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
 // INPUT HISTOGRAM
 //==============================================================================
 
-function draw_input_histogram() (
+function draw_input_histogram() local(histogram_opacity) (
   INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38) > 0.5 ? (
+    // Use half opacity when not on graph page, full opacity when on graph page
+    // Note: When on graph page, gfx_a is set to page_opacity in orchestration, so we use full opacity here
+    histogram_opacity = should_render_page(PAGE_GRAPH) ? INPUT_HISTOGRAM_OPACITY : INPUT_HISTOGRAM_OPACITY * 0.5;
     draw_input_histogram_line(
       input_histogram_buffer,
       input_histogram_pos,
@@ -300,7 +312,7 @@ function draw_input_histogram() (
       INPUT_HISTOGRAM_COLOR_R,
       INPUT_HISTOGRAM_COLOR_G,
       INPUT_HISTOGRAM_COLOR_B,
-      INPUT_HISTOGRAM_OPACITY
+      histogram_opacity
     );
   );
 );
@@ -309,20 +321,23 @@ function draw_input_histogram() (
 // HISTOGRAM
 //==============================================================================
 
-function draw_histogram() (
+function draw_histogram() local(histogram_opacity) (
   HISTOGRAM_ENABLED && slider(38) > 0.5 ? (
+    // Use half opacity when not on graph page, full opacity when on graph page
+    // Note: When on graph page, gfx_a is set to page_opacity in orchestration, so we use full opacity here
+    histogram_opacity = should_render_page(PAGE_GRAPH) ? HISTOGRAM_OPACITY : HISTOGRAM_OPACITY * 0.5;
     histogram_pixel_initialized ? (
       // Render histogram lines
       draw_gr_histogram_neg_line_pixel(
         histogram_pixel_buffer,
         1, 0.5, 0,
-        HISTOGRAM_OPACITY
+        histogram_opacity
       );
       
       draw_gr_histogram_pos_line_pixel(
         histogram_pixel_buffer,
         0.2, 0.5, 1,
-        HISTOGRAM_OPACITY
+        histogram_opacity
       );
     );
     

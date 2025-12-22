@@ -22,22 +22,25 @@ function gr_knee_db_to_pixels(knee_db, meter_h) (
 
 // Render GR blend threshold lines on meter (both reduction and addition)
 // Parameters: meter_x, meter_y, meter_w, meter_h - meter position and size
-function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y, knee_height, knee_top, knee_bottom) (
+function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) local(line_y, knee_height, knee_top, knee_bottom, opacity_mult) (
   prog_release_mode == 1 ? (
+    // Calculate opacity based on prog_release_blend: 20% at 0% blend (fully fixed), 100% at 50% blend
+    opacity_mult = prog_release_blend <= 50 ? (0.2 + (prog_release_blend / 50.0) * 0.8) : 1.0;
+    opacity_mult = max(0.2, min(1.0, opacity_mult));
     // Render reduction threshold line (negative GR area, top portion)
     line_y = gr_blend_db_to_meter_y(gr_blend_threshold_reduction_db, meter_y, meter_h);
     
-    // Draw transparent knee bar behind the line (25% white opacity)
+    // Draw transparent knee bar behind the line (25% white opacity, scaled by opacity_mult)
     gr_blend_threshold_reduction_knee_db > 0 ? (
       knee_height = gr_knee_db_to_pixels(gr_blend_threshold_reduction_knee_db, meter_h);
       knee_top = line_y - knee_height * 0.5;
       knee_bottom = line_y + knee_height * 0.5;
-      gfx_set(1, 1, 1, 0.25);  // 25% white opacity
+      gfx_set(1, 1, 1, 0.25 * opacity_mult);  // 25% white opacity, scaled by blend amount
       gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
     );
     
-    // Draw 2-pixel tall pure white line
-    gfx_set(1, 1, 1, 1);  // Pure white
+    // Draw 2-pixel tall pure white line (scaled by opacity_mult)
+    gfx_set(1, 1, 1, opacity_mult);  // Pure white, scaled by blend amount
     gfx_rect(meter_x, line_y - 1, meter_w, 2);  // 2 pixels tall, centered on line_y
     
     // Draw label (just dB value, no prefix)
@@ -48,17 +51,17 @@ function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) loca
     // Render addition threshold line (positive GR area, from bottom)
     line_y = gr_boost_db_to_meter_y(gr_blend_threshold_addition_db, meter_y, meter_h);
     
-    // Draw transparent knee bar behind the line (25% white opacity)
+    // Draw transparent knee bar behind the line (25% white opacity, scaled by opacity_mult)
     gr_blend_threshold_addition_knee_db > 0 ? (
       knee_height = gr_knee_db_to_pixels(gr_blend_threshold_addition_knee_db, meter_h);
       knee_top = line_y - knee_height * 0.5;
       knee_bottom = line_y + knee_height * 0.5;
-      gfx_set(1, 1, 1, 0.25);  // 25% white opacity
+      gfx_set(1, 1, 1, 0.25 * opacity_mult);  // 25% white opacity, scaled by blend amount
       gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
     );
     
-    // Draw 2-pixel tall pure white line
-    gfx_set(1, 1, 1, 1);  // Pure white
+    // Draw 2-pixel tall pure white line (scaled by opacity_mult)
+    gfx_set(1, 1, 1, opacity_mult);  // Pure white, scaled by blend amount
     gfx_rect(meter_x, line_y - 1, meter_w, 2);  // 2 pixels tall, centered on line_y
     
     // Draw label (just dB value, no prefix)

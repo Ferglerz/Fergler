@@ -29,6 +29,8 @@ preview_filters_button_y = 0;
 function init_input_page() (
   // Initialize button label
   strcpy(#preview_filters_button_label, "Auto-preview");
+  // Initialize auto preview to enabled by default
+  menu_preview_filters_enabled = 1;
 );
 
 //==============================================================================

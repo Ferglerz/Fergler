@@ -87,7 +87,8 @@ function render_trail_dots() (
 );
 
 function update_and_render_trail_dots() (
-  is_audio_active ? (
+  // Only update and render trail dots when on graph page
+  should_render_page(PAGE_GRAPH) && is_audio_active ? (
     update_trail_dots();
     render_trail_dots();
   );

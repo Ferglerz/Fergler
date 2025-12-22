@@ -67,22 +67,31 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
     acc_g = acc_g * 0.7 + 1.0 * 0.3;
     acc_b = acc_b * 0.7 + 1.0 * 0.3;
     
-    // Draw 3-pixel tall reflection with gradient opacity
-    // Top and bottom at 50% of middle opacity
+    // Draw 5-pixel tall reflection with gradient opacity
+    // Top and bottom at 50% of middle opacity, second and fourth at 75%
     middle_alpha = meter_alpha;
     edge_alpha = meter_alpha * 0.5;
+    mid_edge_alpha = meter_alpha * 0.75;
     
     // Top pixel
     gfx_set(acc_r, acc_g, acc_b, edge_alpha);
     gfx_rect(meter_x, reflection_y, meter_w, 1);
     
+    // Second pixel
+    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
+    gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
+    
     // Middle pixel
     gfx_set(acc_r, acc_g, acc_b, middle_alpha);
-    gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
+    gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
+    
+    // Fourth pixel
+    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
+    gfx_rect(meter_x, reflection_y + 3, meter_w, 1);
     
     // Bottom pixel
     gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-    gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
+    gfx_rect(meter_x, reflection_y + 4, meter_w, 1);
   );
 );
 
@@ -152,9 +161,6 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
   gfx_set(0.2, 0.2, 0.2, 0.5);
   gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
 
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_line(gr_meter_x, meter_center_y, gr_meter_x + gr_meter_w, meter_center_y, 1);
-
   // Only draw orange/blue meters when histogram (metering) is enabled
   slider(38) > 0.5 ? (
     is_audio_active = (play_state == 1) || (play_state == 5);
@@ -175,8 +181,11 @@ function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, g
     );
   );
   
-  render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
-  render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  // Only render meter threshold lines when on graph page
+  should_render_page(PAGE_GRAPH) ? (
+    render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+    render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  );
   
   // Draw meter reflection below the meter (on same plane as histogram reflection)
   draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);

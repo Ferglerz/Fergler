@@ -8,18 +8,24 @@
 // GRAPH BACKGROUND AND GRID
 //==============================================================================
 
-function draw_graph_background() (
+function draw_graph_background() local(should_draw_unity_line) (
   debug_counter_graph_bg += 1;
   
   // Background removed - now using plugin background image
-  // Only draw unity line (1:1 diagonal reference line)
-  gfx_set(0.6, 0.6, 0.6, 1);
-  gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
+  // Only draw unity line (1:1 diagonal reference line) when on Graph page
+  // Hide it when rendering on Input page (reduced opacity background)
+  should_draw_unity_line = should_render_page(PAGE_GRAPH) ? 1 : 0;
+  should_draw_unity_line ? (
+    gfx_set(0.6, 0.6, 0.6, 1);
+    gfx_line(GRAPH_X, GRAPH_Y + GRAPH_SIZE, GRAPH_X + GRAPH_SIZE, GRAPH_Y, 1); // Antialiased
+  );
 );
 
-function draw_grid() (
+function draw_grid() local(i, x_pos, y_pos, grid_step, db_value, label_x, label_y, grid_opacity) (
   debug_counter_grid += 1;
-  gfx_set(0.4, 0.4, 0.4, 0.33);  // 33% opacity
+  // Use half opacity when not on graph page
+  grid_opacity = should_render_page(PAGE_GRAPH) ? 0.33 : 0.165;
+  gfx_set(0.4, 0.4, 0.4, grid_opacity);
   grid_step = GRAPH_SIZE / 6;
   i = 0;
   while (i <= 6) (
@@ -27,6 +33,27 @@ function draw_grid() (
     y_pos = GRAPH_Y + i * grid_step;
     gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1);
     gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1);
+    i += 1;
+  );
+  
+  // Draw dB labels on left side where horizontal grid lines meet the left edge
+  gfx_set(0.7, 0.7, 0.7, 1);  // Light gray for labels
+  gfx_setfont(1, "Arial", 11);
+  label_x = GRAPH_X - 15;  // Position to the left of graph (moved 20 pixels right from original)
+  i = 0;
+  while (i <= 6) (
+    y_pos = GRAPH_Y + i * grid_step;
+    // Calculate dB value for this grid line (from bottom: GRAPH_MIN_DB to top: GRAPH_MAX_DB)
+    // i=0 is bottom (GRAPH_MIN_DB), i=6 is top (GRAPH_MAX_DB)
+    db_value = GRAPH_MIN_DB + (GRAPH_RANGE_DB * (6 - i) / 6);
+    // Only draw labels for major grid lines (i=1,2,3,4,5 - skip top and bottom edges)
+    (i > 0 && i < 6) ? (
+      // Format label (handle negative numbers)
+      sprintf(#temp_display_str, "%.0f", db_value);
+      gfx_x = label_x;
+      gfx_y = y_pos - 5;  // Center vertically on grid line
+      gfx_drawstr(#temp_display_str);
+    );
     i += 1;
   );
 );
@@ -54,6 +81,20 @@ function draw_compression_threshold_overlay() (
     gfx_y = GRAPH_Y + 24;
     gfx_set(0.8, 0.8, 0.8, 0.7);
     gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
+  );
+);
+
+function draw_ctrl_hint() (
+  // Show hint when hovering over graph points or threshold lines
+  (hovered_point >= 0 || hovered_threshold_line >= 0) ? (
+    gfx_set(0.6, 0.6, 0.6, 0.8);  // Gray text, 80% opacity
+    gfx_setfont(1, "Arial", 9);   // Small font
+    strcpy(#temp_display_str, "Ctrl/cmd to fine adjust");
+    gfx_measurestr(#temp_display_str, hint_width, hint_height);
+    // Position in bottom right of graph area with padding
+    gfx_x = GRAPH_X + GRAPH_SIZE - hint_width - 8;  // 8px padding from right
+    gfx_y = GRAPH_Y + GRAPH_SIZE - hint_height - 8;  // 8px padding from bottom
+    gfx_drawstr(#temp_display_str);
   );
 );
 
