@@ -21,7 +21,7 @@ function allocate_memory() (
   curve_amounts = freemem;
   freemem += MAX_POINTS;
   
-  // Allocate compression lookup table (400 entries for -50dB to +50dB at 0.25dB granularity)
+  // Allocate compression lookup table (560 entries for -120dB to +20dB at 0.25dB granularity)
   comp_lut = freemem;
   freemem += COMP_LUT_SIZE;
   
@@ -157,12 +157,12 @@ function allocate_memory() (
   page_button_y_base = freemem;
   freemem += 4;  // NUM_PAGE_BUTTONS = 4
   
-  // Settings button position arrays (NUM_SETTINGS_BUTTONS = 1, Debug button moved to invisible top-left)
+  // Settings button position arrays (NUM_SETTINGS_BUTTONS = 2, Debug button moved to invisible top-left)
   settings_button_x_base = freemem;
-  freemem += 1;  // NUM_SETTINGS_BUTTONS = 1
+  freemem += 2;  // NUM_SETTINGS_BUTTONS = 2
 
   settings_button_y_base = freemem;
-  freemem += 1;  // NUM_SETTINGS_BUTTONS = 1
+  freemem += 2;  // NUM_SETTINGS_BUTTONS = 2
   
   // Updated slider values cache (stores values updated during mouse interaction for same-frame rendering)
   // Array of 256 values (one per slider), -999 indicates "not updated this frame"
