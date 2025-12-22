@@ -10,6 +10,10 @@ curve_cache_size = 0;
 curve_cache_hash = 0;
 curve_cache_points = 0;
 
+// Global variables for tangent extension helper function return values
+tangent_ext_start_x_db = 0;
+tangent_ext_start_y_db = 0;
+
 function calculate_curve_hash() local(hash, i) (
   hash = 0;
   i = 0;
@@ -23,6 +27,61 @@ function calculate_curve_hash() local(hash, i) (
   hash = hash * 31 + num_points;
   hash < 0 ? hash = -hash;
   hash;
+);
+
+// Helper function to calculate tangent extension point from first user segment (point 1 to point 2)
+// Uses the same logic as sample_curve_at_db_internal() but for the specific case of extending backwards
+// Returns: (start_x_db, start_y_db) - the point where the extension should start
+function calculate_tangent_extension_point() local(
+  first_x_db, first_y_db, second_x_db, second_y_db, dx, slope,
+  x_at_bottom_db, start_x_db, start_y_db
+) (
+  num_points >= 3 ? (
+    // Get first user segment endpoints (indices 1 and 2 in graph_points)
+    first_x_db = graph_points[2];  // First user point X
+    first_y_db = graph_points[3];  // First user point Y
+    second_x_db = graph_points[4]; // Second user point X
+    second_y_db = graph_points[5]; // Second user point Y
+    
+    // Calculate slope from first segment (same as LUT does)
+    dx = second_x_db - first_x_db;
+    abs(dx) > 0.0001 ? (
+      slope = (second_y_db - first_y_db) / dx;
+      // Extend tangent to the bottom edge (Y = GRAPH_MIN_DB) to match LUT behavior
+      x_at_bottom_db = first_x_db + (GRAPH_MIN_DB - first_y_db) / slope;
+      
+      // If the intersection with the bottom sits inside the graph width, use it directly
+      (x_at_bottom_db >= GRAPH_MIN_DB && x_at_bottom_db <= GRAPH_MAX_DB) ? (
+        start_x_db = x_at_bottom_db;
+        start_y_db = GRAPH_MIN_DB;
+      ) : (
+        // Otherwise clamp to the nearest edge and follow the same tangent
+        x_at_bottom_db < GRAPH_MIN_DB ? (
+          start_x_db = GRAPH_MIN_DB;
+          start_y_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
+        ) : (
+          start_x_db = GRAPH_MAX_DB;
+          start_y_db = first_y_db + slope * (GRAPH_MAX_DB - first_x_db);
+        );
+        // Only clamp when the tangent would rise above the graph bottom
+        start_y_db > GRAPH_MIN_DB ? start_y_db = GRAPH_MIN_DB;
+      );
+    ) : (
+      // Vertical or nearly vertical segment - extend straight down from the first point
+      start_x_db = first_x_db;
+      start_y_db = min(first_y_db, GRAPH_MIN_DB);
+    );
+    // Ensure we never exceed the graph top; bottom clamping handled above
+    start_y_db > GRAPH_MAX_DB ? start_y_db = GRAPH_MAX_DB;
+    
+    // Return values via global variables (JSFX doesn't support multiple return values)
+    tangent_ext_start_x_db = start_x_db;
+    tangent_ext_start_y_db = start_y_db;
+  ) : (
+    // Fallback: not enough points
+    tangent_ext_start_x_db = GRAPH_MIN_DB;
+    tangent_ext_start_y_db = GRAPH_MIN_DB;
+  );
 );
 
 function generate_curve_cache() local(
@@ -41,36 +100,13 @@ function generate_curve_cache() local(
   );
   segment_count = 0;
   num_points >= 2 ? (
-    // Calculate tangent extension from first segment (points 1 and 2) to match LUT behavior
-    // Instead of starting from corner point, extend tangent from first user segment
+    // Use helper function to calculate tangent extension point (matches LUT behavior)
     num_points >= 3 ? (
-      // Get first segment endpoints (indices 1 and 2 in graph_points)
-      first_x_db = graph_points[2];  // First user point X
-      first_y_db = graph_points[3];  // First user point Y
-      second_x_db = graph_points[4]; // Second user point X
-      second_y_db = graph_points[5]; // Second user point Y
-      
-      // Calculate slope from first segment
-      dx = second_x_db - first_x_db;
-      abs(dx) > 0.0001 ? (
-        slope = (second_y_db - first_y_db) / dx;
-        // Calculate Y intercept at X = GRAPH_MIN_DB (allow expansion: Y can be < X)
-        start_y_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
-        // Only clamp to 1:1 line if would cause boost (Y > X), not if it's expansion (Y < X)
-        start_y_db > GRAPH_MIN_DB ? (
-          // Clamp to 1:1 line to prevent boost
-          start_y_db = GRAPH_MIN_DB;
-        );
-        // Note: If start_y_db < GRAPH_MIN_DB, that's expansion and we allow it
-        // Rendering will stop at GRAPH_MAX_DB (0 dB) via clamp_y_to_graph, but we calculate the full extension
-      ) : (
-        // Vertical segment, use first point Y
-        start_y_db = first_y_db;
-      );
-      // Start from GRAPH_MIN_DB with calculated Y (may be below GRAPH_MIN_DB for expansion)
-      prev_x = clamp_x_to_graph(db_to_graph_x(GRAPH_MIN_DB), GRAPH_X, GRAPH_SIZE);
+      calculate_tangent_extension_point();
+      // Start from calculated extension point (extends tangent from point 1 to point 2 backwards)
+      prev_x = clamp_x_to_graph(db_to_graph_x(tangent_ext_start_x_db), GRAPH_X, GRAPH_SIZE);
       // Calculate Y coordinate - allow it to extend below graph for expansion visualization
-      prev_y_unclamped = db_to_graph_y(start_y_db);
+      prev_y_unclamped = db_to_graph_y(tangent_ext_start_y_db);
       // Clamp to graph bounds: top (GRAPH_Y = 0 dB) to bottom (GRAPH_Y + GRAPH_SIZE = -20 dB)
       // This allows showing expansion below -20 dB but clips it at graph boundaries
       prev_y = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, prev_y_unclamped));
@@ -180,4 +216,3 @@ function generate_curve_cache() local(
 function cache_curve_if_needed() (
   curve_cache_dirty || curve_cache_hash != calculate_curve_hash() ? generate_curve_cache();
 );
-

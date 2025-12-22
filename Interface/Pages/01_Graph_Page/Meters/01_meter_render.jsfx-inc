@@ -28,7 +28,7 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
   // At 0dB, meter_alpha should be 0 (invisible)
   // Weight toward blue opacity as value gets smaller (closer to zero)
   // Blue gets higher opacity contribution than orange
-  meter_alpha = 0.5625 * meter_weight;  // Doubled from 0.28125 (2x opacity)
+  meter_alpha = 0.28125 * meter_weight;  // Half of 0.5625 (0.5625 * 0.5 = 0.28125)
   
   meter_alpha > 0.001 ? (
     // Calculate color based on GR direction
