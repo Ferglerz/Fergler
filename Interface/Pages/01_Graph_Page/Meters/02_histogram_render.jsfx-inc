@@ -239,7 +239,7 @@ function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) 
   );
 );
 
-function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
+function draw_gr_histogram_line_pixel(buffer, r_neg, g_neg, b_neg, a_neg, r_pos, g_pos, b_pos, a_pos) (
   i = 0;
   
   width_pixels = GRAPH_SIZE;
@@ -250,12 +250,13 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
     buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
     gr_value = buffer[buffer_idx];
     
+    // Linear fade for leftmost 100 pixels (i=0 is far left)
+    fade_factor = i < 100 ? (i / 100) : 1;
+    
     gr_value < 0 ? (
-      // Linear fade for leftmost 100 pixels (i=0 is far left)
-      fade_factor = i < 100 ? (i / 100) : 1;
-      faded_alpha = a * fade_factor;
+      faded_alpha = a_neg * fade_factor;
       
-      gfx_set(r, g, b, faded_alpha);
+      gfx_set(r_neg, g_neg, b_neg, faded_alpha);
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
@@ -263,29 +264,11 @@ function draw_gr_histogram_neg_line_pixel(buffer, r, g, b, a) (
       
       // Draw vertical line from top to calculated position
       gfx_line(x_pos, top_y, x_pos, y_pos, 1);
-    );
-    
-    i += 1;
-  );
-);
-
-function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
-  i = 0;
-  
-  width_pixels = GRAPH_SIZE;
-  buffer_size = histogram_pixel_max_samples;
-  
-  while (i < width_pixels) (
-    age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
-    buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
-    gr_value = buffer[buffer_idx];
-    
+    ) :
     gr_value > 0 ? (
-      // Linear fade for leftmost 100 pixels (i=0 is far left)
-      fade_factor = i < 100 ? (i / 100) : 1;
-      faded_alpha = a * fade_factor;
+      faded_alpha = a_pos * fade_factor;
       
-      gfx_set(r, g, b, faded_alpha);
+      gfx_set(r_pos, g_pos, b_pos, faded_alpha);
       x_pos = GRAPH_X + i;
       gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
       y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
@@ -323,17 +306,11 @@ function draw_input_histogram(opacity) (
 
 function draw_histogram(opacity) (
   HISTOGRAM_ENABLED && slider(38) > 0.5 && histogram_pixel_initialized && opacity > 0 ? (
-    // Render histogram lines
-    draw_gr_histogram_neg_line_pixel(
+    // Render histogram lines (negative and positive in a single pass)
+    draw_gr_histogram_line_pixel(
       histogram_pixel_buffer,
-      1, 0.5, 0,
-      opacity
-    );
-    
-    draw_gr_histogram_pos_line_pixel(
-      histogram_pixel_buffer,
-      0.2, 0.5, 1,
-      opacity
+      1, 0.5, 0, opacity,      // Negative GR color/alpha
+      0.2, 0.5, 1, opacity     // Positive GR color/alpha
     );
     
     // Draw unified reflection (merges orange, blue, and green) using the same opacity
