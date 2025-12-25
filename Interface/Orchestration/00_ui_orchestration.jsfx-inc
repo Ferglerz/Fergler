@@ -86,8 +86,8 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
     page_opacity > 0.01 ? (
       gfx_a = page_opacity;
       draw_graph_background();  // 05j
-      draw_input_histogram();   // 05i - Input signal histogram (drawn first, behind GR histogram)
-      draw_histogram();         // 05i - GR histogram
+      draw_input_histogram(INPUT_HISTOGRAM_OPACITY * page_opacity);   // 05i - Input signal histogram (drawn first, behind GR histogram)
+      draw_histogram(HISTOGRAM_OPACITY * page_opacity);               // 05i - GR histogram
       
       draw_grid();                        // 05j
       draw_mixed_curves();                // 05h
@@ -128,9 +128,9 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
       gfx_a = 0.15;
       draw_graph_background();  // Graph background (no 1:1 line when on Input page)
       
-      // Render histogram and grid at half opacity (functions handle opacity based on page)
-      draw_input_histogram();   // Input signal histogram
-      draw_histogram();         // GR histogram
+      // Render histogram and grid at half opacity relative to page visibility
+      draw_input_histogram(INPUT_HISTOGRAM_OPACITY * 0.5 * page_opacity);   // Input signal histogram
+      draw_histogram(HISTOGRAM_OPACITY * 0.5 * page_opacity);               // GR histogram
       draw_grid();              // Grid
       
       // Do not render compression curve or threshold lines when not on graph page

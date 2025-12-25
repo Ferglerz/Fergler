@@ -15,8 +15,10 @@
 
 // Unified reflection function that merges all histogram colors (orange, blue, green) and curve points
 // Renders horizontal reflection at fixed Y position with color blending
-function draw_histogram_reflection_unified_pixel() local(
-  graph_reference_y, max_distance, reflection_y, width_pixels, buffer_size,
+// opacity sets the reflection strength for this frame (caller decides)
+// Additional scaling keeps the reflection subtle while still following page fades
+function draw_histogram_reflection_unified_pixel(opacity) local(
+  graph_reference_y, max_distance, reflection_y, width_pixels, buffer_size, histogram_reflection_opacity, base_reflection_opacity,
   i, age, buffer_idx, gr_value, x_pos, gr_height, original_y,
   distance_from_reference, reference_factor, reflection_alpha,
   acc_r, acc_g, acc_b, acc_alpha, total_alpha,
@@ -30,8 +32,8 @@ function draw_histogram_reflection_unified_pixel() local(
   reflection_y = GRAPH_Y + GRAPH_SIZE + 61;  // Moved down 45 pixels (was 16)
   width_pixels = GRAPH_SIZE;
   buffer_size = histogram_pixel_max_samples;
-  base_opacity = 0.140625;  // Half of 0.28125 (0.28125 * 0.5 = 0.140625)
-  histogram_opacity = base_opacity * 0.65;  // Additional 35% reduction for histograms only (0.140625 * 0.65 = 0.09140625)
+  base_reflection_opacity = opacity * 0.234375;           // Matches previous 0.140625 when opacity=0.6
+  histogram_reflection_opacity = base_reflection_opacity * 0.65; // Slightly dimmer for histogram bands
   i = 0;
   
   while (i < width_pixels) (
@@ -53,7 +55,7 @@ function draw_histogram_reflection_unified_pixel() local(
         distance_from_reference = abs(original_y - graph_reference_y);
         reference_factor = 1 - (distance_from_reference / max_distance);
         reference_factor = max(0, min(1, reference_factor));
-        reflection_alpha = histogram_opacity * (reference_factor ^ 2);  // Squared falloff (histogram-specific opacity)
+        reflection_alpha = histogram_reflection_opacity * (reference_factor ^ 2);  // Squared falloff
         
         reflection_alpha > 0.001 ? (
           // Orange color with white tint: blend (1, 0.5, 0) with white (1, 1, 1) - 70% original, 30% white
@@ -77,7 +79,7 @@ function draw_histogram_reflection_unified_pixel() local(
         distance_from_reference = abs(original_y - graph_reference_y);
         reference_factor = 1 - (distance_from_reference / max_distance);
         reference_factor = max(0, min(1, reference_factor));
-        reflection_alpha = histogram_opacity * (reference_factor ^ 2);  // Squared falloff (histogram-specific opacity)
+        reflection_alpha = histogram_reflection_opacity * (reference_factor ^ 2);  // Squared falloff
         
         reflection_alpha > 0.001 ? (
           // Blue color with white tint: blend (0.2, 0.5, 1) with white (1, 1, 1) - 70% original, 30% white
@@ -101,7 +103,7 @@ function draw_histogram_reflection_unified_pixel() local(
         input_distance = abs(input_y_pos - graph_reference_y);
         input_reference_factor = 1 - (input_distance / max_distance);
         input_reference_factor = max(0, min(1, input_reference_factor));
-        input_alpha = histogram_opacity * (input_reference_factor ^ 2);  // Squared falloff (histogram-specific opacity)
+        input_alpha = histogram_reflection_opacity * (input_reference_factor ^ 2);  // Squared falloff
         
         input_alpha > 0.001 ? (
           // White color with white tint: blend (1.0, 1.0, 1.0) with white (1, 1, 1) - 70% original, 30% white
@@ -127,7 +129,7 @@ function draw_histogram_reflection_unified_pixel() local(
         point_distance = abs(point_y - graph_reference_y);
         point_reference_factor = 1 - (point_distance / max_distance);
         point_reference_factor = max(0, min(1, point_reference_factor));
-        point_alpha = base_opacity * (point_reference_factor ^ 2);  // Squared falloff
+        point_alpha = base_reflection_opacity * (point_reference_factor ^ 2);  // Squared falloff
         
         point_alpha > 0.001 ? (
           // White point color: (1, 1, 1) with white tint (already white, but keep it bright)
@@ -151,7 +153,7 @@ function draw_histogram_reflection_unified_pixel() local(
         dot_distance = abs(dot_y - graph_reference_y);
         dot_reference_factor = 1 - (dot_distance / max_distance);
         dot_reference_factor = max(0, min(1, dot_reference_factor));
-        dot_alpha = base_opacity * (dot_reference_factor ^ 2);  // Squared falloff
+        dot_alpha = base_reflection_opacity * (dot_reference_factor ^ 2);  // Squared falloff
         
         dot_alpha > 0.001 ? (
           // Pastel green color with white tint: blend (0.5, 0.9, 0.5) with white (1, 1, 1) - 70% original, 30% white
@@ -301,11 +303,8 @@ function draw_gr_histogram_pos_line_pixel(buffer, r, g, b, a) (
 // INPUT HISTOGRAM
 //==============================================================================
 
-function draw_input_histogram() local(histogram_opacity) (
-  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38) > 0.5 ? (
-    // Use half opacity when not on graph page, full opacity when on graph page
-    // Note: When on graph page, gfx_a is set to page_opacity in orchestration, so we use full opacity here
-    histogram_opacity = should_render_page(PAGE_GRAPH) ? INPUT_HISTOGRAM_OPACITY : INPUT_HISTOGRAM_OPACITY * 0.5;
+function draw_input_histogram(opacity) (
+  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38) > 0.5 && opacity > 0 ? (
     draw_input_histogram_line(
       input_histogram_buffer,
       input_histogram_pos,
@@ -313,7 +312,7 @@ function draw_input_histogram() local(histogram_opacity) (
       INPUT_HISTOGRAM_COLOR_R,
       INPUT_HISTOGRAM_COLOR_G,
       INPUT_HISTOGRAM_COLOR_B,
-      histogram_opacity
+      opacity
     );
   );
 );
@@ -322,27 +321,23 @@ function draw_input_histogram() local(histogram_opacity) (
 // HISTOGRAM
 //==============================================================================
 
-function draw_histogram() local(histogram_opacity) (
-  HISTOGRAM_ENABLED && slider(38) > 0.5 ? (
-    // Use half opacity when not on graph page, full opacity when on graph page
-    // Note: When on graph page, gfx_a is set to page_opacity in orchestration, so we use full opacity here
-    histogram_opacity = should_render_page(PAGE_GRAPH) ? HISTOGRAM_OPACITY : HISTOGRAM_OPACITY * 0.5;
-    histogram_pixel_initialized ? (
-      // Render histogram lines
-      draw_gr_histogram_neg_line_pixel(
-        histogram_pixel_buffer,
-        1, 0.5, 0,
-        histogram_opacity
-      );
-      
-      draw_gr_histogram_pos_line_pixel(
-        histogram_pixel_buffer,
-        0.2, 0.5, 1,
-        histogram_opacity
-      );
+function draw_histogram(opacity) (
+  HISTOGRAM_ENABLED && slider(38) > 0.5 && histogram_pixel_initialized && opacity > 0 ? (
+    // Render histogram lines
+    draw_gr_histogram_neg_line_pixel(
+      histogram_pixel_buffer,
+      1, 0.5, 0,
+      opacity
     );
     
-    // Draw unified reflection (merges orange, blue, and green)
-    draw_histogram_reflection_unified_pixel();
+    draw_gr_histogram_pos_line_pixel(
+      histogram_pixel_buffer,
+      0.2, 0.5, 1,
+      opacity
+    );
+    
+    // Draw unified reflection (merges orange, blue, and green) using the same opacity
+    draw_histogram_reflection_unified_pixel(opacity);
   );
 );
+
