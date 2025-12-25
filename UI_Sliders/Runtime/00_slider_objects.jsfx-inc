@@ -44,14 +44,14 @@ function construct_from_param(param_index) instance(param_index default min max 
   this.step_count = 
     param_index == 1 ? attack_step_count :
     param_index == 4 ? release_step_count :
-    param_index == 11 ? lookahead_step_count :
-    param_index == 17 ? hp_step_count :
-    param_index == 18 ? lp_step_count :
-    param_index == 20 ? drive_step_count :
-    param_index == 21 ? mix_step_count :
-    param_index == 22 ? even_step_count :
-    param_index == 23 ? odd_step_count :
-    param_index == 40 ? prog_release_blend_step_count :
+    param_index == 13 ? lookahead_step_count :
+    param_index == 16 ? hp_step_count :
+    param_index == 17 ? lp_step_count :
+    param_index == 21 ? drive_step_count :
+    param_index == 22 ? mix_step_count :
+    param_index == 23 ? even_step_count :
+    param_index == 24 ? odd_step_count :
+    param_index == 8 ? prog_release_blend_step_count :
     0;
 );
 
@@ -76,17 +76,18 @@ function init_slider_objects() local(i)
     i == 9 ? S9.construct_from_param(9);
     i == 10 ? S10.construct_from_param(10);
     i == 11 ? S11.construct_from_param(11);
+    i == 12 ? S12.construct_from_param(12);
     i == 13 ? S13.construct_from_param(13);
     i == 14 ? S14.construct_from_param(14);
     i == 15 ? S15.construct_from_param(15);
     i == 16 ? S16.construct_from_param(16);
     i == 17 ? S17.construct_from_param(17);
     i == 18 ? S18.construct_from_param(18);
-    i == 19 ? S19.construct_from_param(19);
     i == 20 ? S20.construct_from_param(20);
     i == 21 ? S21.construct_from_param(21);
     i == 22 ? S22.construct_from_param(22);
     i == 23 ? S23.construct_from_param(23);
+    i == 24 ? S24.construct_from_param(24);
     i == 25 ? S25.construct_from_param(25);
     i == 26 ? S26.construct_from_param(26);
     i == 27 ? S27.construct_from_param(27);
@@ -102,8 +103,6 @@ function init_slider_objects() local(i)
     i == 37 ? S37.construct_from_param(37);
     i == 38 ? S38.construct_from_param(38);
     i == 39 ? S39.construct_from_param(39);
-    i == 40 ? S40.construct_from_param(40);
-    i == 41 ? S41.construct_from_param(41);
     i == 42 ? S42.construct_from_param(42);
     i == 43 ? S43.construct_from_param(43);
     i == 44 ? S44.construct_from_param(44);

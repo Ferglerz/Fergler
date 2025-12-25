@@ -77,6 +77,57 @@ function apply_envelope_smoothing(coeff, target_value) local(valid_coeff) (
   global_smoothed_gain_db;
 );
 
+//--- Helper: Apply linear dB reduction envelope update ---
+// Uses linear dB-per-sample reduction instead of exponential smoothing
+// db_per_sample: dB to reduce per sample (positive value means reducing GR magnitude)
+// NOTE: This function is only called during release phase, so we always apply linear reduction
+function apply_linear_envelope_smoothing(db_per_sample, target_value) (
+  // Linear reduction: reduce GR magnitude by fixed dB amount per sample until reaching target
+  // For negative GR values (typical case): target is less negative (closer to 0) than current
+  // For positive GR values: target is less positive (closer to 0) than current
+  // We need to move towards 0, which means:
+  // - For negative GR: add db_per_sample (make less negative)
+  // - For positive GR: subtract db_per_sample (make less positive)
+  abs(target_value) < abs(global_smoothed_gain_db) ? (
+    // Releasing: target has less GR (closer to 0) than current
+    // Move towards target by reducing GR magnitude
+    global_smoothed_gain_db > 0 ? (
+      // Positive GR: subtract to move towards 0
+      global_smoothed_gain_db = global_smoothed_gain_db - db_per_sample;
+    ) : (
+      // Negative GR: add to move towards 0 (make less negative)
+      global_smoothed_gain_db = global_smoothed_gain_db + db_per_sample;
+    );
+  ) : (
+    // Attack: target has more GR (further from 0) than current
+    // This shouldn't happen in release phase, but handle gracefully
+    global_smoothed_gain_db = target_value;
+  );
+  global_smoothed_gain_db;
+);
+
+//--- Helper: Apply linear dB reduction envelope update for pre-strength GR ---
+// Uses linear dB-per-sample reduction for pre-strength tracking
+// NOTE: This function is only called during release phase, so we always apply linear reduction
+function apply_linear_envelope_smoothing_before_strength(db_per_sample, target_value) (
+  // Linear reduction: reduce GR magnitude by fixed dB amount per sample until reaching target
+  abs(target_value) < abs(global_smoothed_gain_db_before_strength) ? (
+    // Releasing: target has less GR (closer to 0) than current
+    global_smoothed_gain_db_before_strength > 0 ? (
+      // Positive GR: subtract to move towards 0
+      global_smoothed_gain_db_before_strength = global_smoothed_gain_db_before_strength - db_per_sample;
+    ) : (
+      // Negative GR: add to move towards 0 (make less negative)
+      global_smoothed_gain_db_before_strength = global_smoothed_gain_db_before_strength + db_per_sample;
+    );
+  ) : (
+    // Attack: target has more GR (further from 0) than current
+    // This shouldn't happen in release phase, but handle gracefully
+    global_smoothed_gain_db_before_strength = target_value;
+  );
+  global_smoothed_gain_db_before_strength;
+);
+
 //--- Helper: Apply exponential smoothing envelope update for pre-strength GR (ghost line) ---
 // Uses same coefficient as main envelope to keep smoothing behavior synchronized
 function apply_envelope_smoothing_before_strength(coeff, target_value) local(valid_coeff) (

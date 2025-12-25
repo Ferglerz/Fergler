@@ -176,14 +176,14 @@ function is_point_in_control(x, y, control_index) (
 function get_step_point_count(param_index) (
   param_index == 1 ? S1.step_count :
   param_index == 4 ? S4.step_count :
-  param_index == 11 ? S11.step_count :
+  param_index == 13 ? S13.step_count :
+  param_index == 16 ? S16.step_count :
   param_index == 17 ? S17.step_count :
-  param_index == 18 ? S18.step_count :
-  param_index == 20 ? drive_step_count :
-  param_index == 21 ? mix_step_count :
-  param_index == 22 ? even_step_count :
-  param_index == 23 ? odd_step_count :
-  param_index == 40 ? prog_release_blend_step_count :
+  param_index == 21 ? drive_step_count :
+  param_index == 22 ? mix_step_count :
+  param_index == 23 ? even_step_count :
+  param_index == 24 ? odd_step_count :
+  param_index == 8 ? prog_release_blend_step_count :
   0
 );
 
@@ -191,14 +191,14 @@ function get_step_point_count(param_index) (
 function get_step_points_base(param_index) (
   param_index == 1 ? attack_step_points_base :
   param_index == 4 ? release_step_points_base :
-  param_index == 11 ? lookahead_step_points_base :
-  param_index == 17 ? hp_step_points_base :
-  param_index == 18 ? lp_step_points_base :
-  param_index == 20 ? drive_step_points_base :
-  param_index == 21 ? mix_step_points_base :
-  param_index == 22 ? even_step_points_base :
-  param_index == 23 ? odd_step_points_base :
-  param_index == 40 ? prog_release_blend_step_points_base :
+  param_index == 13 ? lookahead_step_points_base :
+  param_index == 16 ? hp_step_points_base :
+  param_index == 17 ? lp_step_points_base :
+  param_index == 21 ? drive_step_points_base :
+  param_index == 22 ? mix_step_points_base :
+  param_index == 23 ? even_step_points_base :
+  param_index == 24 ? odd_step_points_base :
+  param_index == 8 ? prog_release_blend_step_points_base :
   0
 );
 

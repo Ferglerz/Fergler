@@ -65,6 +65,7 @@ function draw_button_border(x, y, w, h) local() (
 //   x, y: Position
 //   label: Button label text (string slot or string literal)
 function draw_button_text(x, y, label) local() (
+  gfx_setfont(0);  // Reset to default font (in case group titles set Courier font)
   gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
   gfx_x = x + 8; gfx_y = y + 8;
   gfx_drawstr(label);
@@ -100,6 +101,7 @@ function draw_image_toggle_button(x, y, w, h, is_on, image_left_index, image_rig
   label > 0 ? (
     label_height = 11;  // Same as dropdown label height
     label_spacing = 4;  // Additional spacing between label and button (4 pixels)
+    gfx_setfont(0);  // Reset to default font (in case group titles set Courier font)
     gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
     // Measure label to center it
     gfx_measurestr(label, label_w, label_h);
@@ -144,6 +146,7 @@ function draw_image_toggle_button(x, y, w, h, is_on, image_left_index, image_rig
 function draw_momentary_button(x, y, w, h, is_pressed, image_normal_index, image_depressed_index, label, label_offset_y) local(img_index, img_w, img_h, label_w, label_h, label_x, image_scale, scaled_w, scaled_h) (
   // Draw label above button only if label is provided (non-zero string slot)
   label > 0 ? (
+    gfx_setfont(0);  // Reset to default font (in case group titles set Courier font)
     gfx_set(button_style_text_r, button_style_text_g, button_style_text_b, 1);
     // Measure label to center it
     gfx_measurestr(label, label_w, label_h);

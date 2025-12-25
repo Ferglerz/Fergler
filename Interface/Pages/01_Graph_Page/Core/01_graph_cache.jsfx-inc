@@ -10,7 +10,11 @@ curve_cache_size = 0;
 curve_cache_hash = 0;
 curve_cache_points = 0;
 
-function calculate_curve_hash() (
+// Global variables for tangent extension helper function return values
+tangent_ext_start_x_db = 0;
+tangent_ext_start_y_db = 0;
+
+function calculate_curve_hash() local(hash, i) (
   hash = 0;
   i = 0;
   while (i < num_points) (
@@ -25,7 +29,70 @@ function calculate_curve_hash() (
   hash;
 );
 
-function generate_curve_cache() (
+// Helper function to calculate tangent extension point from first user segment (point 1 to point 2)
+// Uses the same logic as sample_curve_at_db_internal() but for the specific case of extending backwards
+// Returns: (start_x_db, start_y_db) - the point where the extension should start
+function calculate_tangent_extension_point() local(
+  first_x_db, first_y_db, second_x_db, second_y_db, dx, slope,
+  x_at_bottom_db, start_x_db, start_y_db
+) (
+  num_points >= 3 ? (
+    // Get first user segment endpoints (indices 1 and 2 in graph_points)
+    first_x_db = graph_points[2];  // First user point X
+    first_y_db = graph_points[3];  // First user point Y
+    second_x_db = graph_points[4]; // Second user point X
+    second_y_db = graph_points[5]; // Second user point Y
+    
+    // Calculate slope from first segment (same as LUT does)
+    dx = second_x_db - first_x_db;
+    abs(dx) > 0.0001 ? (
+      slope = (second_y_db - first_y_db) / dx;
+      // Extend tangent to the bottom edge (Y = GRAPH_MIN_DB) to match LUT behavior
+      x_at_bottom_db = first_x_db + (GRAPH_MIN_DB - first_y_db) / slope;
+      
+      // If the intersection with the bottom sits inside the graph width, use it directly
+      (x_at_bottom_db >= GRAPH_MIN_DB && x_at_bottom_db <= GRAPH_MAX_DB) ? (
+        start_x_db = x_at_bottom_db;
+        start_y_db = GRAPH_MIN_DB;
+      ) : (
+        // Otherwise clamp to the nearest edge and follow the same tangent
+        x_at_bottom_db < GRAPH_MIN_DB ? (
+          start_x_db = GRAPH_MIN_DB;
+          start_y_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
+        ) : (
+          start_x_db = GRAPH_MAX_DB;
+          start_y_db = first_y_db + slope * (GRAPH_MAX_DB - first_x_db);
+        );
+        // Only clamp when the tangent would rise above the graph bottom
+        start_y_db > GRAPH_MIN_DB ? start_y_db = GRAPH_MIN_DB;
+      );
+    ) : (
+      // Vertical or nearly vertical segment - extend straight down from the first point
+      start_x_db = first_x_db;
+      start_y_db = min(first_y_db, GRAPH_MIN_DB);
+    );
+    // Ensure we never exceed the graph top; bottom clamping handled above
+    start_y_db > GRAPH_MAX_DB ? start_y_db = GRAPH_MAX_DB;
+    
+    // Return values via global variables (JSFX doesn't support multiple return values)
+    tangent_ext_start_x_db = start_x_db;
+    tangent_ext_start_y_db = start_y_db;
+  ) : (
+    // Fallback: not enough points
+    tangent_ext_start_x_db = GRAPH_MIN_DB;
+    tangent_ext_start_y_db = GRAPH_MIN_DB;
+  );
+);
+
+function generate_curve_cache() local(
+  first_x_db, first_y_db, second_x_db, second_y_db, dx, slope, start_y_db,
+  prev_x, prev_y_unclamped, prev_y, extension_start_x, extension_start_y, use_extension_start,
+  clamped_junction_x, clamped_junction_y, use_clamped_junction,
+  i, idx, curve_amt, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y,
+  next_idx, next_curve_amount, next_p0_x, next_p0_y,
+  t, t_step, u, tt, uu, current_x, current_y_unclamped, current_y, seg_idx,
+  end_x, end_y, end_y_clamped
+) (
   !curve_cache_points_allocated ? (
     curve_cache_points = freemem;
     freemem += GRAPH_SIZE * 4;
@@ -33,11 +100,29 @@ function generate_curve_cache() (
   );
   segment_count = 0;
   num_points >= 2 ? (
-    prev_x = clamp_x_to_graph(db_to_graph_x(graph_points[0]), GRAPH_X, GRAPH_SIZE);
-    prev_y = clamp_y_to_graph(db_to_graph_y(graph_points[1]), GRAPH_Y, GRAPH_SIZE);
+    // Use helper function to calculate tangent extension point (matches LUT behavior)
+    num_points >= 3 ? (
+      calculate_tangent_extension_point();
+      // Start from calculated extension point (extends tangent from point 1 to point 2 backwards)
+      prev_x = clamp_x_to_graph(db_to_graph_x(tangent_ext_start_x_db), GRAPH_X, GRAPH_SIZE);
+      // Calculate Y coordinate - allow it to extend below graph for expansion visualization
+      prev_y_unclamped = db_to_graph_y(tangent_ext_start_y_db);
+      // Clamp to graph bounds: top (GRAPH_Y = 0 dB) to bottom (GRAPH_Y + GRAPH_SIZE = -20 dB)
+      // This allows showing expansion below -20 dB but clips it at graph boundaries
+      prev_y = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, prev_y_unclamped));
+    ) : (
+      // Fallback: not enough points, use corner point
+      prev_x = clamp_x_to_graph(db_to_graph_x(graph_points[0]), GRAPH_X, GRAPH_SIZE);
+      prev_y = clamp_y_to_graph(db_to_graph_y(graph_points[1]), GRAPH_Y, GRAPH_SIZE);
+    );
+    
     clamped_junction_x = 0;
     clamped_junction_y = 0;
     use_clamped_junction = 0;
+    // Store extension point in screen coordinates for first segment override
+    extension_start_x = num_points >= 3 ? prev_x : 0;
+    extension_start_y = num_points >= 3 ? prev_y : 0;
+    use_extension_start = (num_points >= 3) ? 1 : 0;
 
     i = 0;
     while (i < num_points - 1) (
@@ -48,6 +133,12 @@ function generate_curve_cache() (
         
         p0_x = db_to_graph_x(bezier_p0_x);
         p0_y = db_to_graph_y(bezier_p0_y);
+        // Override p0 for first segment to use extension point instead of corner point
+        (i == 0 && use_extension_start) ? (
+          p0_x = extension_start_x;
+          p0_y = extension_start_y;
+          use_extension_start = 0; // Only use for first segment
+        );
         p1_x = db_to_graph_x(bezier_control1_x);
         p1_y = db_to_graph_y(bezier_control1_y);
         p2_x = db_to_graph_x(bezier_control2_x);
@@ -83,7 +174,9 @@ function generate_curve_cache() (
           tt = t * t;
           uu = u * u;
           current_x = clamp_x_to_graph(uu * u * p0_x + 3 * uu * t * p1_x + 3 * u * tt * p2_x + tt * t * p3_x, GRAPH_X, GRAPH_SIZE);
-          current_y = clamp_y_to_graph(uu * u * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + tt * t * p3_y, GRAPH_Y, GRAPH_SIZE);
+          current_y_unclamped = uu * u * p0_y + 3 * uu * t * p1_y + 3 * u * tt * p2_y + tt * t * p3_y;
+          // Allow Y to extend below graph for expansion, but clamp to graph bounds for rendering
+          current_y = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, current_y_unclamped));
           seg_idx = segment_count * 4;
           curve_cache_points[seg_idx] = prev_x;
           curve_cache_points[seg_idx + 1] = prev_y;
@@ -96,15 +189,18 @@ function generate_curve_cache() (
         );
       ) : (
         end_x = clamp_x_to_graph(db_to_graph_x(graph_points[idx*2]), GRAPH_X, GRAPH_SIZE);
-        end_y = clamp_y_to_graph(db_to_graph_y(graph_points[idx*2 + 1]), GRAPH_Y, GRAPH_SIZE);
+        end_y = db_to_graph_y(graph_points[idx*2 + 1]);
+        // Allow Y to extend below graph for expansion, but clamp to graph bounds for rendering
+        // This ensures we show the full descent like the blue LUT curve
+        end_y_clamped = max(GRAPH_Y, min(GRAPH_Y + GRAPH_SIZE, end_y));
         seg_idx = segment_count * 4;
         curve_cache_points[seg_idx] = prev_x;
         curve_cache_points[seg_idx + 1] = prev_y;
         curve_cache_points[seg_idx + 2] = end_x;
-        curve_cache_points[seg_idx + 3] = end_y;
+        curve_cache_points[seg_idx + 3] = end_y_clamped;
         segment_count += 1;
         prev_x = end_x;
-        prev_y = end_y;
+        prev_y = end_y_clamped;
       );
       
       i += 1;
@@ -120,4 +216,3 @@ function generate_curve_cache() (
 function cache_curve_if_needed() (
   curve_cache_dirty || curve_cache_hash != calculate_curve_hash() ? generate_curve_cache();
 );
-

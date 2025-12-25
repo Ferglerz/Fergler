@@ -277,12 +277,34 @@ function calculate_compression_threshold() (
     output_db = graph_points[i*2 + 1];
     
     abs(input_db - output_db) > 0.01 ? (
-      // Threshold is PREVIOUS point (last 1:1 point before compression starts)
+      // Threshold is PREVIOUS point (last 1:1 point before compression/expansion starts)
       i > 1 ? (
         comp_curve_min_threshold_db = graph_points[(i-1)*2];
       ) : (
         comp_curve_min_threshold_db = graph_points[0];
       );
+      
+      // If first point shows expansion (output < input), or if tangent extension below GRAPH_MIN_DB
+      // would show expansion, we need to allow processing below GRAPH_MIN_DB for expansion to work
+      // Check if expansion extends below GRAPH_MIN_DB
+      (i == 1 && output_db < input_db && num_points >= 3) ? (
+        // First point has expansion - check if tangent extends below GRAPH_MIN_DB with expansion
+        first_x_db = graph_points[2];
+        first_y_db = graph_points[3];
+        second_x_db = graph_points[4];
+        second_y_db = graph_points[5];
+        dx = second_x_db - first_x_db;
+        abs(dx) > 0.0001 ? (
+          slope = (second_y_db - first_y_db) / dx;
+          // Calculate Y at GRAPH_MIN_DB to see if expansion continues below
+          y_at_min_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
+          // If expansion continues below GRAPH_MIN_DB, extend threshold to COMP_LUT_MIN_DB
+          y_at_min_db < GRAPH_MIN_DB ? (
+            comp_curve_min_threshold_db = COMP_LUT_MIN_DB;
+          );
+        );
+      );
+      
       i = num_points;
     ) : (
       i += 1;

@@ -9,24 +9,20 @@
 //==============================================================================
 
 function update_attack_coefficient() (
-  // Clamp attack time to valid range
-  attack_raw = max(0.01, min(5000, attack));
-  // Convert attack time from slider unit (microseconds/milliseconds) to final milliseconds
-  attack_ms = convert_attack_time_to_ms(attack_raw, time_multiplier);
+  // attack is the slider variable containing dB/s values (2 to 1000000, guaranteed by slider definition)
+  attack_db_per_sec = attack;
+  // Convert attack from dB/s to milliseconds for audio processing
+  // Formula: ms = 10000 / dB_per_sec
+  // This gives the time (in ms) to reduce by 10 dB at the specified dB/s rate
+  attack_ms = 10000.0 / attack_db_per_sec;
   // Update cached sample rate calculations
   attack_ms_srate = attack_ms * srate;
   
   // Calculate attack coefficient using standard time constant formula (63% of target)
   // Formula: exp(-1 / (time_ms * 0.001 * srate)) = exp(-1000 / (attack_ms * srate))
   // After one time constant, envelope reaches 63.2% of the way from start to target
-  // Note: For valid attack_ms values, exp() will never return 0 or 1, so no clamping needed here
-  // The safety clamp in apply_envelope_smoothing() handles edge cases
-  attack_ms > 0 ? (
-    attack_coeff_base = exp(-1000 / (attack_ms * srate));
-  ) : (
-    // Edge case: attack_ms is 0 or invalid - use very fast but not instant to prevent clicks
-    attack_coeff_base = 1 - EPS;
-  );
+  // Note: The safety clamp in apply_envelope_smoothing() handles edge cases
+  attack_coeff_base = exp(-1000 / (attack_ms * srate));
   
   // Apply attack curve shaping
   attack_coeff = attack_coeff_base;

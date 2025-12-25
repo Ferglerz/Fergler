@@ -34,7 +34,11 @@ function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_lev
     prog_release_mode >= 0 ? (
       (prog_release_mode == 1) ? (
         // GR dependent mode with curve: use pre-strength GR for threshold comparison
-        prog_rel_coef = calculate_gr_dependent_curve_release_coeff(current_gr_abs_before_strength, release_curve, is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db);
+        prog_rel_coef = calculate_gr_dependent_curve_release_coeff(
+          current_gr_abs_before_strength,
+          release_curve,
+          is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db
+        );
       ) : (
         base_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs, is_negative_gr);
         prog_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, base_rel_coef);
@@ -86,16 +90,41 @@ function process_single_stage_envelope(target_gr_db, detector_level_db) local(ta
 
   global_attack_coef = attack_coeff;
   is_attack ? (
-    // Attack phase: GR is increasing
+    // Attack phase: GR is increasing (always use exponential smoothing for attack)
     apply_envelope_smoothing(global_attack_coef, target_gr_db);
     // Also update pre-strength envelope with same attack coefficient
     apply_envelope_smoothing_before_strength(global_attack_coef, target_gr_db_before_strength);
   ) : (
     // Release phase: GR is decreasing or stable
-    rel_coef_use = calculate_release_coefficient(target_gr_abs, target_gr_db, detector_level_db, current_gr_abs, current_gr_abs_before_strength, is_negative_gr);
-    apply_envelope_smoothing(rel_coef_use, target_gr_db);
-    // Also update pre-strength envelope with same release coefficient
-    apply_envelope_smoothing_before_strength(rel_coef_use, target_gr_db_before_strength);
+    // Determine if we should use linear mode based on blend and toggle
+    blend_amount = prog_release_blend * 0.01;
+    use_linear_for_fixed = 1;  // Fixed release always uses linear
+    use_linear_for_prog = linear_program_release_modes > 0.5;  // Program-dependent uses linear if toggle is ON
+    
+    // If blend is mostly fixed (<=50%), use fixed mode (linear)
+    // If blend is mostly program-dependent (>50%), use program mode (linear or coefficient based on toggle)
+    use_linear_release = (blend_amount <= 0.5) ? use_linear_for_fixed : use_linear_for_prog;
+    
+    use_linear_release ? (
+      // Linear release mode: use linear dB-per-sample reduction
+      // Apply curve shaping to linear rate if curve is active
+      abs(release_curve) >= 0.001 ? (
+        // TODO: Apply curve shaping to linear rate
+        // For now, use base linear rate (curve shaping TBD)
+        linear_db_per_sample = linear_release_db_per_sample;
+      ) : (
+        linear_db_per_sample = linear_release_db_per_sample;
+      );
+      
+      apply_linear_envelope_smoothing(linear_db_per_sample, target_gr_db);
+      apply_linear_envelope_smoothing_before_strength(linear_db_per_sample, target_gr_db_before_strength);
+    ) : (
+      // Exponential release mode (coefficient-based)
+      rel_coef_use = calculate_release_coefficient(target_gr_abs, target_gr_db, detector_level_db, current_gr_abs, current_gr_abs_before_strength, is_negative_gr);
+      apply_envelope_smoothing(rel_coef_use, target_gr_db);
+      // Also update pre-strength envelope with same release coefficient
+      apply_envelope_smoothing_before_strength(rel_coef_use, target_gr_db_before_strength);
+    );
   );
   global_smoothed_gain_db;
 );

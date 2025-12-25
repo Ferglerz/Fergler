@@ -64,6 +64,32 @@ function update_trail_items_generic(buffer, count, values_per_item, age_index, m
 );
 
 //==============================================================================
+// GENERIC TRAIL APPEND WITH SHIFT (DROP OLDEST WHEN FULL)
+//==============================================================================
+
+// Appends a new item to the trail buffer, shifting left if full.
+// Sets global trail_append_idx to the write index. Returns new count.
+// Parameters:
+//   buffer: buffer array pointer
+//   count: current count
+//   max_items: maximum items allowed
+//   values_per_item: number of values per item
+function trail_append_shift(buffer, count, max_items, values_per_item) local(i, idx) (
+  count >= max_items ? (
+    i = 0;
+    while (i < (max_items - 1) * values_per_item) (
+      buffer[i] = buffer[i + values_per_item];
+      i += 1;
+    );
+    count = max_items - 1;
+  );
+  idx = count * values_per_item;
+  trail_append_idx = idx; // global scratch for caller
+  count += 1;
+  count;
+);
+
+//==============================================================================
 // GENERIC FADE ALPHA CALCULATION
 //==============================================================================
 
