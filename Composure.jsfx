@@ -42,8 +42,6 @@ slider27:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
 slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
 slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
 slider30:harmonic_amount=1<0,1,0.01>-Amount
-slider31:trail_interval_ms=50<10,500,10>-Trail Interval (ms)
-slider32:trail_fade_duration_ms=1000<100,5000,50>-Trail Fade Duration (ms)
 slider33:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)
 slider34:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
 slider35:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modifier
@@ -365,12 +363,19 @@ pdc_delay > 0 ? (
 );
 
 // --- Trail Parameters (31-32) ---
+// Fixed trail settings (sliders removed): tighter interval = more dots/sec
+TRAIL_INTERVAL_MS_FIXED = 15;    // 15ms between dots
+TRAIL_FADE_MS_FIXED     = 2000;  // 2s fade duration
+
+// Recalculate trail buffer size
+trail_interval_ms = TRAIL_INTERVAL_MS_FIXED;
+trail_fade_duration_ms = TRAIL_FADE_MS_FIXED;
 // Recalculate trail buffer size
 trail_interval_samples = trail_interval_ms * 0.001 * srate;
 trail_fade_samples = trail_fade_duration_ms * 0.001 * srate;
 new_trail_max_dots = ceil(trail_fade_samples / trail_interval_samples) + 10;
 
-// Clamp to allocated size to prevent buffer overflow
+// Cap to allocation (allocation enlarged to 4096 for headroom)
 new_trail_max_dots = min(new_trail_max_dots, trail_max_dots_allocated);
 
 // Only update if size changed significantly
@@ -488,3 +493,4 @@ render_complete_interface();
 
 // Process the complete audio chain using modular functions
 process_complete_audio_chain();
+

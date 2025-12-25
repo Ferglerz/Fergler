@@ -18,7 +18,7 @@ function init_trail_state() (
   // trail_buffer is allocated in allocate_memory() - DO NOT reset it here!
   // trail_max_dots is set in allocate_memory() and should not be reset here
   trail_count = 0; // Current number of active trail dots
-  trail_write_pos = 0; // Position in circular buffer
+  trail_write_pos = 0; // Position tracker (append mode uses count)
   trail_last_creation_time = 0; // Last time a trail dot was created (in samples)
   trail_initialized = 0; // Flag to track initialization
   
@@ -40,17 +40,21 @@ function init_trail_state() (
 //==============================================================================
 
 function create_trail_dot() (
-  trail_initialized && trail_count < trail_max_dots ? (
+  trail_initialized && trail_max_dots > 0 ? (
     clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     input_x = db_to_graph_x(clamped_input_db);
     input_y = db_to_graph_y(clamped_input_db);
-    idx = trail_write_pos * 4;
+    
+    // Append with shift-when-full (shared helper sets trail_append_idx)
+    trail_count = trail_append_shift(trail_buffer, trail_count, trail_max_dots, 4);
+    idx = trail_append_idx;
     trail_buffer[idx] = input_x;
     trail_buffer[idx + 1] = input_y;
     trail_buffer[idx + 2] = 0;
-    trail_buffer[idx + 3] = trail_fade_duration_ms * 0.001 * srate;
-    trail_write_pos = (trail_write_pos + 1) % trail_max_dots;
-    trail_count < trail_max_dots ? trail_count += 1;
+    // Use precomputed fade samples (already scaled in @slider)
+    // Ensure a sane max age in samples (fallback if fade not initialized yet)
+    trail_buffer[idx + 3] = max(trail_fade_samples, get_samples_per_frame() * 2);
+    trail_write_pos = trail_count; // keep in sync though not used for indexing now
     trail_last_creation_time = 0;
   );
 );
@@ -59,10 +63,17 @@ function create_trail_dot() (
 function update_trail_dots() (
   trail_initialized ? (
     samples_per_frame = get_samples_per_frame();
-    // Use shared utility for aging and expiration (returns new count)
+    trail_interval_safe = trail_interval_samples > EPS ? trail_interval_samples : samples_per_frame;
+    // Age and expire existing dots
     trail_count = update_trail_items_generic(trail_buffer, trail_count, 4, 2, 3, samples_per_frame);
     trail_last_creation_time += samples_per_frame;
-    trail_last_creation_time >= trail_interval_samples ? create_trail_dot();
+    // Only create new dots when audio is active; aging continues regardless so dots fade when stopped
+    is_audio_active ? (
+      while (trail_last_creation_time >= trail_interval_safe) (
+        create_trail_dot();
+        trail_last_creation_time -= trail_interval_safe;
+      );
+    );
   );
 );
 
@@ -76,7 +87,7 @@ function render_trail_dots() (
       dot_y = trail_buffer[dot_idx + 1];
       dot_age = trail_buffer[dot_idx + 2];
       dot_max_age = trail_buffer[dot_idx + 3];
-      alpha = calculate_trail_alpha(dot_age, dot_max_age, 0.5);
+      alpha = calculate_trail_alpha(dot_age, dot_max_age, 0.6);
       alpha > 0.01 ? (
         gfx_set(0.5, 0.9, 0.5, alpha);
         gfx_circle(dot_x, dot_y, 2, 1, 1);
@@ -87,9 +98,8 @@ function render_trail_dots() (
 );
 
 function update_and_render_trail_dots() (
-  // Only update and render trail dots when on graph page
-  should_render_page(PAGE_GRAPH) && is_audio_active ? (
-    update_trail_dots();
-    render_trail_dots();
-  );
+  // Always age/fade dots so they continue fading when playback stops
+  update_trail_dots();
+  // Render only when on graph page
+  should_render_page(PAGE_GRAPH) ? render_trail_dots();
 );

@@ -34,7 +34,11 @@ function calculate_release_coefficient(target_gr_abs, target_gr_db, detector_lev
     prog_release_mode >= 0 ? (
       (prog_release_mode == 1) ? (
         // GR dependent mode with curve: use pre-strength GR for threshold comparison
-        prog_rel_coef = calculate_gr_dependent_curve_release_coeff(current_gr_abs_before_strength, release_curve, is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db);
+        prog_rel_coef = calculate_gr_dependent_curve_release_coeff(
+          current_gr_abs_before_strength,
+          release_curve,
+          is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db
+        );
       ) : (
         base_rel_coef = select_program_release_coef(target_gr_abs, detector_level_db, current_gr_abs, is_negative_gr);
         prog_rel_coef = calculate_curve_shaped_release_coeff(global_smoothed_gain_db, target_gr_db, release_curve, base_rel_coef);

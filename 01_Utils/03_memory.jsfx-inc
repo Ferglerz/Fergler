@@ -109,14 +109,11 @@ function allocate_memory() (
   freemem += NUM_CONTROLS;
   
   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
-  // Allocate based on maximum possible values from slider ranges:
-  // - Maximum fade duration: 5000ms (slider32 max, still slider32 after reordering)
-  // - Minimum interval: 10ms (slider31 min, still slider31 after reordering)
-  // - Maximum dots needed: ceil(5000/10) + 10 = 510 dots
+  // Fixed settings: fade 600ms, interval 20ms → ~30 dots; allocate generous headroom
   // Store original allocated size to prevent buffer overflow
   // Use conditional allocation pattern to preserve buffer address when ext_noinit=1
   !trail_max_dots_allocated ? (
-    trail_max_dots_allocated = 510; // Maximum size based on slider ranges
+    trail_max_dots_allocated = 4096; // Large headroom for high dot density / long fades
   );
   trail_max_dots = trail_max_dots_allocated; // Current limit (may be reduced in @slider)
   trail_buffer = freemem;

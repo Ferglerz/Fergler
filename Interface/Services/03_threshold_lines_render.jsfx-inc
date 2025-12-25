@@ -33,8 +33,9 @@ function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) loca
     // Draw transparent knee bar behind the line (25% white opacity, scaled by opacity_mult)
     gr_blend_threshold_reduction_knee_db > 0 ? (
       knee_height = gr_knee_db_to_pixels(gr_blend_threshold_reduction_knee_db, meter_h);
-      knee_top = line_y - knee_height * 0.5;
-      knee_bottom = line_y + knee_height * 0.5;
+      // Knee only extends toward no-GR side (above the line for reduction)
+      knee_top = max(meter_y, line_y - knee_height);
+      knee_bottom = line_y;
       gfx_set(1, 1, 1, 0.25 * opacity_mult);  // 25% white opacity, scaled by blend amount
       gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
     );
@@ -54,8 +55,9 @@ function render_gr_blend_threshold_line(meter_x, meter_y, meter_w, meter_h) loca
     // Draw transparent knee bar behind the line (25% white opacity, scaled by opacity_mult)
     gr_blend_threshold_addition_knee_db > 0 ? (
       knee_height = gr_knee_db_to_pixels(gr_blend_threshold_addition_knee_db, meter_h);
-      knee_top = line_y - knee_height * 0.5;
-      knee_bottom = line_y + knee_height * 0.5;
+      // Knee only extends toward no-GR side (below the line for addition)
+      knee_top = line_y;
+      knee_bottom = min(meter_y + meter_h, line_y + knee_height);
       gfx_set(1, 1, 1, 0.25 * opacity_mult);  // 25% white opacity, scaled by blend amount
       gfx_rect(meter_x, knee_top, meter_w, knee_bottom - knee_top);
     );
