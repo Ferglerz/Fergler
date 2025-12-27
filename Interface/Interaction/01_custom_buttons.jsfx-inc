@@ -1,136 +1,62 @@
-// Custom Buttons Module
-// Page navigation buttons using modular page button system
-// Dependencies: UI_General/00_ui_constants.jsfx-inc, UI_General/01_drawing_primitives.jsfx-inc, UI_General/12_page_buttons.jsfx-inc
-
 @init
 
-//==============================================================================
-// PAGE BUTTON DEFINITIONS
-//==============================================================================
-
-// Number of page buttons
 NUM_PAGE_BUTTONS = 4;
 
-// Button definitions (custom objects)
-// Each button has: x, y, w, h, label_string_slot
-// Button 0: Graph
-// Button 1: Filters
-// Button 2: Settings
-// Button 3: Blank
+page_button_x_base = 0;
+page_button_y_base = 0;
+page_button_w = 38;
+page_button_h = 38;
+page_button_spacing = 50;
+page_button_label_offset_y = -35;
 
-// Button positions (will be calculated in @gfx)
-// Allocate arrays for button positions
-page_button_x_base = 0;  // Base address for page_button_x array
-page_button_y_base = 0;  // Base address for page_button_y array
-page_button_w = 38;  // Button width (half of image size: 76/2 = 38)
-page_button_h = 38;  // Button height (half of image size: 76/2 = 38)
-page_button_spacing = 50;  // Space between buttons (increased by 60 pixels: 10 + 60 = 70)
-page_button_label_offset_y = -35;  // Label position: 50 pixels above button
-
-// Button label strings (use string slots 60-63)
-#page_button_label_0 = 60;  // "Graph"
-#page_button_label_1 = 61;  // "Filters"
-#page_button_label_2 = 62;  // "Settings"
-#page_button_label_3 = 63;  // "Blank"
-
-//==============================================================================
-// STATE INITIALIZATION
-//==============================================================================
+#page_button_label_0 = 60;
+#page_button_label_1 = 61;
+#page_button_label_2 = 62;
+#page_button_label_3 = 63;
 
 function init_custom_button_state() (
-  // Memory allocation is done in allocate_memory() - just initialize values here
-  // Initialize page button system
   init_page_buttons();
-  
-  // Register buttons with page system
   register_page_button(0, PAGE_GRAPH);
   register_page_button(1, PAGE_FILTERS);
   register_page_button(2, PAGE_SETTINGS);
   register_page_button(3, PAGE_BLANK);
-  
-  // Initialize button labels
   strcpy(#page_button_label_0, "Graph");
   strcpy(#page_button_label_1, "Input");
   strcpy(#page_button_label_2, "Settings");
   strcpy(#page_button_label_3, "Blank");
-  
-  // Set initial active button (Graph)
   turn_on_page_button(0);
 );
 
-//==============================================================================
-// BUTTON POSITIONING
-//==============================================================================
-
-// Calculate page button positions (called in @gfx when gfx_w is valid)
-// Buttons are positioned horizontally below the graph, starting at Graph X
 function update_page_button_positions() local(i) (
-  // Start buttons at Graph X value
   start_x = GRAPH_X;
-  
-  // Position buttons below graph (moved up 15 pixels from previous position)
   button_y = GRAPH_Y + GRAPH_SIZE + 73;
-  
-  // Set positions for each button
-  i = 0;
-  while (i < NUM_PAGE_BUTTONS) (
+  i=0; while(i<NUM_PAGE_BUTTONS)(
     page_button_x_base[i] = start_x + i * (page_button_w + page_button_spacing);
     page_button_y_base[i] = button_y;
-    i += 1;
+    i+=1;
   );
 );
 
-//==============================================================================
-// BUTTON RENDERING
-//==============================================================================
-
-// Draw a page button (momentary type - shows depressed only when clicked)
-// Parameters:
-//   button_index: Button index (0-3)
-//   x, y: Position
-//   w, h: Dimensions
-//   is_pressed: 1 = button is currently pressed, 0 = not pressed
-//   label: Button label text
 function draw_page_button(button_index, x, y, w, h, is_pressed, label) local() (
-  // Use momentary button rendering with page button images
-  // Image indices: 12 = page_button.png (normal), 13 = page_button_depressed.png (depressed)
   draw_momentary_button(x, y, w, h, is_pressed, 12, 13, label, page_button_label_offset_y);
 );
 
-// Render all page buttons
 function render_custom_buttons() (
-  // Update page transitions first
   update_all_page_transitions();
-  
-  // Update positions (needs gfx_w to be valid)
   gfx_w > 0 ? (
     update_page_button_positions();
-    
-    // Draw all buttons
-    i = 0;
-    while (i < NUM_PAGE_BUTTONS) (
-      // Check if this button is currently being pressed (momentary behavior)
+    i=0; while(i<NUM_PAGE_BUTTONS)(
       is_pressed = (custom_button_pressed_index == i && MOUSE_LEFT_BUTTON) ? 1 : 0;
-      
-      // Get label string slot based on button index
       i == 0 ? label_slot = #page_button_label_0 :
       i == 1 ? label_slot = #page_button_label_1 :
       i == 2 ? label_slot = #page_button_label_2 :
       i == 3 ? label_slot = #page_button_label_3 : 0;
-      
-      // Draw button (momentary type - shows depressed only when pressed)
-      draw_page_button(i, page_button_x_base[i], page_button_y_base[i], page_button_w, page_button_h, 
-                       is_pressed, label_slot);
-      i += 1;
+      draw_page_button(i, page_button_x_base[i], page_button_y_base[i], page_button_w, page_button_h, is_pressed, label_slot);
+      i+=1;
     );
   );
 );
 
-//==============================================================================
-// BUTTON INTERACTION
-//==============================================================================
-
-// Check if point is inside a page button
 function is_point_in_page_button(x, y, button_index) (
   page_button_x_base[button_index] >= 0 && page_button_y_base[button_index] >= 0 ? (
     x >= page_button_x_base[button_index] && x <= page_button_x_base[button_index] + page_button_w &&
@@ -140,56 +66,33 @@ function is_point_in_page_button(x, y, button_index) (
   );
 );
 
-// Handle click on a page button
-// Parameters:
-//   button_index: Button index that was clicked
 function handle_page_button_click(button_index) (
-  // Toggle button on (will automatically turn off other buttons)
   turn_on_page_button(button_index);
 );
 
-// Custom button mouse state (separate from graph mouse state)
 custom_button_mouse_down = 0;
-custom_button_pressed_index = -1;  // Which button is currently being pressed (-1 = none)
+custom_button_pressed_index = -1;
 
-// Process mouse input for page buttons
-// Returns: 1 if a page button was clicked, 0 otherwise
 function process_custom_button_input() local(clicked, i) (
   clicked = 0;
-  // Only process if buttons are positioned (gfx_w > 0)
   gfx_w > 0 ? (
     update_page_button_positions();
-    
     MOUSE_LEFT_BUTTON ? (
-      // Mouse is down - check if we're pressing a button
       !custom_button_mouse_down ? (
-        // Just pressed - find which button
         custom_button_mouse_down = 1;
         custom_button_pressed_index = -1;
-        
-        i = 0;
-        while (i < NUM_PAGE_BUTTONS && !clicked) (
+        i=0; while(i<NUM_PAGE_BUTTONS && !clicked)(
           is_point_in_page_button(mouse_x, mouse_y, i) ? (
-            custom_button_pressed_index = i;
-            handle_page_button_click(i);
-            clicked = 1;
+            custom_button_pressed_index = i; handle_page_button_click(i); clicked = 1;
           );
-          i += 1;
+          i+=1;
         );
       ) : (
-        // Mouse still down - check if still over the pressed button
         custom_button_pressed_index >= 0 ? (
-          is_point_in_page_button(mouse_x, mouse_y, custom_button_pressed_index) ? (
-            // Still over the button - keep it pressed
-            0;
-          ) : (
-            // Moved off the button - release it
-            custom_button_pressed_index = -1;
-          );
+          is_point_in_page_button(mouse_x, mouse_y, custom_button_pressed_index) ? 0 : (custom_button_pressed_index = -1;);
         );
       );
     ) : (
-      // Mouse released
       custom_button_mouse_down = 0;
       custom_button_pressed_index = -1;
     );
