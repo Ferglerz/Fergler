@@ -267,6 +267,22 @@ function update_all_audio_parameters() (
   update_rms_coefficient();
 );
 
+// Consolidated parameter update pipeline to reduce duplication across sections
+// run_pdc = 1 when PDC and slider-only calculations should be refreshed
+function refresh_core_parameters(run_pdc) (
+  update_parameter_conversions();
+  update_all_audio_parameters();
+  smooth_rms_coefficient();
+  run_pdc ? (
+    drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
+    pdc_delay = min(lookahead_samples, max_lookahead_samples) | 0;
+    pdc_delay > 0 ? (
+      pdc_bot_ch = 0;
+      pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
+    );
+  );
+);
+
 // 1. Read slider definitions from file FIRST (needed for memory allocation)
 freemem = 0;
 read_slider_definitions("Composure.jsfx");
@@ -309,13 +325,8 @@ setup_control_layout();
   update_corner_points();
 );
 
-// 7. Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
-update_parameter_conversions();
-
-// 8. Update all audio processing parameters (filters, envelope, RMS, lookahead)
-// This ensures coefficients are correctly initialized even after samplerate changes
-// Update functions are defined in 02_InputProcessing/ and 03_Compression/Envelope/
-update_all_audio_parameters();
+// 7. Initialize and refresh parameter pipeline (conversions, coefficients, smoothing, PDC)
+refresh_core_parameters(1);
 
 // 9. Initialize UI state variables
 // Initialize mouse state tracking (used for optimized mouse state updates in @gfx)
@@ -330,9 +341,8 @@ compression_init_complete = 1;
 
 @slider
 
-// --- Parameter Conversions ---
-// Update all parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
-update_parameter_conversions();
+// Unified parameter refresh (conversions, coefficients, smoothing, PDC/drive cache)
+refresh_core_parameters(1);
 
 // --- Envelope Parameters (1-9) ---
 // Update attack and release coefficients (part of update_all_audio_parameters)
@@ -344,23 +354,9 @@ update_parameter_conversions();
 // Start smoothing immediately when slider changes (also smoothed in @block for continuous updates)
 smooth_rms_coefficient();
 
-// --- Harmonics Parameters (20-24, 25) ---
-// Cache harmonic drive compensation reciprocal to avoid per-sample division
-drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
-
 // --- Settings Parameters (26, 38) ---
 // Sync brickwall_limiter variable with slider26
 brickwall_limiter = slider(26);
-
-// --- Plugin Delay Compensation ---
-// Cockos pattern: Calculate and set unconditionally every @slider execution
-// This MUST run every time @slider executes (not just on change)
-// Use cached lookahead_samples instead of recalculating
-pdc_delay = min(lookahead_samples, max_lookahead_samples) | 0;
-pdc_delay > 0 ? (
-  pdc_bot_ch = 0;
-  pdc_top_ch = 2;  // Stereo channels (0=left, 1=right)
-);
 
 // --- Trail Parameters (31-32) ---
 // Fixed trail settings (sliders removed): tighter interval = more dots/sec
@@ -405,15 +401,8 @@ gr_db_for_histogram = gr_db_block_max;
 detector_level_block_max = MIN_DETECTOR_LEVEL;
 gr_db_block_max = 0;
 
-// Update parameter conversions (strength_multiplier, makeup_gain_linear, srate_inv)
-update_parameter_conversions();
-
-// Update all audio processing parameters every block for real-time response
-// This ensures parameters work immediately even if @slider doesn't run right away when sliderchange() is called from @gfx
-// Update functions are defined in 03_Compression/Envelope/ and 02_InputProcessing/
-update_all_audio_parameters();
-// Smoothly interpolate RMS coefficient to prevent zipper noise when window size changes
-smooth_rms_coefficient();
+// Real-time parameter refresh (without PDC recalculation)
+refresh_core_parameters(0);
 
 
 //==============================================================================
@@ -424,8 +413,9 @@ smooth_rms_coefficient();
 
 // Clear updated slider values cache at start of each frame
 // This ensures cached values are only valid for one frame
+clear_count = control_count > 0 ? min(control_count, 256) : 256;
 i = 0;
-while (i < 256) (
+while (i < clear_count) (
   updated_slider_values[i] = -999;
   i += 1;
 );
