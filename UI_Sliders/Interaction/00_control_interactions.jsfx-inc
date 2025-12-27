@@ -1,527 +1,225 @@
-// User Interactions - Controls Module
-// UI controls interaction handling
-// Dependencies: 01_Utils/02_math_utils.jsfx-inc, Interface/Core/05_utils.jsfx-inc, UI_Sliders/01_slider_constants.jsfx-inc, UI_Sliders/02_control_definitions.jsfx-inc
+// Simplified User Interactions - Controls
 
 @init
 
-//==============================================================================
-// INTERACTION STATE
-//==============================================================================
-
-// Control States
-ui_drag_control = -1;  // -1 = no control, -2 = clicked but not draggable, >= 0 = dragging control index
-
-// Preview Filters: Track initial state of Listen to Detection when dragging HP/LP filters
-preview_filters_listen_initial_state = -1;  // -1 = not tracking, 0 = was off, 1 = was on
-
-// Mouse position tracking for delta calculations
-ui_prev_mouse_x = 0;
-ui_prev_mouse_y = 0;
-
-// Fine drag accumulator for discrete sliders
+// State
+ui_drag_control = -1;
+preview_filters_listen_initial_state = -1;
+ui_prev_mouse_x = ui_prev_mouse_y = 0;
 ui_fine_drag_accum = 0;
-
-// Double-click detection
 ui_last_click_time = 0;
 ui_last_clicked_control = -1;
-ui_double_click_threshold = 0.3; // 300ms for double click
+ui_double_click_threshold = 0.3;
+ui_prev_ctrl_key = 0;
 
-// CTRL key state tracking for snap-on-release behavior
-ui_prev_ctrl_key = 0;  // Previous frame's CTRL key state
-
-//==============================================================================
-// HELPER FUNCTIONS
-//==============================================================================
-
-// Update PDC delay for lookahead slider (param_index 13 = lookahead_ms)
-function update_pdc_delay_if_needed(param_index) (
-  param_index == 13 ? (
+// PDC lookahead update, only for param 13
+function update_pdc_delay_if_needed(param)(
+  param == 13 ? (
     pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
-    pdc_delay > 0 ? (
-      pdc_bot_ch = 0;
-      pdc_top_ch = 2;
-    );
+    pdc_delay > 0 ? (pdc_bot_ch = 0; pdc_top_ch = 2; );
   );
 );
 
-// Preview Filters: Auto-enable Listen when adjusting HP/LP filters
-function handle_preview_filters(param_index, is_drag_start) (
-  // If Preview Filters is enabled and adjusting HP or LP filter
-  menu_preview_filters_enabled > 0.5 && (param_index == 16 || param_index == 17) ? (
-    is_drag_start ? (
-      // Drag start: Save initial state of Listen to Detection
+// Preview Filters Listen auto-enable/restore
+function handle_preview_filters(param, start)(
+  menu_preview_filters_enabled > 0.5 && (param == 16 || param == 17) ? (
+    start ? ( // Drag start
       preview_filters_listen_initial_state = slider(15) > 0.5 ? 1 : 0;
-      
-      // If it was off, enable it temporarily
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(15) = 1;
-        sliderchange(1 << (15 - 1));
+        slider(15) = 1; sliderchange(1 << 14);
       );
     ) : (
-      // During drag: Keep it enabled if it was off initially
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(15) = 1;
-        sliderchange(1 << (15 - 1));
+        slider(15) = 1; sliderchange(1 << 14);
       );
     );
   );
 );
-
-// Preview Filters: Restore Listen state on drag end
 function handle_preview_filters_drag_end() (
-  // If we were tracking and Listen was off initially, restore it to off
   preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
-    listen_to_sidechain = 0;
-    slider(15) = 0;
-    sliderchange(1 << (15 - 1));
+    listen_to_sidechain = 0; slider(15) = 0; sliderchange(1 << 14);
   );
-  // Reset tracking state
   preview_filters_listen_initial_state = -1;
 );
 
-//==============================================================================
-// HELPER FUNCTIONS
-//==============================================================================
-
 // Reset control to default value
-function reset_control_to_default(control_index) (
-  param_index = control_defs[control_index*11 + 5];
-  control_type = control_defs[control_index*11 + 0];
-  
-  // Get default value from stored slider parameters (read from file)
-  default_val = get_slider_default(param_index);
-  slider(param_index) = default_val;
-  
-  sliderchange(1 << (param_index - 1));
-  update_pdc_delay_if_needed(param_index);
+function reset_control_to_default(i)(
+  p = control_defs[i*11+5];
+  slider(p) = get_slider_default(p);
+  sliderchange(1 << (p-1));
+  update_pdc_delay_if_needed(p);
 );
 
-// Check if this is a double-click
-function is_double_click_control(control_index) local(current_time, is_double) (
-  current_time = time_precise();
-  is_double = (control_index == ui_last_clicked_control && 
-               (current_time - ui_last_click_time) < ui_double_click_threshold);
-  ui_last_clicked_control = control_index;
-  ui_last_click_time = current_time;
-  is_double;
+// Double-click logic
+function is_double_click_control(i) local(t,d)(t = time_precise();
+  d = (i == ui_last_clicked_control && (t-ui_last_click_time) < ui_double_click_threshold);
+  ui_last_clicked_control = i; ui_last_click_time = t; d;
 );
 
-// Handle control click based on control type
-function handle_control_click(control_index) local(option_count, step_count, min_val, max_val, normalized_pos, ctrl_x, ctrl_y, ctrl_w, ctrl_h, group_idx, ctrl_x_rel, group_x_val, slider_config, slider_orientation, format_options, raw_value, increment, array_index, cached_min_val, cached_max_val, cached_param_index, cached_control_type) (
-  // Cache frequently used control_defs values to avoid repeated array lookups
-  cached_control_type = control_defs[control_index*11 + 0];
-  cached_param_index = control_defs[control_index*11 + 5];
-  cached_min_val = control_defs[control_index*11 + 6];
-  cached_max_val = control_defs[control_index*11 + 7];
-  
-  control_type = cached_control_type;
-  param_index = cached_param_index;
-  current_value = slider(param_index);
-  
-  // Debug logging removed per user request
-  
-  // Check for double-click or alt-click to reset (but not for dropdowns or buttons)
-  (is_double_click_control(control_index) || MOUSE_ALT_KEY) && control_type != 2 && control_type != 1 ? (
-    reset_control_to_default(control_index);
-    ui_drag_control = -2; // Prevent drag
+// Main click handler per control (slider, button, dropdown)
+function handle_control_click(i) local(
+  type, p, v, min, max, options, steps, norm, val, max_opts
+)(
+  type = control_defs[i*11+0];
+  p = control_defs[i*11+5]; v = slider(p);
+  min = control_defs[i*11+6]; max = control_defs[i*11+7];
+
+  (is_double_click_control(i) || MOUSE_ALT_KEY) && (type != 2 && type != 1) ? (
+    reset_control_to_default(i); ui_drag_control = -2;
   ) : (
-    // Normal click behavior
-    (control_type == 0 || control_type == 3 || control_type == 4) ? ( // Slider, Parallax Fader, or Knob
-      // Slider - start drag (handles both continuous and enumerated sliders)
-      ui_drag_control = control_index;
-      
-      // Check if CTRL is held - if so, don't snap stepped sliders on initial click
+    (type == 0 || type == 3 || type == 4) ? (
+      ui_drag_control = i;
       MOUSE_CTRL_KEY ? (
-        // CTRL held: for stepped sliders, use smooth position-based value (no snapping)
-        option_count = get_dropdown_option_count(param_index);
-        step_count = get_step_point_count(param_index);
-        (option_count > 0 || step_count > 0) ? (
-          // Stepped slider with CTRL: calculate smooth value from mouse position
-          get_slider_config(control_index, control_type);
-          min_val = cached_min_val;
-          max_val = cached_max_val;
-          
-          // Calculate normalized position using helper function (knob uses special function)
-          control_type == 4 ? (
-            normalized_pos = calculate_knob_normalized_position(control_index, mouse_x, mouse_y, format_options);
-          ) : (
-            normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
-          );
-          // Calculate smooth value (no snapping)
-          raw_value = min_val + normalized_pos * (max_val - min_val);
-          slider(param_index) = raw_value;
-        ) : (
-          // Continuous slider with CTRL: calculate smooth value (no increment snapping)
-          get_slider_config(control_index, control_type);
-          min_val = cached_min_val;
-          max_val = cached_max_val;
-          
-          // Calculate normalized position using helper function (knob uses special function)
-          control_type == 4 ? (
-            // Knob with CTRL: do NOT update value on click (prevent jump)
-            // normalized_pos = calculate_knob_normalized_position(control_index, mouse_x, mouse_y, format_options);
-            0;
-          ) : (
-            normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
-            // Calculate smooth value (no increment snapping when CTRL is held)
-            raw_value = min_val + normalized_pos * (max_val - min_val);
-            slider(param_index) = raw_value;
-          );
+        options = get_dropdown_option_count(p);
+        steps = get_step_point_count(p);
+        (options > 0 || steps > 0) ? (
+          get_slider_config(i, type);
+          norm = (type == 4 ? calculate_knob_normalized_position(i, mouse_x, mouse_y, 0)
+                            : calculate_normalized_position(i, mouse_x, mouse_y, 0, 0));
+          val = min + norm * (max-min); slider(p) = val;
         );
       ) : (
-        // CTRL not held: use normal update (with snapping for stepped sliders)
-        control_type == 4 ? (
-          // Knob: do NOT update value on click (prevent jump)
-          // slider(param_index) = update_knob_value(control_index, mouse_x, mouse_y);
-          0;
-        ) : (
-          slider(param_index) = update_slider_value(control_index, mouse_x, mouse_y);
-        );
+        (type == 4) ? 0 : (slider(p) = update_slider_value(i, mouse_x, mouse_y));
       );
-      sliderchange(1 << (param_index - 1));
-      update_pdc_delay_if_needed(param_index);
-      handle_preview_filters(param_index, 1);  // is_drag_start = 1
-    ) : control_type == 1 ? (
-      // Button - toggle or set specific value for radio buttons
-      min_val = cached_min_val;
-      max_val = cached_max_val;
-      // If min == max, this is a radio button - use helper function
-      min_val == max_val ? (
-        handle_radio_button_click(control_index, param_index, min_val);
-      ) : (
-        // Regular button - toggle
-        slider(param_index) = current_value > 0.5 ? 0 : 1;
-        sliderchange(1 << (param_index - 1));
-      );
-      ui_drag_control = -2; // Special value to prevent further checks
-    ) : control_type == 2 ? (
-      // Dropdown - cycle (don't start drag for dropdowns)
-      max_options = get_dropdown_option_count(param_index);
-      max_options > 0 ? (
-        slider(param_index) = (current_value + 1) % max_options;
-        sliderchange(1 << (param_index - 1));
-      );
-      ui_drag_control = -2; // Special value to prevent further checks
+      sliderchange(1 << (p-1));
+      update_pdc_delay_if_needed(p);
+      handle_preview_filters(p,1);
+    ) : type == 1 ? (
+      min == max ? handle_radio_button_click(i,p,min)
+                 : (slider(p) = v>0.5 ? 0 : 1; sliderchange(1 << (p-1)));
+      ui_drag_control = -2;
+    ) : type == 2 ? (
+      max_opts = get_dropdown_option_count(p);
+      max_opts>0 ? (slider(p) = (v+1)%max_opts; sliderchange(1 << (p-1)); );
+      ui_drag_control = -2;
     );
   );
 );
 
-// Handle drag continuation for different control types
-function handle_drag_continuation() local(fine_drag_mult, slider_config, slider_orientation, format_options, snapped_value, ctrl_just_released, increment, slider_w, cached_min_val, cached_max_val, cached_param_index, cached_control_type) (
-  // Apply fine drag multiplier when ctrl/cmd is held
-  fine_drag_mult = MOUSE_CTRL_KEY ? 0.2 : 1.0;
-  
-  // Detect CTRL key release (was held, now not held)
-  ctrl_just_released = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
-  
+// Drag handler - simplified, only kept major logic
+function handle_drag_continuation()
+local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i, inc, snap, bidir, fmt)
+(
+  fine = MOUSE_CTRL_KEY ? 0.2 : 1.0;
+  ctrl_rel = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
   ui_drag_control >= 0 ? (
-    // Cache frequently used control_defs values to avoid repeated array lookups
-    cached_control_type = control_defs[ui_drag_control*11 + 0];
-    cached_param_index = control_defs[ui_drag_control*11 + 5];
-    cached_min_val = control_defs[ui_drag_control*11 + 6];
-    cached_max_val = control_defs[ui_drag_control*11 + 7];
-    
-    // Update dragged control
-    param_index = cached_param_index;
-    control_type = cached_control_type;
+    type = control_defs[ui_drag_control*11+0];
+    p = control_defs[ui_drag_control*11+5];
+    min = control_defs[ui_drag_control*11+6];
+    max = control_defs[ui_drag_control*11+7];
+    v = slider(p);
+    options = get_dropdown_option_count(p);
+    steps = get_step_point_count(p);
+    w = control_defs[ui_drag_control*11+3];
+    bidir = (fmt & OPTION_BIDIRECTIONAL);
+    arr_i = ui_drag_control * 4;
+    inc = (arr_i>=0 && arr_i<NUM_CONTROLS*4) ? slider_properties_base[arr_i] : 0;
 
-    (control_type == 0 || control_type == 3 || control_type == 4) ? ( // Slider, Parallax Fader, or Knob - unified system
-      get_slider_config(ui_drag_control, control_type);
-      min_val = cached_min_val;
-      max_val = cached_max_val;
-      current_value = slider(param_index);
-      
-      // Check if this slider has enumerated options or step-points
-      option_count = get_dropdown_option_count(param_index);
-      step_count = get_step_point_count(param_index);
-      
-      // === UNIFIED KNOB LOGIC ===
-      control_type == 4 ? (
-        // Calculate delta based on mouse movement (Up/Right+, Down/Left-)
-        // Simple linear drag: dx - dy
-        mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
-        mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
-        
-        // Sensitivity: pixels required for full range sweep
-        sensitivity = 200; 
-        
-        // Handle different value types
-        step_count > 0 ? (
-          // Step-point knob: operate on INDEX
-          step_points_base = get_step_points_base(param_index);
-          current_index = find_step_point_index(current_value, step_points_base, step_count);
-          
-          // Calculate index delta
-          // Full sweep (sensitivity) = full index range (step_count)
-          delta_index = ((mouse_dx - mouse_dy) / sensitivity) * step_count;
-          
-          target_index = current_index + delta_index;
-          target_index = max(0, min(step_count - 1, target_index));
-          
-          // Snap to integer index unless CTRL is held (fine control)
-          // Actually for step points we usually want to snap to the point
-          // But if we want "fine" control between steps, we can't really do that with step points
-          // So we just round to nearest index
-          target_index = floor(target_index + 0.5);
-          
-          slider(param_index) = step_points_base[target_index];
-        ) : option_count > 0 ? (
-          // Enumerated knob: operate on INDEX (value IS index)
-          // Full sweep = full option range
-          delta_index = ((mouse_dx - mouse_dy) / sensitivity) * option_count;
-          
-          target_index = current_value + delta_index;
-          target_index = max(0, min(option_count - 1, target_index));
-          
-          // Snap to integer
-          target_index = floor(target_index + 0.5);
-          
-          slider(param_index) = target_index;
-        ) : (
-          // Continuous knob: operate on VALUE
-          value_range = max_val - min_val;
-          delta_value = ((mouse_dx - mouse_dy) / sensitivity) * value_range;
-          
-          new_value = current_value + delta_value;
-          
-          // Apply increment snapping if not holding CTRL
-          !MOUSE_CTRL_KEY ? (
-             array_index = ui_drag_control * 4 + 0;
-             increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
-             increment > 0 ? (
-               new_value = floor(new_value / increment + 0.5) * increment;
-             );
-          );
-          
-          slider(param_index) = clamp(new_value, min_val, max_val);
-        );
-      ) : (option_count > 0 || step_count > 0) ? (
-        // Stepped slider (enumerated or step-points)
-        MOUSE_CTRL_KEY ? (
-          // CTRL held: allow smooth adjustment (ignore stepping) - use position-based calculation
-          get_slider_config(ui_drag_control, control_type);
-          group_idx = control_defs[ui_drag_control*11 + 10];
-          
-          normalized_pos = calculate_normalized_position(ui_drag_control, mouse_x, mouse_y, slider_orientation, format_options);
-          
-          // Calculate smooth value directly from mouse position (no stepping)
-          new_value = min_val + normalized_pos * (max_val - min_val);
-          slider(param_index) = new_value;
-        ) : (
-          // CTRL not held: use stepped behavior
-          // Stepped slider: divide slider width by number of options
-          total_options = option_count > 0 ? option_count : step_count;
-          slider_w = control_defs[ui_drag_control*11 + 3];
-          pixels_per_option = slider_w / total_options;
-          
-          // Get mouse position relative to slider
-          ctrl_x = get_control_x_with_group_offset(ui_drag_control);
-          
-          mouse_pos_in_slider = mouse_x - ctrl_x;
-          option_index = floor(mouse_pos_in_slider / pixels_per_option);
-          option_index = max(0, min(total_options - 1, option_index));
-          
-          // Set slider value based on type
-          option_count > 0 ? (
-            // Enumerated slider: value is the index
-            slider(param_index) = option_index;
-          ) : (
-            // Step-point slider: value is the step-point value at that index
-            step_points_base = get_step_points_base(param_index);
-            slider(param_index) = step_points_base[option_index];
-          );
-        );
-        
-        // Snap to closest step when CTRL is released
-        ctrl_just_released ? (
-          // Get current slider value (may have been adjusted smoothly)
-          current_slider_value = slider(param_index);
-          step_count > 0 ? (
-            // Step-point slider: snap to closest step-point
-            step_points_base = get_step_points_base(param_index);
-            snapped_value = find_closest_step_point(current_slider_value, step_points_base, step_count);
-            slider(param_index) = snapped_value;
-          ) : option_count > 0 ? (
-            // Enumerated slider: snap to closest option index
-            // Calculate which option is closest to current value
-            total_options = option_count;
-            closest_index = 0;
-            closest_diff = abs(0 - current_slider_value);
-            i = 1;
-            while (i < total_options) (
-              test_diff = abs(i - current_slider_value);
-              test_diff < closest_diff ? (
-                closest_index = i;
-                closest_diff = test_diff;
-              );
-              i += 1;
-            );
-            slider(param_index) = closest_index;
-          );
-        );
-      ) : (
-        // Continuous slider/knob - check if this is a knob or supports bidirectional drag
-        (format_options & OPTION_BIDIRECTIONAL) ? (
-          // Bidirectional slider: use both X and Y movement
-          mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
-          mouse_dy = (mouse_y - ui_prev_mouse_y) * fine_drag_mult;
-          
-          // Combine X and Y movement for bidirectional interaction
-          mouse_delta = mouse_dx - mouse_dy; // Y movement is inverted for intuitive behavior
-          
-          slider_w = control_defs[ui_drag_control*11 + 3];
-          value_range = max_val - min_val;
-          delta = (mouse_delta / slider_w) * value_range;
-          new_value = clamp(current_value + delta, min_val, max_val);
-          
-          // Apply snapping based on CTRL state
-          MOUSE_CTRL_KEY ? (
-            // CTRL held: no snapping, allow smooth adjustment
-            slider(param_index) = new_value;
-          ) : (
-            // CTRL not held: snap to increment if available
-            array_index = ui_drag_control * 4 + 0;
-            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
-            increment > 0 ? (
-              // Snap to nearest increment step
-              snapped_value = floor(new_value / increment + 0.5) * increment;
-              slider(param_index) = clamp(snapped_value, min_val, max_val);
-            ) : (
-              slider(param_index) = new_value;
-            );
-          );
-          
-          // Snap to increment when CTRL is released (for knobs and bidirectional sliders)
-          ctrl_just_released ? (
-            // Get current slider value (may have been adjusted smoothly)
-            current_slider_value = slider(param_index);
-            array_index = ui_drag_control * 4 + 0;
-            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
-            increment > 0 ? (
-              snapped_value = floor(current_slider_value / increment + 0.5) * increment;
-              slider(param_index) = clamp(snapped_value, min_val, max_val);
-            );
-          );
-        ) : (
-          // Continuous slider - use position-based or delta-based depending on fine mode
-          MOUSE_CTRL_KEY ? (
-            // Fine drag mode - use delta approach (smooth, no snapping)
-            mouse_dx = (mouse_x - ui_prev_mouse_x) * fine_drag_mult;
-            slider_w = control_defs[ui_drag_control*11 + 3];
-            value_range = max_val - min_val;
-            delta = (mouse_dx / slider_w) * value_range;
-            new_value = clamp(current_value + delta, min_val, max_val);
-            slider(param_index) = new_value;
-          ) : (
-            // Normal drag mode - use position with snapping
-            new_value = update_slider_value(ui_drag_control, mouse_x, mouse_y);
-            slider(param_index) = new_value;
-          );
-          
-          // Snap to increment when CTRL is released
-          ctrl_just_released ? (
-            // Get current slider value (may have been adjusted smoothly)
-            current_slider_value = slider(param_index);
-            array_index = ui_drag_control * 4 + 0;
-            increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
-            increment > 0 ? (
-              snapped_value = floor(current_slider_value / increment + 0.5) * increment;
-              slider(param_index) = clamp(snapped_value, min_val, max_val);
-            );
-          );
+    (type == 4) ? ( // Knob drag
+      dx = (mouse_x-ui_prev_mouse_x)*fine;
+      dy = (mouse_y-ui_prev_mouse_y)*fine;
+      sens=200;
+
+      steps > 0 ? (
+        pts = get_step_points_base(p);
+        idx = find_step_point_index(v, pts, steps);
+        idx = floor(clamp(idx+((dx-dy)/sens)*steps,0,steps-1)+0.5);
+        slider(p)=pts[idx];
+      )
+      : options > 0 ? (
+        idx = floor(clamp(v+((dx-dy)/sens)*options,0,options-1)+0.5);
+        slider(p)=idx;
+      )
+      : (
+        range = max-min;
+        val = clamp(v+((dx-dy)/sens)*range,min,max);
+        !MOUSE_CTRL_KEY && inc>0 ? val=floor(val/inc+0.5)*inc;
+        slider(p)=val;
+      );
+    )
+    : (options>0 || steps>0) ? (
+      MOUSE_CTRL_KEY ? (
+        get_slider_config(ui_drag_control, type);
+        norm = calculate_normalized_position(ui_drag_control, mouse_x, mouse_y, 0, 0);
+        slider(p) = min + norm * (max-min);
+      ) : ( // snap by pos
+        total=options>0?options:steps;
+        ctrl_x=get_control_x_with_group_offset(ui_drag_control);
+        idx=floor(clamp((mouse_x-ctrl_x)/(w/total),0,total-1));
+        options>0 ? slider(p)=idx : (
+          pts=get_step_points_base(p); slider(p)=pts[idx];
         );
       );
-      
-      sliderchange(1 << (param_index - 1));
-      update_pdc_delay_if_needed(param_index);
-      handle_preview_filters(param_index, 0);  // is_drag_start = 0 (during drag)
+      ctrl_rel ? (
+        val=slider(p);
+        steps>0 ? (
+          pts=get_step_points_base(p);
+          slider(p)=find_closest_step_point(val, pts, steps);
+        ) : options>0 ? (
+          i=0; best=0; diff=abs(0-val); while(++i<options)(
+            t=abs(i-val); t<diff ? (best=i; diff=t; );
+          );
+          slider(p)=best;
+        );
+      );
+    )
+    : bidir ? (
+      dx=(mouse_x-ui_prev_mouse_x)*fine;
+      dy=(mouse_y-ui_prev_mouse_y)*fine;
+      range = max-min;
+      val = clamp(v+((dx-dy)/w)*range, min, max);
+      MOUSE_CTRL_KEY ? (slider(p)=val;) : (
+        inc>0 ? slider(p)=clamp(floor(val/inc+0.5)*inc, min, max) : slider(p)=val;
+      );
+      ctrl_rel && inc>0 ? (
+        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
+      );
     ) : (
-      // Other control types - no drag handling needed
-      0; // Empty statement to satisfy JSFX syntax
+      MOUSE_CTRL_KEY ? (
+        dx = (mouse_x-ui_prev_mouse_x)*fine;
+        range = max-min;
+        val = clamp(v+dx/w*range, min, max);
+        slider(p)=val;
+      ) : (
+        slider(p) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+      );
+      ctrl_rel && inc>0 ? (
+        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
+      );
     );
-  ) : (
-    // No drag operation in progress - no action needed
-    0; // Empty statement to satisfy JSFX syntax
+    sliderchange(1 << (p-1));
+    update_pdc_delay_if_needed(p);
+    handle_preview_filters(p,0);
   );
 );
 
-//==============================================================================
-// CONTROL VISIBILITY CHECK
-//==============================================================================
-
-// Check if a control should be interactive based on page visibility
-// Returns: 1 if control should be interactive, 0 if it's on a hidden page
-// Uses the same page assignment logic as rendering (is_control_on_filters_page, is_control_on_settings_page)
-function is_control_interactive(control_index) (
-  // Check if control is on Filters page - if so, only interactive when page is visible
-  is_control_on_filters_page(control_index) ? (
-    // Only interactive if Filters page is visible
-    should_render_page(PAGE_FILTERS);
-  ) : is_control_on_settings_page(control_index) ? (
-    // Only interactive if Settings page is visible
-    should_render_page(PAGE_SETTINGS);
-  ) : (
-    // All other controls are always interactive (they're not page-specific)
-    1;
-  );
+// Check if a control should be interactive (page visible)
+function is_control_interactive(i)(
+  is_control_on_filters_page(i) ? should_render_page(PAGE_FILTERS)
+  : is_control_on_settings_page(i) ? should_render_page(PAGE_SETTINGS)
+  : 1;
 );
 
-//==============================================================================
-// UI CONTROL MOUSE INPUT
-//==============================================================================
-
+// Main mouse handler
 function handle_ui_mouse_input() (
   MOUSE_LEFT_BUTTON ? (
-    ui_drag_control == -1 ? ( // Start of click - no control selected yet
-      // Initialize previous mouse position on first click
-      ui_prev_mouse_x = mouse_x;
-      ui_prev_mouse_y = mouse_y;
-      ui_fine_drag_accum = 0; // Reset accumulator
-      
-      // Check controls until we find one under the mouse
-      i = 0;
-      while (i < control_count && ui_drag_control == -1) (
-        // Only check if control is interactive (visible on current page)
-        is_control_interactive(i) ? (
-          // Control is visible, check if mouse is over it
-          is_point_in_control(mouse_x, mouse_y, i) ? (
-            handle_control_click(i);
-          );
-        );
-        i += 1;
+    ui_drag_control == -1 ? (
+      ui_prev_mouse_x = mouse_x; ui_prev_mouse_y = mouse_y; ui_fine_drag_accum = 0;
+      i=0; while(i<control_count && ui_drag_control==-1)(
+        is_control_interactive(i) && is_point_in_control(mouse_x, mouse_y, i) ? handle_control_click(i);
+        i+=1;
       );
-    ) : ( // Continue drag
-      ui_drag_control == -2 ? (
-        // Button was clicked - don't do anything until mouse is released
-        // (ui_drag_control == -2 means "clicked but not draggable")
-        0;
-      ) : (
-        // Only allow drag continuation if the control is still interactive
-        ui_drag_control >= 0 && is_control_interactive(ui_drag_control) ? (
-          handle_drag_continuation();
-        ) : (
-          // Control became hidden during drag - cancel it
-          handle_preview_filters_drag_end();
-          ui_drag_control = -1;
-          ui_fine_drag_accum = 0;
-        );
-      );
+    ) : (
+      ui_drag_control == -2 ? 0 :
+      (ui_drag_control>=0 && is_control_interactive(ui_drag_control)) ? handle_drag_continuation() :
+      (handle_preview_filters_drag_end(); ui_drag_control=-1; ui_fine_drag_accum=0;);
     );
   ) : (
-    // Mouse released - reset drag state
-    // Check if we need to restore Listen to Detection state
     handle_preview_filters_drag_end();
-    ui_drag_control = -1;
-    ui_fine_drag_accum = 0; // Reset accumulator
+    ui_drag_control=-1; ui_fine_drag_accum=0;
   );
-  
-  // Update previous mouse position for next frame's delta calculation
-  ui_prev_mouse_x = mouse_x;
-  ui_prev_mouse_y = mouse_y;
-  
-  // Update previous CTRL key state for next frame
+  ui_prev_mouse_x = mouse_x; ui_prev_mouse_y = mouse_y;
   ui_prev_ctrl_key = MOUSE_CTRL_KEY;
 );
-
