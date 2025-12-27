@@ -1,50 +1,22 @@
-// UI Utilities Module
-// Pure UI utility functions and coordinate conversions
-// Contains control accessor functions and basic UI utilities
-//
-// Dependencies:
-// - 01_Utils/00_constants.jsfx-inc (for GRAPH_* and UI constants)
-// - UI_Sliders/00_file_reading.jsfx-inc (for get_slider_name function)
-// - UI_General/00_ui_constants.jsfx-inc (for UI constants)
-// - 01_Utils/03_memory.jsfx-inc (for control_defs array)
+// UI utility functions and coordinate conversions
+// Relies on constants and control_defs from external includes
 
 @init
 
-//==============================================================================
-// SLIDER CONFIG EXTRACTION HELPERS
-//==============================================================================
-
-// Extract slider configuration from control_defs or parallax_slider_configs
-// Sets slider_config, slider_orientation, and format_options in calling scope
-// Parameters: control_index, control_type
-// Note: slider_config, slider_orientation, and format_options must be declared in calling scope (not local)
+//---- Slider config extraction (sets slider_config, slider_orientation, format_options) ----
 function get_slider_config(control_index, control_type) (
   control_type == 3 ? (
-    // Parallax fader: get config from separate array
     slider_config = parallax_slider_configs[control_index];
     format_options = (slider_config >> 8) & 0xFF;
-    slider_orientation = ORIENTATION_HORIZONTAL; // Parallax faders are always horizontal
-  ) : control_type == 4 ? (
-    // Knob: get config from control_defs (orientation is unused for knobs)
-    slider_config = control_defs[control_index*11 + 8];
-    slider_orientation = ORIENTATION_HORIZONTAL; // Unused for knobs, but set for compatibility
-    format_options = (slider_config >> 32) & 0xFF;
+    slider_orientation = ORIENTATION_HORIZONTAL;
   ) : (
-    // Regular slider: get config from control_defs
     slider_config = control_defs[control_index*11 + 8];
-    slider_orientation = slider_config & 0xFF;
+    slider_orientation = (control_type==4) ? ORIENTATION_HORIZONTAL : slider_config & 0xFF;
     format_options = (slider_config >> 32) & 0xFF;
   );
 );
 
-//==============================================================================
-// GROUP OFFSET HELPERS
-//==============================================================================
-
-// Get control position with group offset applied
-// Sets ctrl_x and ctrl_y in calling scope with group offset added if control is in a group
-// Parameters: control_index
-// Note: ctrl_x and ctrl_y must be declared in calling scope (not local)
+//---- Control position with group offset ----
 function get_control_position_with_group_offset(control_index) local(group_idx) (
   ctrl_x = control_defs[control_index*11 + 1];
   ctrl_y = control_defs[control_index*11 + 2];
@@ -54,108 +26,50 @@ function get_control_position_with_group_offset(control_index) local(group_idx) 
     ctrl_y += group_defs[group_idx*6 + 1];
   );
 );
-
-// Get control X position with group offset applied (when Y is not needed)
-// Parameters: control_index
-// Returns: ctrl_x with group offset applied
-function get_control_x_with_group_offset(control_index) local(group_idx, ctrl_x_rel) (
-  ctrl_x_rel = control_defs[control_index*11 + 1];
+function get_control_x_with_group_offset(control_index) local(group_idx, x) (
+  x = control_defs[control_index*11 + 1];
   group_idx = control_defs[control_index*11 + 10];
-  group_idx >= 0 ? (
-    ctrl_x_rel + group_defs[group_idx*6 + 0]
-  ) : (
-    ctrl_x_rel
-  );
+  group_idx >= 0 ? x + group_defs[group_idx*6 + 0] : x;
+);
+function get_control_y_with_group_offset(control_index) local(group_idx, y) (
+  y = control_defs[control_index*11 + 2];
+  group_idx = control_defs[control_index*11 + 10];
+  group_idx >= 0 ? y + group_defs[group_idx*6 + 1] : y;
 );
 
-// Get control Y position with group offset applied (when X is not needed)
-// Parameters: control_index
-// Returns: ctrl_y with group offset applied
-function get_control_y_with_group_offset(control_index) local(group_idx, ctrl_y_rel) (
-  ctrl_y_rel = control_defs[control_index*11 + 2];
-  group_idx = control_defs[control_index*11 + 10];
-  group_idx >= 0 ? (
-    ctrl_y_rel + group_defs[group_idx*6 + 1]
-  ) : (
-    ctrl_y_rel
-  );
-);
-
-//==============================================================================
-// NORMALIZED POSITION CALCULATION HELPERS
-//==============================================================================
-
-// Calculate normalized position (0-1) from mouse coordinates
-// Handles both vertical and horizontal orientations, including reverse option
-// Parameters: control_index, mouse_x, mouse_y, slider_orientation, format_options
-// Returns: normalized position (0-1) where 0 is min value and 1 is max value
-function calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options) local(ctrl_x, ctrl_y, ctrl_w, ctrl_h, pos) (
+//---- Normalized position (0-1) from mouse coordinates ----
+function calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options)
+local(x, y, w, h, pos) (
   slider_orientation == ORIENTATION_VERTICAL ? (
-    // Vertical slider: use Y coordinate
-    ctrl_y = get_control_y_with_group_offset(control_index);
-    ctrl_h = control_defs[control_index*11 + 4];
-    pos = (mouse_y - ctrl_y) / ctrl_h;
-    pos = max(0, min(1, pos));
-    // Invert for vertical slider (0 at top, 1 at bottom)
-    1 - pos
+    y = get_control_y_with_group_offset(control_index);
+    h = control_defs[control_index*11 + 4];
+    pos = (mouse_y - y) / h;
+    max(0, min(1, 1 - pos)); // 0 at top, 1 at bottom
   ) : (
-    // Horizontal slider: use X coordinate
-    ctrl_x = get_control_x_with_group_offset(control_index);
-    ctrl_w = control_defs[control_index*11 + 3];
-    pos = (mouse_x - ctrl_x) / ctrl_w;
+    x = get_control_x_with_group_offset(control_index);
+    w = control_defs[control_index*11 + 3];
+    pos = (mouse_x - x) / w;
     pos = max(0, min(1, pos));
-    // Handle reverse sliders - invert the normalized position
-    format_options & OPTION_REVERSE ? (
-      1.0 - pos
-    ) : (
-      pos
-    )
+    format_options & OPTION_REVERSE ? 1.0 - pos : pos;
   )
 );
-
-// Calculate normalized position (0-1) for knobs from mouse coordinates
-// Knobs accept both horizontal and vertical mouse movement
-// Knobs go from 7:30 to 4:30 (as if it were a clock face)
-// Parameters: control_index, mouse_x, mouse_y, format_options
-// Returns: normalized position (0-1) where 0 is 7:30 and 1 is 4:30
-function calculate_knob_normalized_position(control_index, mouse_x, mouse_y, format_options) local(ctrl_x, ctrl_y, ctrl_w, center_x, center_y, dx, dy, angle_deg, normalized_pos) (
+// Knob normalized position (clock style 7:30-4:30)
+function calculate_knob_normalized_position(control_index, mouse_x, mouse_y, format_options)
+local(ctrl_w, cx, cy, dx, dy, a_deg, val) (
   get_control_position_with_group_offset(control_index);
   ctrl_w = control_defs[control_index*11 + 3];
-  center_x = ctrl_x + ctrl_w * 0.5;
-  center_y = ctrl_y + ctrl_w * 0.5;
-  
-  // Calculate angle from center to mouse position
-  dx = mouse_x - center_x;
-  dy = mouse_y - center_y;
-  angle_rad = atan2(dy, dx);
-  angle_deg = angle_rad * 180 / $pi;
-  
-  // Convert angle to normalized position
-  // Knobs go from 7:30 (-135 degrees) to 4:30 (45 degrees)
-  // Normalize angle to 0-1 range: -135 to 45 degrees = 270 degrees total
-  angle_deg < -135 ? (
-    // Angle is below 7:30, clamp to 7:30
-    normalized_pos = 0.0;
-  ) : angle_deg > 45 ? (
-    // Angle is above 4:30, clamp to 4:30
-    normalized_pos = 1.0;
-  ) : (
-    // Normalize: -135 to 45 degrees -> 0.0 to 1.0
-    normalized_pos = (angle_deg + 135) / 270;
-  );
-  
-  // Handle reverse option
-  format_options & OPTION_REVERSE ? (
-    1.0 - normalized_pos
-  ) : (
-    normalized_pos
-  )
+  cx = ctrl_x + ctrl_w * 0.5;
+  cy = ctrl_y + ctrl_w * 0.5;
+  dx = mouse_x - cx;
+  dy = mouse_y - cy;
+  a_deg = atan2(dy, dx) * 180 / $pi;
+  val =      a_deg < -135 ? 0
+        : (a_deg >  45 ? 1
+        : ((a_deg + 135) / 270));
+  format_options & OPTION_REVERSE ? 1.0 - val : val;
 );
 
-//==============================================================================
-// BASIC UI UTILITIES
-//==============================================================================
-
+//---- UI utilities ----
 function is_point_in_control(x, y, control_index) (
   get_control_position_with_group_offset(control_index);
   ctrl_w = control_defs[control_index*11 + 3];
@@ -163,178 +77,94 @@ function is_point_in_control(x, y, control_index) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-// Step-point array base addresses (allocated inline in 04_UI_Controls/02_step_points.jsfx-inc init_step_points())
-// These are declared here for early access by helper functions
-// Variables default to 0 in JSFX, no initialization needed
-
-// Step-point counts (initialized in 04_UI_Controls/02_step_points.jsfx-inc)
-// Variables default to 0 in JSFX, no initialization needed
-
-// Helper function to get step-point count from slider object
-// Returns step-point count for the given parameter, or 0 if not a stepped slider
-// This accesses the step_count property from the slider object namespace
-function get_step_point_count(param_index) (
-  param_index == 1 ? S1.step_count :
-  param_index == 4 ? S4.step_count :
-  param_index == 13 ? S13.step_count :
-  param_index == 16 ? S16.step_count :
-  param_index == 17 ? S17.step_count :
-  param_index == 21 ? drive_step_count :
-  param_index == 22 ? mix_step_count :
-  param_index == 23 ? even_step_count :
-  param_index == 24 ? odd_step_count :
-  param_index == 8 ? prog_release_blend_step_count :
-  0
+//---- Step-point helpers ----
+function get_step_point_count(i)(
+  i==1?S1.step_count:i==4?S4.step_count:i==13?S13.step_count
+  :i==16?S16.step_count:i==17?S17.step_count
+  :i==21?drive_step_count:i==22?mix_step_count
+  :i==23?even_step_count:i==24?odd_step_count
+  :i==8?prog_release_blend_step_count:0
+);
+function get_step_points_base(i)(
+  i==1?attack_step_points_base:i==4?release_step_points_base:i==13?lookahead_step_points_base
+  :i==16?hp_step_points_base:i==17?lp_step_points_base
+  :i==21?drive_step_points_base:i==22?mix_step_points_base
+  :i==23?even_step_points_base:i==24?odd_step_points_base
+  :i==8?prog_release_blend_step_points_base:0
 );
 
-// Returns step-point array base for the given parameter, or 0 if not a stepped slider
-function get_step_points_base(param_index) (
-  param_index == 1 ? attack_step_points_base :
-  param_index == 4 ? release_step_points_base :
-  param_index == 13 ? lookahead_step_points_base :
-  param_index == 16 ? hp_step_points_base :
-  param_index == 17 ? lp_step_points_base :
-  param_index == 21 ? drive_step_points_base :
-  param_index == 22 ? mix_step_points_base :
-  param_index == 23 ? even_step_points_base :
-  param_index == 24 ? odd_step_points_base :
-  param_index == 8 ? prog_release_blend_step_points_base :
-  0
-);
-
-function update_slider_value(control_index, mouse_x, mouse_y) local(control_type, param_index, option_count, option_index, i, opt_value, reverse_mode, ctrl_x_rel, ctrl_x_abs, slider_orientation, format_options, slider_config, ctrl_x, ctrl_y, ctrl_w, ctrl_h, array_index) (
+//---- Slider value from mouse ----
+function update_slider_value(control_index, mouse_x, mouse_y)
+local(control_type, param_index, step_count, option_count, total_options, option_index, slider_orientation, format_options, slider_config, min_val, max_val, normalized_pos, ctrl_w, ctrl_x, raw_value, array_index, increment, pixels_per_option, mouse_pos_in_slider, step_points_base)
+(
   control_type = control_defs[control_index*11 + 0];
   get_slider_config(control_index, control_type);
   min_val = control_defs[control_index*11 + 6];
   max_val = control_defs[control_index*11 + 7];
   param_index = control_defs[control_index*11 + 5];
-
-  // Calculate normalized position using helper function
   normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
-  
-  // Check if this slider has enumerated options or step-points
+
   option_count = get_dropdown_option_count(param_index);
   step_count = get_step_point_count(param_index);
   total_options = option_count > 0 ? option_count : step_count;
-  
+
   total_options > 0 ? (
-    // Stepped slider (enumerated or step-points): divide slider width by number of options
-    // Each option gets (slider_width / total_options) pixels
-    // Map mouse position to option index
-    
-    // Calculate which option the mouse is over
-    // For horizontal sliders: mouse_x relative to slider start
-    slider_orientation == ORIENTATION_VERTICAL ? (
-      // Vertical slider: use normalized position directly
-      option_index = floor(normalized_pos * total_options);
-    ) : (
-      // Horizontal slider: calculate option index from mouse position
-      // Each option occupies (ctrl_w / total_options) pixels
-      pixels_per_option = ctrl_w / total_options;
-      mouse_pos_in_slider = mouse_x - ctrl_x;
-      option_index = floor(mouse_pos_in_slider / pixels_per_option);
-    );
-    
-    // Clamp to valid range
+    // Stepped/enum slider
+    slider_orientation == ORIENTATION_VERTICAL ?
+      option_index = floor(normalized_pos * total_options)
+    :
+      (ctrl_x = get_control_x_with_group_offset(control_index);
+       ctrl_w = control_defs[control_index*11 + 3];
+       pixels_per_option = ctrl_w / total_options;
+       mouse_pos_in_slider = mouse_x - ctrl_x;
+       option_index = floor(mouse_pos_in_slider / pixels_per_option);
+      );
     option_index = max(0, min(total_options - 1, option_index));
-    
-    // Return value based on type
-    option_count > 0 ? (
-      // Enumerated slider: return the index (slider stores index)
-      option_index;
-    ) : (
-      // Step-point slider: return the step-point value at that index
+    option_count > 0 ? option_index : (
       step_points_base = get_step_points_base(param_index);
       step_points_base[option_index];
-    );
+    )
   ) : (
-    // For normal sliders without enumerated options, use continuous range with increment snapping
     raw_value = min_val + normalized_pos * (max_val - min_val);
-    // Inline get_slider_increment: slider_properties_base[control_index * 4 + 0]
-    array_index = control_index * 4 + 0;
+    array_index = control_index * 4;
     increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
-    increment > 0 ? (
-      // Snap to nearest increment step
-      floor(raw_value / increment + 0.5) * increment
-    ) : (
-      raw_value
-    );
+    increment > 0 ? floor(raw_value / increment + 0.5) * increment : raw_value;
+  )
+);
+
+//---- Step-point search ----
+function find_step_point_index(value, step_points_base, step_count) local(i, idx, bestdiff,diff) (
+  idx=0;bestdiff=abs(step_points_base[0]-value);
+  i=1;
+  while(i<step_count)(
+    diff=abs(step_points_base[i]-value);
+    diff<bestdiff ? (idx=i;bestdiff=diff;);
+    i+=1;
   );
+  idx;
 );
-
-
-
-// Find the index of the closest step-point for a given value
-// Returns the index (0-based) of the closest step-point
-function find_step_point_index(value, step_points_base, step_count) local(
-  closest_index, closest_diff, i, test_value, test_diff
-) (
-  closest_index = 0;
-  closest_diff = abs(step_points_base[0] - value);
-  i = 1;
-  while (i < step_count) (
-    test_value = step_points_base[i];
-    test_diff = abs(test_value - value);
-    test_diff < closest_diff ? (
-      closest_index = i;
-      closest_diff = test_diff;
-    );
-    i += 1;
+function find_closest_step_point(value, step_points_base, step_count) local(i, v, best, diff, bestdiff)(
+  best=step_points_base[0];bestdiff=abs(best-value);
+  i=1;
+  while(i<step_count)(
+    v=step_points_base[i];
+    diff=abs(v-value);
+    diff<bestdiff ? (best=v;bestdiff=diff;);
+    i+=1;
   );
-  closest_index;
+  best;
 );
 
-// Helper function to find closest step-point value
-// Used for sliders with step-point arrays (attack, release, hp_freq, lp_freq)
-function find_closest_step_point(value, step_points_base, step_count) local(closest_value, closest_diff, i, test_value, test_diff) (
-  closest_value = step_points_base[0];
-  closest_diff = abs(step_points_base[0] - value);
-  i = 1;
-  while (i < step_count) (
-    test_value = step_points_base[i];
-    test_diff = abs(test_value - value);
-    test_diff < closest_diff ? (
-      closest_value = test_value;
-      closest_diff = test_diff;
-    );
-    i += 1;
-  );
-  closest_value;
+//---- Graph coordinate clamping ----
+function clamp_x_to_graph(x, gx, s) (max(gx, min(gx+s, x)));
+function clamp_y_to_graph(y, gy, s) (max(gy, min(gy+s, y)));
+
+//---- Drawing helpers ----
+function draw_indicator_circle(x, y, r, R, G, B, a, fill) (
+  gfx_set(R,G,B,a);
+  gfx_circle(x,y,r,fill,1);
 );
-
-//==============================================================================
-// COORDINATE CLAMPING HELPERS
-//==============================================================================
-
-// Note: Graph coordinate conversion functions (db_to_graph_x, db_to_graph_y, etc.)
-// are now defined in Interface/Services/00_coordinate_conversion.jsfx-inc
-
-// Clamp x coordinate to graph bounds
-// Parameters: x (coordinate), graph_x (left edge), graph_size (graph size)
-function clamp_x_to_graph(x, graph_x, graph_size) (
-  max(graph_x, min(graph_x + graph_size, x))
+function draw_text_at(R, G, B, a, x, y, fmt, val) (
+  gfx_set(R,G,B,a);
+  gfx_x=x; gfx_y=y; gfx_printf(fmt, val);
 );
-
-// Clamp y coordinate to graph bounds
-// Parameters: y (coordinate), graph_y (top edge), graph_size (graph size)
-function clamp_y_to_graph(y, graph_y, graph_size) (
-  max(graph_y, min(graph_y + graph_size, y))
-);
-
-//==============================================================================
-// DRAWING HELPERS
-//==============================================================================
-
-function draw_indicator_circle(x, y, radius, r, g, b, alpha, filled) (
-  gfx_set(r, g, b, alpha);
-  gfx_circle(x, y, radius, filled, 1); 
-);
-
-// Draw formatted text at position with color
-function draw_text_at(r, g, b, a, x, y, format_str, value) (
-  gfx_set(r, g, b, a);
-  gfx_x = x;
-  gfx_y = y;
-  gfx_printf(format_str, value);
-);
-

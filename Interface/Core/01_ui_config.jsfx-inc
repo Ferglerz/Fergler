@@ -1,6 +1,0 @@
-// Deprecated shim: UI color/menu/group/debug constants are consolidated in
-// Interface/Core/00_ui_config.jsfx-inc to keep a single source of truth.
-// This file remains as a compatibility wrapper for any legacy imports.
-
-import 00_ui_config.jsfx-inc
-

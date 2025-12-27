@@ -4,91 +4,42 @@
 
 @init
 
+function draw_group(idx, fade) local(gx, gy, gw, gh, show_title, title_ptr, tw, th, tx, ty) (
+  gx = group_defs[idx*6    ];
+  gy = group_defs[idx*6 + 1];
+  gw = group_defs[idx*6 + 2];
+  gh = group_defs[idx*6 + 3];
+  show_title = group_defs[idx*6 + 4];
+  title_ptr = group_defs[idx*6 + 5];
+  fade <= 0 ? fade = 1;
 
-//==============================================================================
-// GROUP RENDERING
-//==============================================================================
-
-function draw_group(group_index, fade_amount) local(gx, gy, gw, gh, show_title, title_ptr, title_w, title_x, title_y, title_area_w, title_area_x, current_alpha) (
-  gx = group_defs[group_index*6 + 0];
-  gy = group_defs[group_index*6 + 1];
-  gw = group_defs[group_index*6 + 2];
-  gh = group_defs[group_index*6 + 3];
-  show_title = group_defs[group_index*6 + 4];
-  title_ptr = group_defs[group_index*6 + 5];
-  
-  // Apply fade amount (default to 1.0 if not provided)
-  current_alpha = fade_amount > 0 ? fade_amount : 1.0;
-  
-  // Draw title if enabled
   show_title > 0.5 ? (
-    // Measure title text width (use monospace font, uppercase)
-    gfx_setfont(1, "Courier", 13);  // System monospace font (13, reduced from 15)
-    gfx_measurestr(title_ptr, title_w, title_h);
-    
-    // Calculate title area dimensions (text width + padding)
-    title_area_w = title_w + GROUP_TITLE_PADDING * 2;
-    title_area_x = gx + (gw - title_area_w) / 2;  // Center horizontally
-    
-    // Draw title text (centered)
-    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, current_alpha);
-    title_x = title_area_x + GROUP_TITLE_PADDING;
-    title_y = gy + (GROUP_TITLE_HEIGHT - title_h) / 2;
-    gfx_x = title_x;
-    gfx_y = title_y;
+    gfx_setfont(1, "Courier", 13);
+    gfx_measurestr(title_ptr, tw, th);
+    tx = gx + (gw-tw-GROUP_TITLE_PADDING*2)/2 + GROUP_TITLE_PADDING;
+    ty = gy + (GROUP_TITLE_HEIGHT-th)/2;
+    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, fade);
+    gfx_x = tx; gfx_y = ty;
     gfx_drawstr(title_ptr);
-    
-    // Reset to default font
     gfx_setfont(0);
   );
 );
 
-//==============================================================================
-// INTERACTIVE COLOR HELPERS
-//==============================================================================
-
-function set_point_color(is_hovered, is_curved) (
-  is_hovered ? (
-    // Hovered point - larger and brighter
-    is_curved ? (
-      gfx_set(1, 0.8, 0.2, 1); // Orange for curved points
-    ) : (
-      gfx_set(1, 1, 0.5, 1); // Yellowish highlight for normal points
-    );
-  ) : (
-    // Normal point - smaller
-    is_curved ? (
-      gfx_set(1, 0.6, 0.1, 0.9); // Slightly transparent orange for curved points
-    ) : (
-      gfx_set(1, 1, 1, 0.8); // Slightly transparent white for normal points
-    );
-  );
+function set_point_color(h, c) (
+  h ? ( c ? gfx_set(1,0.8,0.2,1) : gfx_set(1,1,0.5,1) )
+    : ( c ? gfx_set(1,0.6,0.1,0.9) : gfx_set(1,1,1,0.8) );
 );
 
-function set_threshold_line_color(threshold_type, is_hovered, is_dragging) (
-  threshold_type == THRESHOLD_INPUT_LEVEL ? (
-    is_hovered || is_dragging ? (
-      gfx_set(0.3, 1, 1, 1);
-    ) : (
-      gfx_set(0.2, 0.8, 1, 0.8);
-    );
-  ) : threshold_type == THRESHOLD_GR_BLEND_REDUCTION ? (
-    // Reduction threshold: orange/yellow (for attack/reduction phase)
-    is_hovered || is_dragging ? (
-      gfx_set(1, 0.6, 0.1, 1);
-    ) : (
-      gfx_set(1, 0.5, 0, 0.8);
-    );
-  ) : threshold_type == THRESHOLD_GR_BLEND_ADDITION ? (
-    // Addition threshold: cyan/blue (for release/addition phase)
-    is_hovered || is_dragging ? (
-      gfx_set(0.1, 0.8, 1, 1);
-    ) : (
-      gfx_set(0, 0.6, 0.9, 0.8);
-    );
+function set_threshold_line_color(type, h, d) (
+  h||d ? (
+    type==THRESHOLD_INPUT_LEVEL        ? gfx_set(0.3,1,1,1):
+    type==THRESHOLD_GR_BLEND_REDUCTION ? gfx_set(1,0.6,0.1,1):
+    type==THRESHOLD_GR_BLEND_ADDITION  ? gfx_set(0.1,0.8,1,1):
+                                         gfx_set(0.9,0.9,0.9,0.8)
   ) : (
-    // Default fallback (shouldn't happen, but safe)
-    gfx_set(0.9, 0.9, 0.9, 0.8);
+    type==THRESHOLD_INPUT_LEVEL        ? gfx_set(0.2,0.8,1,0.8):
+    type==THRESHOLD_GR_BLEND_REDUCTION ? gfx_set(1,0.5,0,0.8):
+    type==THRESHOLD_GR_BLEND_ADDITION  ? gfx_set(0,0.6,0.9,0.8):
+                                         gfx_set(0.9,0.9,0.9,0.8)
   );
 );
-

@@ -76,3 +76,14 @@ DEBUG_PANEL_TEXT_R = 0.9; DEBUG_PANEL_TEXT_G = 0.9; DEBUG_PANEL_TEXT_B = 0.9;
 
 // Debug panel start position
 DEBUG_PANEL_START_Y = 390;
+
+//==============================================================================
+// GRAPH LAYOUT CONSTANTS (moved from 03_ui_graph_layout.jsfx-inc)
+//==============================================================================
+
+GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85 - 150;  // After panel + gap - offset for harmonics
+GRAPH_Y = UI_PANEL_Y + 15;                      // Aligned with panel (moved down 15px)
+GRAPH_SIZE = 263;                              // 350 * 0.75 = 262.5 rounded up
+
+// Pre-calculated histogram step size (max(1, floor(GRAPH_SIZE / 200)))
+HISTOGRAM_STEP_SIZE = 1;  // For GRAPH_SIZE=263: floor(263/200) = 1
