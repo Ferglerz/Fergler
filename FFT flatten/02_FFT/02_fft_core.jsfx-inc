@@ -43,6 +43,7 @@ function sff_reset_runtime_state() local(n, outn) (
 
   memset(sff_gain_db_L, 0, n*0.5);
   memset(sff_gain_db_R, 0, n*0.5);
+  memset(sff_gain_db_link, 0, n*0.5);
   memset(sff_mag_cache_L, 0, n*0.5);
   memset(sff_mag_cache_R, 0, n*0.5);
   memset(sff_mag_eco_L, 0, n*0.5);

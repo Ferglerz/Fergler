@@ -419,10 +419,8 @@ class JSFXFunctionAnalyzer:
                         if re.search(assignment_pattern, before_context):
                             continue
                     
-                    # Skip if it's part of a conditional or logical expression
-                    # Check for standalone operators before the function call (not compound operators like +=)
-                    if re.search(r'[+\-*/<>!&|]\s*$', before_context):
-                        continue
+                    # NOTE: function calls often appear after operators (e.g. "a * foo(x)").
+                    # Do NOT skip these, or we'll miss valid calls and misreport "unused" functions.
                     
                     # Skip if it's in a variable declaration context
                     if re.search(r'\b(var|local|global)\s+\w*\s*$', before_context, re.IGNORECASE):

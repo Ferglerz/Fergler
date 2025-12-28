@@ -7,20 +7,6 @@ function sff_get_band_index_for_hz(hz) (
   3;
 );
 
-function sff_get_band_min_db(band) (
-  band == 0 ? band1_min_db :
-  band == 1 ? band2_min_db :
-  band == 2 ? band3_min_db :
-  band4_min_db;
-);
-
-function sff_get_band_max_db(band) (
-  band == 0 ? band1_max_db :
-  band == 1 ? band2_max_db :
-  band == 2 ? band3_max_db :
-  band4_max_db;
-);
-
 function sff_get_band_enabled(band) (
   band == 0 ? band1_enabled :
   band == 1 ? band2_enabled :

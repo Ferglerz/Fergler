@@ -79,6 +79,37 @@ function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_
   );
 );
 
+function sff_apply_linked_gains_to_specs() local(n, k, kn, hz, band, str_eff, target_gain_db, smooth_gain_db, g_lin) (
+  n = fft_size|0;
+
+  // Clear display gain accumulator each hop (we overwrite)
+  memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
+
+  k = 0;
+  loop(pos_bin_count,
+    hz = k * bin_hz;
+    band = sff_get_band_index_for_hz(hz);
+    str_eff = strength * sff_get_band_strength_mul(band) * transient_strength_scale;
+
+    target_gain_db = sff_clamp(sff_delta_db_link[k] * str_eff, -max_adjust_db, max_adjust_db);
+    smooth_gain_db = sff_smooth_gain_db(sff_gain_db_link, k, target_gain_db);
+    g_lin = sff_db_to_linear(smooth_gain_db);
+
+    // Apply same gain to both channels
+    sff_spec_L[k*2] *= g_lin; sff_spec_L[k*2 + 1] *= g_lin;
+    sff_spec_R[k*2] *= g_lin; sff_spec_R[k*2 + 1] *= g_lin;
+
+    (k > 0 && k < (pos_bin_count-1)) ? (
+      kn = (n - k)|0;
+      sff_spec_L[kn*2] *= g_lin; sff_spec_L[kn*2 + 1] *= g_lin;
+      sff_spec_R[kn*2] *= g_lin; sff_spec_R[kn*2 + 1] *= g_lin;
+    ) : 0;
+
+    (k < SFF_DISPLAY_BINS) ? (sff_display_gain_db[k] = smooth_gain_db;) : 0;
+    k += 1;
+  );
+);
+
 function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM, do_recompute, radius, mag_show) (
   n = fft_size|0;
   radius = neighbor_radius|0;
@@ -103,6 +134,9 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
     );
   );
 
+  magL_base = eco_mode ? sff_mag_eco_L : sff_mag_cache_L;
+  magR_base = eco_mode ? sff_mag_eco_R : sff_mag_cache_R;
+
   // Decide whether to recompute heavy deltas this hop
   do_recompute = eco_mode ? (
     sff_eco_hop_index += 1;
@@ -112,17 +146,14 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
   do_recompute ? (
     k = 0;
     loop(pos_bin_count,
-      mselL = eco_mode ? sff_mag_eco_L[k] : sff_mag_cache_L[k];
-      mselR = eco_mode ? sff_mag_eco_R[k] : sff_mag_cache_R[k];
-
       // Per-channel deltas
-      sff_delta_db_L[k] = sff_compute_delta_db_for_bin(eco_mode ? sff_mag_eco_L : sff_mag_cache_L, k, radius);
-      sff_delta_db_R[k] = sff_compute_delta_db_for_bin(eco_mode ? sff_mag_eco_R : sff_mag_cache_R, k, radius);
-      sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(eco_mode ? sff_mag_eco_L : sff_mag_cache_L, eco_mode ? sff_mag_eco_R : sff_mag_cache_R, k, radius);
+      sff_delta_db_L[k] = sff_compute_delta_db_for_bin(magL_base, k, radius);
+      sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
+      sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
 
       // UI magnitudes (average L/R, dB)
       (k < SFF_DISPLAY_BINS) ? (
-        mag_show = 0.5 * (mselL + mselR);
+        mag_show = 0.5 * (magL_base[k] + magR_base[k]);
         sff_display_mag_db[k] = sff_linear_to_db(max(mag_show, EPS));
       ) : 0;
 
@@ -132,18 +163,21 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
     // Still update UI magnitudes cheaply
     k = 0;
     loop(SFF_DISPLAY_BINS,
-      mag_show = 0.5 * ((eco_mode ? sff_mag_eco_L[k] : sff_mag_cache_L[k]) + (eco_mode ? sff_mag_eco_R[k] : sff_mag_cache_R[k]));
+      mag_show = 0.5 * (magL_base[k] + magR_base[k]);
       sff_display_mag_db[k] = sff_linear_to_db(max(mag_show, EPS));
       k += 1;
     );
   );
 
-  // Clear display gain accumulator each hop (we overwrite then average with R)
-  memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
-
   // Apply gains (uses cached deltas + smoothing every hop)
-  sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, sff_mag_cache_L, sff_mag_cache_R, 0);
-  sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, sff_mag_cache_L, sff_mag_cache_R, 1);
+  stereo_link >= 99.5 ? (
+    sff_apply_linked_gains_to_specs();
+  ) : (
+    // Clear display gain accumulator each hop (we overwrite then average with R)
+    memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
+    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, sff_mag_cache_L, sff_mag_cache_R, 0);
+    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, sff_mag_cache_L, sff_mag_cache_R, 1);
+  );
 
   // IFFT + OLA
   ifft(sff_spec_L, n);

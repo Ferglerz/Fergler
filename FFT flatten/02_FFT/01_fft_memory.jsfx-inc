@@ -25,6 +25,8 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) 
   // Per-channel gain smoothing state (stored in dB per positive bin)
   sff_gain_db_L = sff_mem_next;        sff_mem_next += pos_bins;
   sff_gain_db_R = sff_mem_next;        sff_mem_next += pos_bins;
+  // Stereo-linked gain smoothing state (dB per positive bin)
+  sff_gain_db_link = sff_mem_next;     sff_mem_next += pos_bins;
 
   // Optional eco-mode cached magnitudes (linear) per positive bin
   sff_mag_cache_L = sff_mem_next;      sff_mem_next += pos_bins;
