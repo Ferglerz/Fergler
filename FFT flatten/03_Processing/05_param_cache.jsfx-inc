@@ -35,3 +35,20 @@ function sff_update_cutoff_bins() local(nyq) (
   high_cut_bin < low_cut_bin ? (high_cut_bin = low_cut_bin;) : 0;
 );
 
+function sff_update_tilt_if_needed_with_offsets() (
+  (tilt_db_per_oct != sff_prev_tilt_db_per_oct ||
+   tilt_pivot_hz != sff_prev_tilt_pivot_hz ||
+   band1_tilt_offset_db_per_oct != sff_prev_band1_tilt_off ||
+   band2_tilt_offset_db_per_oct != sff_prev_band2_tilt_off ||
+   band3_tilt_offset_db_per_oct != sff_prev_band3_tilt_off ||
+   band4_tilt_offset_db_per_oct != sff_prev_band4_tilt_off) ? (
+    sff_rebuild_tilt();
+    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
+    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+    sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
+    sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
+    sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
+    sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
+  ) : 0;
+);
+

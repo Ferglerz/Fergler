@@ -2,6 +2,7 @@ Analyzing JSFX modules in: /workspace/FFT flatten
 ------------------------------------------------------------
 Loaded: 03_Processing/02_attack_release.jsfx-inc
 Loaded: 03_Processing/03_surround_logic.jsfx-inc
+Loaded: 03_Processing/06_output_mix.jsfx-inc
 Loaded: 03_Processing/05_param_cache.jsfx-inc
 Loaded: 03_Processing/04_stft_process.jsfx-inc
 Loaded: 03_Processing/01_band_config.jsfx-inc
@@ -12,13 +13,15 @@ Loaded: 02_FFT/02_fft_core.jsfx-inc
 Loaded: 01_Utils/01_constants.jsfx-inc
 Loaded: 01_Utils/02_math_utils.jsfx-inc
 Loaded: FFT_Surround_Flattener.jsfx
-FFT_Surround_Flattener.jsfx imports: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/05_param_cache.jsfx-inc', '03_Processing/00_transient_protect.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '04_UI/01_ui.jsfx-inc']
+FFT_Surround_Flattener.jsfx imports: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/05_param_cache.jsfx-inc', '03_Processing/00_transient_protect.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '03_Processing/06_output_mix.jsfx-inc', '04_UI/01_ui.jsfx-inc']
 03_Processing/02_attack_release.jsfx-inc declares: ['sff_smooth_gain_db', 'sff_update_time_coeffs']
 03_Processing/02_attack_release.jsfx-inc parameters: {'sff_update_time_coeffs': 0, 'sff_smooth_gain_db': 3}
 03_Processing/03_surround_logic.jsfx-inc declares: ['sff_bin_is_active', 'sff_compute_delta_db_for_bin', 'sff_compute_delta_db_for_bin_link', 'sff_median3', 'sff_median5', 'sff_neighbor_target_lin', 'sff_neighbor_target_lin_stereo']
 03_Processing/03_surround_logic.jsfx-inc parameters: {'sff_median3': 3, 'sff_median5': 5, 'sff_neighbor_target_lin': 3, 'sff_neighbor_target_lin_stereo': 4, 'sff_bin_is_active': 2, 'sff_compute_delta_db_for_bin': 3, 'sff_compute_delta_db_for_bin_link': 4}
-03_Processing/05_param_cache.jsfx-inc declares: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins']
-03_Processing/05_param_cache.jsfx-inc parameters: {'sff_order_band_splits': 0, 'sff_update_band_ranges_from_global': 0, 'sff_update_cutoff_bins': 0}
+03_Processing/06_output_mix.jsfx-inc declares: ['sff_mix_dry_wet']
+03_Processing/06_output_mix.jsfx-inc parameters: {'sff_mix_dry_wet': 3}
+03_Processing/05_param_cache.jsfx-inc declares: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_tilt_if_needed_with_offsets']
+03_Processing/05_param_cache.jsfx-inc parameters: {'sff_order_band_splits': 0, 'sff_update_band_ranges_from_global': 0, 'sff_update_cutoff_bins': 0, 'sff_update_tilt_if_needed_with_offsets': 0}
 03_Processing/04_stft_process.jsfx-inc declares: ['sff_apply_gains_to_spec', 'sff_apply_linked_gains_to_specs', 'sff_compute_mag_cache_from_spec', 'sff_display_write_gain_db', 'sff_display_write_mag_db', 'sff_fill_spec_from_ring', 'sff_overlap_add_from_spec', 'sff_process_stereo_frame']
 03_Processing/04_stft_process.jsfx-inc parameters: {'sff_display_write_mag_db': 2, 'sff_display_write_gain_db': 3, 'sff_fill_spec_from_ring': 2, 'sff_compute_mag_cache_from_spec': 2, 'sff_apply_gains_to_spec': 5, 'sff_overlap_add_from_spec': 2, 'sff_apply_linked_gains_to_specs': 0, 'sff_process_stereo_frame': 0}
 03_Processing/01_band_config.jsfx-inc declares: ['sff_get_band_enabled', 'sff_get_band_index_for_hz', 'sff_get_band_max_lin', 'sff_get_band_min_lin', 'sff_get_band_radius_mul', 'sff_get_band_strength_mul']
@@ -35,8 +38,8 @@ FFT_Surround_Flattener.jsfx imports: ['01_Utils/01_constants.jsfx-inc', '01_Util
 01_Utils/02_math_utils.jsfx-inc parameters: {'sff_clamp': 3, 'sff_db_to_linear': 1, 'sff_linear_to_db': 1}
 03_Processing/03_surround_logic.jsfx-inc calls: ['sff_bin_is_active', 'sff_clamp', 'sff_get_band_enabled', 'sff_get_band_index_for_hz', 'sff_get_band_max_lin', 'sff_get_band_min_lin', 'sff_get_band_radius_mul', 'sff_linear_to_db', 'sff_median3', 'sff_median5', 'sff_neighbor_target_lin', 'sff_neighbor_target_lin_stereo']
 03_Processing/03_surround_logic.jsfx-inc call parameters: {'sff_median3': 3, 'sff_median5': 5, 'sff_get_band_index_for_hz': 1, 'sff_get_band_enabled': 1, 'sff_get_band_min_lin': 1, 'sff_get_band_max_lin': 1, 'sff_bin_is_active': 2, 'sff_get_band_radius_mul': 1, 'sff_clamp': 3, 'sff_neighbor_target_lin': 3, 'sff_linear_to_db': 1, 'sff_neighbor_target_lin_stereo': 4}
-03_Processing/05_param_cache.jsfx-inc calls: ['sff_clamp', 'sff_db_to_linear']
-03_Processing/05_param_cache.jsfx-inc call parameters: {'sff_db_to_linear': 1, 'sff_clamp': 3}
+03_Processing/05_param_cache.jsfx-inc calls: ['sff_clamp', 'sff_db_to_linear', 'sff_rebuild_tilt']
+03_Processing/05_param_cache.jsfx-inc call parameters: {'sff_db_to_linear': 1, 'sff_clamp': 3, 'sff_rebuild_tilt': 0}
 03_Processing/04_stft_process.jsfx-inc calls: ['sff_apply_gains_to_spec', 'sff_apply_linked_gains_to_specs', 'sff_bin_is_active', 'sff_clamp', 'sff_compute_delta_db_for_bin', 'sff_compute_delta_db_for_bin_link', 'sff_compute_mag_cache_from_spec', 'sff_db_to_linear', 'sff_display_write_gain_db', 'sff_display_write_mag_db', 'sff_fill_spec_from_ring', 'sff_get_band_index_for_hz', 'sff_get_band_strength_mul', 'sff_linear_to_db', 'sff_overlap_add_from_spec', 'sff_smooth_gain_db']
 03_Processing/04_stft_process.jsfx-inc call parameters: {'sff_linear_to_db': 1, 'sff_bin_is_active': 2, 'sff_get_band_index_for_hz': 1, 'sff_get_band_strength_mul': 1, 'sff_clamp': 3, 'sff_smooth_gain_db': 3, 'sff_db_to_linear': 1, 'sff_display_write_gain_db': 3, 'sff_fill_spec_from_ring': 2, 'sff_compute_mag_cache_from_spec': 2, 'sff_compute_delta_db_for_bin': 3, 'sff_compute_delta_db_for_bin_link': 4, 'sff_display_write_mag_db': 2, 'sff_apply_linked_gains_to_specs': 0, 'sff_apply_gains_to_spec': 5, 'sff_overlap_add_from_spec': 2}
 03_Processing/00_transient_protect.jsfx-inc calls: ['sff_clamp']
@@ -45,10 +48,10 @@ FFT_Surround_Flattener.jsfx imports: ['01_Utils/01_constants.jsfx-inc', '01_Util
 04_UI/01_ui.jsfx-inc call parameters: {'sff_clamp': 3}
 02_FFT/02_fft_core.jsfx-inc calls: ['sff_clamp', 'sff_db_to_linear', 'sff_init_window', 'sff_rebuild_tilt', 'sff_reset_runtime_state']
 02_FFT/02_fft_core.jsfx-inc call parameters: {'sff_db_to_linear': 1, 'sff_clamp': 3, 'sff_init_window': 0, 'sff_rebuild_tilt': 0, 'sff_reset_runtime_state': 0}
-FFT_Surround_Flattener.jsfx calls: ['sff_allocate_memory', 'sff_db_to_linear', 'sff_order_band_splits', 'sff_process_stereo_frame', 'sff_rebuild_tilt', 'sff_set_fft_size', 'sff_transient_tick', 'sff_ui_draw', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_time_coeffs', 'sff_update_transient_coeffs']
-FFT_Surround_Flattener.jsfx call parameters: {'sff_allocate_memory': 0, 'sff_set_fft_size': 1, 'sff_update_band_ranges_from_global': 0, 'sff_order_band_splits': 0, 'sff_update_cutoff_bins': 0, 'sff_rebuild_tilt': 0, 'sff_db_to_linear': 1, 'sff_update_time_coeffs': 0, 'sff_update_transient_coeffs': 0, 'sff_transient_tick': 2, 'sff_process_stereo_frame': 0, 'sff_ui_draw': 0}
+FFT_Surround_Flattener.jsfx calls: ['sff_allocate_memory', 'sff_db_to_linear', 'sff_mix_dry_wet', 'sff_order_band_splits', 'sff_process_stereo_frame', 'sff_set_fft_size', 'sff_transient_tick', 'sff_ui_draw', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_tilt_if_needed_with_offsets', 'sff_update_time_coeffs', 'sff_update_transient_coeffs']
+FFT_Surround_Flattener.jsfx call parameters: {'sff_allocate_memory': 0, 'sff_set_fft_size': 1, 'sff_update_band_ranges_from_global': 0, 'sff_order_band_splits': 0, 'sff_update_cutoff_bins': 0, 'sff_update_tilt_if_needed_with_offsets': 0, 'sff_db_to_linear': 1, 'sff_update_time_coeffs': 0, 'sff_update_transient_coeffs': 0, 'sff_transient_tick': 2, 'sff_process_stereo_frame': 0, 'sff_mix_dry_wet': 3, 'sff_ui_draw': 0}
 
-Processing order: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/05_param_cache.jsfx-inc', '03_Processing/00_transient_protect.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '04_UI/01_ui.jsfx-inc', 'FFT_Surround_Flattener.jsfx']
+Processing order: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/05_param_cache.jsfx-inc', '03_Processing/00_transient_protect.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '03_Processing/06_output_mix.jsfx-inc', '04_UI/01_ui.jsfx-inc', 'FFT_Surround_Flattener.jsfx']
 
 Processing: 01_Utils/01_constants.jsfx-inc
   Declares: []
@@ -72,10 +75,11 @@ Processing: 02_FFT/02_fft_core.jsfx-inc
   ✅ Declared: sff_rebuild_tilt
 
 Processing: 03_Processing/05_param_cache.jsfx-inc
-  Declares: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins']
-  Calls: ['sff_clamp', 'sff_db_to_linear']
-  ✅ Declared: sff_db_to_linear
+  Declares: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_tilt_if_needed_with_offsets']
+  Calls: ['sff_clamp', 'sff_db_to_linear', 'sff_rebuild_tilt']
   ✅ Declared: sff_clamp
+  ✅ Declared: sff_rebuild_tilt
+  ✅ Declared: sff_db_to_linear
 
 Processing: 03_Processing/00_transient_protect.jsfx-inc
   Declares: ['sff_transient_tick', 'sff_update_transient_coeffs']
@@ -94,37 +98,41 @@ Processing: 03_Processing/03_surround_logic.jsfx-inc
   Declares: ['sff_bin_is_active', 'sff_compute_delta_db_for_bin', 'sff_compute_delta_db_for_bin_link', 'sff_median3', 'sff_median5', 'sff_neighbor_target_lin', 'sff_neighbor_target_lin_stereo']
   Calls: ['sff_bin_is_active', 'sff_clamp', 'sff_get_band_enabled', 'sff_get_band_index_for_hz', 'sff_get_band_max_lin', 'sff_get_band_min_lin', 'sff_get_band_radius_mul', 'sff_linear_to_db', 'sff_median3', 'sff_median5', 'sff_neighbor_target_lin', 'sff_neighbor_target_lin_stereo']
   ✅ Declared: sff_get_band_index_for_hz
-  ✅ Declared: sff_neighbor_target_lin_stereo
-  ✅ Declared: sff_clamp
+  ✅ Declared: sff_get_band_max_lin
   ✅ Declared: sff_median5
   ✅ Declared: sff_linear_to_db
+  ✅ Declared: sff_neighbor_target_lin_stereo
   ✅ Declared: sff_get_band_radius_mul
-  ✅ Declared: sff_get_band_enabled
-  ✅ Declared: sff_bin_is_active
+  ✅ Declared: sff_clamp
   ✅ Declared: sff_median3
-  ✅ Declared: sff_get_band_max_lin
-  ✅ Declared: sff_get_band_min_lin
   ✅ Declared: sff_neighbor_target_lin
+  ✅ Declared: sff_get_band_min_lin
+  ✅ Declared: sff_bin_is_active
+  ✅ Declared: sff_get_band_enabled
 
 Processing: 03_Processing/04_stft_process.jsfx-inc
   Declares: ['sff_apply_gains_to_spec', 'sff_apply_linked_gains_to_specs', 'sff_compute_mag_cache_from_spec', 'sff_display_write_gain_db', 'sff_display_write_mag_db', 'sff_fill_spec_from_ring', 'sff_overlap_add_from_spec', 'sff_process_stereo_frame']
   Calls: ['sff_apply_gains_to_spec', 'sff_apply_linked_gains_to_specs', 'sff_bin_is_active', 'sff_clamp', 'sff_compute_delta_db_for_bin', 'sff_compute_delta_db_for_bin_link', 'sff_compute_mag_cache_from_spec', 'sff_db_to_linear', 'sff_display_write_gain_db', 'sff_display_write_mag_db', 'sff_fill_spec_from_ring', 'sff_get_band_index_for_hz', 'sff_get_band_strength_mul', 'sff_linear_to_db', 'sff_overlap_add_from_spec', 'sff_smooth_gain_db']
   ✅ Declared: sff_get_band_index_for_hz
-  ✅ Declared: sff_compute_delta_db_for_bin_link
-  ✅ Declared: sff_compute_mag_cache_from_spec
-  ✅ Declared: sff_db_to_linear
-  ✅ Declared: sff_display_write_mag_db
-  ✅ Declared: sff_apply_gains_to_spec
-  ✅ Declared: sff_apply_linked_gains_to_specs
-  ✅ Declared: sff_smooth_gain_db
-  ✅ Declared: sff_get_band_strength_mul
   ✅ Declared: sff_display_write_gain_db
-  ✅ Declared: sff_fill_spec_from_ring
   ✅ Declared: sff_compute_delta_db_for_bin
-  ✅ Declared: sff_bin_is_active
-  ✅ Declared: sff_overlap_add_from_spec
   ✅ Declared: sff_linear_to_db
+  ✅ Declared: sff_apply_linked_gains_to_specs
+  ✅ Declared: sff_fill_spec_from_ring
+  ✅ Declared: sff_overlap_add_from_spec
+  ✅ Declared: sff_compute_mag_cache_from_spec
+  ✅ Declared: sff_display_write_mag_db
   ✅ Declared: sff_clamp
+  ✅ Declared: sff_smooth_gain_db
+  ✅ Declared: sff_compute_delta_db_for_bin_link
+  ✅ Declared: sff_get_band_strength_mul
+  ✅ Declared: sff_apply_gains_to_spec
+  ✅ Declared: sff_bin_is_active
+  ✅ Declared: sff_db_to_linear
+
+Processing: 03_Processing/06_output_mix.jsfx-inc
+  Declares: ['sff_mix_dry_wet']
+  Calls: []
 
 Processing: 04_UI/01_ui.jsfx-inc
   Declares: ['sff_ui_draw']
@@ -133,28 +141,29 @@ Processing: 04_UI/01_ui.jsfx-inc
 
 Processing: FFT_Surround_Flattener.jsfx
   Declares: []
-  Calls: ['sff_allocate_memory', 'sff_db_to_linear', 'sff_order_band_splits', 'sff_process_stereo_frame', 'sff_rebuild_tilt', 'sff_set_fft_size', 'sff_transient_tick', 'sff_ui_draw', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_time_coeffs', 'sff_update_transient_coeffs']
+  Calls: ['sff_allocate_memory', 'sff_db_to_linear', 'sff_mix_dry_wet', 'sff_order_band_splits', 'sff_process_stereo_frame', 'sff_set_fft_size', 'sff_transient_tick', 'sff_ui_draw', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_tilt_if_needed_with_offsets', 'sff_update_time_coeffs', 'sff_update_transient_coeffs']
+  ✅ Declared: sff_allocate_memory
+  ✅ Declared: sff_update_time_coeffs
+  ✅ Declared: sff_transient_tick
+  ✅ Declared: sff_set_fft_size
   ✅ Declared: sff_order_band_splits
   ✅ Declared: sff_update_band_ranges_from_global
-  ✅ Declared: sff_ui_draw
-  ✅ Declared: sff_update_cutoff_bins
-  ✅ Declared: sff_process_stereo_frame
   ✅ Declared: sff_update_transient_coeffs
-  ✅ Declared: sff_transient_tick
+  ✅ Declared: sff_mix_dry_wet
+  ✅ Declared: sff_ui_draw
+  ✅ Declared: sff_update_tilt_if_needed_with_offsets
+  ✅ Declared: sff_process_stereo_frame
+  ✅ Declared: sff_update_cutoff_bins
   ✅ Declared: sff_db_to_linear
-  ✅ Declared: sff_update_time_coeffs
-  ✅ Declared: sff_set_fft_size
-  ✅ Declared: sff_allocate_memory
-  ✅ Declared: sff_rebuild_tilt
 
 ================================================================================
 JSFX FUNCTION ANALYSIS REPORT
 ================================================================================
 
 SUMMARY:
-  Modules analyzed: 12
-  Total function declarations: 37
-  Total function calls: 49
+  Modules analyzed: 13
+  Total function declarations: 39
+  Total function calls: 51
   Undeclared function calls: 0
   Function order issues: 0
   Parameter count mismatches: 0
@@ -200,13 +209,13 @@ DETAILED BREAKDOWN:
     Functions declared: ['sff_init_window', 'sff_rebuild_tilt', 'sff_reset_runtime_state', 'sff_set_fft_size']
 
   03_Processing/05_param_cache.jsfx-inc:
-    Declares: 3 functions
-    Calls: 2 functions
+    Declares: 4 functions
+    Calls: 3 functions
     Undeclared: 0 functions
     Order issues: 0 functions
     Parameter issues: 0 functions
     Unused: 0 functions
-    Functions declared: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins']
+    Functions declared: ['sff_order_band_splits', 'sff_update_band_ranges_from_global', 'sff_update_cutoff_bins', 'sff_update_tilt_if_needed_with_offsets']
 
   03_Processing/00_transient_protect.jsfx-inc:
     Declares: 2 functions
@@ -253,6 +262,15 @@ DETAILED BREAKDOWN:
     Unused: 0 functions
     Functions declared: ['sff_apply_gains_to_spec', 'sff_apply_linked_gains_to_specs', 'sff_compute_mag_cache_from_spec', 'sff_display_write_gain_db', 'sff_display_write_mag_db', 'sff_fill_spec_from_ring', 'sff_overlap_add_from_spec', 'sff_process_stereo_frame']
 
+  03_Processing/06_output_mix.jsfx-inc:
+    Declares: 1 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_mix_dry_wet']
+
   04_UI/01_ui.jsfx-inc:
     Declares: 1 functions
     Calls: 1 functions
@@ -264,7 +282,7 @@ DETAILED BREAKDOWN:
 
   FFT_Surround_Flattener.jsfx:
     Declares: 0 functions
-    Calls: 12 functions
+    Calls: 13 functions
     Undeclared: 0 functions
     Order issues: 0 functions
     Parameter issues: 0 functions

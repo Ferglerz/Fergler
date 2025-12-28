@@ -4,48 +4,84 @@ desc:FFT Surround Flattener (WIP)
 
 options:gfx_hz=30
 
-// --- User parameters ---
+// --- User parameters (NOTE: slider renumbering breaks existing automation) ---
+// Core
 slider1:fft_size_sel=3<0,5,1{64,128,256,512,1024,2048}>FFT Size
-slider2:strength=1<0,2,0.01>Strength
-slider3:stereo_link=100<0,100,1>Stereo Link (%)
-slider4:neighbor_radius=1<1,12,1>Radius (bins)
-slider5:tilt_db_per_oct=0<-12,12,0.1>Tilt (dB/oct)
-slider6:attack_ms=10<0.1,200,0.1>Attack (ms)
-slider7:release_ms=100<1,2000,1>Release (ms)
-slider8:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
-slider9:max_operate_db=0<-120,0,0.1>Operate Max (dB)
-slider10:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
-slider11:eco_mode=0<0,1,1{Off,On}>Eco Mode
-slider12:eco_blend=0.25<0,1,0.01>Eco Blend
-slider13:eco_interval=2<1,8,1>Eco Interval (hops)
+slider2:wet=100<0,100,1>Wet (%)
+slider3:strength=1<0,2,0.01>Strength
+slider4:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
 
-slider14:transient_protect_pct=0<0,100,1>Transient Protect (%)
-slider15:transient_sensitivity=2<0,10,0.1>Transient Sensitivity
-slider16:transient_fast_ms=1<0.1,20,0.1>-Transient Fast (ms)
-slider17:transient_slow_ms=30<1,200,1>-Transient Slow (ms)
+// Surround logic
+slider5:neighbor_radius=1<1,12,1>Radius (bins)
+slider6:neighbor_mode=0<0,2,1{Mean,Median3,Median5}>Neighbor Mode
+slider7:stereo_link=100<0,100,1>Stereo Link (%)
+slider8:ms_mode=0<0,1,1{LR,MS}>Process Domain
 
-slider18:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
+// Timing
+slider9:attack_ms=10<0.1,200,0.1>Attack (ms)
+slider10:release_ms=100<1,2000,1>Release (ms)
 
-slider38:low_cut_hz=20<20,20000,1>Low Cut (Hz)
-slider39:high_cut_hz=20000<20,20000,1>High Cut (Hz)
+// Operating range + cut band
+slider11:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
+slider12:max_operate_db=0<-120,0,0.1>Operate Max (dB)
+slider13:low_cut_hz=20<20,20000,1>Low Cut (Hz)
+slider14:high_cut_hz=20000<20,20000,1>High Cut (Hz)
 
-slider40:wet=100<0,100,1>Wet (%)
-slider41:neighbor_mode=0<0,2,1{Mean,Median3,Median5}>Neighbor Mode
-slider42:delta_knee_db=6<0,24,0.1>Delta Knee (dB)
-slider43:delta_shape_exp=2<1,4,0.1>Delta Shape (exp)
-slider44:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
-slider45:eco_stride=1<1,8,1>-Eco Stride (deprecated)
-slider46:ms_mode=0<0,1,1{LR,MS}>Process Domain
+// Target curve shaping
+slider15:tilt_db_per_oct=0<-12,12,0.1>Tilt (dB/oct)
+slider16:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 
-slider47:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
-slider48:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
-slider49:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
-slider50:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
+// Delta shaping + noise handling
+slider17:delta_knee_db=6<0,24,0.1>Delta Knee (dB)
+slider18:delta_shape_exp=2<1,4,0.1>Delta Shape (exp)
+slider19:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
 
-slider51:band1_tilt_offset_db_per_oct=0<-12,12,0.1>-Band1 Tilt Offset (dB/oct)
-slider52:band2_tilt_offset_db_per_oct=0<-12,12,0.1>-Band2 Tilt Offset (dB/oct)
-slider53:band3_tilt_offset_db_per_oct=0<-12,12,0.1>-Band3 Tilt Offset (dB/oct)
-slider54:band4_tilt_offset_db_per_oct=0<-12,12,0.1>-Band4 Tilt Offset (dB/oct)
+// Eco mode
+slider20:eco_mode=0<0,1,1{Off,On}>Eco Mode
+slider21:eco_blend=0.25<0,1,0.01>Eco Blend
+slider22:eco_interval=2<1,8,1>Eco Interval (hops)
+
+// Transient protection
+slider23:transient_protect_pct=0<0,100,1>Transient Protect (%)
+slider24:transient_sensitivity=2<0,10,0.1>Transient Sensitivity
+slider25:transient_fast_ms=1<0.1,20,0.1>-Transient Fast (ms)
+slider26:transient_slow_ms=30<1,200,1>-Transient Slow (ms)
+
+// --- Future 4-band split points (hidden for now, but editable) ---
+slider27:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
+slider28:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
+slider29:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
+
+// Future per-band enable/strength/radius/tilt offsets (hidden)
+slider30:band1_enabled=1<0,1,1>-Band1 Enabled
+slider31:band2_enabled=1<0,1,1>-Band2 Enabled
+slider32:band3_enabled=1<0,1,1>-Band3 Enabled
+slider33:band4_enabled=1<0,1,1>-Band4 Enabled
+
+slider34:band1_strength_mul=1<0,2,0.01>-Band1 Strength Mul
+slider35:band2_strength_mul=1<0,2,0.01>-Band2 Strength Mul
+slider36:band3_strength_mul=1<0,2,0.01>-Band3 Strength Mul
+slider37:band4_strength_mul=1<0,2,0.01>-Band4 Strength Mul
+
+slider38:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
+slider39:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
+slider40:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
+slider41:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
+
+slider42:band1_tilt_offset_db_per_oct=0<-12,12,0.1>-Band1 Tilt Offset (dB/oct)
+slider43:band2_tilt_offset_db_per_oct=0<-12,12,0.1>-Band2 Tilt Offset (dB/oct)
+slider44:band3_tilt_offset_db_per_oct=0<-12,12,0.1>-Band3 Tilt Offset (dB/oct)
+slider45:band4_tilt_offset_db_per_oct=0<-12,12,0.1>-Band4 Tilt Offset (dB/oct)
+
+// Per-band operate ranges (hidden; used only if we later stop mirroring globals)
+slider46:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
+slider47:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
+slider48:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
+slider49:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
+slider50:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
+slider51:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
+slider52:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
+slider53:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
 
 // --- Future 4-band split points (hidden for now, but editable) ---
 slider19:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
@@ -85,6 +121,7 @@ import 03_Processing/01_band_config.jsfx-inc
 import 03_Processing/02_attack_release.jsfx-inc
 import 03_Processing/03_surround_logic.jsfx-inc
 import 03_Processing/04_stft_process.jsfx-inc
+import 03_Processing/06_output_mix.jsfx-inc
 
 import 04_UI/01_ui.jsfx-inc
 
@@ -131,24 +168,13 @@ import 04_UI/01_ui.jsfx-inc
   sff_update_band_ranges_from_global();
   sff_order_band_splits();
   sff_update_cutoff_bins();
-  // Tilt rebuild can be triggered by global tilt, pivot, or per-band offsets
-  (tilt_db_per_oct != sff_prev_tilt_db_per_oct ||
-   tilt_pivot_hz != sff_prev_tilt_pivot_hz ||
-   band1_tilt_offset_db_per_oct != sff_prev_band1_tilt_off ||
-   band2_tilt_offset_db_per_oct != sff_prev_band2_tilt_off ||
-   band3_tilt_offset_db_per_oct != sff_prev_band3_tilt_off ||
-   band4_tilt_offset_db_per_oct != sff_prev_band4_tilt_off) ? (
-    sff_rebuild_tilt();
-    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
-    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
-    sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
-    sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
-    sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
-    sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
-  ) : 0;
+  sff_update_tilt_if_needed_with_offsets();
 
   // Cache noise-floor boost cutoff
   no_boost_below_lin = sff_db_to_linear(no_boost_below_db);
+
+  // Cache wet mix for @sample
+  wet_mix = wet * 0.01;
 
   // If parameters affecting delta calc changed, force a delta recompute next hop
   (neighbor_radius != sff_prev_neighbor_radius ||
@@ -212,9 +238,8 @@ import 04_UI/01_ui.jsfx-inc
   );
 
   // Output
-  wet_mix = wet * 0.01;
-  spl0 = dryL + (outL - dryL) * wet_mix;
-  spl1 = dryR + (outR - dryR) * wet_mix;
+  spl0 = sff_mix_dry_wet(dryL, outL, wet_mix);
+  spl1 = sff_mix_dry_wet(dryR, outR, wet_mix);
 
 @gfx 900 260
   sff_ui_draw();
