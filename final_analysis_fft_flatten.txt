@@ -1,0 +1,204 @@
+Analyzing JSFX modules in: /workspace/FFT flatten
+------------------------------------------------------------
+Loaded: 03_Processing/02_attack_release.jsfx-inc
+Loaded: 03_Processing/03_surround_logic.jsfx-inc
+Loaded: 03_Processing/04_stft_process.jsfx-inc
+Loaded: 03_Processing/01_band_config.jsfx-inc
+Loaded: 04_UI/01_ui.jsfx-inc
+Loaded: 02_FFT/01_fft_memory.jsfx-inc
+Loaded: 02_FFT/02_fft_core.jsfx-inc
+Loaded: 01_Utils/01_constants.jsfx-inc
+Loaded: 01_Utils/02_math_utils.jsfx-inc
+Loaded: FFT_Surround_Flattener.jsfx
+FFT_Surround_Flattener.jsfx imports: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '04_UI/01_ui.jsfx-inc']
+03_Processing/02_attack_release.jsfx-inc declares: ['sff_smooth_gain_db', 'sff_update_time_coeffs']
+03_Processing/02_attack_release.jsfx-inc parameters: {'sff_update_time_coeffs': 0, 'sff_smooth_gain_db': 3}
+03_Processing/03_surround_logic.jsfx-inc declares: ['sff_compute_target_gain_db_for_bin']
+03_Processing/03_surround_logic.jsfx-inc parameters: {'sff_compute_target_gain_db_for_bin': 4}
+03_Processing/04_stft_process.jsfx-inc declares: ['sff_complex_mag_db', 'sff_process_frame_for_channel']
+03_Processing/04_stft_process.jsfx-inc parameters: {'sff_complex_mag_db': 2, 'sff_process_frame_for_channel': 5}
+03_Processing/01_band_config.jsfx-inc declares: ['sff_get_band_index_for_hz', 'sff_get_band_max_db', 'sff_get_band_min_db']
+03_Processing/01_band_config.jsfx-inc parameters: {'sff_get_band_index_for_hz': 1, 'sff_get_band_min_db': 1, 'sff_get_band_max_db': 1}
+04_UI/01_ui.jsfx-inc declares: ['sff_ui_draw']
+04_UI/01_ui.jsfx-inc parameters: {'sff_ui_draw': 0}
+02_FFT/01_fft_memory.jsfx-inc declares: ['sff_allocate_memory']
+02_FFT/01_fft_memory.jsfx-inc parameters: {'sff_allocate_memory': 0}
+02_FFT/02_fft_core.jsfx-inc declares: ['sff_init_window', 'sff_reset_runtime_state', 'sff_set_fft_size']
+02_FFT/02_fft_core.jsfx-inc parameters: {'sff_init_window': 0, 'sff_reset_runtime_state': 0, 'sff_set_fft_size': 1}
+01_Utils/02_math_utils.jsfx-inc declares: ['sff_clamp', 'sff_db_to_linear', 'sff_linear_to_db']
+01_Utils/02_math_utils.jsfx-inc parameters: {'sff_clamp': 3, 'sff_db_to_linear': 1, 'sff_linear_to_db': 1}
+03_Processing/03_surround_logic.jsfx-inc calls: ['sff_clamp', 'sff_get_band_index_for_hz', 'sff_get_band_max_db', 'sff_get_band_min_db']
+03_Processing/03_surround_logic.jsfx-inc call parameters: {'sff_get_band_index_for_hz': 1, 'sff_get_band_min_db': 1, 'sff_get_band_max_db': 1, 'sff_clamp': 3}
+03_Processing/04_stft_process.jsfx-inc calls: ['sff_complex_mag_db', 'sff_compute_target_gain_db_for_bin', 'sff_db_to_linear', 'sff_linear_to_db', 'sff_smooth_gain_db']
+03_Processing/04_stft_process.jsfx-inc call parameters: {'sff_linear_to_db': 1, 'sff_complex_mag_db': 2, 'sff_db_to_linear': 1, 'sff_compute_target_gain_db_for_bin': 4, 'sff_smooth_gain_db': 3}
+04_UI/01_ui.jsfx-inc calls: ['sff_clamp']
+04_UI/01_ui.jsfx-inc call parameters: {'sff_clamp': 3}
+02_FFT/02_fft_core.jsfx-inc calls: ['sff_clamp', 'sff_init_window', 'sff_reset_runtime_state']
+02_FFT/02_fft_core.jsfx-inc call parameters: {'sff_clamp': 3, 'sff_init_window': 0, 'sff_reset_runtime_state': 0}
+FFT_Surround_Flattener.jsfx calls: ['sff_allocate_memory', 'sff_process_frame_for_channel', 'sff_set_fft_size', 'sff_ui_draw', 'sff_update_time_coeffs']
+FFT_Surround_Flattener.jsfx call parameters: {'sff_allocate_memory': 0, 'sff_set_fft_size': 1, 'sff_update_time_coeffs': 0, 'sff_process_frame_for_channel': 5, 'sff_ui_draw': 0}
+
+Processing order: ['01_Utils/01_constants.jsfx-inc', '01_Utils/02_math_utils.jsfx-inc', '02_FFT/01_fft_memory.jsfx-inc', '02_FFT/02_fft_core.jsfx-inc', '03_Processing/01_band_config.jsfx-inc', '03_Processing/02_attack_release.jsfx-inc', '03_Processing/03_surround_logic.jsfx-inc', '03_Processing/04_stft_process.jsfx-inc', '04_UI/01_ui.jsfx-inc', 'FFT_Surround_Flattener.jsfx']
+
+Processing: 01_Utils/01_constants.jsfx-inc
+  Declares: []
+  Calls: []
+
+Processing: 01_Utils/02_math_utils.jsfx-inc
+  Declares: ['sff_clamp', 'sff_db_to_linear', 'sff_linear_to_db']
+  Calls: []
+
+Processing: 02_FFT/01_fft_memory.jsfx-inc
+  Declares: ['sff_allocate_memory']
+  Calls: []
+
+Processing: 02_FFT/02_fft_core.jsfx-inc
+  Declares: ['sff_init_window', 'sff_reset_runtime_state', 'sff_set_fft_size']
+  Calls: ['sff_clamp', 'sff_init_window', 'sff_reset_runtime_state']
+  ✅ Declared: sff_clamp
+  ✅ Declared: sff_init_window
+  ✅ Declared: sff_reset_runtime_state
+
+Processing: 03_Processing/01_band_config.jsfx-inc
+  Declares: ['sff_get_band_index_for_hz', 'sff_get_band_max_db', 'sff_get_band_min_db']
+  Calls: []
+
+Processing: 03_Processing/02_attack_release.jsfx-inc
+  Declares: ['sff_smooth_gain_db', 'sff_update_time_coeffs']
+  Calls: []
+
+Processing: 03_Processing/03_surround_logic.jsfx-inc
+  Declares: ['sff_compute_target_gain_db_for_bin']
+  Calls: ['sff_clamp', 'sff_get_band_index_for_hz', 'sff_get_band_max_db', 'sff_get_band_min_db']
+  ✅ Declared: sff_get_band_index_for_hz
+  ✅ Declared: sff_clamp
+  ✅ Declared: sff_get_band_max_db
+  ✅ Declared: sff_get_band_min_db
+
+Processing: 03_Processing/04_stft_process.jsfx-inc
+  Declares: ['sff_complex_mag_db', 'sff_process_frame_for_channel']
+  Calls: ['sff_complex_mag_db', 'sff_compute_target_gain_db_for_bin', 'sff_db_to_linear', 'sff_linear_to_db', 'sff_smooth_gain_db']
+  ✅ Declared: sff_smooth_gain_db
+  ✅ Declared: sff_compute_target_gain_db_for_bin
+  ✅ Declared: sff_complex_mag_db
+  ✅ Declared: sff_db_to_linear
+  ✅ Declared: sff_linear_to_db
+
+Processing: 04_UI/01_ui.jsfx-inc
+  Declares: ['sff_ui_draw']
+  Calls: ['sff_clamp']
+  ✅ Declared: sff_clamp
+
+Processing: FFT_Surround_Flattener.jsfx
+  Declares: []
+  Calls: ['sff_allocate_memory', 'sff_process_frame_for_channel', 'sff_set_fft_size', 'sff_ui_draw', 'sff_update_time_coeffs']
+  ✅ Declared: sff_update_time_coeffs
+  ✅ Declared: sff_allocate_memory
+  ✅ Declared: sff_ui_draw
+  ✅ Declared: sff_set_fft_size
+  ✅ Declared: sff_process_frame_for_channel
+
+================================================================================
+JSFX FUNCTION ANALYSIS REPORT
+================================================================================
+
+SUMMARY:
+  Modules analyzed: 10
+  Total function declarations: 16
+  Total function calls: 18
+  Undeclared function calls: 0
+  Function order issues: 0
+  Parameter count mismatches: 0
+  Unused functions: 0
+
+🎉 SUCCESS: All function calls have corresponding declarations, proper order, correct parameter counts, and no unused functions!
+
+DETAILED BREAKDOWN:
+
+  01_Utils/01_constants.jsfx-inc:
+    Declares: 0 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+
+  01_Utils/02_math_utils.jsfx-inc:
+    Declares: 3 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_clamp', 'sff_db_to_linear', 'sff_linear_to_db']
+
+  02_FFT/01_fft_memory.jsfx-inc:
+    Declares: 1 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_allocate_memory']
+
+  02_FFT/02_fft_core.jsfx-inc:
+    Declares: 3 functions
+    Calls: 3 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_init_window', 'sff_reset_runtime_state', 'sff_set_fft_size']
+
+  03_Processing/01_band_config.jsfx-inc:
+    Declares: 3 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_get_band_index_for_hz', 'sff_get_band_max_db', 'sff_get_band_min_db']
+
+  03_Processing/02_attack_release.jsfx-inc:
+    Declares: 2 functions
+    Calls: 0 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_smooth_gain_db', 'sff_update_time_coeffs']
+
+  03_Processing/03_surround_logic.jsfx-inc:
+    Declares: 1 functions
+    Calls: 4 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_compute_target_gain_db_for_bin']
+
+  03_Processing/04_stft_process.jsfx-inc:
+    Declares: 2 functions
+    Calls: 5 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_complex_mag_db', 'sff_process_frame_for_channel']
+
+  04_UI/01_ui.jsfx-inc:
+    Declares: 1 functions
+    Calls: 1 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
+    Functions declared: ['sff_ui_draw']
+
+  FFT_Surround_Flattener.jsfx:
+    Declares: 0 functions
+    Calls: 5 functions
+    Undeclared: 0 functions
+    Order issues: 0 functions
+    Parameter issues: 0 functions
+    Unused: 0 functions
