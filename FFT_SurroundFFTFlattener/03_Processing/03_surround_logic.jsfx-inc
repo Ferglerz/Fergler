@@ -1,0 +1,19 @@
+// Surround FFT Flattener - Core "surrounding bins" logic
+
+function sff_compute_target_gain_db_for_bin(bin, mag_db, left_db, right_db) local(hz, band, min_db, max_db, target_mag_db, delta_db, applied_db) (
+  hz = bin * bin_hz;
+  band = sff_get_band_index_for_hz(hz);
+
+  min_db = sff_get_band_min_db(band);
+  max_db = sff_get_band_max_db(band);
+
+  (mag_db >= min_db && mag_db <= max_db) ? (
+    target_mag_db = 0.5 * (left_db + right_db);
+    delta_db = target_mag_db - mag_db;
+    applied_db = delta_db * strength;
+    sff_clamp(applied_db, -max_adjust_db, max_adjust_db);
+  ) : (
+    0;
+  );
+);
+

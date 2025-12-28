@@ -1,0 +1,52 @@
+// Surround FFT Flattener - FFT core (windowing + sizing)
+
+function sff_init_window() local(i, n, invn, w) (
+  n = fft_size|0;
+  invn = 1.0 / (n + EPS);
+  i = 0;
+  loop(n,
+    // sqrt Hann for perfect-ish overlap-add at 50% hop
+    w = 0.5 - 0.5*cos(2*$pi*i*invn);
+    sff_window[i] = sqrt(max(w, 0));
+    i += 1;
+  );
+);
+
+function sff_reset_runtime_state() local(n, outn) (
+  n = fft_size|0;
+  outn = out_buf_size|0;
+
+  sff_ring_pos = 0;
+  sff_hop_counter = 0;
+  sff_out_read_pos = 0;
+
+  memset(sff_in_ring_L, 0, n);
+  memset(sff_in_ring_R, 0, n);
+  memset(sff_out_ring_L, 0, outn);
+  memset(sff_out_ring_R, 0, outn);
+
+  memset(sff_gain_db_L, 0, n*0.5);
+  memset(sff_gain_db_R, 0, n*0.5);
+  memset(sff_mag_cache_L, 0, n*0.5);
+  memset(sff_mag_cache_R, 0, n*0.5);
+  memset(sff_display_mag_db, -120, SFF_DISPLAY_BINS);
+);
+
+function sff_set_fft_size(new_size) local(n, maxn) (
+  maxn = SFF_MAX_FFT_SIZE;
+  n = sff_clamp(new_size, 64, maxn) | 0;
+
+  // Derived parameters
+  fft_size = n;
+  hop_size = (n*0.5)|0;
+  out_buf_size = (2*n)|0;
+  pos_bin_count = (n*0.5)|0;
+
+  ifft_scale = 1.0 / (n + EPS);
+  bin_hz = srate / (n + EPS);
+  frame_dt = hop_size / (srate + EPS);
+
+  sff_init_window();
+  sff_reset_runtime_state();
+);
+

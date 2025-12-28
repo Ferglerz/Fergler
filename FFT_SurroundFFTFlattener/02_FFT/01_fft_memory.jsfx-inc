@@ -1,0 +1,39 @@
+// Surround FFT Flattener - Memory layout (self-contained)
+// IMPORTANT: keep FFT buffer itself within a single 16,384-slot boundary.
+
+function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) (
+  maxn = SFF_MAX_FFT_SIZE;
+  fft_buf_len = 2 * maxn;   // interleaved complex: [re0,im0,re1,im1,...]
+  out_len = 2 * maxn;       // output ring size (supports +N lookahead scheduling)
+  pos_bins = maxn * 0.5;    // N/2 positive-frequency bins
+
+  sff_mem_base = 0;
+  sff_mem_next = sff_mem_base;
+
+  sff_fft_buf = sff_mem_next;          sff_mem_next += fft_buf_len;
+  sff_window = sff_mem_next;           sff_mem_next += maxn;
+
+  sff_in_ring_L = sff_mem_next;        sff_mem_next += maxn;
+  sff_in_ring_R = sff_mem_next;        sff_mem_next += maxn;
+
+  sff_out_ring_L = sff_mem_next;       sff_mem_next += out_len;
+  sff_out_ring_R = sff_mem_next;       sff_mem_next += out_len;
+
+  // Per-channel gain smoothing state (stored in dB per positive bin)
+  sff_gain_db_L = sff_mem_next;        sff_mem_next += pos_bins;
+  sff_gain_db_R = sff_mem_next;        sff_mem_next += pos_bins;
+
+  // Optional eco-mode cached magnitudes (linear) per positive bin
+  sff_mag_cache_L = sff_mem_next;      sff_mem_next += pos_bins;
+  sff_mag_cache_R = sff_mem_next;      sff_mem_next += pos_bins;
+
+  // UI: store first 32 bin magnitudes (dB) for display
+  sff_display_mag_db = sff_mem_next;   sff_mem_next += SFF_DISPLAY_BINS;
+
+  top = sff_mem_next;
+  freembuf(top);
+
+  // Clear everything
+  memset(sff_mem_base, 0, top);
+);
+

@@ -1,0 +1,15 @@
+// Surround FFT Flattener - Constants
+// Keep this project self-contained and modular.
+
+// Math / safety
+EPS = 1e-24;
+
+// Limits (compile-time style knobs)
+SFF_MAX_FFT_SIZE = 2048; // must be power of two; memory sized for this max
+
+// Display / UI
+SFF_DISPLAY_BINS = 32; // basic UI shows first 32 bins (positive freqs)
+
+// String slots: 0-49 reserved (workspace rule). Use 50+.
+#sff_tmp_str = 50;
+
