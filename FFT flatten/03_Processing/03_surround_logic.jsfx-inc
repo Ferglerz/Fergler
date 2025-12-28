@@ -60,15 +60,16 @@ function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local
 
 function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   // Band-pass processing: bins outside cutoff range are dry
-  (bin < low_cut_bin || bin > high_cut_bin) ? 0 :
-  hz = bin * bin_hz;
-  band = sff_get_band_index_for_hz(hz);
+  (bin < low_cut_bin || bin > high_cut_bin) ? 0 : (
+    hz = bin * bin_hz;
+    band = sff_get_band_index_for_hz(hz);
 
-  sff_get_band_enabled(band) ? (
-    min_lin = sff_get_band_min_lin(band);
-    max_lin = sff_get_band_max_lin(band);
-    (mag_lin >= min_lin && mag_lin <= max_lin) ? 1 : 0;
-  ) : 0;
+    sff_get_band_enabled(band) ? (
+      min_lin = sff_get_band_min_lin(band);
+      max_lin = sff_get_band_max_lin(band);
+      (mag_lin >= min_lin && mag_lin <= max_lin) ? 1 : 0;
+    ) : 0;
+  );
 );
 
 function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, target_lin, tilt, ratio) (

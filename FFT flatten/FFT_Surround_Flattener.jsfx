@@ -61,6 +61,7 @@ import 01_Utils/02_math_utils.jsfx-inc
 import 02_FFT/01_fft_memory.jsfx-inc
 import 02_FFT/02_fft_core.jsfx-inc
 
+import 03_Processing/05_param_cache.jsfx-inc
 import 03_Processing/00_transient_protect.jsfx-inc
 import 03_Processing/01_band_config.jsfx-inc
 import 03_Processing/02_attack_release.jsfx-inc
@@ -96,42 +97,10 @@ import 04_UI/01_ui.jsfx-inc
     sff_latency = fft_size|0;
   );
 
-  // Map single operate range sliders into all band ranges for now
-  band1_min_db = band2_min_db = band3_min_db = band4_min_db = min_operate_db;
-  band1_max_db = band2_max_db = band3_max_db = band4_max_db = max_operate_db;
-
-  // Precompute per-band linear thresholds (for fast gating)
-  band1_min_lin = sff_db_to_linear(band1_min_db);
-  band1_max_lin = sff_db_to_linear(band1_max_db);
-  band2_min_lin = sff_db_to_linear(band2_min_db);
-  band2_max_lin = sff_db_to_linear(band2_max_db);
-  band3_min_lin = sff_db_to_linear(band3_min_db);
-  band3_max_lin = sff_db_to_linear(band3_max_db);
-  band4_min_lin = sff_db_to_linear(band4_min_db);
-  band4_max_lin = sff_db_to_linear(band4_max_db);
-
-  // Keep split points ordered (simple guard)
-  band_split2_hz < band_split1_hz ? (band_split2_hz = band_split1_hz;) : 0;
-  band_split3_hz < band_split2_hz ? (band_split3_hz = band_split2_hz;) : 0;
-
-  // Clamp cutoffs to valid range + precompute bin limits
-  nyq = 0.5 * srate;
-  low_cut_hz = sff_clamp(low_cut_hz, 0, nyq);
-  high_cut_hz = sff_clamp(high_cut_hz, 0, nyq);
-  high_cut_hz < low_cut_hz ? (high_cut_hz = low_cut_hz;) : 0;
-
-  low_cut_bin = floor(low_cut_hz / (bin_hz + EPS));
-  high_cut_bin = floor(high_cut_hz / (bin_hz + EPS));
-  low_cut_bin = sff_clamp(low_cut_bin, 0, (pos_bin_count-1));
-  high_cut_bin = sff_clamp(high_cut_bin, 0, (pos_bin_count-1));
-  high_cut_bin < low_cut_bin ? (high_cut_bin = low_cut_bin;) : 0;
-
-  // Tilt rebuild only when needed
-  (tilt_db_per_oct != sff_prev_tilt_db_per_oct || tilt_pivot_hz != sff_prev_tilt_pivot_hz) ? (
-    sff_rebuild_tilt();
-    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
-    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
-  ) : 0;
+  sff_update_band_ranges_from_global();
+  sff_order_band_splits();
+  sff_update_cutoff_bins();
+  sff_update_tilt_if_needed();
 
   // Transient protect normalized
   transient_protect = transient_protect_pct * 0.01;
