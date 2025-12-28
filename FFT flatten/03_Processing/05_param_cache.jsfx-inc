@@ -35,11 +35,3 @@ function sff_update_cutoff_bins() local(nyq) (
   high_cut_bin < low_cut_bin ? (high_cut_bin = low_cut_bin;) : 0;
 );
 
-function sff_update_tilt_if_needed() (
-  (tilt_db_per_oct != sff_prev_tilt_db_per_oct || tilt_pivot_hz != sff_prev_tilt_pivot_hz) ? (
-    sff_rebuild_tilt();
-    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
-    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
-  ) : 0;
-);
-

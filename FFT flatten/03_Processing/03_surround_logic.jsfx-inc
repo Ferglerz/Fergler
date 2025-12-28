@@ -2,11 +2,49 @@
 // Computes the *ideal* delta (dB) between current bin magnitude and a neighbor-based target.
 // Strength/attack/release are applied elsewhere.
 
+function sff_median3(a, b, c) (
+  // median = a+b+c - min - max
+  a + b + c - min(a, min(b, c)) - max(a, max(b, c));
+);
+
+function sff_median5(a, b, c, d, e) local(v1, v2, v3, v4, v5, i, tmp) (
+  // Simple (small) sort: 5 items, few comparisons; good enough for occasional use
+  v1=a; v2=b; v3=c; v4=d; v5=e;
+  // bubble-ish network
+  v1>v2 ? (tmp=v1; v1=v2; v2=tmp;) : 0;
+  v2>v3 ? (tmp=v2; v2=v3; v3=tmp;) : 0;
+  v3>v4 ? (tmp=v3; v3=v4; v4=tmp;) : 0;
+  v4>v5 ? (tmp=v4; v4=v5; v5=tmp;) : 0;
+  v1>v2 ? (tmp=v1; v1=v2; v2=tmp;) : 0;
+  v2>v3 ? (tmp=v2; v2=v3; v3=tmp;) : 0;
+  v3>v4 ? (tmp=v3; v3=v4; v4=tmp;) : 0;
+  v1>v2 ? (tmp=v1; v1=v2; v2=tmp;) : 0;
+  v2>v3 ? (tmp=v2; v2=v3; v3=tmp;) : 0;
+  v1>v2 ? (tmp=v1; v1=v2; v2=tmp;) : 0;
+  v3; // median
+);
+
 function sff_neighbor_target_lin(mag_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR) (
   npos = pos_bin_count|0;
   sum = 0;
   sumw = 0;
 
+  neighbor_mode == 1 ? (
+    // Median3 (L, C, R)
+    idxL = bin > 0 ? (bin-1) : bin;
+    idxR = bin < (npos-1) ? (bin+1) : bin;
+    sff_median3(mag_base[idxL], mag_base[bin], mag_base[idxR]);
+  ) :
+  neighbor_mode == 2 ? (
+    // Median5 (L2, L1, C, R1, R2)
+    sff_median5(
+      mag_base[bin > 1 ? (bin-2) : bin],
+      mag_base[bin > 0 ? (bin-1) : bin],
+      mag_base[bin],
+      mag_base[bin < (npos-1) ? (bin+1) : bin],
+      mag_base[bin < (npos-2) ? (bin+2) : bin]
+    );
+  ) :
   d = 1;
   loop(radius,
     w = 1.0 / (d + EPS);
@@ -34,6 +72,24 @@ function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local
   sum = 0;
   sumw = 0;
 
+  neighbor_mode == 1 ? (
+    idxL = bin > 0 ? (bin-1) : bin;
+    idxR = bin < (npos-1) ? (bin+1) : bin;
+    sff_median3(
+      0.5*(magL_base[idxL] + magR_base[idxL]),
+      0.5*(magL_base[bin] + magR_base[bin]),
+      0.5*(magL_base[idxR] + magR_base[idxR])
+    );
+  ) :
+  neighbor_mode == 2 ? (
+    sff_median5(
+      0.5*(magL_base[bin > 1 ? (bin-2) : bin] + magR_base[bin > 1 ? (bin-2) : bin]),
+      0.5*(magL_base[bin > 0 ? (bin-1) : bin] + magR_base[bin > 0 ? (bin-1) : bin]),
+      0.5*(magL_base[bin] + magR_base[bin]),
+      0.5*(magL_base[bin < (npos-1) ? (bin+1) : bin] + magR_base[bin < (npos-1) ? (bin+1) : bin]),
+      0.5*(magL_base[bin < (npos-2) ? (bin+2) : bin] + magR_base[bin < (npos-2) ? (bin+2) : bin])
+    );
+  ) :
   d = 1;
   loop(radius,
     w = 1.0 / (d + EPS);
@@ -72,23 +128,63 @@ function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   );
 );
 
-function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, target_lin, tilt, ratio) (
+function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, target_lin, tilt, ratio, hz, band, radius_eff, delta, knee, expv, a) (
   mag_lin = mag_base[bin];
   sff_bin_is_active(bin, mag_lin) ? (
-    target_lin = sff_neighbor_target_lin(mag_base, bin, radius);
+    // Per-band radius scaling (ignored by median modes, but used by weighted mean)
+    hz = bin * bin_hz;
+    band = sff_get_band_index_for_hz(hz);
+    radius_eff = floor(max(1, radius * sff_get_band_radius_mul(band)) + 0.5);
+    radius_eff = sff_clamp(radius_eff, 1, 24);
+
+    target_lin = sff_neighbor_target_lin(mag_base, bin, radius_eff);
     tilt = sff_tilt_lin[bin];
     ratio = (target_lin * tilt) / (mag_lin + EPS);
-    sff_linear_to_db(max(ratio, EPS));
+    delta = sff_linear_to_db(max(ratio, EPS));
+
+    // Noise-floor boost protection
+    (delta > 0 && mag_lin < no_boost_below_lin) ? (delta = 0;) : 0;
+
+    // Delta shaping: reduce subtle deltas, leave big deltas
+    knee = max(delta_knee_db, 0);
+    expv = max(delta_shape_exp, 1);
+    (knee > 0 && expv > 1) ? (
+      a = abs(delta);
+      a < knee ? (
+        a = a * pow(a / (knee + EPS), expv - 1);
+        delta = delta < 0 ? -a : a;
+      ) : 0;
+    ) : 0;
+
+    delta;
   ) : 0;
 );
 
-function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, target_lin, tilt, ratio) (
+function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, target_lin, tilt, ratio, hz, band, radius_eff, delta, knee, expv, a) (
   mag_lin = 0.5 * (magL_base[bin] + magR_base[bin]);
   sff_bin_is_active(bin, mag_lin) ? (
-    target_lin = sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius);
+    hz = bin * bin_hz;
+    band = sff_get_band_index_for_hz(hz);
+    radius_eff = floor(max(1, radius * sff_get_band_radius_mul(band)) + 0.5);
+    radius_eff = sff_clamp(radius_eff, 1, 24);
+
+    target_lin = sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff);
     tilt = sff_tilt_lin[bin];
     ratio = (target_lin * tilt) / (mag_lin + EPS);
-    sff_linear_to_db(max(ratio, EPS));
+    delta = sff_linear_to_db(max(ratio, EPS));
+    (delta > 0 && mag_lin < no_boost_below_lin) ? (delta = 0;) : 0;
+
+    knee = max(delta_knee_db, 0);
+    expv = max(delta_shape_exp, 1);
+    (knee > 0 && expv > 1) ? (
+      a = abs(delta);
+      a < knee ? (
+        a = a * pow(a / (knee + EPS), expv - 1);
+        delta = delta < 0 ? -a : a;
+      ) : 0;
+    ) : 0;
+
+    delta;
   ) : 0;
 );
 

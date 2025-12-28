@@ -13,7 +13,7 @@ function sff_init_window() local(i, n, invn, w) (
   );
 );
 
-function sff_rebuild_tilt() local(k, hz, pivot, oct, inv_ln2, tilt_db, npos) (
+function sff_rebuild_tilt() local(k, hz, pivot, oct, inv_ln2, tilt_db, npos, band, slope) (
   npos = pos_bin_count|0;
   pivot = max(tilt_pivot_hz, 1);
   inv_ln2 = 1.0 / (log(2) + EPS);
@@ -22,7 +22,14 @@ function sff_rebuild_tilt() local(k, hz, pivot, oct, inv_ln2, tilt_db, npos) (
   loop(npos,
     hz = max(k * bin_hz, 1);
     oct = log(hz / pivot) * inv_ln2;
-    tilt_db = tilt_db_per_oct * oct;
+    // Per-band slope support (band split vars live in main file)
+    band = hz < band_split1_hz ? 0 : hz < band_split2_hz ? 1 : hz < band_split3_hz ? 2 : 3;
+    slope =
+      band == 0 ? (tilt_db_per_oct + band1_tilt_offset_db_per_oct) :
+      band == 1 ? (tilt_db_per_oct + band2_tilt_offset_db_per_oct) :
+      band == 2 ? (tilt_db_per_oct + band3_tilt_offset_db_per_oct) :
+      (tilt_db_per_oct + band4_tilt_offset_db_per_oct);
+    tilt_db = slope * oct;
     sff_tilt_lin[k] = sff_db_to_linear(tilt_db);
     k += 1;
   );

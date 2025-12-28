@@ -21,6 +21,13 @@ function sff_get_band_strength_mul(band) (
   band4_strength_mul;
 );
 
+function sff_get_band_radius_mul(band) (
+  band == 0 ? band1_radius_mul :
+  band == 1 ? band2_radius_mul :
+  band == 2 ? band3_radius_mul :
+  band4_radius_mul;
+);
+
 function sff_get_band_min_lin(band) (
   band == 0 ? band1_min_lin :
   band == 1 ? band2_min_lin :

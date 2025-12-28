@@ -29,6 +29,24 @@ slider18:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 slider38:low_cut_hz=20<20,20000,1>Low Cut (Hz)
 slider39:high_cut_hz=20000<20,20000,1>High Cut (Hz)
 
+slider40:band_wet=100<0,100,1>Band Wet (%)
+slider41:neighbor_mode=0<0,2,1{Mean,Median3,Median5}>Neighbor Mode
+slider42:delta_knee_db=6<0,24,0.1>Delta Knee (dB)
+slider43:delta_shape_exp=2<1,4,0.1>Delta Shape (exp)
+slider44:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
+slider45:eco_stride=1<1,8,1>Eco Stride (bins)
+slider46:ms_mode=0<0,1,1{LR,MS}>Process Domain
+
+slider47:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
+slider48:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
+slider49:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
+slider50:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
+
+slider51:band1_tilt_offset_db_per_oct=0<-12,12,0.1>-Band1 Tilt Offset (dB/oct)
+slider52:band2_tilt_offset_db_per_oct=0<-12,12,0.1>-Band2 Tilt Offset (dB/oct)
+slider53:band3_tilt_offset_db_per_oct=0<-12,12,0.1>-Band3 Tilt Offset (dB/oct)
+slider54:band4_tilt_offset_db_per_oct=0<-12,12,0.1>-Band4 Tilt Offset (dB/oct)
+
 // --- Future 4-band split points (hidden for now, but editable) ---
 slider19:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
 slider20:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
@@ -88,6 +106,21 @@ import 04_UI/01_ui.jsfx-inc
   // Trackers
   sff_prev_tilt_db_per_oct = tilt_db_per_oct;
   sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+  sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
+  sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
+  sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
+  sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
+
+  sff_prev_neighbor_radius = neighbor_radius;
+  sff_prev_neighbor_mode = neighbor_mode;
+  sff_prev_delta_knee_db = delta_knee_db;
+  sff_prev_delta_shape_exp = delta_shape_exp;
+  sff_prev_no_boost_below_db = no_boost_below_db;
+  sff_prev_low_cut_hz = low_cut_hz;
+  sff_prev_high_cut_hz = high_cut_hz;
+  sff_prev_eco_stride = eco_stride;
+
+  sff_force_recompute_deltas = 1;
 
 @slider
   // Derive FFT size from selection
@@ -100,7 +133,44 @@ import 04_UI/01_ui.jsfx-inc
   sff_update_band_ranges_from_global();
   sff_order_band_splits();
   sff_update_cutoff_bins();
-  sff_update_tilt_if_needed();
+  // Tilt rebuild can be triggered by global tilt, pivot, or per-band offsets
+  (tilt_db_per_oct != sff_prev_tilt_db_per_oct ||
+   tilt_pivot_hz != sff_prev_tilt_pivot_hz ||
+   band1_tilt_offset_db_per_oct != sff_prev_band1_tilt_off ||
+   band2_tilt_offset_db_per_oct != sff_prev_band2_tilt_off ||
+   band3_tilt_offset_db_per_oct != sff_prev_band3_tilt_off ||
+   band4_tilt_offset_db_per_oct != sff_prev_band4_tilt_off) ? (
+    sff_rebuild_tilt();
+    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
+    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+    sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
+    sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
+    sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
+    sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
+  ) : 0;
+
+  // Cache noise-floor boost cutoff
+  no_boost_below_lin = sff_db_to_linear(no_boost_below_db);
+
+  // If parameters affecting delta calc changed, force a delta recompute next hop
+  (neighbor_radius != sff_prev_neighbor_radius ||
+   neighbor_mode != sff_prev_neighbor_mode ||
+   delta_knee_db != sff_prev_delta_knee_db ||
+   delta_shape_exp != sff_prev_delta_shape_exp ||
+   no_boost_below_db != sff_prev_no_boost_below_db ||
+   low_cut_hz != sff_prev_low_cut_hz ||
+   high_cut_hz != sff_prev_high_cut_hz ||
+   eco_stride != sff_prev_eco_stride) ? (
+    sff_force_recompute_deltas = 1;
+    sff_prev_neighbor_radius = neighbor_radius;
+    sff_prev_neighbor_mode = neighbor_mode;
+    sff_prev_delta_knee_db = delta_knee_db;
+    sff_prev_delta_shape_exp = delta_shape_exp;
+    sff_prev_no_boost_below_db = no_boost_below_db;
+    sff_prev_low_cut_hz = low_cut_hz;
+    sff_prev_high_cut_hz = high_cut_hz;
+    sff_prev_eco_stride = eco_stride;
+  ) : 0;
 
   // Transient protect normalized
   transient_protect = transient_protect_pct * 0.01;
