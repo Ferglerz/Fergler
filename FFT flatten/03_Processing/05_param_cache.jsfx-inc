@@ -1,5 +1,27 @@
 // Surround FFT Flattener - Parameter caching helpers (DRY + fast)
 
+function sff_init_param_trackers() (
+  // Tilt trackers
+  sff_prev_tilt_db_per_oct = tilt_db_per_oct;
+  sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+  sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
+  sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
+  sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
+  sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
+
+  // Delta-affecting trackers
+  sff_prev_neighbor_radius = neighbor_radius;
+  sff_prev_neighbor_mode = neighbor_mode;
+  sff_prev_delta_knee_db = delta_knee_db;
+  sff_prev_delta_shape_exp = delta_shape_exp;
+  sff_prev_no_boost_below_db = no_boost_below_db;
+  sff_prev_low_cut_hz = low_cut_hz;
+  sff_prev_high_cut_hz = high_cut_hz;
+
+  // Force at least one recompute after load
+  sff_force_recompute_deltas = 1;
+);
+
 function sff_order_band_splits() (
   band_split2_hz < band_split1_hz ? (band_split2_hz = band_split1_hz;) : 0;
   band_split3_hz < band_split2_hz ? (band_split3_hz = band_split2_hz;) : 0;
@@ -49,6 +71,26 @@ function sff_update_tilt_if_needed_with_offsets() (
     sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
     sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
     sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
+  ) : 0;
+);
+
+function sff_update_delta_recompute_flag() (
+  // If parameters affecting delta calc changed, force a delta recompute next hop
+  (neighbor_radius != sff_prev_neighbor_radius ||
+   neighbor_mode != sff_prev_neighbor_mode ||
+   delta_knee_db != sff_prev_delta_knee_db ||
+   delta_shape_exp != sff_prev_delta_shape_exp ||
+   no_boost_below_db != sff_prev_no_boost_below_db ||
+   low_cut_hz != sff_prev_low_cut_hz ||
+   high_cut_hz != sff_prev_high_cut_hz) ? (
+    sff_force_recompute_deltas = 1;
+    sff_prev_neighbor_radius = neighbor_radius;
+    sff_prev_neighbor_mode = neighbor_mode;
+    sff_prev_delta_knee_db = delta_knee_db;
+    sff_prev_delta_shape_exp = delta_shape_exp;
+    sff_prev_no_boost_below_db = no_boost_below_db;
+    sff_prev_low_cut_hz = low_cut_hz;
+    sff_prev_high_cut_hz = high_cut_hz;
   ) : 0;
 );
 
