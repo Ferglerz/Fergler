@@ -2,7 +2,8 @@
 
 function sff_init_window() local(i, n, invn, w) (
   n = fft_size|0;
-  invn = 1.0 / (n + EPS);
+  // Use (n-1) so the Hann hits 0 at both ends (important for OLA stability).
+  invn = 1.0 / (max(n-1, 1) + EPS);
   i = 0;
   loop(n,
     // sqrt Hann for perfect-ish overlap-add at 50% hop

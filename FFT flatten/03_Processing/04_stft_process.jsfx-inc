@@ -39,12 +39,16 @@ function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re,
   );
 );
 
-function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff) (
+function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
   n = fft_size|0;
   link = stereo_link * 0.01;
 
   k = 0;
   loop(pos_bin_count,
+    // Avoid stale delta usage (eco interval / parameter changes):
+    // If this bin is currently bypassed by cutoff/band gates, force target gain to 0.
+    active = sff_bin_is_active(k, mag_base[k]);
+
     hz = k * bin_hz;
     band = sff_get_band_index_for_hz(hz);
 
@@ -55,7 +59,7 @@ function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, is_righ
     link_delta = sff_delta_db_link[k];
     delta = ind_delta * (1 - link) + link_delta * link;
 
-    target_gain_db = sff_clamp(delta * str_eff, -max_adjust_db, max_adjust_db);
+    target_gain_db = active ? sff_clamp(delta * str_eff, -max_adjust_db, max_adjust_db) : 0;
     smooth_gain_db = sff_smooth_gain_db(gain_db_base, k, target_gain_db);
     g_lin = sff_db_to_linear(smooth_gain_db);
 
@@ -99,7 +103,10 @@ function sff_apply_linked_gains_to_specs() local(n, k, kn, hz, band, str_eff, ta
     band = sff_get_band_index_for_hz(hz);
     str_eff = strength * sff_get_band_strength_mul(band) * transient_strength_scale;
 
-    target_gain_db = sff_clamp(sff_delta_db_link[k] * str_eff, -max_adjust_db, max_adjust_db);
+    // Same stale-safe gating for linked mode (use avg mag for cutoff/band range)
+    target_gain_db = sff_bin_is_active(k, 0.5 * (magL_base[k] + magR_base[k])) ? (
+      sff_clamp(sff_delta_db_link[k] * str_eff, -max_adjust_db, max_adjust_db)
+    ) : 0;
     smooth_gain_db = sff_smooth_gain_db(sff_gain_db_link, k, target_gain_db);
     g_lin = sff_db_to_linear(smooth_gain_db);
 
@@ -180,8 +187,8 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   ) : (
     // Clear display gain accumulator each hop (we overwrite then average with R)
     memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
-    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, 0);
-    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, 1);
+    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, magL_base, 0);
+    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, magR_base, 1);
   );
 
   // IFFT + OLA
