@@ -29,12 +29,12 @@ slider18:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 slider38:low_cut_hz=20<20,20000,1>Low Cut (Hz)
 slider39:high_cut_hz=20000<20,20000,1>High Cut (Hz)
 
-slider40:band_wet=100<0,100,1>Band Wet (%)
+slider40:wet=100<0,100,1>Wet (%)
 slider41:neighbor_mode=0<0,2,1{Mean,Median3,Median5}>Neighbor Mode
 slider42:delta_knee_db=6<0,24,0.1>Delta Knee (dB)
 slider43:delta_shape_exp=2<1,4,0.1>Delta Shape (exp)
 slider44:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
-slider45:eco_stride=1<1,8,1>Eco Stride (bins)
+slider45:eco_stride=1<1,8,1>-Eco Stride (deprecated)
 slider46:ms_mode=0<0,1,1{LR,MS}>Process Domain
 
 slider47:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
@@ -118,8 +118,6 @@ import 04_UI/01_ui.jsfx-inc
   sff_prev_no_boost_below_db = no_boost_below_db;
   sff_prev_low_cut_hz = low_cut_hz;
   sff_prev_high_cut_hz = high_cut_hz;
-  sff_prev_eco_stride = eco_stride;
-
   sff_force_recompute_deltas = 1;
 
 @slider
@@ -159,8 +157,7 @@ import 04_UI/01_ui.jsfx-inc
    delta_shape_exp != sff_prev_delta_shape_exp ||
    no_boost_below_db != sff_prev_no_boost_below_db ||
    low_cut_hz != sff_prev_low_cut_hz ||
-   high_cut_hz != sff_prev_high_cut_hz ||
-   eco_stride != sff_prev_eco_stride) ? (
+   high_cut_hz != sff_prev_high_cut_hz) ? (
     sff_force_recompute_deltas = 1;
     sff_prev_neighbor_radius = neighbor_radius;
     sff_prev_neighbor_mode = neighbor_mode;
@@ -169,7 +166,6 @@ import 04_UI/01_ui.jsfx-inc
     sff_prev_no_boost_below_db = no_boost_below_db;
     sff_prev_low_cut_hz = low_cut_hz;
     sff_prev_high_cut_hz = high_cut_hz;
-    sff_prev_eco_stride = eco_stride;
   ) : 0;
 
   // Transient protect normalized
@@ -198,6 +194,9 @@ import 04_UI/01_ui.jsfx-inc
 
   // Push new input into analysis ring
   n = fft_size|0;
+  // Dry path must be delayed by same latency as wet (avoid comb filtering)
+  dryL = sff_in_ring_L[sff_ring_pos];
+  dryR = sff_in_ring_R[sff_ring_pos];
   sff_in_ring_L[sff_ring_pos] = spl0;
   sff_in_ring_R[sff_ring_pos] = spl1;
 
@@ -213,8 +212,9 @@ import 04_UI/01_ui.jsfx-inc
   );
 
   // Output
-  spl0 = outL;
-  spl1 = outR;
+  wet_mix = wet * 0.01;
+  spl0 = dryL + (outL - dryL) * wet_mix;
+  spl1 = dryR + (outR - dryR) * wet_mix;
 
 @gfx 900 260
   sff_ui_draw();

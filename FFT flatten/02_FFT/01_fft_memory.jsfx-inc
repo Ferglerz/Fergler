@@ -13,9 +13,6 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) 
   // Put FFT buffers first so they never cross 16,384-slot boundaries.
   sff_spec_L = sff_mem_next;           sff_mem_next += fft_buf_len;
   sff_spec_R = sff_mem_next;           sff_mem_next += fft_buf_len;
-  // Dry copies for spectral wet/dry blending (must stay in same 16,384 boundary)
-  sff_spec_dry_L = sff_mem_next;       sff_mem_next += fft_buf_len;
-  sff_spec_dry_R = sff_mem_next;       sff_mem_next += fft_buf_len;
 
   sff_window = sff_mem_next;           sff_mem_next += maxn;
 

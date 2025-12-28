@@ -39,96 +39,6 @@ function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re,
   );
 );
 
-function sff_copy_dry_spectra(n) (
-  memcpy(sff_spec_dry_L, sff_spec_L, 2*n);
-  memcpy(sff_spec_dry_R, sff_spec_R, 2*n);
-);
-
-function sff_blend_processed_band_with_dry(spec_base, dry_base) local(n, k, kn, mix, re, im) (
-  n = fft_size|0;
-  mix = band_wet * 0.01;
-  mix >= 0.999 ? 0 :
-  mix <= 0.001 ? (
-    // Fully dry: restore dry spectrum quickly
-    memcpy(spec_base, dry_base, 2*n);
-  ) : (
-    k = low_cut_bin;
-    loop(max(high_cut_bin - low_cut_bin + 1, 0),
-      // pos bin
-      re = spec_base[k*2];
-      im = spec_base[k*2 + 1];
-      spec_base[k*2] = dry_base[k*2] + (re - dry_base[k*2]) * mix;
-      spec_base[k*2 + 1] = dry_base[k*2 + 1] + (im - dry_base[k*2 + 1]) * mix;
-
-      // neg bin
-      (k > 0 && k < (pos_bin_count-1)) ? (
-        kn = (n - k)|0;
-        re = spec_base[kn*2];
-        im = spec_base[kn*2 + 1];
-        spec_base[kn*2] = dry_base[kn*2] + (re - dry_base[kn*2]) * mix;
-        spec_base[kn*2 + 1] = dry_base[kn*2 + 1] + (im - dry_base[kn*2 + 1]) * mix;
-      ) : 0;
-
-      k += 1;
-    );
-  );
-);
-
-function sff_recompute_deltas_with_stride(magL_base, magR_base, radius, stride) local(npos, k, step, lastk, nextk, a, b, t, vL, vR, vM, maxk, interp_i) (
-  npos = pos_bin_count|0;
-  step = max(stride, 1)|0;
-
-  // First pass: compute at stride points
-  k = 0;
-  loop(npos,
-    (k % step) == 0 ? (
-      sff_delta_db_L[k] = sff_compute_delta_db_for_bin(magL_base, k, radius);
-      sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
-      sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
-    ) : 0;
-
-    // Always refresh display bins while we're here
-    (k < SFF_DISPLAY_BINS) ? (
-      vM = 0.5 * (magL_base[k] + magR_base[k]);
-      sff_display_write_mag_db(k, vM);
-    ) : 0;
-
-    k += 1;
-  );
-
-  // Second pass: fill gaps by linear interpolation between stride points
-  step > 1 ? (
-    lastk = 0;
-    // Ensure first anchor exists
-    (lastk % step) != 0 ? (lastk = 0;) : 0;
-    k = 1;
-    loop(npos-1,
-      (k % step) == 0 ? (
-        // interpolate (lastk..k)
-        interp_i = lastk + 1;
-        loop(k - lastk - 1,
-          t = (interp_i - lastk) / ((k - lastk) + EPS);
-          sff_delta_db_L[interp_i] = sff_delta_db_L[lastk] + (sff_delta_db_L[k] - sff_delta_db_L[lastk]) * t;
-          sff_delta_db_R[interp_i] = sff_delta_db_R[lastk] + (sff_delta_db_R[k] - sff_delta_db_R[lastk]) * t;
-          sff_delta_db_link[interp_i] = sff_delta_db_link[lastk] + (sff_delta_db_link[k] - sff_delta_db_link[lastk]) * t;
-          interp_i += 1;
-        );
-        lastk = k;
-      ) : 0;
-      k += 1;
-    );
-
-    // Tail fill: hold last anchor to end
-    k = lastk + 1;
-    loop(npos - lastk - 1,
-      sff_delta_db_L[k] = sff_delta_db_L[lastk];
-      sff_delta_db_R[k] = sff_delta_db_R[lastk];
-      sff_delta_db_link[k] = sff_delta_db_link[lastk];
-      k += 1;
-    );
-  ) : 0;
-);
-
 function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
   n = fft_size|0;
   link = stereo_link * 0.01;
@@ -258,9 +168,6 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   magL_base = eco_mode ? sff_mag_eco_L : sff_mag_cache_L;
   magR_base = eco_mode ? sff_mag_eco_R : sff_mag_cache_R;
 
-  // Preserve dry spectra for band wet/dry blending
-  sff_copy_dry_spectra(n);
-
   // Decide whether to recompute heavy deltas this hop
   do_recompute = eco_mode ? (
     sff_eco_hop_index += 1;
@@ -274,7 +181,17 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   ) : 0;
 
   do_recompute ? (
-    sff_recompute_deltas_with_stride(magL_base, magR_base, radius, eco_stride);
+    k = 0;
+    loop(pos_bin_count,
+      sff_delta_db_L[k] = sff_compute_delta_db_for_bin(magL_base, k, radius);
+      sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
+      sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
+
+      mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
+      sff_display_write_mag_db(k, mag_avg_lin);
+
+      k += 1;
+    );
   ) : (
     // Still update UI magnitudes cheaply
     k = 0;
@@ -294,10 +211,6 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, magL_base, 0);
     sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, magR_base, 1);
   );
-
-  // Band wet/dry (frequency-domain) for the processed band only
-  sff_blend_processed_band_with_dry(sff_spec_L, sff_spec_dry_L);
-  sff_blend_processed_band_with_dry(sff_spec_R, sff_spec_dry_R);
 
   // IFFT + OLA
   ifft(sff_spec_L, n);
