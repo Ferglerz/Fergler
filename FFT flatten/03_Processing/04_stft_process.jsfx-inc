@@ -1,0 +1,85 @@
+// Surround FFT Flattener - STFT processing (analysis/synthesis)
+
+function sff_complex_mag_db(re, im) local(mag) (
+  mag = sqrt(re*re + im*im);
+  sff_linear_to_db(mag);
+);
+
+function sff_process_frame_for_channel(in_ring_base, out_ring_base, gain_db_base, mag_cache_base, mag_eco_base) local(n, i, k, ri, re, im, mag_db, left_db, right_db, target_gain_db, smooth_gain_db, g_lin, kn, out_write_base, outn, w, ts) (
+  n = fft_size|0;
+  outn = out_buf_size|0;
+
+  // Build windowed time-domain frame into complex buffer
+  i = 0;
+  loop(n,
+    ri = (sff_ring_pos + i) % n;
+    ts = in_ring_base[ri] * sff_window[i];
+    sff_fft_buf[i*2] = ts;
+    sff_fft_buf[i*2 + 1] = 0;
+    i += 1;
+  );
+
+  // FFT
+  fft(sff_fft_buf, n);
+
+  // Pass 1: current magnitudes (linear + dB for UI)
+  k = 0;
+  loop(pos_bin_count,
+    re = sff_fft_buf[k*2];
+    im = sff_fft_buf[k*2 + 1];
+
+    mag_db = sff_complex_mag_db(re, im);
+    mag_cache_base[k] = sff_db_to_linear(mag_db);
+
+    (k < SFF_DISPLAY_BINS) ? (sff_display_mag_db[k] = mag_db;) : 0;
+    k += 1;
+  );
+
+  // Eco update (placeholder implementation)
+  eco_mode ? (
+    k = 0;
+    loop(pos_bin_count,
+      mag_eco_base[k] += (mag_cache_base[k] - mag_eco_base[k]) * eco_blend;
+      k += 1;
+    );
+  );
+
+  // Pass 2: compute & apply gains based on surrounding bins
+  k = 0;
+  loop(pos_bin_count,
+    mag_db = sff_linear_to_db(eco_mode ? mag_eco_base[k] : mag_cache_base[k]);
+
+    left_db = k > 0 ? sff_linear_to_db(eco_mode ? mag_eco_base[k-1] : mag_cache_base[k-1]) : mag_db;
+    right_db = k < (pos_bin_count-1) ? sff_linear_to_db(eco_mode ? mag_eco_base[k+1] : mag_cache_base[k+1]) : mag_db;
+
+    target_gain_db = sff_compute_target_gain_db_for_bin(k, mag_db, left_db, right_db);
+    smooth_gain_db = sff_smooth_gain_db(gain_db_base, k, target_gain_db);
+    g_lin = sff_db_to_linear(smooth_gain_db);
+
+    // Apply to positive bin
+    sff_fft_buf[k*2] *= g_lin;
+    sff_fft_buf[k*2 + 1] *= g_lin;
+
+    // Apply to conjugate bin (skip DC and Nyquist)
+    (k > 0 && k < (pos_bin_count-1)) ? (
+      kn = (n - k)|0;
+      sff_fft_buf[kn*2] *= g_lin;
+      sff_fft_buf[kn*2 + 1] *= g_lin;
+    ) : 0;
+
+    k += 1;
+  );
+
+  // IFFT (unnormalized)
+  ifft(sff_fft_buf, n);
+
+  // Overlap-add: schedule into output ring with fixed latency
+  out_write_base = (sff_out_read_pos + sff_latency) % outn;
+  i = 0;
+  loop(n,
+    w = sff_window[i];
+    out_ring_base[(out_write_base + i) % outn] += (sff_fft_buf[i*2] * ifft_scale) * w;
+    i += 1;
+  );
+);
+

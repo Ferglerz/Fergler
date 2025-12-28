@@ -1,0 +1,40 @@
+// Surround FFT Flattener - Minimal UI (bars for first 32 bins)
+
+function sff_ui_draw() local(i, x0, y0, w, h, bar_w, v, db, y, y_base) (
+  gfx_set(0.10, 0.10, 0.11, 1);
+  gfx_rect(0, 0, gfx_w, gfx_h);
+
+  x0 = 10; y0 = 10;
+  w = gfx_w - 20;
+  h = gfx_h - 20;
+
+  // Frame
+  gfx_set(0.22, 0.22, 0.24, 1);
+  gfx_rect(x0, y0, w, h);
+
+  // Bars area
+  gfx_set(0.12, 0.12, 0.13, 1);
+  gfx_rect(x0+2, y0+2, w-4, h-4);
+
+  bar_w = (w-4) / (SFF_DISPLAY_BINS + EPS);
+  y_base = y0 + h - 4;
+
+  i = 0;
+  loop(SFF_DISPLAY_BINS,
+    db = sff_display_mag_db[i];
+    // Map -120..0 dB to 0..1
+    v = sff_clamp((db + 120) / 120, 0, 1);
+    y = v * (h-8);
+
+    gfx_set(0.25, 0.55, 0.95, 1);
+    gfx_rect(x0 + 2 + i*bar_w, y_base - y, bar_w-1, y);
+
+    i += 1;
+  );
+
+  gfx_set(0.95, 0.95, 0.95, 1);
+  gfx_x = 14; gfx_y = 14;
+  sprintf(#sff_tmp_str, "FFT Surround Flattener | FFT=%d | Strength=%.2f | A=%.1fms R=%.1fms", fft_size, strength, attack_ms, release_ms);
+  gfx_drawstr(#sff_tmp_str);
+);
+

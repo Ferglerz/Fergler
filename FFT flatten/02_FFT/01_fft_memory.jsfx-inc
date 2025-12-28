@@ -27,6 +27,10 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) 
   sff_mag_cache_L = sff_mem_next;      sff_mem_next += pos_bins;
   sff_mag_cache_R = sff_mem_next;      sff_mem_next += pos_bins;
 
+  // Eco-mode smoothed magnitude state (linear) per positive bin
+  sff_mag_eco_L = sff_mem_next;        sff_mem_next += pos_bins;
+  sff_mag_eco_R = sff_mem_next;        sff_mem_next += pos_bins;
+
   // UI: store first 32 bin magnitudes (dB) for display
   sff_display_mag_db = sff_mem_next;   sff_mem_next += SFF_DISPLAY_BINS;
 
