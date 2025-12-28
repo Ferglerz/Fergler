@@ -1,5 +1,21 @@
 // Surround FFT Flattener - STFT processing (analysis/synthesis)
 
+function sff_display_write_mag_db(bin, mag_lin) (
+  (bin < SFF_DISPLAY_BINS) ? (
+    sff_display_mag_db[bin] = sff_linear_to_db(max(mag_lin, EPS));
+  ) : 0;
+);
+
+function sff_display_write_gain_db(bin, gain_db, is_right) (
+  (bin < SFF_DISPLAY_BINS) ? (
+    is_right ? (
+      sff_display_gain_db[bin] = 0.5 * (sff_display_gain_db[bin] + gain_db);
+    ) : (
+      sff_display_gain_db[bin] = gain_db;
+    );
+  ) : 0;
+);
+
 function sff_fill_spec_from_ring(spec_base, in_ring_base) local(n, i, ri, ts) (
   n = fft_size|0;
   i = 0;
@@ -23,7 +39,7 @@ function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re,
   );
 );
 
-function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, magL_base, magR_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff) (
+function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff) (
   n = fft_size|0;
   link = stereo_link * 0.01;
 
@@ -52,15 +68,7 @@ function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, magL_ba
       spec_base[kn*2 + 1] *= g_lin;
     ) : 0;
 
-    // UI gain display (store average later; only compute once here)
-    (k < SFF_DISPLAY_BINS) ? (
-      is_right ? (
-        // store right smooth gain temporarily in display_gain_db[k] second pass (accumulate)
-        sff_display_gain_db[k] = 0.5 * (sff_display_gain_db[k] + smooth_gain_db);
-      ) : (
-        sff_display_gain_db[k] = smooth_gain_db;
-      );
-    ) : 0;
+    sff_display_write_gain_db(k, smooth_gain_db, is_right);
 
     k += 1;
   );
@@ -105,12 +113,12 @@ function sff_apply_linked_gains_to_specs() local(n, k, kn, hz, band, str_eff, ta
       sff_spec_R[kn*2] *= g_lin; sff_spec_R[kn*2 + 1] *= g_lin;
     ) : 0;
 
-    (k < SFF_DISPLAY_BINS) ? (sff_display_gain_db[k] = smooth_gain_db;) : 0;
+    sff_display_write_gain_db(k, smooth_gain_db, 0);
     k += 1;
   );
 );
 
-function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM, do_recompute, radius, mag_show) (
+function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_lin) (
   n = fft_size|0;
   radius = neighbor_radius|0;
 
@@ -151,11 +159,8 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
       sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
       sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
 
-      // UI magnitudes (average L/R, dB)
-      (k < SFF_DISPLAY_BINS) ? (
-        mag_show = 0.5 * (magL_base[k] + magR_base[k]);
-        sff_display_mag_db[k] = sff_linear_to_db(max(mag_show, EPS));
-      ) : 0;
+      mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
+      sff_display_write_mag_db(k, mag_avg_lin);
 
       k += 1;
     );
@@ -163,8 +168,8 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
     // Still update UI magnitudes cheaply
     k = 0;
     loop(SFF_DISPLAY_BINS,
-      mag_show = 0.5 * (magL_base[k] + magR_base[k]);
-      sff_display_mag_db[k] = sff_linear_to_db(max(mag_show, EPS));
+      mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
+      sff_display_write_mag_db(k, mag_avg_lin);
       k += 1;
     );
   );
@@ -175,8 +180,8 @@ function sff_process_stereo_frame() local(n, k, magL, magR, mselL, mselR, mselM,
   ) : (
     // Clear display gain accumulator each hop (we overwrite then average with R)
     memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
-    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, sff_mag_cache_L, sff_mag_cache_R, 0);
-    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, sff_mag_cache_L, sff_mag_cache_R, 1);
+    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, 0);
+    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, 1);
   );
 
   // IFFT + OLA
