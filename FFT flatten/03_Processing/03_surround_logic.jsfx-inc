@@ -59,6 +59,8 @@ function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local
 );
 
 function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
+  // Band-pass processing: bins outside cutoff range are dry
+  (bin < low_cut_bin || bin > high_cut_bin) ? 0 :
   hz = bin * bin_hz;
   band = sff_get_band_index_for_hz(hz);
 

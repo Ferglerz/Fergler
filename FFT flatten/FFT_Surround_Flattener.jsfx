@@ -26,6 +26,9 @@ slider17:transient_slow_ms=30<1,200,1>-Transient Slow (ms)
 
 slider18:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 
+slider38:low_cut_hz=20<20,20000,1>Low Cut (Hz)
+slider39:high_cut_hz=20000<20,20000,1>High Cut (Hz)
+
 // --- Future 4-band split points (hidden for now, but editable) ---
 slider19:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
 slider20:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
@@ -110,6 +113,18 @@ import 04_UI/01_ui.jsfx-inc
   // Keep split points ordered (simple guard)
   band_split2_hz < band_split1_hz ? (band_split2_hz = band_split1_hz;) : 0;
   band_split3_hz < band_split2_hz ? (band_split3_hz = band_split2_hz;) : 0;
+
+  // Clamp cutoffs to valid range + precompute bin limits
+  nyq = 0.5 * srate;
+  low_cut_hz = sff_clamp(low_cut_hz, 0, nyq);
+  high_cut_hz = sff_clamp(high_cut_hz, 0, nyq);
+  high_cut_hz < low_cut_hz ? (high_cut_hz = low_cut_hz;) : 0;
+
+  low_cut_bin = floor(low_cut_hz / (bin_hz + EPS));
+  high_cut_bin = floor(high_cut_hz / (bin_hz + EPS));
+  low_cut_bin = sff_clamp(low_cut_bin, 0, (pos_bin_count-1));
+  high_cut_bin = sff_clamp(high_cut_bin, 0, (pos_bin_count-1));
+  high_cut_bin < low_cut_bin ? (high_cut_bin = low_cut_bin;) : 0;
 
   // Tilt rebuild only when needed
   (tilt_db_per_oct != sff_prev_tilt_db_per_oct || tilt_pivot_hz != sff_prev_tilt_pivot_hz) ? (
