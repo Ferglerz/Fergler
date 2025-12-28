@@ -1,19 +1,91 @@
 // Surround FFT Flattener - Core "surrounding bins" logic
+// Computes the *ideal* delta (dB) between current bin magnitude and a neighbor-based target.
+// Strength/attack/release are applied elsewhere.
 
-function sff_compute_target_gain_db_for_bin(bin, mag_db, left_db, right_db) local(hz, band, min_db, max_db, target_mag_db, delta_db, applied_db) (
+function sff_neighbor_target_lin(mag_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR) (
+  npos = pos_bin_count|0;
+  sum = 0;
+  sumw = 0;
+
+  d = 1;
+  loop(radius,
+    w = 1.0 / (d + EPS);
+
+    idxL = bin - d;
+    idxL >= 0 ? (
+      sum += mag_base[idxL] * w;
+      sumw += w;
+    ) : 0;
+
+    idxR = bin + d;
+    idxR < npos ? (
+      sum += mag_base[idxR] * w;
+      sumw += w;
+    ) : 0;
+
+    d += 1;
+  );
+
+  sumw > 0 ? (sum / sumw) : mag_base[bin];
+);
+
+function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR, v) (
+  npos = pos_bin_count|0;
+  sum = 0;
+  sumw = 0;
+
+  d = 1;
+  loop(radius,
+    w = 1.0 / (d + EPS);
+
+    idxL = bin - d;
+    idxL >= 0 ? (
+      v = 0.5 * (magL_base[idxL] + magR_base[idxL]);
+      sum += v * w;
+      sumw += w;
+    ) : 0;
+
+    idxR = bin + d;
+    idxR < npos ? (
+      v = 0.5 * (magL_base[idxR] + magR_base[idxR]);
+      sum += v * w;
+      sumw += w;
+    ) : 0;
+
+    d += 1;
+  );
+
+  sumw > 0 ? (sum / sumw) : (0.5 * (magL_base[bin] + magR_base[bin]));
+);
+
+function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   hz = bin * bin_hz;
   band = sff_get_band_index_for_hz(hz);
 
-  min_db = sff_get_band_min_db(band);
-  max_db = sff_get_band_max_db(band);
+  sff_get_band_enabled(band) ? (
+    min_lin = sff_get_band_min_lin(band);
+    max_lin = sff_get_band_max_lin(band);
+    (mag_lin >= min_lin && mag_lin <= max_lin) ? 1 : 0;
+  ) : 0;
+);
 
-  (mag_db >= min_db && mag_db <= max_db) ? (
-    target_mag_db = 0.5 * (left_db + right_db);
-    delta_db = target_mag_db - mag_db;
-    applied_db = delta_db * strength;
-    sff_clamp(applied_db, -max_adjust_db, max_adjust_db);
-  ) : (
-    0;
-  );
+function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, target_lin, tilt, ratio) (
+  mag_lin = mag_base[bin];
+  sff_bin_is_active(bin, mag_lin) ? (
+    target_lin = sff_neighbor_target_lin(mag_base, bin, radius);
+    tilt = sff_tilt_lin[bin];
+    ratio = (target_lin * tilt) / (mag_lin + EPS);
+    sff_linear_to_db(max(ratio, EPS));
+  ) : 0;
+);
+
+function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, target_lin, tilt, ratio) (
+  mag_lin = 0.5 * (magL_base[bin] + magR_base[bin]);
+  sff_bin_is_active(bin, mag_lin) ? (
+    target_lin = sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius);
+    tilt = sff_tilt_lin[bin];
+    ratio = (target_lin * tilt) / (mag_lin + EPS);
+    sff_linear_to_db(max(ratio, EPS));
+  ) : 0;
 );
 

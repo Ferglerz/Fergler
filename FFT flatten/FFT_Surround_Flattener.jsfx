@@ -7,28 +7,49 @@ options:gfx_hz=30
 // --- User parameters ---
 slider1:fft_size_sel=3<0,5,1{64,128,256,512,1024,2048}>FFT Size
 slider2:strength=1<0,2,0.01>Strength
-slider3:attack_ms=10<0.1,200,0.1>Attack (ms)
-slider4:release_ms=100<1,2000,1>Release (ms)
-slider5:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
-slider6:max_operate_db=0<-120,0,0.1>Operate Max (dB)
-slider7:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
-slider8:eco_mode=0<0,1,1{Off,On}>Eco Mode (cache)
-slider9:eco_blend=0.25<0,1,0.01>Eco Blend
+slider3:stereo_link=100<0,100,1>Stereo Link (%)
+slider4:neighbor_radius=1<1,12,1>Radius (bins)
+slider5:tilt_db_per_oct=0<-12,12,0.1>Tilt (dB/oct)
+slider6:attack_ms=10<0.1,200,0.1>Attack (ms)
+slider7:release_ms=100<1,2000,1>Release (ms)
+slider8:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
+slider9:max_operate_db=0<-120,0,0.1>Operate Max (dB)
+slider10:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
+slider11:eco_mode=0<0,1,1{Off,On}>Eco Mode
+slider12:eco_blend=0.25<0,1,0.01>Eco Blend
+slider13:eco_interval=2<1,8,1>Eco Interval (hops)
+
+slider14:transient_protect_pct=0<0,100,1>Transient Protect (%)
+slider15:transient_sensitivity=2<0,10,0.1>Transient Sensitivity
+slider16:transient_fast_ms=1<0.1,20,0.1>-Transient Fast (ms)
+slider17:transient_slow_ms=30<1,200,1>-Transient Slow (ms)
+
+slider18:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 
 // --- Future 4-band split points (hidden for now, but editable) ---
-slider10:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
-slider11:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
-slider12:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
+slider19:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
+slider20:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
+slider21:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
 
 // Per-band operate ranges (hidden; currently use same defaults)
-slider13:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
-slider14:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
-slider15:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
-slider16:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
-slider17:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
-slider18:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
-slider19:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
-slider20:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
+slider22:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
+slider23:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
+slider24:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
+slider25:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
+slider26:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
+slider27:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
+slider28:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
+slider29:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
+
+slider30:band1_enabled=1<0,1,1>-Band1 Enabled
+slider31:band2_enabled=1<0,1,1>-Band2 Enabled
+slider32:band3_enabled=1<0,1,1>-Band3 Enabled
+slider33:band4_enabled=1<0,1,1>-Band4 Enabled
+
+slider34:band1_strength_mul=1<0,2,0.01>-Band1 Strength Mul
+slider35:band2_strength_mul=1<0,2,0.01>-Band2 Strength Mul
+slider36:band3_strength_mul=1<0,2,0.01>-Band3 Strength Mul
+slider37:band4_strength_mul=1<0,2,0.01>-Band4 Strength Mul
 
 // --- Imports (relative to this .jsfx file) ---
 import 01_Utils/01_constants.jsfx-inc
@@ -37,6 +58,7 @@ import 01_Utils/02_math_utils.jsfx-inc
 import 02_FFT/01_fft_memory.jsfx-inc
 import 02_FFT/02_fft_core.jsfx-inc
 
+import 03_Processing/00_transient_protect.jsfx-inc
 import 03_Processing/01_band_config.jsfx-inc
 import 03_Processing/02_attack_release.jsfx-inc
 import 03_Processing/03_surround_logic.jsfx-inc
@@ -53,6 +75,16 @@ import 04_UI/01_ui.jsfx-inc
   // Latency/pipeline: keep simple fixed latency = fft_size samples
   sff_latency = fft_size|0;
 
+  // Transient protection init
+  transient_env_fast = 0;
+  transient_env_slow = 0;
+  transient_amount = 0;
+  transient_strength_scale = 1;
+
+  // Trackers
+  sff_prev_tilt_db_per_oct = tilt_db_per_oct;
+  sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+
 @slider
   // Derive FFT size from selection
   desired_fft = 64 << (fft_size_sel|0);
@@ -65,9 +97,29 @@ import 04_UI/01_ui.jsfx-inc
   band1_min_db = band2_min_db = band3_min_db = band4_min_db = min_operate_db;
   band1_max_db = band2_max_db = band3_max_db = band4_max_db = max_operate_db;
 
+  // Precompute per-band linear thresholds (for fast gating)
+  band1_min_lin = sff_db_to_linear(band1_min_db);
+  band1_max_lin = sff_db_to_linear(band1_max_db);
+  band2_min_lin = sff_db_to_linear(band2_min_db);
+  band2_max_lin = sff_db_to_linear(band2_max_db);
+  band3_min_lin = sff_db_to_linear(band3_min_db);
+  band3_max_lin = sff_db_to_linear(band3_max_db);
+  band4_min_lin = sff_db_to_linear(band4_min_db);
+  band4_max_lin = sff_db_to_linear(band4_max_db);
+
   // Keep split points ordered (simple guard)
   band_split2_hz < band_split1_hz ? (band_split2_hz = band_split1_hz;) : 0;
   band_split3_hz < band_split2_hz ? (band_split3_hz = band_split2_hz;) : 0;
+
+  // Tilt rebuild only when needed
+  (tilt_db_per_oct != sff_prev_tilt_db_per_oct || tilt_pivot_hz != sff_prev_tilt_pivot_hz) ? (
+    sff_rebuild_tilt();
+    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
+    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
+  ) : 0;
+
+  // Transient protect normalized
+  transient_protect = transient_protect_pct * 0.01;
 
   // PDC (unconditional, per rules)
   pdc_delay = sff_latency|0;
@@ -77,8 +129,12 @@ import 04_UI/01_ui.jsfx-inc
 @block
   // Update hop-time-based smoothing coeffs
   sff_update_time_coeffs();
+  sff_update_transient_coeffs();
 
 @sample
+  // Update transient detector (scales effective strength)
+  sff_transient_tick(spl0, spl1);
+
   // Read scheduled output and clear slot (overlap-add accumulator)
   outn = out_buf_size|0;
   outL = sff_out_ring_L[sff_out_read_pos];
@@ -99,8 +155,7 @@ import 04_UI/01_ui.jsfx-inc
   sff_hop_counter += 1;
   sff_hop_counter >= hop_size ? (
     sff_hop_counter = 0;
-    sff_process_frame_for_channel(sff_in_ring_L, sff_out_ring_L, sff_gain_db_L, sff_mag_cache_L, sff_mag_eco_L);
-    sff_process_frame_for_channel(sff_in_ring_R, sff_out_ring_R, sff_gain_db_R, sff_mag_cache_R, sff_mag_eco_R);
+    sff_process_stereo_frame();
   );
 
   // Output

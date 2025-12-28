@@ -10,7 +10,10 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) 
   sff_mem_base = 0;
   sff_mem_next = sff_mem_base;
 
-  sff_fft_buf = sff_mem_next;          sff_mem_next += fft_buf_len;
+  // Put FFT buffers first so they never cross 16,384-slot boundaries.
+  sff_spec_L = sff_mem_next;           sff_mem_next += fft_buf_len;
+  sff_spec_R = sff_mem_next;           sff_mem_next += fft_buf_len;
+
   sff_window = sff_mem_next;           sff_mem_next += maxn;
 
   sff_in_ring_L = sff_mem_next;        sff_mem_next += maxn;
@@ -31,8 +34,17 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, top) 
   sff_mag_eco_L = sff_mem_next;        sff_mem_next += pos_bins;
   sff_mag_eco_R = sff_mem_next;        sff_mem_next += pos_bins;
 
+  // Per-bin tilt multiplier (linear) for target curve shaping
+  sff_tilt_lin = sff_mem_next;         sff_mem_next += pos_bins;
+
+  // Eco mode: cached "ideal delta" (dB) per positive bin (unscaled by Strength)
+  sff_delta_db_L = sff_mem_next;       sff_mem_next += pos_bins;
+  sff_delta_db_R = sff_mem_next;       sff_mem_next += pos_bins;
+  sff_delta_db_link = sff_mem_next;    sff_mem_next += pos_bins;
+
   // UI: store first 32 bin magnitudes (dB) for display
   sff_display_mag_db = sff_mem_next;   sff_mem_next += SFF_DISPLAY_BINS;
+  sff_display_gain_db = sff_mem_next;  sff_mem_next += SFF_DISPLAY_BINS;
 
   top = sff_mem_next;
   freembuf(top);

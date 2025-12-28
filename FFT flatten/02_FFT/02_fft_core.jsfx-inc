@@ -12,6 +12,21 @@ function sff_init_window() local(i, n, invn, w) (
   );
 );
 
+function sff_rebuild_tilt() local(k, hz, pivot, oct, inv_ln2, tilt_db, npos) (
+  npos = pos_bin_count|0;
+  pivot = max(tilt_pivot_hz, 1);
+  inv_ln2 = 1.0 / (log(2) + EPS);
+
+  k = 0;
+  loop(npos,
+    hz = max(k * bin_hz, 1);
+    oct = log(hz / pivot) * inv_ln2;
+    tilt_db = tilt_db_per_oct * oct;
+    sff_tilt_lin[k] = sff_db_to_linear(tilt_db);
+    k += 1;
+  );
+);
+
 function sff_reset_runtime_state() local(n, outn) (
   n = fft_size|0;
   outn = out_buf_size|0;
@@ -19,6 +34,7 @@ function sff_reset_runtime_state() local(n, outn) (
   sff_ring_pos = 0;
   sff_hop_counter = 0;
   sff_out_read_pos = 0;
+  sff_eco_hop_index = 0;
 
   memset(sff_in_ring_L, 0, n);
   memset(sff_in_ring_R, 0, n);
@@ -31,7 +47,11 @@ function sff_reset_runtime_state() local(n, outn) (
   memset(sff_mag_cache_R, 0, n*0.5);
   memset(sff_mag_eco_L, 0, n*0.5);
   memset(sff_mag_eco_R, 0, n*0.5);
+  memset(sff_delta_db_L, 0, n*0.5);
+  memset(sff_delta_db_R, 0, n*0.5);
+  memset(sff_delta_db_link, 0, n*0.5);
   memset(sff_display_mag_db, -120, SFF_DISPLAY_BINS);
+  memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
 );
 
 function sff_set_fft_size(new_size) local(n, maxn) (
@@ -49,6 +69,7 @@ function sff_set_fft_size(new_size) local(n, maxn) (
   frame_dt = hop_size / (srate + EPS);
 
   sff_init_window();
+  sff_rebuild_tilt();
   sff_reset_runtime_state();
 );
 

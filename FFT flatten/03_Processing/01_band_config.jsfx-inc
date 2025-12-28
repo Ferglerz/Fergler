@@ -21,3 +21,31 @@ function sff_get_band_max_db(band) (
   band4_max_db;
 );
 
+function sff_get_band_enabled(band) (
+  band == 0 ? band1_enabled :
+  band == 1 ? band2_enabled :
+  band == 2 ? band3_enabled :
+  band4_enabled;
+);
+
+function sff_get_band_strength_mul(band) (
+  band == 0 ? band1_strength_mul :
+  band == 1 ? band2_strength_mul :
+  band == 2 ? band3_strength_mul :
+  band4_strength_mul;
+);
+
+function sff_get_band_min_lin(band) (
+  band == 0 ? band1_min_lin :
+  band == 1 ? band2_min_lin :
+  band == 2 ? band3_min_lin :
+  band4_min_lin;
+);
+
+function sff_get_band_max_lin(band) (
+  band == 0 ? band1_max_lin :
+  band == 1 ? band2_max_lin :
+  band == 2 ? band3_max_lin :
+  band4_max_lin;
+);
+
