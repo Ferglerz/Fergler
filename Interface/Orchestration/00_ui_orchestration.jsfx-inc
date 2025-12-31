@@ -50,37 +50,8 @@ function apply_reflection_blur(meter_x, meter_w) (
 // MAIN INTERFACE ORCHESTRATION
 //==============================================================================
 
-function render_background_image() (
-  // Render background image first (before everything else)
-  // Set position to top-left corner
-  gfx_x = 0;
-  gfx_y = 0;
-  // Blit image at index 0, scale 1 (no scaling), rotation 0
-  gfx_blit(0, 1, 0);
-);
-
-function render_complete_interface() local(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) (
-  // Cache meter position calculations once per frame to avoid repeated function calls
-  cached_meter_x = get_meter_x();
-  cached_meter_y = get_meter_y();
-  cached_meter_w = get_meter_w();
-  cached_meter_h = get_meter_h();
-  
-  // Set background color (fallback if image doesn't load)
-  gfx_clear = 0x202020;
-
-  // Draw background image first (before everything else)
-  render_background_image();
-  
-  // Draw all group backgrounds and titles (only if controls are visible)
-  menu_controls_hidden < 0.5 ? (
-    render_all_groups();
-    // Draw all controls (uses unified control system)
-    // Filter controls by page visibility
-    render_all_controls_with_page_filtering();
-  );
-
-  // PAGE 1: Graph (render with fade opacity)
+// Render Graph page content (with blur handling)
+function render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) local(page_opacity, blur_amount, clamped_input_db) (
   should_render_page(PAGE_GRAPH) ? (
     page_opacity = get_page_fade_amount(PAGE_GRAPH);
     page_opacity > 0.01 ? (
@@ -119,8 +90,10 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
       );
     );
   );
+);
 
-  // PAGE 2: Input - show graph with reduced opacity (50% for histogram/grid) and no interactive elements
+// Render Filters page content (with blur handling)
+function render_filters_page_with_blur() local(page_opacity, blur_amount) (
   should_render_page(PAGE_FILTERS) ? (
     page_opacity = get_page_fade_amount(PAGE_FILTERS);
     page_opacity > 0.01 ? (
@@ -158,10 +131,11 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
     // If Filters page is not active, still render buttons if transitioning
     render_filters_page_buttons();
   );
-  
-  // PAGE 3: Settings
+);
+
+// Render Settings page content (with blur handling)
+function render_settings_page_with_blur() local(blur_amount) (
   render_settings_page();
-  
   // Apply blur to Settings page if blur transition is active
   should_blur_page(PAGE_SETTINGS) ? (
     blur_amount = get_page_blur_amount(PAGE_SETTINGS);
@@ -170,6 +144,46 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
       apply_page_blur_graph_area();
     );
   );
+);
+
+function render_background_image() (
+  // Render background image first (before everything else)
+  // Set position to top-left corner
+  gfx_x = 0;
+  gfx_y = 0;
+  // Blit image at index 0, scale 1 (no scaling), rotation 0
+  gfx_blit(0, 1, 0);
+);
+
+function render_complete_interface() local(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) (
+  // Cache meter position calculations once per frame to avoid repeated function calls
+  cached_meter_x = get_meter_x();
+  cached_meter_y = get_meter_y();
+  cached_meter_w = get_meter_w();
+  cached_meter_h = get_meter_h();
+  
+  // Set background color (fallback if image doesn't load)
+  gfx_clear = 0x202020;
+
+  // Draw background image first (before everything else)
+  render_background_image();
+  
+  // Draw all group backgrounds and titles (only if controls are visible)
+  menu_controls_hidden < 0.5 ? (
+    render_all_groups();
+    // Draw all controls (uses unified control system)
+    // Filter controls by page visibility
+    render_all_controls_with_page_filtering();
+  );
+
+  // PAGE 1: Graph (render with fade opacity)
+  render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h);
+
+  // PAGE 2: Input - show graph with reduced opacity (50% for histogram/grid) and no interactive elements
+  render_filters_page_with_blur();
+  
+  // PAGE 3: Settings
+  render_settings_page_with_blur();
   
   // Always render meter and meter trail lines on all pages (using cached meter positions)
   draw_gain_reduction_meter();
