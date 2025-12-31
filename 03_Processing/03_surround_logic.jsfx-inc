@@ -131,7 +131,35 @@ function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   );
 );
 
-function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, target_lin, tilt, ratio, hz, band, radius_eff, delta, knee, expv, a) (
+// Helper function: apply delta shaping (knee and exponential curve)
+function sff_apply_delta_shaping(delta, mag_lin) local(knee, expv, a, shaped_delta) (
+  shaped_delta = delta;
+  // Noise-floor boost protection
+  (delta > 0 && mag_lin < no_boost_below_lin) ? (
+    shaped_delta = 0;
+  ) : (
+    // Delta shaping: reduce subtle deltas, leave big deltas
+    knee = max(delta_knee_db, 0);
+    expv = max(delta_shape_exp, 1);
+    (knee > 0 && expv > 1) ? (
+      a = abs(shaped_delta);
+      a < knee ? (
+        a = a * pow(a / (knee + eps), expv - 1);
+        shaped_delta = shaped_delta < 0 ? -a : a;
+      ) : 0;
+    ) : 0;
+  );
+  shaped_delta;
+);
+
+// Helper function: compute base delta from magnitude and target
+function sff_compute_base_delta(mag_lin, target_lin, bin) local(tilt, ratio) (
+  tilt = sff_tilt_lin[bin];
+  ratio = (target_lin * tilt) / (mag_lin + eps);
+  sff_linear_to_db(max(ratio, eps));
+);
+
+function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, hz, band, radius_eff, target_lin, delta) (
   mag_lin = mag_base[bin];
   sff_bin_is_active(bin, mag_lin) ? (
     // Per-band radius scaling (ignored by median modes, but used by weighted mean)
@@ -141,29 +169,12 @@ function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, targ
     radius_eff = sff_clamp(radius_eff, 1, 24);
 
     target_lin = sff_neighbor_target_lin(mag_base, bin, radius_eff);
-    tilt = sff_tilt_lin[bin];
-    ratio = (target_lin * tilt) / (mag_lin + eps);
-    delta = sff_linear_to_db(max(ratio, eps));
-
-    // Noise-floor boost protection
-    (delta > 0 && mag_lin < no_boost_below_lin) ? (delta = 0;) : 0;
-
-    // Delta shaping: reduce subtle deltas, leave big deltas
-    knee = max(delta_knee_db, 0);
-    expv = max(delta_shape_exp, 1);
-    (knee > 0 && expv > 1) ? (
-      a = abs(delta);
-      a < knee ? (
-      a = a * pow(a / (knee + eps), expv - 1);
-        delta = delta < 0 ? -a : a;
-      ) : 0;
-    ) : 0;
-
-    delta;
+    delta = sff_compute_base_delta(mag_lin, target_lin, bin);
+    sff_apply_delta_shaping(delta, mag_lin);
   ) : 0;
 );
 
-function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, target_lin, tilt, ratio, hz, band, radius_eff, delta, knee, expv, a) (
+function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, hz, band, radius_eff, target_lin, delta) (
   mag_lin = 0.5 * (magL_base[bin] + magR_base[bin]);
   sff_bin_is_active(bin, mag_lin) ? (
     hz = bin * bin_hz;
@@ -172,22 +183,8 @@ function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) lo
     radius_eff = sff_clamp(radius_eff, 1, 24);
 
     target_lin = sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff);
-    tilt = sff_tilt_lin[bin];
-    ratio = (target_lin * tilt) / (mag_lin + eps);
-    delta = sff_linear_to_db(max(ratio, eps));
-    (delta > 0 && mag_lin < no_boost_below_lin) ? (delta = 0;) : 0;
-
-    knee = max(delta_knee_db, 0);
-    expv = max(delta_shape_exp, 1);
-    (knee > 0 && expv > 1) ? (
-      a = abs(delta);
-      a < knee ? (
-      a = a * pow(a / (knee + eps), expv - 1);
-        delta = delta < 0 ? -a : a;
-      ) : 0;
-    ) : 0;
-
-    delta;
+    delta = sff_compute_base_delta(mag_lin, target_lin, bin);
+    sff_apply_delta_shaping(delta, mag_lin);
   ) : 0;
 );
 

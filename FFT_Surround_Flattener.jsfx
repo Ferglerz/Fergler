@@ -84,31 +84,6 @@ slider51:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
 slider52:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
 slider53:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
 
-// --- Future 4-band split points (hidden for now, but editable) ---
-slider19:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
-slider20:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
-slider21:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
-
-// Per-band operate ranges (hidden; currently use same defaults)
-slider22:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
-slider23:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
-slider24:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
-slider25:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
-slider26:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
-slider27:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
-slider28:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
-slider29:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
-
-slider30:band1_enabled=1<0,1,1>-Band1 Enabled
-slider31:band2_enabled=1<0,1,1>-Band2 Enabled
-slider32:band3_enabled=1<0,1,1>-Band3 Enabled
-slider33:band4_enabled=1<0,1,1>-Band4 Enabled
-
-slider34:band1_strength_mul=1<0,2,0.01>-Band1 Strength Mul
-slider35:band2_strength_mul=1<0,2,0.01>-Band2 Strength Mul
-slider36:band3_strength_mul=1<0,2,0.01>-Band3 Strength Mul
-slider37:band4_strength_mul=1<0,2,0.01>-Band4 Strength Mul
-
 // --- Imports (relative to this .jsfx file) ---
 import 01_Utils/01_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
