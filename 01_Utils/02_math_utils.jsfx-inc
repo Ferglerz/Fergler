@@ -1,5 +1,7 @@
 // Surround FFT Flattener - Math utils
 
+@init
+
 function sff_clamp(x, a, b) (
   x < a ? a : (x > b ? b : x);
 );
@@ -9,6 +11,6 @@ function sff_db_to_linear(db) (
 );
 
 function sff_linear_to_db(x) (
-  log(max(x, EPS)) * 8.6858896380650366; // 20/log(10)
+  log(max(x, eps)) * 8.6858896380650366; // 20/log(10)
 );
 

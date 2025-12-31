@@ -1,5 +1,7 @@
 // Surround FFT Flattener - Band config helpers (future 4-band support)
 
+@init
+
 function sff_get_band_index_for_hz(hz) (
   hz < band_split1_hz ? 0 :
   hz < band_split2_hz ? 1 :

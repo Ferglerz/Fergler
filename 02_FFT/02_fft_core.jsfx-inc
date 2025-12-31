@@ -1,9 +1,11 @@
 // Surround FFT Flattener - FFT core (windowing + sizing)
 
+@init
+
 function sff_init_window() local(i, n, invn, w) (
   n = fft_size|0;
   // Use (n-1) so the Hann hits 0 at both ends (important for OLA stability).
-  invn = 1.0 / (max(n-1, 1) + EPS);
+  invn = 1.0 / (max(n-1, 1) + eps);
   i = 0;
   loop(n,
     // sqrt Hann for perfect-ish overlap-add at 50% hop
@@ -16,7 +18,7 @@ function sff_init_window() local(i, n, invn, w) (
 function sff_rebuild_tilt() local(k, hz, pivot, oct, inv_ln2, tilt_db, npos, band, slope) (
   npos = pos_bin_count|0;
   pivot = max(tilt_pivot_hz, 1);
-  inv_ln2 = 1.0 / (log(2) + EPS);
+  inv_ln2 = 1.0 / (log(2) + eps);
 
   k = 0;
   loop(npos,
@@ -56,26 +58,34 @@ function sff_reset_runtime_state() local(n, outn) (
   memset(sff_mag_cache_R, 0, n*0.5);
   memset(sff_mag_eco_L, 0, n*0.5);
   memset(sff_mag_eco_R, 0, n*0.5);
+  memset(sff_mag_rms_state_L, 0, n*0.5);
+  memset(sff_mag_rms_state_R, 0, n*0.5);
+  memset(sff_mag_rms_out_L, 0, n*0.5);
+  memset(sff_mag_rms_out_R, 0, n*0.5);
   memset(sff_delta_db_L, 0, n*0.5);
   memset(sff_delta_db_R, 0, n*0.5);
   memset(sff_delta_db_link, 0, n*0.5);
-  memset(sff_display_mag_db, -120, SFF_DISPLAY_BINS);
-  memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
+  memset(sff_display_mag_db, -120, SFF_MAX_DISPLAY_BINS);
+  memset(sff_display_gain_db, 0, SFF_MAX_DISPLAY_BINS);
 );
 
 function sff_set_fft_size(new_size) local(n, maxn) (
   maxn = SFF_MAX_FFT_SIZE;
-  n = sff_clamp(new_size, 64, maxn) | 0;
+  n = sff_clamp(new_size, 8, maxn) | 0;
 
   // Derived parameters
   fft_size = n;
   hop_size = (n*0.5)|0;
   out_buf_size = (2*n)|0;
   pos_bin_count = (n*0.5)|0;
+  // UI draws one bar per positive bin, capped by allocation
+  sff_display_bin_count = min(pos_bin_count, SFF_MAX_DISPLAY_BINS);
 
-  ifft_scale = 1.0 / (n + EPS);
-  bin_hz = srate / (n + EPS);
-  frame_dt = hop_size / (srate + EPS);
+  ifft_scale = 1.0 / (n + eps);
+  // Normalize magnitudes so a 0 dBFS tone sits near 0 dB in displays/detectors.
+  fft_mag_norm = 2.0 / (n + eps);
+  bin_hz = srate / (n + eps);
+  frame_dt = hop_size / (srate + eps);
 
   sff_init_window();
   sff_rebuild_tilt();

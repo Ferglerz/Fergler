@@ -1,13 +1,15 @@
 // Surround FFT Flattener - STFT processing (analysis/synthesis)
 
+@init
+
 function sff_display_write_mag_db(bin, mag_lin) (
-  (bin < SFF_DISPLAY_BINS) ? (
-    sff_display_mag_db[bin] = sff_linear_to_db(max(mag_lin, EPS));
+  (bin < sff_display_bin_count) ? (
+    sff_display_mag_db[bin] = sff_linear_to_db(max(mag_lin, eps));
   ) : 0;
 );
 
 function sff_display_write_gain_db(bin, gain_db, is_right) (
-  (bin < SFF_DISPLAY_BINS) ? (
+  (bin < sff_display_bin_count) ? (
     is_right ? (
       sff_display_gain_db[bin] = 0.5 * (sff_display_gain_db[bin] + gain_db);
     ) : (
@@ -33,8 +35,33 @@ function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re,
   loop(pos_bin_count,
     re = spec_base[k*2];
     im = spec_base[k*2 + 1];
-    mag = sqrt(re*re + im*im);
+    // Apply FFT magnitude normalization so displays and band gates see true linear levels.
+    mag = sqrt(re*re + im*im) * fft_mag_norm;
     mag_cache_base[k] = mag;
+    k += 1;
+  );
+);
+
+function sff_apply_rms_smoothing(magL_base, magR_base) local(k, invc, vL, vR, pL, pR) (
+  invc = sff_rms_inv;
+
+  k = 0;
+  loop(pos_bin_count,
+    vL = magL_base[k];
+    vR = magR_base[k];
+
+    pL = sff_mag_rms_state_L[k];
+    pR = sff_mag_rms_state_R[k];
+
+    pL += ((vL*vL) - pL) * invc;
+    pR += ((vR*vR) - pR) * invc;
+
+    sff_mag_rms_state_L[k] = pL;
+    sff_mag_rms_state_R[k] = pR;
+
+    sff_mag_rms_out_L[k] = sqrt(max(pL, 0));
+    sff_mag_rms_out_R[k] = sqrt(max(pR, 0));
+
     k += 1;
   );
 );
@@ -95,7 +122,7 @@ function sff_apply_linked_gains_to_specs() local(n, k, kn, hz, band, str_eff, ta
   n = fft_size|0;
 
   // Clear display gain accumulator each hop (we overwrite)
-  memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
+  memset(sff_display_gain_db, 0, sff_display_bin_count);
 
   k = 0;
   loop(pos_bin_count,
@@ -150,6 +177,9 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   );
   fft(sff_spec_L, n);
   fft(sff_spec_R, n);
+  // Put FFT output into natural bin order for processing
+  fft_permute(sff_spec_L, n);
+  fft_permute(sff_spec_R, n);
 
   // Magnitude caches (linear)
   sff_compute_mag_cache_from_spec(sff_mag_cache_L, sff_spec_L);
@@ -167,6 +197,13 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
 
   magL_base = eco_mode ? sff_mag_eco_L : sff_mag_cache_L;
   magR_base = eco_mode ? sff_mag_eco_R : sff_mag_cache_R;
+
+  // Optional RMS smoothing of per-bin magnitudes
+  sff_rms_enabled ? (
+    sff_apply_rms_smoothing(magL_base, magR_base);
+    magL_base = sff_mag_rms_out_L;
+    magR_base = sff_mag_rms_out_R;
+  ) : 0;
 
   // Decide whether to recompute heavy deltas this hop
   do_recompute = eco_mode ? (
@@ -195,7 +232,7 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   ) : (
     // Still update UI magnitudes cheaply
     k = 0;
-    loop(SFF_DISPLAY_BINS,
+    loop(sff_display_bin_count,
       mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
       sff_display_write_mag_db(k, mag_avg_lin);
       k += 1;
@@ -207,12 +244,15 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     sff_apply_linked_gains_to_specs();
   ) : (
     // Clear display gain accumulator each hop (we overwrite then average with R)
-    memset(sff_display_gain_db, 0, SFF_DISPLAY_BINS);
+    memset(sff_display_gain_db, 0, sff_display_bin_count);
     sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, magL_base, 0);
     sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, magR_base, 1);
   );
 
   // IFFT + OLA
+  // Return from natural order back to FFT internal order, then IFFT
+  fft_ipermute(sff_spec_L, n);
+  fft_ipermute(sff_spec_R, n);
   ifft(sff_spec_L, n);
   ifft(sff_spec_R, n);
   ms_mode ? (

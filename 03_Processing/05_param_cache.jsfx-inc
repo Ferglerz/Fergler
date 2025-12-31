@@ -1,5 +1,7 @@
 // Surround FFT Flattener - Parameter caching helpers (DRY + fast)
 
+@init
+
 function sff_init_param_trackers() (
   // Tilt trackers
   sff_prev_tilt_db_per_oct = tilt_db_per_oct;
@@ -49,8 +51,8 @@ function sff_update_cutoff_bins() local(nyq) (
   high_cut_hz = sff_clamp(high_cut_hz, 0, nyq);
   high_cut_hz < low_cut_hz ? (high_cut_hz = low_cut_hz;) : 0;
 
-  low_cut_bin = floor(low_cut_hz / (bin_hz + EPS));
-  high_cut_bin = floor(high_cut_hz / (bin_hz + EPS));
+  low_cut_bin = floor(low_cut_hz / (bin_hz + eps));
+  high_cut_bin = floor(high_cut_hz / (bin_hz + eps));
 
   low_cut_bin = sff_clamp(low_cut_bin, 0, (pos_bin_count-1));
   high_cut_bin = sff_clamp(high_cut_bin, 0, (pos_bin_count-1));

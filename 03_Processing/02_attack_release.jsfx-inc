@@ -1,12 +1,20 @@
 // Surround FFT Flattener - Attack/Release smoothing helpers (per FFT hop)
 
-function sff_update_time_coeffs() local(a_s, r_s) (
+@init
+
+function sff_update_time_coeffs() local(a_s, r_s, rms_s) (
   a_s = max(attack_ms, 0.01) * 0.001;
   r_s = max(release_ms, 0.01) * 0.001;
+  rms_s = max(input_rms_ms, 0) * 0.001;
 
   // frame_dt set by FFT sizing (hop_size / srate)
-  attack_coeff = exp(-frame_dt / (a_s + EPS));
-  release_coeff = exp(-frame_dt / (r_s + EPS));
+  attack_coeff = exp(-frame_dt / (a_s + eps));
+  release_coeff = exp(-frame_dt / (r_s + eps));
+
+  // RMS smoothing coefficient for per-hop magnitude RMS
+  sff_rms_enabled = rms_s > 0;
+  sff_rms_coeff = sff_rms_enabled ? exp(-frame_dt / (rms_s + eps)) : 0;
+  sff_rms_inv = 1 - sff_rms_coeff;
 );
 
 function sff_smooth_gain_db(state_base, bin, target_db) local(cur, coeff) (

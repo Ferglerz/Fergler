@@ -1,25 +1,26 @@
-desc:FFT Surround Flattener (WIP)
-// Frequency-domain "surround leveling" based on adjacent FFT bins.
+desc:Flattery (WIP)
+// Frequency-domain "leveling" based on adjacent FFT bins.
 // Pre (feedforward) analysis only. Modular includes live under this folder.
 
 options:gfx_hz=30
 
-// --- User parameters (NOTE: slider renumbering breaks existing automation) ---
+// --- User parameters  ---
 // Core
-slider1:fft_size_sel=3<0,5,1{64,128,256,512,1024,2048}>FFT Size
+slider1:fft_size_sel=3<0,8,1{8,16,32,64,128,256,512,1024,2048}>FFT Size
 slider2:wet=100<0,100,1>Wet (%)
 slider3:strength=1<0,2,0.01>Strength
 slider4:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
 
-// Surround logic
+// Nearby bins logic
 slider5:neighbor_radius=1<1,12,1>Radius (bins)
-slider6:neighbor_mode=0<0,2,1{Mean,Median3,Median5}>Neighbor Mode
+slider6:neighbor_mode=0<0,1,1{Mean,Median}>Neighbor Mode
 slider7:stereo_link=100<0,100,1>Stereo Link (%)
 slider8:ms_mode=0<0,1,1{LR,MS}>Process Domain
 
 // Timing
 slider9:attack_ms=10<0.1,200,0.1>Attack (ms)
 slider10:release_ms=100<1,2000,1>Release (ms)
+slider54:input_rms_ms=0<0,2000,1>Input RMS (ms)
 
 // Operating range + cut band
 slider11:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
@@ -32,8 +33,8 @@ slider15:tilt_db_per_oct=0<-12,12,0.1>Tilt (dB/oct)
 slider16:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 
 // Delta shaping + noise handling
-slider17:delta_knee_db=6<0,24,0.1>Delta Knee (dB)
-slider18:delta_shape_exp=2<1,4,0.1>Delta Shape (exp)
+slider17:delta_knee_db=6<0,24,0.1>Delta Knee (soften small deltas, dB)
+slider18:delta_shape_exp=2<1,4,0.1>Delta Shape (exp>1 steeper near knee)
 slider19:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
 
 // Eco mode
@@ -129,7 +130,7 @@ import 04_UI/01_ui.jsfx-inc
   sff_allocate_memory();
 
   // Set initial FFT size from enum selection
-  sff_set_fft_size(64 << (fft_size_sel|0));
+  sff_set_fft_size(8 << (fft_size_sel|0));
 
   // Latency/pipeline: keep simple fixed latency = fft_size samples
   sff_latency = fft_size|0;
@@ -143,7 +144,7 @@ import 04_UI/01_ui.jsfx-inc
 
 @slider
   // Derive FFT size from selection
-  desired_fft = 64 << (fft_size_sel|0);
+  desired_fft = 8 << (fft_size_sel|0);
   desired_fft != (fft_size|0) ? (
     sff_set_fft_size(desired_fft);
     sff_latency = fft_size|0;

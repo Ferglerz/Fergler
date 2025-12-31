@@ -1,6 +1,8 @@
-// Surround FFT Flattener - Minimal UI (bars for first 32 bins)
+// Surround FFT Flattener - Minimal UI (bars follow current FFT size)
 
-function sff_ui_draw() local(i, x0, y0, w, h, bar_w, v, db, y, y_base) (
+@init
+
+function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, bins_per_group, start_idx, end_idx, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db) (
   gfx_set(0.10, 0.10, 0.11, 1);
   gfx_rect(0, 0, gfx_w, gfx_h);
 
@@ -16,37 +18,71 @@ function sff_ui_draw() local(i, x0, y0, w, h, bar_w, v, db, y, y_base) (
   gfx_set(0.12, 0.12, 0.13, 1);
   gfx_rect(x0+2, y0+2, w-4, h-4);
 
-  bar_w = (w-4) / (SFF_DISPLAY_BINS + EPS);
+  // Always use full available width, grouping bins as needed
+  avail_w = max(w-4, 1);
+  draw_bins = avail_w;  // Always use full width
+  bin_w = 1;  // Each bar is 1px wide
+  bins_per_group = sff_display_bin_count / max(draw_bins, 1);
+  x_offset = 0;  // No offset needed, using exact width
   y_base = y0 + h - 4;
 
+  // Draw magnitude bars (averaged from grouped bins)
   i = 0;
-  loop(SFF_DISPLAY_BINS,
-    db = sff_display_mag_db[i];
+  loop(draw_bins,
+    start_idx = (i * bins_per_group)|0;
+    end_idx = ((i + 1) * bins_per_group)|0;
+    end_idx = min(end_idx, sff_display_bin_count);
+    mag_sum_lin = 0;
+    mag_count = end_idx - start_idx;
+    mag_count > 0 ? (
+      j = 0;
+      loop(mag_count,
+        mag_sum_lin += sff_db_to_linear(sff_display_mag_db[start_idx + j]);
+        j += 1;
+      );
+      mag_avg_db = sff_linear_to_db(mag_sum_lin / (mag_count + eps));
+    ) : (
+      mag_avg_db = -120;
+    );
+    
     // Map -120..0 dB to 0..1
-    v = sff_clamp((db + 120) / 120, 0, 1);
+    v = sff_clamp((mag_avg_db + 120) / 120, 0, 1);
     y = v * (h-8);
 
     gfx_set(0.25, 0.55, 0.95, 1);
-    gfx_rect(x0 + 2 + i*bar_w, y_base - y, bar_w-1, y);
+    gfx_rect(x0 + 2 + x_offset + i*bin_w, y_base - y, bin_w, y);
 
     i += 1;
   );
 
-  // Minimal overlay: applied gain (dB) as a thin yellow line
+  // Minimal overlay: applied gain (dB) as a thin yellow line (averaged from grouped bins)
   gfx_set(0.95, 0.85, 0.20, 1);
   i = 0;
-  loop(SFF_DISPLAY_BINS,
-    db = sff_display_gain_db[i];
+  loop(draw_bins,
+    start_idx = (i * bins_per_group)|0;
+    end_idx = ((i + 1) * bins_per_group)|0;
+    end_idx = min(end_idx, sff_display_bin_count);
+    gain_sum = 0;
+    gain_count = end_idx - start_idx;
+    gain_count > 0 ? (
+      j = 0;
+      loop(gain_count,
+        gain_sum += sff_display_gain_db[start_idx + j];
+        j += 1;
+      );
+      gain_avg_db = gain_sum / (gain_count + eps);
+    ) : (
+      gain_avg_db = 0;
+    );
+    
     // Map -max_adjust_db..+max_adjust_db into 0..1 of the graph height
-    v = sff_clamp((db + max_adjust_db) / (2*max_adjust_db + EPS), 0, 1);
+    v = sff_clamp((gain_avg_db + max_adjust_db) / (2*max_adjust_db + eps), 0, 1);
     y = v * (h-8);
-    gfx_line(x0 + 2 + i*bar_w, y_base - y, x0 + 2 + (i+1)*bar_w, y_base - y, 1);
+    x1 = x0 + 2 + x_offset + i*bin_w;
+    x2 = x0 + 2 + x_offset + (i+1)*bin_w;
+    gfx_line(x1, y_base - y, x2, y_base - y, 1);
     i += 1;
   );
 
-  gfx_set(0.95, 0.95, 0.95, 1);
-  gfx_x = 14; gfx_y = 14;
-  sprintf(#sff_tmp_str, "FFT Surround Flattener | FFT=%d | Strength=%.2f | StereoLink=%.0f%% | Radius=%d", fft_size, strength, stereo_link, neighbor_radius);
-  gfx_drawstr(#sff_tmp_str);
 );
 
