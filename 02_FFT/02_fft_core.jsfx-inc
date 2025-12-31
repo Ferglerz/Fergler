@@ -2,15 +2,18 @@
 
 @init
 
-function sff_init_window() local(i, n, invn, w) (
+function sff_init_window() local(i, n, invn, w, x) (
   n = fft_size|0;
-  // Use (n-1) so the Hann hits 0 at both ends (important for OLA stability).
+  // Use (n-1) so the window hits 0 at both ends (important for OLA stability).
   invn = 1.0 / (max(n-1, 1) + eps);
   i = 0;
   loop(n,
-    // sqrt Hann for perfect-ish overlap-add at 50% hop
-    w = 0.5 - 0.5*cos(2*$pi*i*invn);
-    sff_window[i] = sqrt(max(w, 0));
+    // 4-term Blackman-Harris window: excellent side lobe suppression (~-92 dB)
+    // Very commonly used in audio analysis for its superior leakage reduction
+    // Use full window (no sqrt) for 0% overlap (no overlap-add needed)
+    x = 2*$pi*i*invn;
+    w = 0.35875 - 0.48829*cos(x) + 0.14128*cos(2*x) - 0.01168*cos(3*x);
+    sff_window[i] = max(w, 0);
     i += 1;
   );
 );
@@ -75,14 +78,15 @@ function sff_set_fft_size(new_size) local(n, maxn) (
 
   // Derived parameters
   fft_size = n;
-  hop_size = (n*0.5)|0;
+  hop_size = n;  // 0% overlap (no overlap between frames)
   out_buf_size = (2*n)|0;
   pos_bin_count = (n*0.5)|0;
   // UI draws one bar per positive bin, capped by allocation
   sff_display_bin_count = min(pos_bin_count, SFF_MAX_DISPLAY_BINS);
 
   ifft_scale = 1.0 / (n + eps);
-  // Normalize magnitudes so a 0 dBFS tone sits near 0 dB in displays/detectors.
+  // Simple FFT magnitude normalization: 2.0/N for real signals
+  // No window compensation - just show true bin content
   fft_mag_norm = 2.0 / (n + eps);
   bin_hz = srate / (n + eps);
   frame_dt = hop_size / (srate + eps);

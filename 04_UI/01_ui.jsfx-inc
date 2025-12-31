@@ -2,7 +2,7 @@
 
 @init
 
-function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, bins_per_group, start_idx, end_idx, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db) (
+function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, log_min, log_max, log_range, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end) (
   gfx_set(0.10, 0.10, 0.11, 1);
   gfx_rect(0, 0, gfx_w, gfx_h);
 
@@ -18,35 +18,51 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   gfx_set(0.12, 0.12, 0.13, 1);
   gfx_rect(x0+2, y0+2, w-4, h-4);
 
-  // Always use full available width, grouping bins as needed
+  // Logarithmic frequency mapping: map display pixels to frequency bins
   avail_w = max(w-4, 1);
-  draw_bins = avail_w;  // Always use full width
+  draw_bins = avail_w;  // One bar per pixel
   bin_w = 1;  // Each bar is 1px wide
-  bins_per_group = sff_display_bin_count / max(draw_bins, 1);
-  x_offset = 0;  // No offset needed, using exact width
+  x_offset = 0;
   y_base = y0 + h - 4;
+  
+  // Frequency range: 20 Hz to Nyquist (srate/2)
+  min_freq = 20;
+  max_freq = srate * 0.5;
+  log_min = log(max(min_freq, 1));
+  log_max = log(max(max_freq, min_freq + 1));
+  log_range = log_max - log_min;
 
-  // Draw magnitude bars (averaged from grouped bins)
+  // Draw magnitude bars with logarithmic frequency mapping
   i = 0;
   loop(draw_bins,
-    start_idx = (i * bins_per_group)|0;
-    end_idx = ((i + 1) * bins_per_group)|0;
-    end_idx = min(end_idx, sff_display_bin_count);
-    mag_sum_lin = 0;
-    mag_count = end_idx - start_idx;
-    mag_count > 0 ? (
-      j = 0;
-      loop(mag_count,
-        mag_sum_lin += sff_db_to_linear(sff_display_mag_db[start_idx + j]);
-        j += 1;
-      );
-      mag_avg_db = sff_linear_to_db(mag_sum_lin / (mag_count + eps));
-    ) : (
-      mag_avg_db = -120;
-    );
+    // Map pixel position to frequency (logarithmic)
+    pixel_freq = exp(log_min + log_range * (i / max(draw_bins - 1, 1)));
+    pixel_bin = pixel_freq / max(bin_hz, 1);
     
-    // Map -120..0 dB to 0..1
-    v = sff_clamp((mag_avg_db + 120) / 120, 0, 1);
+    // Map next pixel to frequency to determine bin range for this pixel
+    next_pixel_freq = i < (draw_bins - 1) ? exp(log_min + log_range * ((i + 1) / max(draw_bins - 1, 1))) : max_freq;
+    next_pixel_bin = next_pixel_freq / max(bin_hz, 1);
+    
+    // Determine which bins contribute to this pixel
+    bin_start = max(pixel_bin|0, 0);
+    bin_end = min(next_pixel_bin|0, sff_display_bin_count - 1);
+    bin_end < bin_start ? (bin_end = bin_start;);
+    
+    // Average magnitudes in linear space for bins in this frequency range
+    mag_sum_lin = 0;
+    mag_count = 0;
+    j = bin_start;
+    loop(max(bin_end - bin_start + 1, 0),
+      (j <= bin_end && j < sff_display_bin_count) ? (
+        mag_sum_lin += sff_db_to_linear(sff_display_mag_db[j]);
+        mag_count += 1;
+      );
+      j += 1;
+    );
+    mag_avg_db = mag_count > 0 ? sff_linear_to_db(mag_sum_lin / (mag_count + eps)) : -120;
+    
+    // Map -90..0 dB to 0..1
+    v = sff_clamp((mag_avg_db + 90) / 90, 0, 1);
     y = v * (h-8);
 
     gfx_set(0.25, 0.55, 0.95, 1);
@@ -55,25 +71,33 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
     i += 1;
   );
 
-  // Minimal overlay: applied gain (dB) as a thin yellow line (averaged from grouped bins)
+  // Minimal overlay: applied gain (dB) as a thin yellow line
   gfx_set(0.95, 0.85, 0.20, 1);
   i = 0;
   loop(draw_bins,
-    start_idx = (i * bins_per_group)|0;
-    end_idx = ((i + 1) * bins_per_group)|0;
-    end_idx = min(end_idx, sff_display_bin_count);
+    // Map pixel position to frequency (logarithmic)
+    pixel_freq = exp(log_min + log_range * (i / max(draw_bins - 1, 1)));
+    pixel_bin = pixel_freq / max(bin_hz, 1);
+    
+    next_pixel_freq = i < (draw_bins - 1) ? exp(log_min + log_range * ((i + 1) / max(draw_bins - 1, 1))) : max_freq;
+    next_pixel_bin = next_pixel_freq / max(bin_hz, 1);
+    
+    bin_start = max(pixel_bin|0, 0);
+    bin_end = min(next_pixel_bin|0, sff_display_bin_count - 1);
+    bin_end < bin_start ? (bin_end = bin_start;);
+    
+    // Average gains in dB space
     gain_sum = 0;
-    gain_count = end_idx - start_idx;
-    gain_count > 0 ? (
-      j = 0;
-      loop(gain_count,
-        gain_sum += sff_display_gain_db[start_idx + j];
-        j += 1;
+    gain_count = 0;
+    j = bin_start;
+    loop(max(bin_end - bin_start + 1, 0),
+      (j <= bin_end && j < sff_display_bin_count) ? (
+        gain_sum += sff_display_gain_db[j];
+        gain_count += 1;
       );
-      gain_avg_db = gain_sum / (gain_count + eps);
-    ) : (
-      gain_avg_db = 0;
+      j += 1;
     );
+    gain_avg_db = gain_count > 0 ? gain_sum / (gain_count + eps) : 0;
     
     // Map -max_adjust_db..+max_adjust_db into 0..1 of the graph height
     v = sff_clamp((gain_avg_db + max_adjust_db) / (2*max_adjust_db + eps), 0, 1);

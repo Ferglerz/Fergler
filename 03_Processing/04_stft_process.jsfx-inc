@@ -35,7 +35,7 @@ function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re,
   loop(pos_bin_count,
     re = spec_base[k*2];
     im = spec_base[k*2 + 1];
-    // Apply FFT magnitude normalization so displays and band gates see true linear levels.
+    // Simple FFT magnitude: just the raw magnitude with standard normalization
     mag = sqrt(re*re + im*im) * fft_mag_norm;
     mag_cache_base[k] = mag;
     k += 1;
@@ -105,15 +105,15 @@ function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_bas
   );
 );
 
-function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_write_base, i, w) (
+function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_write_base, i) (
   n = fft_size|0;
   outn = out_buf_size|0;
   out_write_base = (sff_out_read_pos + sff_latency) % outn;
 
+  // With 0% overlap, write directly without windowing (no overlap to add)
   i = 0;
   loop(n,
-    w = sff_window[i];
-    out_ring_base[(out_write_base + i) % outn] += (spec_base[i*2] * ifft_scale) * w;
+    out_ring_base[(out_write_base + i) % outn] = spec_base[i*2] * ifft_scale;
     i += 1;
   );
 );
@@ -256,16 +256,16 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   ifft(sff_spec_L, n);
   ifft(sff_spec_R, n);
   ms_mode ? (
-    // Spec L = Mid, Spec R = Side -> convert to L/R during overlap-add
+    // Spec L = Mid, Spec R = Side -> convert to L/R during output
     outn = out_buf_size|0;
     out_write_base = (sff_out_read_pos + sff_latency) % outn;
     i = 0;
     loop(n,
-      w = sff_window[i];
-      m = (sff_spec_L[i*2] * ifft_scale) * w;
-      s = (sff_spec_R[i*2] * ifft_scale) * w;
-      sff_out_ring_L[(out_write_base + i) % outn] += (m + s);
-      sff_out_ring_R[(out_write_base + i) % outn] += (m - s);
+      // With 0% overlap, write directly without windowing
+      m = sff_spec_L[i*2] * ifft_scale;
+      s = sff_spec_R[i*2] * ifft_scale;
+      sff_out_ring_L[(out_write_base + i) % outn] = m + s;
+      sff_out_ring_R[(out_write_base + i) % outn] = m - s;
       i += 1;
     );
   ) : (
