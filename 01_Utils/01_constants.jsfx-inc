@@ -1,146 +1,15 @@
-// Generic Constants Module
-// Common constants used across the entire codebase
-// No dependencies
+// Surround FFT Flattener - Constants
+// Keep this project self-contained and modular.
 
-@init
+// Math / safety
+EPS = 1e-24;
 
-// === STRING VARIABLES ===
-// Use slots 50+ to avoid reserved slots 0-49
-#temp_display_str = 50;
-#value_str = 51;
-#temp_dropdown_option = 52;
-#empty_str = 53;
-#debug_temp_str = 54;  // For debug string concatenation
+// Limits (compile-time style knobs)
+SFF_MAX_FFT_SIZE = 2048; // must be power of two; memory sized for this max
 
-// Group title string slots (5 groups)
-#group_title_0 = 55;  // ENVELOPE
-#group_title_1 = 56;  // DETECTION  
-#group_title_2 = 57;  // COMPRESSION
-#group_title_3 = 58;  // HARMONICS
-#group_title_4 = 59;  // SOURCE
+// Display / UI
+SFF_DISPLAY_BINS = 32; // basic UI shows first 32 bins (positive freqs)
 
-// === AUDIO CONSTANTS ===
-
-EPS = 0.000000000000000000000000000001;
-MIN_DETECTOR_LEVEL = 0.000001; // Prevent log(0)
-DEFAULT_ENVELOPE = 1.0;
-
-// Limiter constants (pre-calculated to avoid per-sample division)
-LIMITER_SCALE = 0.95;                           // Limiter input scale factor
-LIMITER_TANH_NORM = 0;                          // Will be calculated in main @init
-
-// === PERFORMANCE CONSTANTS ===
-
-DENORMAL_THRESHOLD = pow(10, -15); // Faster than eps for denormal checks
-HISTORY_DECAY = 0.999;
-HISTORY_UPDATE = 0.001;
-
-// === MEMORY LAYOUT CONFIGURATION ===
-
-// UI Controls
-NUM_CONTROLS = 25;  // Total number of UI controls (highest index is 24, so need at least 25)
-
-// Debug logging (string slots for debug messages)
-STRING_SLOTS_DEBUG = 50;  // Use string slots 0-49 for debug messages (JSFX supports 0-63)
-
-// Audio buffer sizes (calculated in memory allocation)
-max_lookahead_samples = 0;
-lookahead_mask = 0;  // Bit mask for efficient circular buffer indexing (size - 1)
-max_rms_samples = 0;
-
-// === FILTER FREQUENCY LIST ===
-
-// Frequency list for HP and LP filter sliders
-// Total: 31 frequencies + 1 Off = 32 entries (indices 0-31)
-FREQ_LIST_SIZE = 32;
-
-// Helper function to get frequency from HP list index
-// HP list: 0=Off, 1=20, 2=30, ..., 27=6000
-function get_freq_from_index(index) (
-  index == 0 ? 0 :      // Off
-  index == 1 ? 20 :
-  index == 2 ? 30 :
-  index == 3 ? 40 :
-  index == 4 ? 60 :
-  index == 5 ? 80 :
-  index == 6 ? 100 :
-  index == 7 ? 120 :
-  index == 8 ? 150 :
-  index == 9 ? 200 :
-  index == 10 ? 250 :
-  index == 11 ? 300 :
-  index == 12 ? 350 :
-  index == 13 ? 400 :
-  index == 14 ? 500 :
-  index == 15 ? 600 :
-  index == 16 ? 750 :
-  index == 17 ? 1000 :
-  index == 18 ? 1250 :
-  index == 19 ? 1500 :
-  index == 20 ? 1750 :
-  index == 21 ? 2000 :
-  index == 22 ? 2500 :
-  index == 23 ? 3000 :
-  index == 24 ? 3500 :
-  index == 25 ? 4000 :
-  index == 26 ? 5000 :
-  index == 27 ? 6000 : 0
-);
-
-// Helper function to get frequency from LP list index (ascending order with Off at end)
-// LP list: 0=80Hz, 1=100Hz, ..., 26=14kHz, 27=Off
-function get_freq_from_lp_index(index) (
-  index == 0 ? 80 :
-  index == 1 ? 100 :
-  index == 2 ? 120 :
-  index == 3 ? 150 :
-  index == 4 ? 200 :
-  index == 5 ? 250 :
-  index == 6 ? 300 :
-  index == 7 ? 350 :
-  index == 8 ? 400 :
-  index == 9 ? 500 :
-  index == 10 ? 600 :
-  index == 11 ? 750 :
-  index == 12 ? 1000 :
-  index == 13 ? 1250 :
-  index == 14 ? 1500 :
-  index == 15 ? 1750 :
-  index == 16 ? 2000 :
-  index == 17 ? 2500 :
-  index == 18 ? 3000 :
-  index == 19 ? 3500 :
-  index == 20 ? 4000 :
-  index == 21 ? 5000 :
-  index == 22 ? 6000 :
-  index == 23 ? 8000 :
-  index == 24 ? 10000 :
-  index == 25 ? 12000 :
-  index == 26 ? 14000 :
-  index == 27 ? 0 : 0      // Off at the end
-);
-
-// Helper function to format frequency for display
-// Returns string via global variable for JSFX string handling
-function format_freq_display(freq) (
-  freq == 0 ? (
-    // Off
-    freq_display_str = "Off";
-  ) : freq >= 1000 ? (
-    // Display as kilohertz (e.g., 4k, 1.5k)
-    freq_khz = freq / 1000;
-    freq_khz == floor(freq_khz) ? (
-      // Whole number kHz (e.g., 4k, 5k)
-      sprintf(#freq_display_str, "%.0fk", freq_khz);
-    ) : (
-      // Fractional kHz (e.g., 1.25k, 1.5k)
-      sprintf(#freq_display_str, "%.2fk", freq_khz);
-    );
-  ) : (
-    // Display as Hz for frequencies below 1kHz
-    sprintf(#freq_display_str, "%.0f", freq);
-  );
-  
-  freq_display_str;
-);
+// String slots: 0-49 reserved (workspace rule). Use 50+.
+#sff_tmp_str = 50;
 
