@@ -20,99 +20,101 @@ function sff_median_sort_buf(count) local(i, j, tmp) (
   sff_median_buf[(count*0.5)|0];
 );
 
-function sff_median_target_lin(mag_base, bin, radius) local(npos, rad, win, d, idx, count) (
+function sff_median_target_lin(mag_base, bin, radius) local(npos, rad, d, idx, count) (
   npos = pos_bin_count|0;
   rad = sff_clamp(radius, 1, SFF_MAX_MEDIAN_RADIUS);
-  win = (rad*2 + 1)|0;
+  // Exclude current bin - only use neighbors for target calculation
   count = 0;
   d = -rad;
-  loop(win,
-    idx = bin + d;
-    idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
-    sff_median_buf[count] = mag_base[idx];
-    count += 1;
+  loop(rad*2 + 1,
+    d != 0 ? (  // Skip current bin (d=0)
+      idx = bin + d;
+      idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
+      sff_median_buf[count] = mag_base[idx];
+      count += 1;
+    ) : 0;
     d += 1;
   );
-  sff_median_sort_buf(count);
+  count > 0 ? sff_median_sort_buf(count) : mag_base[bin];
 );
 
-function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, rad, win, d, idx, count) (
+function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, rad, d, idx, count) (
   npos = pos_bin_count|0;
   rad = sff_clamp(radius, 1, SFF_MAX_MEDIAN_RADIUS);
-  win = (rad*2 + 1)|0;
+  // Exclude current bin - only use neighbors for target calculation
   count = 0;
   d = -rad;
-  loop(win,
-    idx = bin + d;
-    idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
-    sff_median_buf[count] = 0.5 * (magL_base[idx] + magR_base[idx]);
-    count += 1;
+  loop(rad*2 + 1,
+    d != 0 ? (  // Skip current bin (d=0)
+      idx = bin + d;
+      idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
+      sff_median_buf[count] = 0.5 * (magL_base[idx] + magR_base[idx]);
+      count += 1;
+    ) : 0;
     d += 1;
   );
-  sff_median_sort_buf(count);
+  count > 0 ? sff_median_sort_buf(count) : (0.5 * (magL_base[bin] + magR_base[bin]));
 );
 
 function sff_neighbor_target_lin(mag_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR) (
-  npos = pos_bin_count|0;
-  sum = 0;
-  sumw = 0;
-
   neighbor_mode == 1 ? (
     // Median over current radius (2*radius+1 window)
     sff_median_target_lin(mag_base, bin, radius);
-  ) :
-  d = 1;
-  loop(radius,
-    w = 1.0 / (d + eps);
+  ) : (
+    npos = pos_bin_count|0;
+    sum = 0;
+    sumw = 0;
+    d = 1;
+    loop(radius,
+      w = 1.0 / (d + eps);
 
-    idxL = bin - d;
-    idxL >= 0 ? (
-      sum += mag_base[idxL] * w;
-      sumw += w;
-    ) : 0;
+      idxL = bin - d;
+      idxL >= 0 ? (
+        sum += mag_base[idxL] * w;
+        sumw += w;
+      ) : 0;
 
-    idxR = bin + d;
-    idxR < npos ? (
-      sum += mag_base[idxR] * w;
-      sumw += w;
-    ) : 0;
+      idxR = bin + d;
+      idxR < npos ? (
+        sum += mag_base[idxR] * w;
+        sumw += w;
+      ) : 0;
 
-    d += 1;
+      d += 1;
+    );
+    sumw > 0 ? (sum / sumw) : mag_base[bin];
   );
-
-  sumw > 0 ? (sum / sumw) : mag_base[bin];
 );
 
 function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR, v) (
-  npos = pos_bin_count|0;
-  sum = 0;
-  sumw = 0;
-
   neighbor_mode == 1 ? (
     sff_median_target_lin_stereo(magL_base, magR_base, bin, radius);
-  ) :
-  d = 1;
-  loop(radius,
-    w = 1.0 / (d + eps);
+  ) : (
+    npos = pos_bin_count|0;
+    sum = 0;
+    sumw = 0;
+    d = 1;
+    loop(radius,
+      w = 1.0 / (d + eps);
 
-    idxL = bin - d;
-    idxL >= 0 ? (
-      v = 0.5 * (magL_base[idxL] + magR_base[idxL]);
-      sum += v * w;
-      sumw += w;
-    ) : 0;
+      idxL = bin - d;
+      idxL >= 0 ? (
+        v = 0.5 * (magL_base[idxL] + magR_base[idxL]);
+        sum += v * w;
+        sumw += w;
+      ) : 0;
 
-    idxR = bin + d;
-    idxR < npos ? (
-      v = 0.5 * (magL_base[idxR] + magR_base[idxR]);
-      sum += v * w;
-      sumw += w;
-    ) : 0;
+      idxR = bin + d;
+      idxR < npos ? (
+        v = 0.5 * (magL_base[idxR] + magR_base[idxR]);
+        sum += v * w;
+        sumw += w;
+      ) : 0;
 
-    d += 1;
+      d += 1;
+    );
+    sumw > 0 ? (sum / sumw) : (0.5 * (magL_base[bin] + magR_base[bin]));
   );
-
-  sumw > 0 ? (sum / sumw) : (0.5 * (magL_base[bin] + magR_base[bin]));
 );
 
 function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
