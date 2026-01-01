@@ -14,3 +14,48 @@ function sff_linear_to_db(x) (
   log(max(x, eps)) * 8.6858896380650366; // 20/log(10)
 );
 
+// Helper: Get real part of complex spec at bin k
+function sff_spec_re(spec_base, k) (
+  spec_base[k*2];
+);
+
+// Helper: Get imaginary part of complex spec at bin k
+function sff_spec_im(spec_base, k) (
+  spec_base[k*2 + 1];
+);
+
+// Helper: Set real part of complex spec at bin k
+function sff_spec_set_re(spec_base, k, val) (
+  spec_base[k*2] = val;
+);
+
+// Helper: Set imaginary part of complex spec at bin k
+function sff_spec_set_im(spec_base, k, val) (
+  spec_base[k*2 + 1] = val;
+);
+
+// Helper: Stereo average (used frequently)
+function sff_stereo_avg(magL, magR) (
+  0.5 * (magL + magR);
+);
+
+// Helper: Clamp gain with separate boost and cut limits
+function sff_clamp_gain(gain_db, max_boost_db, max_cut_db) (
+  gain_db > 0 ? sff_clamp(gain_db, 0, max_boost_db) : sff_clamp(gain_db, -max_cut_db, 0);
+);
+
+// Helper: Convert bin index to frequency in Hz
+function sff_bin_to_hz(bin) (
+  bin * bin_hz;
+);
+
+// Helper: Convert frequency in Hz to bin index
+function sff_hz_to_bin(hz) (
+  floor(hz / (bin_hz + eps));
+);
+
+// Helper: Convert milliseconds to seconds
+function sff_ms_to_sec(ms) (
+  ms * 0.001;
+);
+

@@ -45,9 +45,6 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, displ
   sff_mag_rms_out_L = sff_mem_next;    sff_mem_next += pos_bins;
   sff_mag_rms_out_R = sff_mem_next;    sff_mem_next += pos_bins;
 
-  // Per-bin tilt multiplier (linear) for target curve shaping
-  sff_tilt_lin = sff_mem_next;         sff_mem_next += pos_bins;
-
   // Eco mode: cached "ideal delta" (dB) per positive bin (unscaled by Strength)
   sff_delta_db_L = sff_mem_next;       sff_mem_next += pos_bins;
   sff_delta_db_R = sff_mem_next;       sff_mem_next += pos_bins;

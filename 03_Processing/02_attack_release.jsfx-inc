@@ -3,9 +3,9 @@
 @init
 
 function sff_update_time_coeffs() local(a_s, r_s, rms_s) (
-  a_s = max(attack_ms, 0.01) * 0.001;
-  r_s = max(release_ms, 0.01) * 0.001;
-  rms_s = max(input_rms_ms, 0) * 0.001;
+  a_s = sff_ms_to_sec(max(attack_ms, 0.01));
+  r_s = sff_ms_to_sec(max(release_ms, 0.01));
+  rms_s = sff_ms_to_sec(max(input_rms_ms, 0));
 
   // frame_dt set by FFT sizing (hop_size / srate)
   attack_coeff = exp(-frame_dt / (a_s + eps));

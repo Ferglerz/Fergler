@@ -9,7 +9,8 @@ options:gfx_hz=30
 slider1:fft_size_sel=3<0,8,1{8,16,32,64,128,256,512,1024,2048}>FFT Size
 slider2:wet=100<0,100,1>Wet (%)
 slider3:strength=1<0,2,0.01>Strength
-slider4:max_adjust_db=12<0,48,0.1>Max Adjust (dB)
+slider4:max_boost_db=12<0,48,0.1>Max Boost (dB)
+slider15:max_cut_db=12<0,48,0.1>Max Cut (dB)
 
 // Nearby bins logic
 slider5:neighbor_radius=1<1,12,1>Radius (bins)
@@ -25,12 +26,8 @@ slider54:input_rms_ms=0<0,2000,1>Input RMS (ms)
 // Operating range + cut band
 slider11:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
 slider12:max_operate_db=0<-120,0,0.1>Operate Max (dB)
-slider13:low_cut_hz=20<20,20000,1>Low Cut (Hz)
+slider13:low_cut_hz=20<10,20000,1>Low Cut (Hz)
 slider14:high_cut_hz=20000<20,20000,1>High Cut (Hz)
-
-// Target curve shaping
-slider15:tilt_db_per_oct=0<-12,12,0.1>Tilt (dB/oct)
-slider16:tilt_pivot_hz=1000<20,20000,1>-Tilt Pivot (Hz)
 
 // Delta shaping + noise handling
 slider17:delta_knee_db=6<0,24,0.1>Delta Knee (soften small deltas, dB)
@@ -53,7 +50,7 @@ slider27:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
 slider28:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
 slider29:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
 
-// Future per-band enable/strength/radius/tilt offsets (hidden)
+// Future per-band enable/strength/radius offsets (hidden)
 slider30:band1_enabled=1<0,1,1>-Band1 Enabled
 slider31:band2_enabled=1<0,1,1>-Band2 Enabled
 slider32:band3_enabled=1<0,1,1>-Band3 Enabled
@@ -68,11 +65,6 @@ slider38:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
 slider39:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
 slider40:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
 slider41:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
-
-slider42:band1_tilt_offset_db_per_oct=0<-12,12,0.1>-Band1 Tilt Offset (dB/oct)
-slider43:band2_tilt_offset_db_per_oct=0<-12,12,0.1>-Band2 Tilt Offset (dB/oct)
-slider44:band3_tilt_offset_db_per_oct=0<-12,12,0.1>-Band3 Tilt Offset (dB/oct)
-slider45:band4_tilt_offset_db_per_oct=0<-12,12,0.1>-Band4 Tilt Offset (dB/oct)
 
 // Per-band operate ranges (hidden; used only if we later stop mirroring globals)
 slider46:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
@@ -128,7 +120,6 @@ import 04_UI/01_ui.jsfx-inc
   sff_update_band_ranges_from_global();
   sff_order_band_splits();
   sff_update_cutoff_bins();
-  sff_update_tilt_if_needed_with_offsets();
 
   // Cache noise-floor boost cutoff
   no_boost_below_lin = sff_db_to_linear(no_boost_below_db);

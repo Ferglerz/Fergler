@@ -3,8 +3,8 @@
 @init
 
 function sff_update_transient_coeffs() local(f_s, s_s) (
-  f_s = max(transient_fast_ms, 0.1) * 0.001;
-  s_s = max(transient_slow_ms, 0.1) * 0.001;
+  f_s = sff_ms_to_sec(max(transient_fast_ms, 0.1));
+  s_s = sff_ms_to_sec(max(transient_slow_ms, 0.1));
 
   // per-sample one-pole coeffs
   transient_fast_coeff = exp(-1 / ((f_s * srate) + eps));
@@ -13,7 +13,7 @@ function sff_update_transient_coeffs() local(f_s, s_s) (
 
 function sff_transient_tick(xL, xR) local(x, fast, slow, diff, ratio, amt) (
   // Use mono sum for detection
-  x = 0.5 * (abs(xL) + abs(xR));
+  x = sff_stereo_avg(abs(xL), abs(xR));
 
   fast = transient_env_fast + (x - transient_env_fast) * (1 - transient_fast_coeff);
   slow = transient_env_slow + (x - transient_env_slow) * (1 - transient_slow_coeff);

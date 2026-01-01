@@ -11,7 +11,7 @@ function sff_display_write_mag_db(bin, mag_lin) (
 function sff_display_write_gain_db(bin, gain_db, is_right) (
   (bin < sff_display_bin_count) ? (
     is_right ? (
-      sff_display_gain_db[bin] = 0.5 * (sff_display_gain_db[bin] + gain_db);
+      sff_display_gain_db[bin] = sff_stereo_avg(sff_display_gain_db[bin], gain_db);
     ) : (
       sff_display_gain_db[bin] = gain_db;
     );
@@ -24,8 +24,8 @@ function sff_fill_spec_from_ring(spec_base, in_ring_base) local(n, i, ri, ts) (
   loop(n,
     ri = (sff_ring_pos + i) % n;
     ts = in_ring_base[ri] * sff_window[i];
-    spec_base[i*2] = ts;
-    spec_base[i*2 + 1] = 0;
+    sff_spec_set_re(spec_base, i, ts);
+    sff_spec_set_im(spec_base, i, 0);
     i += 1;
   );
 );
@@ -33,8 +33,8 @@ function sff_fill_spec_from_ring(spec_base, in_ring_base) local(n, i, ri, ts) (
 function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re, im, mag) (
   k = 0;
   loop(pos_bin_count,
-    re = spec_base[k*2];
-    im = spec_base[k*2 + 1];
+    re = sff_spec_re(spec_base, k);
+    im = sff_spec_im(spec_base, k);
     // Simple FFT magnitude: just the raw magnitude with standard normalization
     mag = sqrt(re*re + im*im) * fft_mag_norm;
     mag_cache_base[k] = mag;
@@ -66,39 +66,43 @@ function sff_apply_rms_smoothing(magL_base, magR_base) local(k, invc, vL, vR, pL
   );
 );
 
-function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, kn, band, hz, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
+// Helper: Apply gain to spec bin (positive and negative frequencies)
+function sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n) local(kn) (
+  sff_spec_set_re(spec_base, k, sff_spec_re(spec_base, k) * g_lin);
+  sff_spec_set_im(spec_base, k, sff_spec_im(spec_base, k) * g_lin);
+  // Mirror to negative frequency bin
+  (k > 0 && k < (pos_bin_count-1)) ? (
+    kn = (n - k)|0;
+    sff_spec_set_re(spec_base, kn, sff_spec_re(spec_base, kn) * g_lin);
+    sff_spec_set_im(spec_base, kn, sff_spec_im(spec_base, kn) * g_lin);
+  ) : 0;
+);
+
+// Helper: Compute effective strength for a bin
+function sff_compute_effective_strength(bin) local(hz, band) (
+  hz = sff_bin_to_hz(bin);
+  band = sff_get_band_index_for_hz(hz);
+  strength * sff_get_band_strength_mul(band) * transient_strength_scale;
+);
+
+function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
   n = fft_size|0;
   link = stereo_link * 0.01;
 
   k = 0;
   loop(pos_bin_count,
-    // Avoid stale delta usage (eco interval / parameter changes):
-    // If this bin is currently bypassed by cutoff/band gates, force target gain to 0.
     active = sff_bin_is_active(k, mag_base[k]);
-
-    hz = k * bin_hz;
-    band = sff_get_band_index_for_hz(hz);
-
-    // Effective strength includes per-band mul + transient scaling
-    str_eff = strength * sff_get_band_strength_mul(band) * transient_strength_scale;
+    str_eff = sff_compute_effective_strength(k);
 
     ind_delta = delta_db_base[k];
     link_delta = sff_delta_db_link[k];
     delta = ind_delta * (1 - link) + link_delta * link;
 
-    target_gain_db = active ? sff_clamp(delta * str_eff, -max_adjust_db, max_adjust_db) : 0;
+    target_gain_db = active ? sff_clamp_gain(delta * str_eff, max_boost_db, max_cut_db) : 0;
     smooth_gain_db = sff_smooth_gain_db(gain_db_base, k, target_gain_db);
     g_lin = sff_db_to_linear(smooth_gain_db);
 
-    spec_base[k*2] *= g_lin;
-    spec_base[k*2 + 1] *= g_lin;
-
-    (k > 0 && k < (pos_bin_count-1)) ? (
-      kn = (n - k)|0;
-      spec_base[kn*2] *= g_lin;
-      spec_base[kn*2 + 1] *= g_lin;
-    ) : 0;
-
+    sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n);
     sff_display_write_gain_db(k, smooth_gain_db, is_right);
 
     k += 1;
@@ -113,40 +117,28 @@ function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_
   // With 0% overlap, write directly without windowing (no overlap to add)
   i = 0;
   loop(n,
-    out_ring_base[(out_write_base + i) % outn] = spec_base[i*2] * ifft_scale;
+    out_ring_base[(out_write_base + i) % outn] = sff_spec_re(spec_base, i) * ifft_scale;
     i += 1;
   );
 );
 
-function sff_apply_linked_gains_to_specs() local(n, k, kn, hz, band, str_eff, target_gain_db, smooth_gain_db, g_lin) (
+function sff_apply_linked_gains_to_specs() local(n, k, mag_avg, str_eff, target_gain_db, smooth_gain_db, g_lin) (
   n = fft_size|0;
-
-  // Clear display gain accumulator each hop (we overwrite)
   memset(sff_display_gain_db, 0, sff_display_bin_count);
 
   k = 0;
   loop(pos_bin_count,
-    hz = k * bin_hz;
-    band = sff_get_band_index_for_hz(hz);
-    str_eff = strength * sff_get_band_strength_mul(band) * transient_strength_scale;
+    mag_avg = sff_stereo_avg(magL_base[k], magR_base[k]);
+    str_eff = sff_compute_effective_strength(k);
 
-    // Same stale-safe gating for linked mode (use avg mag for cutoff/band range)
-    target_gain_db = sff_bin_is_active(k, 0.5 * (magL_base[k] + magR_base[k])) ? (
-      sff_clamp(sff_delta_db_link[k] * str_eff, -max_adjust_db, max_adjust_db)
+    target_gain_db = sff_bin_is_active(k, mag_avg) ? (
+      sff_clamp_gain(sff_delta_db_link[k] * str_eff, max_boost_db, max_cut_db)
     ) : 0;
     smooth_gain_db = sff_smooth_gain_db(sff_gain_db_link, k, target_gain_db);
     g_lin = sff_db_to_linear(smooth_gain_db);
 
-    // Apply same gain to both channels
-    sff_spec_L[k*2] *= g_lin; sff_spec_L[k*2 + 1] *= g_lin;
-    sff_spec_R[k*2] *= g_lin; sff_spec_R[k*2 + 1] *= g_lin;
-
-    (k > 0 && k < (pos_bin_count-1)) ? (
-      kn = (n - k)|0;
-      sff_spec_L[kn*2] *= g_lin; sff_spec_L[kn*2 + 1] *= g_lin;
-      sff_spec_R[kn*2] *= g_lin; sff_spec_R[kn*2 + 1] *= g_lin;
-    ) : 0;
-
+    sff_apply_gain_to_spec_bin(sff_spec_L, k, g_lin, n);
+    sff_apply_gain_to_spec_bin(sff_spec_R, k, g_lin, n);
     sff_display_write_gain_db(k, smooth_gain_db, 0);
     k += 1;
   );
@@ -162,13 +154,13 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     i = 0;
     loop(n,
       ri = (sff_ring_pos + i) % n;
-      m = 0.5 * (sff_in_ring_L[ri] + sff_in_ring_R[ri]);
+      m = sff_stereo_avg(sff_in_ring_L[ri], sff_in_ring_R[ri]);
       s = 0.5 * (sff_in_ring_L[ri] - sff_in_ring_R[ri]);
       w = sff_window[i];
-      sff_spec_L[i*2] = m * w;
-      sff_spec_L[i*2 + 1] = 0;
-      sff_spec_R[i*2] = s * w;
-      sff_spec_R[i*2 + 1] = 0;
+      sff_spec_set_re(sff_spec_L, i, m * w);
+      sff_spec_set_im(sff_spec_L, i, 0);
+      sff_spec_set_re(sff_spec_R, i, s * w);
+      sff_spec_set_im(sff_spec_R, i, 0);
       i += 1;
     );
   ) : (
@@ -223,18 +215,14 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
       sff_delta_db_L[k] = sff_compute_delta_db_for_bin(magL_base, k, radius);
       sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
       sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
-
-      mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
-      sff_display_write_mag_db(k, mag_avg_lin);
-
+      sff_display_write_mag_db(k, sff_stereo_avg(magL_base[k], magR_base[k]));
       k += 1;
     );
   ) : (
     // Still update UI magnitudes cheaply
     k = 0;
     loop(sff_display_bin_count,
-      mag_avg_lin = 0.5 * (magL_base[k] + magR_base[k]);
-      sff_display_write_mag_db(k, mag_avg_lin);
+      sff_display_write_mag_db(k, sff_stereo_avg(magL_base[k], magR_base[k]));
       k += 1;
     );
   );
@@ -261,9 +249,8 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     out_write_base = (sff_out_read_pos + sff_latency) % outn;
     i = 0;
     loop(n,
-      // With 0% overlap, write directly without windowing
-      m = sff_spec_L[i*2] * ifft_scale;
-      s = sff_spec_R[i*2] * ifft_scale;
+      m = sff_spec_re(sff_spec_L, i) * ifft_scale;
+      s = sff_spec_re(sff_spec_R, i) * ifft_scale;
       sff_out_ring_L[(out_write_base + i) % outn] = m + s;
       sff_out_ring_R[(out_write_base + i) % outn] = m - s;
       i += 1;

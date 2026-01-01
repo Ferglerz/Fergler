@@ -3,14 +3,6 @@
 @init
 
 function sff_init_param_trackers() (
-  // Tilt trackers
-  sff_prev_tilt_db_per_oct = tilt_db_per_oct;
-  sff_prev_tilt_pivot_hz = tilt_pivot_hz;
-  sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
-  sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
-  sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
-  sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
-
   // Delta-affecting trackers
   sff_prev_neighbor_radius = neighbor_radius;
   sff_prev_neighbor_mode = neighbor_mode;
@@ -51,29 +43,12 @@ function sff_update_cutoff_bins() local(nyq) (
   high_cut_hz = sff_clamp(high_cut_hz, 0, nyq);
   high_cut_hz < low_cut_hz ? (high_cut_hz = low_cut_hz;) : 0;
 
-  low_cut_bin = floor(low_cut_hz / (bin_hz + eps));
-  high_cut_bin = floor(high_cut_hz / (bin_hz + eps));
+  low_cut_bin = sff_hz_to_bin(low_cut_hz);
+  high_cut_bin = sff_hz_to_bin(high_cut_hz);
 
   low_cut_bin = sff_clamp(low_cut_bin, 0, (pos_bin_count-1));
   high_cut_bin = sff_clamp(high_cut_bin, 0, (pos_bin_count-1));
   high_cut_bin < low_cut_bin ? (high_cut_bin = low_cut_bin;) : 0;
-);
-
-function sff_update_tilt_if_needed_with_offsets() (
-  (tilt_db_per_oct != sff_prev_tilt_db_per_oct ||
-   tilt_pivot_hz != sff_prev_tilt_pivot_hz ||
-   band1_tilt_offset_db_per_oct != sff_prev_band1_tilt_off ||
-   band2_tilt_offset_db_per_oct != sff_prev_band2_tilt_off ||
-   band3_tilt_offset_db_per_oct != sff_prev_band3_tilt_off ||
-   band4_tilt_offset_db_per_oct != sff_prev_band4_tilt_off) ? (
-    sff_rebuild_tilt();
-    sff_prev_tilt_db_per_oct = tilt_db_per_oct;
-    sff_prev_tilt_pivot_hz = tilt_pivot_hz;
-    sff_prev_band1_tilt_off = band1_tilt_offset_db_per_oct;
-    sff_prev_band2_tilt_off = band2_tilt_offset_db_per_oct;
-    sff_prev_band3_tilt_off = band3_tilt_offset_db_per_oct;
-    sff_prev_band4_tilt_off = band4_tilt_offset_db_per_oct;
-  ) : 0;
 );
 
 function sff_update_delta_recompute_flag() (

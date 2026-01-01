@@ -2,7 +2,27 @@
 
 @init
 
-function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, log_min, log_max, log_range, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y) (
+// UI drag state (persists across function calls)
+sff_dragging_cut = 0;  // 0=none, 1=low_cut, 2=high_cut
+
+// Convert normalized position (0-1) to frequency using pure logarithmic mapping
+function sff_pos_to_freq(pos, local_min_freq, local_max_freq) local(freq_log_min, freq_log_max, freq_log_range) (
+  freq_log_min = log(max(local_min_freq, 1));
+  freq_log_max = log(max(local_max_freq, local_min_freq + 1));
+  freq_log_range = freq_log_max - freq_log_min;
+  exp(freq_log_min + freq_log_range * pos);
+);
+
+// Convert frequency to normalized position (0-1) using pure logarithmic mapping
+function sff_freq_to_pos(freq, local_min_freq, local_max_freq) local(freq_log_min, freq_log_max, freq_log_range, pos) (
+  freq_log_min = log(max(local_min_freq, 1));
+  freq_log_max = log(max(local_max_freq, local_min_freq + 1));
+  freq_log_range = freq_log_max - freq_log_min;
+  pos = (log(max(freq, 1)) - freq_log_min) / freq_log_range;
+  sff_clamp(pos, 0, 1);
+);
+
+function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y, freq1, freq_div1, freq_div2, label_freq, label_log, label_pos, label_x, low_cut_x, high_cut_x, triangle_size, mouse_over_low, mouse_over_high, new_freq, new_pos, hit_dist, norm_pos, low_cut_pos, high_cut_pos, next_norm_pos, new_cut_x, pos1, pos_max, pos_range, pos_div1, pos_div2, x1, triangle_top_y, triangle_width) (
   gfx_set(0.10, 0.10, 0.11, 1);
   gfx_rect(0, 0, gfx_w, gfx_h);
 
@@ -10,37 +30,60 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   w = gfx_w - 20;
   h = gfx_h - 20;
 
-  // Frame
-  gfx_set(0.22, 0.22, 0.24, 1);
-  gfx_rect(x0, y0, w, h);
-
   // Bars area
-  gfx_set(0.12, 0.12, 0.13, 1);
-  gfx_rect(x0+2, y0+2, w-4, h-4);
-
-  // Logarithmic frequency mapping: map display pixels to frequency bins
   avail_w = max(w-4, 1);
   draw_bins = avail_w;  // One bar per pixel
   bin_w = 1;  // Each bar is 1px wide
   x_offset = 0;
   y_base = y0 + h - 4;
   
-  // Frequency range: 20 Hz to Nyquist (srate/2)
-  min_freq = 20;
+  // Frequency range: 10 Hz to Nyquist (srate/2)
+  min_freq = 10;
   max_freq = srate * 0.5;
-  log_min = log(max(min_freq, 1));
-  log_max = log(max(max_freq, min_freq + 1));
-  log_range = log_max - log_min;
+
+  // Draw alternating background shading based on actual bin indices
+  i = 0;
+  loop(draw_bins,
+    // Map pixel position to frequency (logarithmic)
+    norm_pos = i / max(draw_bins - 1, 1);
+    pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
+    pixel_bin = pixel_freq / max(bin_hz, 1);
+    
+    // Determine which bin this pixel represents
+    bin_start = max(pixel_bin|0, 0);
+    
+    // Alternate based on bin index, not pixel index
+    (bin_start % 2) == 0 ? (
+      gfx_set(0.12, 0.12, 0.13, 1);  // Base background for even bins
+    ) : (
+      gfx_set(0.14, 0.14, 0.15, 1);  // Slightly lighter background for odd bins
+    );
+    gfx_rect(x0 + 2 + x_offset + i*bin_w, y0 + 2, bin_w, h - 4);
+    i += 1;
+  );
+
+  // Frame border (drawn after bins so it's on top)
+  gfx_set(0.22, 0.22, 0.24, 1);
+  gfx_line(x0, y0, x0 + w, y0, 0);  // Top
+  gfx_line(x0 + w, y0, x0 + w, y0 + h, 0);  // Right
+  gfx_line(x0 + w, y0 + h, x0, y0 + h, 0);  // Bottom
+  gfx_line(x0, y0 + h, x0, y0, 0);  // Left
+
+  // Calculate cut positions in logarithmic space (always from frequency - single source of truth)
+  low_cut_pos = sff_freq_to_pos(low_cut_hz, min_freq, max_freq);
+  high_cut_pos = sff_freq_to_pos(high_cut_hz, min_freq, max_freq);
 
   // Draw magnitude bars with logarithmic frequency mapping
   i = 0;
   loop(draw_bins,
     // Map pixel position to frequency (logarithmic)
-    pixel_freq = exp(log_min + log_range * (i / max(draw_bins - 1, 1)));
+    norm_pos = i / max(draw_bins - 1, 1);
+    pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
     pixel_bin = pixel_freq / max(bin_hz, 1);
     
     // Map next pixel to frequency to determine bin range for this pixel
-    next_pixel_freq = i < (draw_bins - 1) ? exp(log_min + log_range * ((i + 1) / max(draw_bins - 1, 1))) : max_freq;
+    next_norm_pos = i < (draw_bins - 1) ? ((i + 1) / max(draw_bins - 1, 1)) : 1.0;
+    next_pixel_freq = sff_pos_to_freq(next_norm_pos, min_freq, max_freq);
     next_pixel_bin = next_pixel_freq / max(bin_hz, 1);
     
     // Determine which bins contribute to this pixel
@@ -61,19 +104,16 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
     );
     mag_avg_db = mag_count > 0 ? sff_linear_to_db(mag_sum_lin / (mag_count + eps)) : -120;
     
-    // Map -24..+24 dB to 0..1 (0 dB at center, -24 dB at bottom, +24 dB at top)
-    v = sff_clamp((mag_avg_db + 24) / 48, 0, 1);
-    y = v * (h-8);
+    // Map input signal: -120 dB (bottom) to 0 dB (center line)
+    // Bottom of graph (y_base) = -120 dB, center line = 0 dB
+    v = sff_clamp((mag_avg_db + 120) / 120, 0, 1);
+    y = v * ((h-8) / 2);  // Only use bottom half of graph (up to center line)
 
-    // Determine opacity: 0.25 if bin coverage is outside low/high cut range
-    (next_pixel_freq < low_cut_hz || pixel_freq > high_cut_hz) ? (
-      opacity = 0.25;
-    ) : (
-      opacity = 1.0;
-    );
-
-    gfx_set(0.25, 0.55, 0.95, opacity);
-    gfx_rect(x0 + 2 + x_offset + i*bin_w, y_base - y, bin_w, y);
+    // Determine visibility: hide if bin coverage is outside low/high cut range (using logarithmic position space)
+    (next_norm_pos >= low_cut_pos && norm_pos <= high_cut_pos) ? (
+      gfx_set(0.25, 0.55, 0.95, 1.0);
+      gfx_rect(x0 + 2 + x_offset + i*bin_w, y_base - y, bin_w, y);
+    ) : 0;
 
     i += 1;
   );
@@ -83,44 +123,42 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   i = 0;
   loop(draw_bins,
     // Map pixel position to frequency (logarithmic)
-    pixel_freq = exp(log_min + log_range * (i / max(draw_bins - 1, 1)));
+    norm_pos = i / max(draw_bins - 1, 1);
+    pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
     pixel_bin = pixel_freq / max(bin_hz, 1);
     
-    next_pixel_freq = i < (draw_bins - 1) ? exp(log_min + log_range * ((i + 1) / max(draw_bins - 1, 1))) : max_freq;
+    next_norm_pos = i < (draw_bins - 1) ? ((i + 1) / max(draw_bins - 1, 1)) : 1.0;
+    next_pixel_freq = sff_pos_to_freq(next_norm_pos, min_freq, max_freq);
     next_pixel_bin = next_pixel_freq / max(bin_hz, 1);
     
     bin_start = max(pixel_bin|0, 0);
     bin_end = min(next_pixel_bin|0, sff_display_bin_count - 1);
     bin_end < bin_start ? (bin_end = bin_start;);
     
-    // Average gains in dB space
-    gain_sum = 0;
-    gain_count = 0;
-    j = bin_start;
-    loop(max(bin_end - bin_start + 1, 0),
-      (j <= bin_end && j < sff_display_bin_count) ? (
-        gain_sum += sff_display_gain_db[j];
-        gain_count += 1;
+    // Skip gain calculation and drawing if bin is outside cut range (using logarithmic position space)
+    (next_norm_pos >= low_cut_pos && norm_pos <= high_cut_pos) ? (
+      // Average gains in dB space
+      gain_sum = 0;
+      gain_count = 0;
+      j = bin_start;
+      loop(max(bin_end - bin_start + 1, 0),
+        (j <= bin_end && j < sff_display_bin_count) ? (
+          gain_sum += sff_display_gain_db[j];
+          gain_count += 1;
+        );
+        j += 1;
       );
-      j += 1;
-    );
-    gain_avg_db = gain_count > 0 ? gain_sum / (gain_count + eps) : 0;
-    
-    // Map -max_adjust_db..+max_adjust_db into 0..1 of the graph height
-    v = sff_clamp((gain_avg_db + max_adjust_db) / (2*max_adjust_db + eps), 0, 1);
-    y = v * (h-8);
-    x1 = x0 + 2 + x_offset + i*bin_w;
-    
-    // Determine opacity: 0.25 if bin coverage is outside low/high cut range
-    (next_pixel_freq < low_cut_hz || pixel_freq > high_cut_hz) ? (
-      opacity = 0.25;
-    ) : (
-      opacity = 1.0;
-    );
-    
-    gfx_set(0.95, 0.85, 0.20, opacity);
-    // Draw horizontal line segment with small margins to prevent connection artifacts
-    gfx_line(x1 + 0.2, y_base - y, x1 + 0.8, y_base - y, 0);
+      gain_avg_db = gain_count > 0 ? gain_sum / (gain_count + eps) : 0;
+      
+      // Map -max_cut_db..+max_boost_db into 0..1 of the graph height
+      v = sff_clamp((gain_avg_db + max_cut_db) / (max_cut_db + max_boost_db + eps), 0, 1);
+      y = v * (h-8);
+      x1 = x0 + 2 + x_offset + i*bin_w;
+      
+      gfx_set(0.95, 0.85, 0.20, 1.0);
+      // Draw horizontal line segment with small margins to prevent connection artifacts
+      gfx_line(x1 + 0.2, y_base - y, x1 + 0.8, y_base - y, 0);
+    ) : 0;
     i += 1;
   );
 
@@ -128,6 +166,82 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   label_y = y_base - ((0 + 24) / 48) * (h-8);  // Center of graph
   gfx_set(0.5, 0.5, 0.5, 0.5);  // Semi-transparent gray line
   gfx_line(x0 + 2, label_y, x0 + 2 + avail_w, label_y, 1);
+
+  // Calculate X positions for lines (always from positions calculated above)
+  // Use same formula as graph rendering: position * (draw_bins - 1) since draw_bins = avail_w
+  low_cut_x = x0 + 2 + low_cut_pos * max(draw_bins - 1, 1);
+  high_cut_x = x0 + 2 + high_cut_pos * max(draw_bins - 1, 1);
+  
+  // Triangle size for handles
+  triangle_size = 6;
+  triangle_top_y = y0 + 2;
+  
+  // Mouse interaction: handle dragging
+  hit_dist = 5;  // Hit test distance in pixels
+  mouse_over_low = abs(mouse_x - low_cut_x) < hit_dist && mouse_y >= triangle_top_y && mouse_y <= triangle_top_y + triangle_size + (h - 4);
+  mouse_over_high = abs(mouse_x - high_cut_x) < hit_dist && mouse_y >= triangle_top_y && mouse_y <= triangle_top_y + triangle_size + (h - 4);
+  
+  // Start dragging on mouse down
+  (mouse_cap & 1) && !(sff_dragging_cut > 0) ? (
+    mouse_over_low ? (sff_dragging_cut = 1;) :
+    mouse_over_high ? (sff_dragging_cut = 2;) : 0;
+  );
+  
+  // Stop dragging on mouse up
+  !(mouse_cap & 1) ? (sff_dragging_cut = 0;) : 0;
+  
+  // Update frequency while dragging
+  sff_dragging_cut > 0 ? (
+    // Convert mouse X position to normalized position (0-1)
+    // Use same calculation as graph rendering: pixel index / (draw_bins - 1)
+    // where pixel index = mouse_x - (x0 + 2), and draw_bins = avail_w
+    new_pos = sff_clamp((mouse_x - (x0 + 2)) / max(draw_bins - 1, 1), 0, 1);
+    
+    // Convert normalized position to frequency using helper function (same as graph rendering)
+    new_freq = sff_pos_to_freq(new_pos, min_freq, max_freq);
+    
+    // Clamp to valid range and ensure low < high
+    new_freq = sff_clamp(new_freq, min_freq, max_freq);
+    
+    sff_dragging_cut == 1 ? (
+      new_freq > high_cut_hz ? (new_freq = high_cut_hz;) : 0;
+      low_cut_hz = new_freq;
+      slider13 = new_freq;
+      sliderchange(1 << 12);  // slider13 = bit 12
+    ) : (
+      new_freq < low_cut_hz ? (new_freq = low_cut_hz;) : 0;
+      high_cut_hz = new_freq;
+      slider14 = new_freq;
+      sliderchange(1 << 13);  // slider14 = bit 13
+    );
+    // Position will be recalculated from frequency on next frame (above)
+  ) : 0;
+  
+  // Draw low cut line and triangle
+  gfx_set(0.9, 0.3, 0.3, 1);  // Red color
+  gfx_line(low_cut_x, triangle_top_y, low_cut_x, y_base, 0);
+  // Draw filled triangle pointing down at top
+  i = 0;
+  loop(triangle_size + 1,
+    v = i / triangle_size;  // 0 to 1
+    // Calculate width at this Y position (triangle gets narrower as we go down)
+    triangle_width = triangle_size * (1 - v);
+    gfx_line(low_cut_x - triangle_width, triangle_top_y + i, low_cut_x + triangle_width, triangle_top_y + i, 0);
+    i += 1;
+  );
+  
+  // Draw high cut line and triangle
+  gfx_set(0.3, 0.9, 0.3, 1);  // Green color
+  gfx_line(high_cut_x, triangle_top_y, high_cut_x, y_base, 0);
+  // Draw filled triangle pointing down at top
+  i = 0;
+  loop(triangle_size + 1,
+    v = i / triangle_size;  // 0 to 1
+    // Calculate width at this Y position (triangle gets narrower as we go down)
+    triangle_width = triangle_size * (1 - v);
+    gfx_line(high_cut_x - triangle_width, triangle_top_y + i, high_cut_x + triangle_width, triangle_top_y + i, 0);
+    i += 1;
+  );
 
   // Draw dB scale on left side (every 6dB from -24 to +24, centered at 0 dB)
   gfx_set(1.0, 1.0, 1.0, 1.0);  // White text
@@ -150,6 +264,58 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
     ) : 0;
     db_val += 6;
   );
+
+  // Draw frequency labels at bottom (at same level as -24 dB label)
+  // Calculate Y position for -24 dB label
+  label_y = y_base - (((-24) + 24) / 48) * (h-8);  // Same Y position as -24 dB label (y_base)
+  
+  // 1. End of 1st bin
+  freq1 = bin_hz;
+  // 2. Divide remaining range (from freq1 to max_freq) into 3 equal parts logarithmically
+  // Use conversion functions to ensure consistency with graph rendering
+  pos1 = sff_freq_to_pos(freq1, min_freq, max_freq);
+  pos_max = 1.0;  // Position of max_freq
+  pos_range = pos_max - pos1;
+  pos_div1 = pos1 + pos_range / 3;  // End of first third
+  pos_div2 = pos1 + 2 * pos_range / 3;  // End of second third
+  freq_div1 = sff_pos_to_freq(pos_div1, min_freq, max_freq);
+  freq_div2 = sff_pos_to_freq(pos_div2, min_freq, max_freq);
+  
+  // Draw label 1: End of 1st bin
+  label_pos = sff_freq_to_pos(freq1, min_freq, max_freq);
+  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  freq1 >= 1000 ? (
+    sprintf(#sff_tmp_str, "%.1fkHz", freq1 * 0.001);
+  ) : (
+    sprintf(#sff_tmp_str, "%.0fHz", freq1);
+  );
+  gfx_x = label_x;
+  gfx_y = label_y - 6;
+  gfx_drawstr(#sff_tmp_str);
+  
+  // Draw label 2: End of first third
+  label_pos = sff_freq_to_pos(freq_div1, min_freq, max_freq);
+  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  freq_div1 >= 1000 ? (
+    sprintf(#sff_tmp_str, "%.1fkHz", freq_div1 * 0.001);
+  ) : (
+    sprintf(#sff_tmp_str, "%.0fHz", freq_div1);
+  );
+  gfx_x = label_x;
+  gfx_y = label_y - 6;
+  gfx_drawstr(#sff_tmp_str);
+  
+  // Draw label 3: End of second third
+  label_pos = sff_freq_to_pos(freq_div2, min_freq, max_freq);
+  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  freq_div2 >= 1000 ? (
+    sprintf(#sff_tmp_str, "%.1fkHz", freq_div2 * 0.001);
+  ) : (
+    sprintf(#sff_tmp_str, "%.0fHz", freq_div2);
+  );
+  gfx_x = label_x;
+  gfx_y = label_y - 6;
+  gfx_drawstr(#sff_tmp_str);
 
 );
 

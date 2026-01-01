@@ -20,107 +20,84 @@ function sff_median_sort_buf(count) local(i, j, tmp) (
   sff_median_buf[(count*0.5)|0];
 );
 
-function sff_median_target_lin(mag_base, bin, radius) local(npos, rad, d, idx, count) (
+// Helper: Get magnitude value for bin (mono or stereo)
+function sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo) (
+  is_stereo ? sff_stereo_avg(magL_base[bin], magR_base[bin]) : mag_base[bin];
+);
+
+// Helper: Collect neighbor magnitudes into median buffer
+function sff_collect_neighbor_mags(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, rad, d, idx, count) (
   npos = pos_bin_count|0;
   rad = sff_clamp(radius, 1, SFF_MAX_MEDIAN_RADIUS);
-  // Exclude current bin - only use neighbors for target calculation
   count = 0;
   d = -rad;
   loop(rad*2 + 1,
     d != 0 ? (  // Skip current bin (d=0)
       idx = bin + d;
       idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
-      sff_median_buf[count] = mag_base[idx];
+      sff_median_buf[count] = sff_get_mag_value(mag_base, magL_base, magR_base, idx, is_stereo);
       count += 1;
     ) : 0;
     d += 1;
   );
+  count;
+);
+
+function sff_median_target_lin(mag_base, bin, radius) local(count) (
+  count = sff_collect_neighbor_mags(mag_base, 0, 0, bin, radius, 0);
   count > 0 ? sff_median_sort_buf(count) : mag_base[bin];
 );
 
-function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, rad, d, idx, count) (
+function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(count) (
+  count = sff_collect_neighbor_mags(0, magL_base, magR_base, bin, radius, 1);
+  count > 0 ? sff_median_sort_buf(count) : sff_stereo_avg(magL_base[bin], magR_base[bin]);
+);
+
+// Helper: Weighted mean neighbor calculation (shared by mono/stereo)
+function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, d, sum, sumw, w, idxL, idxR, v) (
   npos = pos_bin_count|0;
-  rad = sff_clamp(radius, 1, SFF_MAX_MEDIAN_RADIUS);
-  // Exclude current bin - only use neighbors for target calculation
-  count = 0;
-  d = -rad;
-  loop(rad*2 + 1,
-    d != 0 ? (  // Skip current bin (d=0)
-      idx = bin + d;
-      idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
-      sff_median_buf[count] = 0.5 * (magL_base[idx] + magR_base[idx]);
-      count += 1;
+  sum = 0;
+  sumw = 0;
+  d = 1;
+  loop(radius,
+    w = 1.0 / (d + eps);
+    idxL = bin - d;
+    idxL >= 0 ? (
+      v = sff_get_mag_value(mag_base, magL_base, magR_base, idxL, is_stereo);
+      sum += v * w;
+      sumw += w;
+    ) : 0;
+    idxR = bin + d;
+    idxR < npos ? (
+      v = sff_get_mag_value(mag_base, magL_base, magR_base, idxR, is_stereo);
+      sum += v * w;
+      sumw += w;
     ) : 0;
     d += 1;
   );
-  count > 0 ? sff_median_sort_buf(count) : (0.5 * (magL_base[bin] + magR_base[bin]));
+  sumw > 0 ? (sum / sumw) : sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
 );
 
-function sff_neighbor_target_lin(mag_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR) (
+function sff_neighbor_target_lin(mag_base, bin, radius) (
   neighbor_mode == 1 ? (
-    // Median over current radius (2*radius+1 window)
     sff_median_target_lin(mag_base, bin, radius);
   ) : (
-    npos = pos_bin_count|0;
-    sum = 0;
-    sumw = 0;
-    d = 1;
-    loop(radius,
-      w = 1.0 / (d + eps);
-
-      idxL = bin - d;
-      idxL >= 0 ? (
-        sum += mag_base[idxL] * w;
-        sumw += w;
-      ) : 0;
-
-      idxR = bin + d;
-      idxR < npos ? (
-        sum += mag_base[idxR] * w;
-        sumw += w;
-      ) : 0;
-
-      d += 1;
-    );
-    sumw > 0 ? (sum / sumw) : mag_base[bin];
+    sff_weighted_mean_neighbors(mag_base, 0, 0, bin, radius, 0);
   );
 );
 
-function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) local(npos, d, sum, sumw, w, idxL, idxR, v) (
+function sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius) (
   neighbor_mode == 1 ? (
     sff_median_target_lin_stereo(magL_base, magR_base, bin, radius);
   ) : (
-    npos = pos_bin_count|0;
-    sum = 0;
-    sumw = 0;
-    d = 1;
-    loop(radius,
-      w = 1.0 / (d + eps);
-
-      idxL = bin - d;
-      idxL >= 0 ? (
-        v = 0.5 * (magL_base[idxL] + magR_base[idxL]);
-        sum += v * w;
-        sumw += w;
-      ) : 0;
-
-      idxR = bin + d;
-      idxR < npos ? (
-        v = 0.5 * (magL_base[idxR] + magR_base[idxR]);
-        sum += v * w;
-        sumw += w;
-      ) : 0;
-
-      d += 1;
-    );
-    sumw > 0 ? (sum / sumw) : (0.5 * (magL_base[bin] + magR_base[bin]));
+    sff_weighted_mean_neighbors(0, magL_base, magR_base, bin, radius, 1);
   );
 );
 
 function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   // Band-pass processing: bins outside cutoff range are dry
   (bin < low_cut_bin || bin > high_cut_bin) ? 0 : (
-    hz = bin * bin_hz;
+    hz = sff_bin_to_hz(bin);
     band = sff_get_band_index_for_hz(hz);
 
     sff_get_band_enabled(band) ? (
@@ -153,38 +130,36 @@ function sff_apply_delta_shaping(delta, mag_lin) local(knee, expv, a, shaped_del
 );
 
 // Helper function: compute base delta from magnitude and target
-function sff_compute_base_delta(mag_lin, target_lin, bin) local(tilt, ratio) (
-  tilt = sff_tilt_lin[bin];
-  ratio = (target_lin * tilt) / (mag_lin + eps);
+function sff_compute_base_delta(mag_lin, target_lin, bin) local(ratio) (
+  ratio = target_lin / (mag_lin + eps);
   sff_linear_to_db(max(ratio, eps));
 );
 
-function sff_compute_delta_db_for_bin(mag_base, bin, radius) local(mag_lin, hz, band, radius_eff, target_lin, delta) (
-  mag_lin = mag_base[bin];
-  sff_bin_is_active(bin, mag_lin) ? (
-    // Per-band radius scaling (ignored by median modes, but used by weighted mean)
-    hz = bin * bin_hz;
-    band = sff_get_band_index_for_hz(hz);
-    radius_eff = floor(max(1, radius * sff_get_band_radius_mul(band)) + 0.5);
-    radius_eff = sff_clamp(radius_eff, 1, 24);
+// Helper: Compute effective radius with band scaling
+function sff_compute_effective_radius(bin, radius) local(hz, band) (
+  hz = sff_bin_to_hz(bin);
+  band = sff_get_band_index_for_hz(hz);
+  sff_clamp(floor(max(1, radius * sff_get_band_radius_mul(band)) + 0.5), 1, 24);
+);
 
-    target_lin = sff_neighbor_target_lin(mag_base, bin, radius_eff);
+// Unified delta computation (handles both mono and stereo)
+function sff_compute_delta_db_unified(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(mag_lin, radius_eff, target_lin, delta) (
+  mag_lin = sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
+  sff_bin_is_active(bin, mag_lin) ? (
+    radius_eff = sff_compute_effective_radius(bin, radius);
+    target_lin = is_stereo ? 
+      sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff) :
+      sff_neighbor_target_lin(mag_base, bin, radius_eff);
     delta = sff_compute_base_delta(mag_lin, target_lin, bin);
     sff_apply_delta_shaping(delta, mag_lin);
   ) : 0;
 );
 
-function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) local(mag_lin, hz, band, radius_eff, target_lin, delta) (
-  mag_lin = 0.5 * (magL_base[bin] + magR_base[bin]);
-  sff_bin_is_active(bin, mag_lin) ? (
-    hz = bin * bin_hz;
-    band = sff_get_band_index_for_hz(hz);
-    radius_eff = floor(max(1, radius * sff_get_band_radius_mul(band)) + 0.5);
-    radius_eff = sff_clamp(radius_eff, 1, 24);
+function sff_compute_delta_db_for_bin(mag_base, bin, radius) (
+  sff_compute_delta_db_unified(mag_base, 0, 0, bin, radius, 0);
+);
 
-    target_lin = sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff);
-    delta = sff_compute_base_delta(mag_lin, target_lin, bin);
-    sff_apply_delta_shaping(delta, mag_lin);
-  ) : 0;
+function sff_compute_delta_db_for_bin_link(magL_base, magR_base, bin, radius) (
+  sff_compute_delta_db_unified(0, magL_base, magR_base, bin, radius, 1);
 );
 
