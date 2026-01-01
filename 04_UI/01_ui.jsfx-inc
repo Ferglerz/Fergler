@@ -5,21 +5,63 @@
 // UI drag state (persists across function calls)
 sff_dragging_cut = 0;  // 0=none, 1=low_cut, 2=high_cut
 
-// Convert normalized position (0-1) to frequency using pure logarithmic mapping
-function sff_pos_to_freq(pos, local_min_freq, local_max_freq) local(freq_log_min, freq_log_max, freq_log_range) (
+// Frequency mapping blend: 0.0 = pure linear, 1.0 = pure logarithmic
+sff_freq_map_log_amount = 0.75;  // 75% logarithmic, 25% linear
+
+// Convert normalized position (0-1) to frequency using blended linear/logarithmic mapping
+function sff_pos_to_freq(pos, local_min_freq, local_max_freq) local(linear_freq, log_freq, freq_log_min, freq_log_max, freq_log_range) (
+  // Linear mapping
+  linear_freq = local_min_freq + (local_max_freq - local_min_freq) * pos;
+  // Logarithmic mapping
   freq_log_min = log(max(local_min_freq, 1));
   freq_log_max = log(max(local_max_freq, local_min_freq + 1));
   freq_log_range = freq_log_max - freq_log_min;
-  exp(freq_log_min + freq_log_range * pos);
+  log_freq = exp(freq_log_min + freq_log_range * pos);
+  // Blend: 75% log, 25% linear
+  linear_freq * (1 - sff_freq_map_log_amount) + log_freq * sff_freq_map_log_amount;
 );
 
-// Convert frequency to normalized position (0-1) using pure logarithmic mapping
-function sff_freq_to_pos(freq, local_min_freq, local_max_freq) local(freq_log_min, freq_log_max, freq_log_range, pos) (
+// Convert frequency to normalized position (0-1) using blended linear/logarithmic mapping
+function sff_freq_to_pos(freq, local_min_freq, local_max_freq) local(pos, test_freq, test_linear, test_log, pos_step, iter, freq_log_min, freq_log_max, freq_log_range, freq_range, error, best_pos, best_error, derivative) (
+  // Reverse mapping: frequency to normalized position (0-1) using blended mapping
+  // Use iterative approximation starting from log position
   freq_log_min = log(max(local_min_freq, 1));
   freq_log_max = log(max(local_max_freq, local_min_freq + 1));
   freq_log_range = freq_log_max - freq_log_min;
+  freq_range = local_max_freq - local_min_freq;
   pos = (log(max(freq, 1)) - freq_log_min) / freq_log_range;
-  sff_clamp(pos, 0, 1);
+  pos = sff_clamp(pos, 0, 1);
+  best_pos = pos;
+  best_error = abs(freq - sff_pos_to_freq(pos, local_min_freq, local_max_freq));
+  // Refine with Newton-Raphson method, keeping track of best result
+  iter = 0;
+  loop(15,
+    test_linear = local_min_freq + freq_range * pos;
+    test_log = exp(freq_log_min + freq_log_range * pos);
+    test_freq = test_linear * (1 - sff_freq_map_log_amount) + test_log * sff_freq_map_log_amount;
+    error = abs(freq - test_freq);
+    error < best_error ? (
+      best_error = error;
+      best_pos = pos;
+    ) : 0;
+    // Calculate derivative for Newton-Raphson
+    derivative = freq_range * (1 - sff_freq_map_log_amount) + freq_log_range * test_log * sff_freq_map_log_amount;
+    // Newton-Raphson update: pos = pos - f(pos) / f'(pos)
+    pos_step = (freq - test_freq) / (derivative + eps);
+    pos = sff_clamp(pos + pos_step, 0, 1);
+    iter += 1;
+  );
+  best_pos;
+);
+
+// Convert normalized position (0-1) to X coordinate in graph
+// This matches exactly how pixels are positioned
+// Pixel i is drawn at: x0 + 2 + x_offset + i*bin_w where x_offset=0, bin_w=1
+// For pixel i: norm_pos = i / max(draw_bins - 1, 1)
+// Reverse: i = norm_pos * max(draw_bins - 1, 1)
+// So: X = x0 + 2 + norm_pos * max(draw_bins - 1, 1)
+function sff_pos_to_x(pos, graph_x0, draw_bins) (
+  graph_x0 + 2 + pos * max(draw_bins - 1, 1);
 );
 
 function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y, freq1, freq_div1, freq_div2, label_freq, label_log, label_pos, label_x, low_cut_x, high_cut_x, triangle_size, mouse_over_low, mouse_over_high, new_freq, new_pos, hit_dist, norm_pos, low_cut_pos, high_cut_pos, next_norm_pos, new_cut_x, pos1, pos_max, pos_range, pos_div1, pos_div2, x1, triangle_top_y, triangle_width) (
@@ -168,9 +210,9 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   gfx_line(x0 + 2, label_y, x0 + 2 + avail_w, label_y, 1);
 
   // Calculate X positions for lines (always from positions calculated above)
-  // Use same formula as graph rendering: position * (draw_bins - 1) since draw_bins = avail_w
-  low_cut_x = x0 + 2 + low_cut_pos * max(draw_bins - 1, 1);
-  high_cut_x = x0 + 2 + high_cut_pos * max(draw_bins - 1, 1);
+  // Use helper function to ensure exact match with graph pixel positioning
+  low_cut_x = sff_pos_to_x(low_cut_pos, x0, draw_bins);
+  high_cut_x = sff_pos_to_x(high_cut_pos, x0, draw_bins);
   
   // Triangle size for handles
   triangle_size = 6;
@@ -283,7 +325,7 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   
   // Draw label 1: End of 1st bin
   label_pos = sff_freq_to_pos(freq1, min_freq, max_freq);
-  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  label_x = sff_pos_to_x(label_pos, x0, draw_bins);
   freq1 >= 1000 ? (
     sprintf(#sff_tmp_str, "%.1fkHz", freq1 * 0.001);
   ) : (
@@ -295,7 +337,7 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   
   // Draw label 2: End of first third
   label_pos = sff_freq_to_pos(freq_div1, min_freq, max_freq);
-  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  label_x = sff_pos_to_x(label_pos, x0, draw_bins);
   freq_div1 >= 1000 ? (
     sprintf(#sff_tmp_str, "%.1fkHz", freq_div1 * 0.001);
   ) : (
@@ -307,7 +349,7 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   
   // Draw label 3: End of second third
   label_pos = sff_freq_to_pos(freq_div2, min_freq, max_freq);
-  label_x = x0 + 2 + label_pos * max(draw_bins - 1, 1);
+  label_x = sff_pos_to_x(label_pos, x0, draw_bins);
   freq_div2 >= 1000 ? (
     sprintf(#sff_tmp_str, "%.1fkHz", freq_div2 * 0.001);
   ) : (
