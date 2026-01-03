@@ -1,199 +1,104 @@
-// Surround FFT Flattener - UI Rendering Helpers
+// UI Rendering Helpers (Simplified)
+@init 
 
-@init
-
-// Draw Catmull-Rom spline curve between two points
-// p0, p1, p2, p3 are control points (p1 and p2 are the endpoints of the segment)
-// draw_bins: maximum number of interpolation steps
-// color_*: RGBA color values
-function sff_draw_catmull_rom_spline(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y,
-                                     draw_bins, color_r, color_g, color_b, color_a) local(
-  x_dist, interp_steps, interp_step_inv, prev_interp_x, prev_interp_y, k, t, t2, t3,
-  a0_x, a1_x, a2_x, a3_x, a0_y, a1_y, a2_y, a3_y, interp_x, interp_y,
-  prev_x_int, interp_x_int, p2_x_int
-) (
-  // Calculate number of interpolation steps based on distance
-  // Limit to at most 1 step per pixel, and ensure we don't exceed graph width
-  x_dist = abs(p2_x - p1_x);
-  interp_steps = max((x_dist)|0, 1);  // At least 1 step per pixel
-  interp_steps = min(interp_steps, draw_bins);  // Never exceed graph width
-  interp_step_inv = 1.0 / interp_steps;
-  
-  // Draw Catmull-Rom spline segments
-  prev_interp_x = p1_x;
-  prev_interp_y = p1_y;
+// Catmull-Rom spline helper
+function sff_draw_catmull_rom_spline(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, draw_bins, r, g, b, a) local(
+  steps, t, x0, y0, x1, y1, k
+)(
+  steps = min(max(abs(p2_x-p1_x)|0,1),draw_bins);
+  x0 = p1_x; y0 = p1_y;
   k = 1;
-  loop(interp_steps,
-    t = k * interp_step_inv;  // 0 to 1
-    // Catmull-Rom spline interpolation
-    t2 = t * t;
-    t3 = t2 * t;
-    // Catmull-Rom coefficients
-    a0_x = -0.5 * p0_x + 1.5 * p1_x - 1.5 * p2_x + 0.5 * p3_x;
-    a1_x = p0_x - 2.5 * p1_x + 2.0 * p2_x - 0.5 * p3_x;
-    a2_x = -0.5 * p0_x + 0.5 * p2_x;
-    a3_x = p1_x;
-    interp_x = a0_x * t3 + a1_x * t2 + a2_x * t + a3_x;
-    
-    a0_y = -0.5 * p0_y + 1.5 * p1_y - 1.5 * p2_y + 0.5 * p3_y;
-    a1_y = p0_y - 2.5 * p1_y + 2.0 * p2_y - 0.5 * p3_y;
-    a2_y = -0.5 * p0_y + 0.5 * p2_y;
-    a3_y = p1_y;
-    interp_y = a0_y * t3 + a1_y * t2 + a2_y * t + a3_y;
-    
-    // Round X coordinates to integers for consistent pixel alignment
-    prev_x_int = prev_interp_x|0;
-    interp_x_int = interp_x|0;
-    
-    // Draw line segment
-    gfx_set(color_r, color_g, color_b, color_a);
-    gfx_line(prev_x_int, prev_interp_y, interp_x_int, interp_y, 0);
-    
-    // Store for next segment (keep floating point for smooth interpolation)
-    prev_interp_x = interp_x;
-    prev_interp_y = interp_y;
-    k += 1;
+  loop(steps,
+    t = k/steps;
+    x1 = ((-0.5*p0_x+1.5*p1_x-1.5*p2_x+0.5*p3_x)*t*t*t
+         +(p0_x-2.5*p1_x+2.0*p2_x-0.5*p3_x)*t*t
+         +(-0.5*p0_x+0.5*p2_x)*t
+         +p1_x);
+    y1 = ((-0.5*p0_y+1.5*p1_y-1.5*p2_y+0.5*p3_y)*t*t*t
+         +(p0_y-2.5*p1_y+2.0*p2_y-0.5*p3_y)*t*t
+         +(-0.5*p0_y+0.5*p2_y)*t
+         +p1_y);
+    gfx_set(r,g,b,a);
+    gfx_line(x0|0,y0,x1|0,y1,0);
+    x0 = x1; y0 = y1; k+=1;
   );
-  // Draw final segment to actual point (round X coordinates)
-  prev_x_int = prev_interp_x|0;
-  p2_x_int = p2_x|0;
-  gfx_set(color_r, color_g, color_b, color_a);
-  gfx_line(prev_x_int, prev_interp_y, p2_x_int, p2_y, 0);
+  gfx_set(r,g,b,a);
+  gfx_line(x0|0,y0,p2_x|0,p2_y,0);
 );
 
-// Draw Catmull-Rom spline with filled area underneath
-// Same as above but also draws filled rectangles from baseline to curve
-function sff_draw_catmull_rom_spline_filled(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y,
-                                            draw_bins, y_base, color_line_r, color_line_g, color_line_b, color_line_a,
-                                            color_fill_r, color_fill_g, color_fill_b, color_fill_a) local(
-  x_dist, interp_steps, interp_step_inv, prev_interp_x, prev_interp_y, k, t, t2, t3,
-  a0_x, a1_x, a2_x, a3_x, a0_y, a1_y, a2_y, a3_y, interp_x, interp_y,
-  prev_x_int, interp_x_int, p2_x_int, seg_x, seg_x_end, seg_width, seg_top_y, seg_bottom_y, seg_height
-) (
-  // Calculate number of interpolation steps based on distance
-  x_dist = abs(p2_x - p1_x);
-  interp_steps = max((x_dist)|0, 1);
-  interp_steps = min(interp_steps, draw_bins);
-  interp_step_inv = 1.0 / interp_steps;
-  
-  // Draw Catmull-Rom spline segments with filled area
-  prev_interp_x = p1_x;
-  prev_interp_y = p1_y;
+// Catmull-Rom spline + filled area helper
+function sff_draw_catmull_rom_spline_filled(
+  p0_x,p0_y,p1_x,p1_y,p2_x,p2_y,p3_x,p3_y,
+  draw_bins, y_base,
+  rL,gL,bL,aL,rF,gF,bF,aF
+) local(
+  steps, t, x0, y0, x1, y1, k, sx,sxe,sw,sty,sh
+)(
+  steps = min(max(abs(p2_x-p1_x)|0,1),draw_bins);
+  x0 = p1_x; y0 = p1_y;
   k = 1;
-  loop(interp_steps,
-    t = k * interp_step_inv;
-    // Catmull-Rom spline interpolation
-    t2 = t * t;
-    t3 = t2 * t;
-    a0_x = -0.5 * p0_x + 1.5 * p1_x - 1.5 * p2_x + 0.5 * p3_x;
-    a1_x = p0_x - 2.5 * p1_x + 2.0 * p2_x - 0.5 * p3_x;
-    a2_x = -0.5 * p0_x + 0.5 * p2_x;
-    a3_x = p1_x;
-    interp_x = a0_x * t3 + a1_x * t2 + a2_x * t + a3_x;
-    
-    a0_y = -0.5 * p0_y + 1.5 * p1_y - 1.5 * p2_y + 0.5 * p3_y;
-    a1_y = p0_y - 2.5 * p1_y + 2.0 * p2_y - 0.5 * p3_y;
-    a2_y = -0.5 * p0_y + 0.5 * p2_y;
-    a3_y = p1_y;
-    interp_y = a0_y * t3 + a1_y * t2 + a2_y * t + a3_y;
-    
-    // Round X coordinates to integers to avoid rounding errors
-    prev_x_int = prev_interp_x|0;
-    interp_x_int = interp_x|0;
-    
-    // Draw filled area (rectangle from baseline to curve)
-    seg_x = min(prev_x_int, interp_x_int);
-    seg_x_end = max(prev_x_int, interp_x_int);
-    seg_width = seg_x_end - seg_x;
-    seg_top_y = min(prev_interp_y, interp_y);  // Top of curve (smaller Y = higher on screen)
-    seg_bottom_y = y_base;  // Bottom at baseline
-    seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
-    gfx_set(color_fill_r, color_fill_g, color_fill_b, color_fill_a);
-    (seg_width > 0 && seg_height > 0) ? (
-      gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
-    ) : 0;
-    
-    // Draw curve line
-    gfx_set(color_line_r, color_line_g, color_line_b, color_line_a);
-    gfx_line(prev_x_int, prev_interp_y, interp_x_int, interp_y, 0);
-    
-    // Store for next segment
-    prev_interp_x = interp_x;
-    prev_interp_y = interp_y;
-    k += 1;
+  loop(steps,
+    t = k/steps;
+    x1 = ((-0.5*p0_x+1.5*p1_x-1.5*p2_x+0.5*p3_x)*t*t*t
+         +(p0_x-2.5*p1_x+2.0*p2_x-0.5*p3_x)*t*t
+         +(-0.5*p0_x+0.5*p2_x)*t
+         +p1_x);
+    y1 = ((-0.5*p0_y+1.5*p1_y-1.5*p2_y+0.5*p3_y)*t*t*t
+         +(p0_y-2.5*p1_y+2.0*p2_y-0.5*p3_y)*t*t
+         +(-0.5*p0_y+0.5*p2_y)*t
+         +p1_y);
+    sx = min(x0|0,x1|0); sxe = max(x0|0,x1|0);
+    sw=sxe-sx; sty = min(y0,y1); sh = y_base-sty;
+    gfx_set(rF,gF,bF,aF); (sw>0&&sh>0) ? gfx_rect(sx,sty,sw,sh);
+    gfx_set(rL,gL,bL,aL); gfx_line(x0|0,y0,x1|0,y1,0);
+    x0 = x1; y0 = y1; k+=1;
   );
-  // Draw final segment to actual point
-  prev_x_int = prev_interp_x|0;
-  p2_x_int = p2_x|0;
-  seg_x = min(prev_x_int, p2_x_int);
-  seg_x_end = max(prev_x_int, p2_x_int);
-  seg_width = seg_x_end - seg_x;
-  seg_top_y = min(prev_interp_y, p2_y);
-  seg_bottom_y = y_base;
-  seg_height = seg_bottom_y - seg_top_y;
-  gfx_set(color_fill_r, color_fill_g, color_fill_b, color_fill_a);
-  (seg_width > 0 && seg_height > 0) ? (
-    gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
-  ) : 0;
-  gfx_set(color_line_r, color_line_g, color_line_b, color_line_a);
-  gfx_line(prev_x_int, prev_interp_y, p2_x_int, p2_y, 0);
+  sx = min(x0|0,p2_x|0); sxe = max(x0|0,p2_x|0); sw = sxe-sx; sty = min(y0,p2_y); sh = y_base-sty;
+  gfx_set(rF,gF,bF,aF); (sw>0&&sh>0) ? gfx_rect(sx,sty,sw,sh);
+  gfx_set(rL,gL,bL,aL); gfx_line(x0|0,y0,p2_x|0,p2_y,0);
 );
 
-// Draw filled triangle pointing down
-function sff_draw_triangle(x, y_top, size, color_r, color_g, color_b) local(i, v, triangle_width, size_inv) (
-  size_inv = 1.0 / size;
-  i = 0;
-  loop(size + 1,
-    v = i * size_inv;  // 0 to 1
-    // Calculate width at this Y position (triangle gets narrower as we go down)
-    triangle_width = size * (1 - v);
-    gfx_set(color_r, color_g, color_b, 1);
-    gfx_line(x - triangle_width, y_top + i, x + triangle_width, y_top + i, 0);
-    i += 1;
+// Draw downward triangle
+function sff_draw_triangle(x, y, size, r,g,b) local(i,v,w)(
+  i=0;
+  loop(size+1,
+    v = i/size; w = size*(1-v);
+    gfx_set(r,g,b,1);
+    gfx_line(x-w, y+i, x+w, y+i, 0);
+    i+=1;
   );
 );
 
-// Draw vertical line with optional triangle at top
-function sff_draw_cut_line(x, y_top, y_bottom, triangle_size, color_r, color_g, color_b) (
-  gfx_set(color_r, color_g, color_b, 1);
-  gfx_line(x, y_top, x, y_bottom, 0);
-  triangle_size > 0 ? (
-    sff_draw_triangle(x, y_top, triangle_size, color_r, color_g, color_b);
-  ) : 0;
+// Draw vertical line and optional triangle on top
+function sff_draw_cut_line(x, y_top, y_bottom, tri_size, r,g,b)(
+  gfx_set(r,g,b,1); gfx_line(x, y_top, x, y_bottom, 0);
+  tri_size>0 ? sff_draw_triangle(x, y_top, tri_size, r,g,b):0;
 );
 
 // Draw a single dB label
-function sff_draw_db_label(db_val, x, y_base, h, gain_scale_inv, show_plus_sign) local(label_y) (
-  // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
-  label_y = y_base - (db_val + 12) * gain_scale_inv * (h - 8);
-  show_plus_sign && db_val > 0 ? (
-    sprintf(#sff_tmp_str, "+%.0fdB", db_val);
-  ) : (
-    sprintf(#sff_tmp_str, "%.0fdB", db_val);
-  );
-  gfx_set(SFF_COLOR_TEXT_R, SFF_COLOR_TEXT_G, SFF_COLOR_TEXT_B, 1.0);
-  gfx_x = x;
-  gfx_y = label_y - SFF_LABEL_OFFSET_Y;
+function sff_draw_db_label(db, x, y_base, h, inv_scale, plus) local(y)(
+  y = y_base - (db+12)*inv_scale*(h-8);
+  plus && db>0 ? sprintf(#sff_tmp_str,"+%.0fdB",db)
+               : sprintf(#sff_tmp_str,"%.0fdB",db);
+  gfx_set(SFF_COLOR_TEXT_R,SFF_COLOR_TEXT_G,SFF_COLOR_TEXT_B,1);
+  gfx_x=x; gfx_y=y-SFF_LABEL_OFFSET_Y;
   gfx_drawstr(#sff_tmp_str);
 );
 
-// Draw multiple dB labels in a range
-function sff_draw_db_labels(start_db, end_db, step_db, x, y_base, h, gain_scale_inv, show_plus_sign) local(db_val) (
-  db_val = start_db;
-  loop((end_db - start_db) / step_db + 1,
-    sff_draw_db_label(db_val, x, y_base, h, gain_scale_inv, show_plus_sign);
-    db_val += step_db;
+// Draw many dB labels
+function sff_draw_db_labels(start_db, end_db, step, x, y_base, h, inv_scale, plus) local(db)(
+  db=start_db;
+  loop((end_db-start_db)/step+1,
+    sff_draw_db_label(db, x, y_base, h, inv_scale, plus); db+=step;
   );
 );
 
-// Draw a single frequency label
-function sff_draw_frequency_label(freq_hz, min_freq, max_freq, x0, draw_bins, label_y, label_text) local(label_pos, label_x) (
-  label_pos = sff_freq_to_pos(freq_hz, min_freq, max_freq);
-  label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, label_text);
-  gfx_set(SFF_COLOR_TEXT_R, SFF_COLOR_TEXT_G, SFF_COLOR_TEXT_B, 1.0);
-  gfx_x = label_x;
-  gfx_y = label_y - SFF_LABEL_OFFSET_Y;
+// Draw a frequency label
+function sff_draw_frequency_label(f, min_f, max_f, x0, bins, y, txt) local(p, lx)(
+  p = sff_freq_to_pos(f,min_f,max_f);
+  lx = sff_pos_to_x(p, x0, bins);
+  sprintf(#sff_tmp_str, txt);
+  gfx_set(SFF_COLOR_TEXT_R,SFF_COLOR_TEXT_G,SFF_COLOR_TEXT_B,1);
+  gfx_x=lx; gfx_y=y-SFF_LABEL_OFFSET_Y;
   gfx_drawstr(#sff_tmp_str);
 );
-

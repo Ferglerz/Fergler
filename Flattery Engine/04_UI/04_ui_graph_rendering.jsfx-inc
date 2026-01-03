@@ -2,286 +2,113 @@
 
 @init
 
-// Draw background with alternating bin shading
-function sff_draw_background(x0, y0, w, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(i, norm_pos, pixel_freq, pixel_bin, bin_start) (
-  // Draw alternating background shading based on actual bin indices
+// Simplified background drawing with alternating colors
+function sff_draw_background(x0, y0, w, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(i, even) (
   i = 0;
   loop(draw_bins,
-    // Map pixel position to frequency (logarithmic)
-    norm_pos = i * draw_bins_inv;
-    pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
-    pixel_bin = pixel_freq * (1.0 / max(bin_hz, 1));
-    
-    // Determine which bin this pixel represents
-    bin_start = max(pixel_bin|0, 0);
-    
-    // Alternate based on bin index, not pixel index
-    (bin_start % 2) == 0 ? (
-      gfx_set(SFF_COLOR_BG_EVEN_R, SFF_COLOR_BG_EVEN_G, SFF_COLOR_BG_EVEN_B, 1);
-    ) : (
-      gfx_set(SFF_COLOR_BG_ODD_R, SFF_COLOR_BG_ODD_G, SFF_COLOR_BG_ODD_B, 1);
+    even = ((i * bin_hz) % 2) == 0;
+    gfx_set(
+      even ? SFF_COLOR_BG_EVEN_R : SFF_COLOR_BG_ODD_R,
+      even ? SFF_COLOR_BG_EVEN_G : SFF_COLOR_BG_ODD_G,
+      even ? SFF_COLOR_BG_EVEN_B : SFF_COLOR_BG_ODD_B,
+      1
     );
     gfx_rect(x0 + SFF_UI_INNER_MARGIN + i * SFF_UI_BAR_WIDTH, y0 + SFF_UI_INNER_MARGIN, SFF_UI_BAR_WIDTH, h - 8);
     i += 1;
   );
-  
-  // Frame border (drawn after bins so it's on top)
+  // Draw border
   gfx_set(SFF_COLOR_BORDER_R, SFF_COLOR_BORDER_G, SFF_COLOR_BORDER_B, 1);
-  gfx_line(x0, y0, x0 + w, y0, 0);  // Top
-  gfx_line(x0 + w, y0, x0 + w, y0 + h, 0);  // Right
-  gfx_line(x0 + w, y0 + h, x0, y0 + h, 0);  // Bottom
-  gfx_line(x0, y0 + h, x0, y0, 0);  // Left
+  gfx_line(x0, y0, x0 + w, y0, 0);
+  gfx_line(x0 + w, y0, x0 + w, y0 + h, 0);
+  gfx_line(x0 + w, y0 + h, x0, y0 + h, 0);
+  gfx_line(x0, y0 + h, x0, y0, 0);
 );
 
-// Draw magnitude curve with filled area
-function sff_draw_magnitude_curve(x0, y_base, h, draw_bins, min_freq, max_freq, low_cut_hz, high_cut_hz) local(
-  i, j, mag_point_idx, bin_center_freq, bin_center_pos, mag_x, mag_avg_db, mag_v, mag_height, mag_y,
-  mag_p0_x, mag_p0_y, mag_p1_x, mag_p1_y, mag_p2_x, mag_p2_y, mag_p3_x, mag_p3_y,
-  mag_prev_prev_x, mag_prev_prev_y, mag_prev_x, mag_prev_y,
-  next_bin_center_freq, next_bin_center_pos, next_mag_avg_db, next_mag_v, next_mag_height,
-  mag_db_scale_inv
-) (
-  mag_db_scale_inv = 1.0 / SFF_MAGNITUDE_DB_SCALE;
-  mag_point_idx = 0;
+// Simplified magnitude curve drawing
+function sff_draw_magnitude_curve(x0, y_base, h, draw_bins, min_freq, max_freq, low_cut_hz, high_cut_hz) local(i, x, y, lastx, lasty, v, mag_avg_db, scale) (
+  scale = 1.0 / SFF_MAGNITUDE_DB_SCALE;
+  lastx = lasty = -1;
   i = 0;
   loop(sff_display_bin_count,
-    // Get bin center frequency (bin k center is at (k + 0.5) * bin_hz)
-    bin_center_freq = (i + 0.5) * bin_hz;
-    
-    // Check if bin is within cut range
-    (bin_center_freq >= low_cut_hz && bin_center_freq <= high_cut_hz) ? (
-      // Convert bin center frequency to normalized position
-      bin_center_pos = sff_freq_to_pos(bin_center_freq, min_freq, max_freq);
-      
-      // Convert position to X coordinate (exact center point of bin)
-      mag_x = sff_pos_to_x(bin_center_pos, x0, draw_bins);
-      
-      // Get magnitude for this bin (already in dB)
-      mag_avg_db = sff_display_mag_db[i];
-      
-      // Map input signal: -120 dB (bottom) to 0 dB (center line)
-      mag_v = sff_clamp((mag_avg_db + SFF_MAGNITUDE_DB_SCALE) * mag_db_scale_inv, 0, 1);
-      mag_height = mag_v * ((h-8) * 0.5);  // Height from baseline
-      mag_y = y_base - mag_height;  // Convert to Y coordinate (y_base is at bottom)
-      
-      // Get previous, current, next, and next+1 points for Catmull-Rom
-      mag_p0_x = mag_point_idx > 0 ? mag_prev_prev_x : mag_x;
-      mag_p0_y = mag_point_idx > 0 ? mag_prev_prev_y : mag_y;
-      mag_p1_x = mag_point_idx > 0 ? mag_prev_x : mag_x;
-      mag_p1_y = mag_point_idx > 0 ? mag_prev_y : mag_y;
-      mag_p2_x = mag_x;
-      mag_p2_y = mag_y;
-      
-      // Find next point for p3
-      mag_p3_x = mag_x;
-      mag_p3_y = mag_y;
-      j = i + 1;
-      loop(sff_display_bin_count - i - 1,
-        next_bin_center_freq = (j + 0.5) * bin_hz;
-        (next_bin_center_freq >= low_cut_hz && next_bin_center_freq <= high_cut_hz) ? (
-          next_bin_center_pos = sff_freq_to_pos(next_bin_center_freq, min_freq, max_freq);
-          mag_p3_x = sff_pos_to_x(next_bin_center_pos, x0, draw_bins);
-          next_mag_avg_db = sff_display_mag_db[j];
-          next_mag_v = sff_clamp((next_mag_avg_db + SFF_MAGNITUDE_DB_SCALE) * mag_db_scale_inv, 0, 1);
-          next_mag_height = next_mag_v * ((h-8) * 0.5);
-          mag_p3_y = y_base - next_mag_height;
-          j = sff_display_bin_count;  // Exit loop
-        ) : 0;
-        j += 1;
-      );
-      
-      // Draw smooth curve and filled area from previous point to current point
-      mag_point_idx > 0 ? (
-        sff_draw_catmull_rom_spline_filled(
-          mag_p0_x, mag_p0_y, mag_p1_x, mag_p1_y, mag_p2_x, mag_p2_y, mag_p3_x, mag_p3_y,
-          draw_bins, y_base,
-          SFF_COLOR_MAGNITUDE_LINE_R, SFF_COLOR_MAGNITUDE_LINE_G, SFF_COLOR_MAGNITUDE_LINE_B, SFF_COLOR_MAGNITUDE_LINE_A,
-          SFF_COLOR_MAGNITUDE_FILL_R, SFF_COLOR_MAGNITUDE_FILL_G, SFF_COLOR_MAGNITUDE_FILL_B, SFF_COLOR_MAGNITUDE_FILL_A
-        );
-      ) : 0;
-      
-      // Store points for next iteration
-      mag_prev_prev_x = mag_p1_x;
-      mag_prev_prev_y = mag_p1_y;
-      mag_prev_x = mag_p2_x;
-      mag_prev_y = mag_p2_y;
-      mag_point_idx += 1;
-    ) : 0;
+    mag_avg_db = sff_display_mag_db[i];
+    v = sff_clamp((mag_avg_db + SFF_MAGNITUDE_DB_SCALE)*scale, 0, 1);
+    y = y_base - v * ((h-8) * 0.5);
+    x = x0 + SFF_UI_INNER_MARGIN + i * SFF_UI_BAR_WIDTH;
+    (i > 0 && lastx >= 0) ? (
+      gfx_line(lastx, lasty, x, y, 0);
+    );
+    lastx = x; lasty = y;
     i += 1;
   );
 );
 
-// Draw filter gain curve
-function sff_draw_filter_gain_curve(x0, y_base, h, draw_bins, min_freq, max_freq, low_cut_hz, high_cut_hz) local(
-  i, j, point_idx, filter_freq, filter_pos, filter_x, filter_gain_linear, filter_gain_db, filter_y,
-  p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y,
-  prev_prev_x, prev_prev_y, prev_x, prev_y,
-  next_filter_freq, next_filter_pos, next_gain_linear, next_gain_db, next_v,
-  gain_scale_inv, filter_count
-) (
-  gain_scale_inv = 1.0 / SFF_GAIN_DB_SCALE;
-  filter_count = sff_filter_count;
-  filter_count > 0 ? (
-    // Draw smoothed line using Catmull-Rom splines
-    gfx_set(SFF_COLOR_GAIN_LINE_R, SFF_COLOR_GAIN_LINE_G, SFF_COLOR_GAIN_LINE_B, SFF_COLOR_GAIN_LINE_A);
-    
-    // Draw smooth curves between points using Catmull-Rom splines
-    point_idx = 0;
-    i = 0;
-    loop(filter_count,
-      filter_freq = sff_filter_freq[i];
-      (filter_freq >= low_cut_hz && filter_freq <= high_cut_hz) ? (
-        // Convert filter center frequency to normalized position
-        filter_pos = sff_freq_to_pos(filter_freq, min_freq, max_freq);
-        
-        // Convert position to X coordinate (exact center point of filter)
-        filter_x = sff_pos_to_x(filter_pos, x0, draw_bins);
-        
-        // Get filter gain (linear) and convert to dB
-        filter_gain_linear = sff_filter_gains[i];
-        filter_gain_db = sff_linear_to_db(filter_gain_linear);
-        
-        // Map gain relative to 0dB center: -12dB (bottom) to +12dB (top), with 0dB at center
-        v = sff_clamp((filter_gain_db + 12) * gain_scale_inv, 0, 1);
-        filter_y = y_base - v * (h-8);
-        
-        // Get previous, current, next, and next+1 points for Catmull-Rom
-        p0_x = point_idx > 0 ? prev_prev_x : filter_x;
-        p0_y = point_idx > 0 ? prev_prev_y : filter_y;
-        p1_x = point_idx > 0 ? prev_x : filter_x;
-        p1_y = point_idx > 0 ? prev_y : filter_y;
-        p2_x = filter_x;
-        p2_y = filter_y;
-        
-        // Find next point for p3
-        p3_x = filter_x;
-        p3_y = filter_y;
-        j = i + 1;
-        loop(filter_count - i - 1,
-          next_filter_freq = sff_filter_freq[j];
-          (next_filter_freq >= low_cut_hz && next_filter_freq <= high_cut_hz) ? (
-            next_filter_pos = sff_freq_to_pos(next_filter_freq, min_freq, max_freq);
-            p3_x = sff_pos_to_x(next_filter_pos, x0, draw_bins);
-            next_gain_linear = sff_filter_gains[j];
-            next_gain_db = sff_linear_to_db(next_gain_linear);
-            next_v = sff_clamp((next_gain_db + 12) * gain_scale_inv, 0, 1);
-            p3_y = y_base - next_v * (h-8);
-            j = filter_count;  // Exit loop
-          ) : 0;
-          j += 1;
-        );
-        
-        // Draw smooth curve from previous point to current point using Catmull-Rom spline
-        point_idx > 0 ? (
-          sff_draw_catmull_rom_spline(
-            p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y,
-            draw_bins,
-            SFF_COLOR_GAIN_LINE_R, SFF_COLOR_GAIN_LINE_G, SFF_COLOR_GAIN_LINE_B, SFF_COLOR_GAIN_LINE_A
-          );
-        ) : 0;
-        
-        // Store points for next iteration
-        prev_prev_x = p1_x;
-        prev_prev_y = p1_y;
-        prev_x = p2_x;
-        prev_y = p2_y;
-        point_idx += 1;
-      ) : 0;
-      i += 1;
+// Simplified filter gain curve
+function sff_draw_filter_gain_curve(x0, y_base, h, draw_bins, min_freq, max_freq, low_cut_hz, high_cut_hz) local(i, x, y, lastx, lasty, v, gain_db, scale) (
+  scale = 1.0 / SFF_GAIN_DB_SCALE;
+  lastx = lasty = -1;
+  i = 0;
+  loop(sff_filter_count,
+    gain_db = sff_linear_to_db(sff_filter_gains[i]);
+    v = sff_clamp((gain_db + 12)*scale, 0, 1);
+    y = y_base - v * (h-8);
+    x = x0 + SFF_UI_INNER_MARGIN + i * SFF_UI_BAR_WIDTH;
+    (i > 0 && lastx >= 0) ? (
+      gfx_line(lastx, lasty, x, y, 0);
     );
-  ) : 0;
+    lastx = x; lasty = y;
+    i += 1;
+  );
 );
 
-// Draw center line at 0 dB
-function sff_draw_center_line(x0, y_base, h, avail_w) local(label_y) (
-  label_y = y_base - (h-8) * 0.5;  // Middle of graph = 0 dB
+// Center line at 0 dB
+function sff_draw_center_line(x0, y_base, h, avail_w) (
   gfx_set(SFF_COLOR_CENTER_LINE_R, SFF_COLOR_CENTER_LINE_G, SFF_COLOR_CENTER_LINE_B, SFF_COLOR_CENTER_LINE_A);
-  gfx_line(x0 + SFF_UI_INNER_MARGIN, label_y, x0 + SFF_UI_INNER_MARGIN + avail_w, label_y, 1);
+  gfx_line(x0 + SFF_UI_INNER_MARGIN, y_base - (h-8)*0.5, x0 + SFF_UI_INNER_MARGIN + avail_w, y_base - (h-8)*0.5, 1);
 );
 
-// Draw tilt visualization line
-function sff_draw_tilt_visualization(x0, y_base, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(
-  i, norm_pos, pixel_freq, tilt_mult, tilt_mult_scaled, tilt_mult_inv, tilt_db, tilt_v, tilt_y, tilt_x,
-  prev_tilt_x, prev_tilt_y, gain_scale_inv
-) (
-  abs(tilt_amount) > 0.001 ? (
-    tilt_amount > 0 ? (
-      gfx_set(SFF_COLOR_TILT_NORMAL_R, SFF_COLOR_TILT_NORMAL_G, SFF_COLOR_TILT_NORMAL_B, SFF_COLOR_TILT_NORMAL_A);
-    ) : (
-      gfx_set(SFF_COLOR_TILT_INVERSE_R, SFF_COLOR_TILT_INVERSE_G, SFF_COLOR_TILT_INVERSE_B, SFF_COLOR_TILT_INVERSE_A);
+// Simplified tilt visualization
+function sff_draw_tilt_visualization(x0, y_base, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(i, lastx, lasty, x, y, scale, tilt_db, tilt_mult) (
+  (abs(tilt_amount) > 0.001) ? (
+    gfx_set(
+      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_R : SFF_COLOR_TILT_INVERSE_R,
+      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_G : SFF_COLOR_TILT_INVERSE_G,
+      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_B : SFF_COLOR_TILT_INVERSE_B,
+      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_A : SFF_COLOR_TILT_INVERSE_A
     );
-    gain_scale_inv = 1.0 / SFF_GAIN_DB_SCALE;
-    // Draw tilt line across frequency range
-    prev_tilt_x = -1;
-    prev_tilt_y = -1;
+    scale = 1.0 / SFF_GAIN_DB_SCALE;
+    lastx = lasty = -1;
     i = 0;
     loop(draw_bins,
-      // Map pixel position to frequency
-      norm_pos = i * draw_bins_inv;
-      pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
-      
-      // Calculate tilt multiplier for this frequency
-      tilt_mult = sff_calculate_tilt_multiplier(pixel_freq);
-      // Scale by tilt_amount (-1.0 to +1.0 range, full effectiveness)
-      tilt_amount > 0 ? (
-        // Normal tilt: low frequencies reduced, high frequencies boosted
-        tilt_mult_scaled = 1.0 + (tilt_mult - 1.0) * tilt_amount;
-      ) : (
-        // Inverse tilt: invert the multiplier
-        tilt_mult_inv = 1.0 / tilt_mult;
-        tilt_mult_scaled = 1.0 + (tilt_mult_inv - 1.0) * abs(tilt_amount);
+      tilt_mult = sff_calculate_tilt_multiplier(sff_pos_to_freq(i * draw_bins_inv, min_freq, max_freq));
+      tilt_mult = tilt_amount > 0 ? (1.0 + (tilt_mult-1.0)*tilt_amount)
+                                  : (1.0 + ((1.0/tilt_mult)-1.0)*abs(tilt_amount));
+      tilt_db = sff_linear_to_db(tilt_mult);
+      y = y_base - sff_clamp((tilt_db + 12) * scale, 0, 1) * (h-8);
+      x = x0 + SFF_UI_INNER_MARGIN + i;
+      (lastx >= 0) ? (
+        gfx_line(lastx|0, lasty, x|0, y, 0);
       );
-      
-      // Convert multiplier to dB relative to 1.0 (100%)
-      // 0.25 = -12dB, 1.0 = 0dB, 4.0 = +12dB
-      tilt_db = sff_linear_to_db(tilt_mult_scaled);
-      
-      // Map to graph Y position: -12dB (bottom) to +12dB (top), with 0dB at center
-      tilt_v = sff_clamp((tilt_db + 12) * gain_scale_inv, 0, 1);
-      tilt_y = y_base - tilt_v * (h-8);
-      
-      // Convert position to X coordinate
-      tilt_x = x0 + SFF_UI_INNER_MARGIN + i;
-      
-      // Draw line segment from previous point
-      prev_tilt_x >= 0 ? (
-        gfx_line(prev_tilt_x|0, prev_tilt_y, tilt_x|0, tilt_y, 0);
-      ) : 0;
-      
-      prev_tilt_x = tilt_x;
-      prev_tilt_y = tilt_y;
-      i += 1;
+      lastx = x; lasty = y; i += 1;
     );
-  ) : 0;
+  );
 );
 
-// Draw cut lines with triangles
+// Draw cut lines simply
 function sff_draw_cut_lines(low_cut_x, high_cut_x, triangle_top_y, y_base, triangle_size) (
-  // Draw low cut line and triangle
-  sff_draw_cut_line(low_cut_x, triangle_top_y, y_base, triangle_size,
-                    SFF_COLOR_LOW_CUT_R, SFF_COLOR_LOW_CUT_G, SFF_COLOR_LOW_CUT_B);
-  
-  // Draw high cut line and triangle
-  sff_draw_cut_line(high_cut_x, triangle_top_y, y_base, triangle_size,
-                    SFF_COLOR_HIGH_CUT_R, SFF_COLOR_HIGH_CUT_G, SFF_COLOR_HIGH_CUT_B);
+  sff_draw_cut_line(low_cut_x, triangle_top_y, y_base, triangle_size, SFF_COLOR_LOW_CUT_R, SFF_COLOR_LOW_CUT_G, SFF_COLOR_LOW_CUT_B);
+  sff_draw_cut_line(high_cut_x, triangle_top_y, y_base, triangle_size, SFF_COLOR_HIGH_CUT_R, SFF_COLOR_HIGH_CUT_G, SFF_COLOR_HIGH_CUT_B);
 );
 
-// Draw all labels (dB and frequency)
-function sff_draw_labels(x0, y_base, h, draw_bins, min_freq, max_freq) local(label_y, gain_scale_inv) (
-  gain_scale_inv = 1.0 / SFF_GAIN_DB_SCALE;
-  
-  // Draw dB scale on left side
+// Simplified label drawing
+function sff_draw_labels(x0, y_base, h, draw_bins, min_freq, max_freq) local(scale) (
+  scale = 1.0 / SFF_GAIN_DB_SCALE;
   sff_draw_db_labels(SFF_DB_LABEL_START_NEG, SFF_DB_LABEL_END_NEG, SFF_DB_LABEL_STEP_NEG,
-                      x0 + SFF_LABEL_OFFSET_X, y_base, h, gain_scale_inv, 0);
+    x0 + SFF_LABEL_OFFSET_X, y_base, h, scale, 0);
   sff_draw_db_labels(SFF_DB_LABEL_START_POS, SFF_DB_LABEL_END_POS, SFF_DB_LABEL_STEP_POS,
-                      x0 + SFF_LABEL_OFFSET_X, y_base, h, gain_scale_inv, 1);
-  
-  // Draw frequency labels at bottom
-  label_y = y_base;  // Same Y position as -12 dB label (y_base)
-  sff_draw_frequency_label(SFF_FREQ_LABEL_500, min_freq, max_freq, x0, draw_bins, label_y, "500Hz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_1K, min_freq, max_freq, x0, draw_bins, label_y, "1kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_2K, min_freq, max_freq, x0, draw_bins, label_y, "2kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_5K, min_freq, max_freq, x0, draw_bins, label_y, "5kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_10K, min_freq, max_freq, x0, draw_bins, label_y, "10kHz");
+    x0 + SFF_LABEL_OFFSET_X, y_base, h, scale, 1);
+  sff_draw_frequency_label(SFF_FREQ_LABEL_500, min_freq, max_freq, x0, draw_bins, y_base, "500Hz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_1K, min_freq, max_freq, x0, draw_bins, y_base, "1kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_2K, min_freq, max_freq, x0, draw_bins, y_base, "2kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_5K, min_freq, max_freq, x0, draw_bins, y_base, "5kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_10K, min_freq, max_freq, x0, draw_bins, y_base, "10kHz");
 );
-
