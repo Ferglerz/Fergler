@@ -13,6 +13,7 @@ sff_last_attack_ms = -1;  // Track last attack_ms for auto block updates
 sff_last_release_ms = -1;  // Track last release_ms for auto block updates
 sff_last_input_rms_ms = -1;  // Track last input_rms_ms for auto block updates
 sff_last_frame_dt = -1;  // Track last frame_dt for auto block updates
+sff_last_tilt_amount = -999;  // Track last tilt_amount for cache updates
 
 // Initialize the Flattery Engine
 // params_base: array of SFF_PARAM_COUNT parameters (from 01_parameters.jsfx-inc)
@@ -46,11 +47,15 @@ function flattery_init(params_base) (
   // Initialize tilt amount
   tilt_amount = sff_param_get_tilt(params_base) * 0.01;
   
+  // Initialize tilt multiplier cache
+  sff_update_tilt_multiplier_cache();
+  
   // Initialize time coeff tracking
   sff_last_attack_ms = sff_param_get_attack_ms(params_base);
   sff_last_release_ms = sff_param_get_release_ms(params_base);
   sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
   sff_last_frame_dt = frame_dt;
+  sff_last_tilt_amount = tilt_amount;
   
   sff_engine_initialized = 1;
   1;
@@ -70,6 +75,8 @@ function flattery_update_params(params_base) (
     sff_set_fft_size(desired_fft);
     sff_init_filter_frequencies();
     sff_init_filter_bank();
+    // Update tilt multiplier cache after filter reinitialization
+    sff_update_tilt_multiplier_cache();
   ) : 0;
   
   // Convert strength from 0-200 range to 0-2 range internally
@@ -94,6 +101,13 @@ function flattery_update_params(params_base) (
   wet_mix = sff_param_get_wet(params_base) * 0.01;
   output_gain_linear = sff_db_to_linear(sff_param_get_output_gain_db(params_base));
   tilt_amount = sff_param_get_tilt(params_base) * 0.01;
+  
+  // Update tilt multiplier cache if tilt_amount changed
+  tilt_amount != sff_last_tilt_amount ? (
+    sff_update_tilt_multiplier_cache();
+    sff_last_tilt_amount = tilt_amount;
+  ) : 0;
+  
   sff_update_delta_recompute_flag();
   
   // Update time coeffs if timing parameters changed

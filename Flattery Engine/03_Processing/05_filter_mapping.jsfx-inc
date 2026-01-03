@@ -168,11 +168,9 @@ function sff_map_fft_gains_to_filters() local(i, filter_idx, bin_idx, gain_db, g
       // Initialize tilt_mult_scaled to 1.0 (no tilt) - will be updated if tilt is enabled
       tilt_mult_scaled = 1.0;
       abs(tilt_amount) > 0.001 ? (
-        // Get filter frequency
-        filter_freq = sff_filter_freq[i];
-        // Calculate tilt multiplier for this frequency (0.25 to 4.0 range)
-        tilt_mult = sff_calculate_tilt_multiplier(filter_freq);
-        // Interpolate between 1.0 (no tilt) and calculated multiplier based on tilt_amount
+        // Use cached tilt multiplier (calculated when tilt_amount changes, not per FFT hop)
+        tilt_mult = sff_filter_tilt_multipliers[i];
+        // Interpolate between 1.0 (no tilt) and cached multiplier based on tilt_amount
         // tilt_amount = 0: multiplier = 1.0 (no effect)
         // tilt_amount > 0: multiplier = tilt_mult (normal tilt: low reduced, high boosted)
         // tilt_amount < 0: multiplier = inverted (inverse tilt: low boosted, high reduced)

@@ -149,3 +149,16 @@ function sff_apply_tilt_compensation(target_gain_linear, tilt_mult_scaled) local
   target_gain_linear;
 );
 
+// Update tilt multiplier cache for all filters
+// Call this when tilt_amount changes or when filters are initialized
+// Caches the base tilt multiplier (0.25 to 4.0 range) for each filter frequency
+// The cache stores the raw multiplier before scaling by tilt_amount
+function sff_update_tilt_multiplier_cache() local(i, filter_freq) (
+  i = 0;
+  loop(sff_filter_count,
+    filter_freq = sff_filter_freq[i];
+    sff_filter_tilt_multipliers[i] = sff_calculate_tilt_multiplier(filter_freq);
+    i += 1;
+  );
+);
+

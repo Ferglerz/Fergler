@@ -27,7 +27,10 @@ function sff_init_filter_bank() local(i, n_filters, top) (
   // Allocate previous filter gains for rate of change tracking
   sff_filter_gains_prev = sff_filter_gains + n_filters;
   
-  top = sff_filter_gains_prev + n_filters;
+  // Allocate tilt multiplier cache (cached tilt multipliers per filter frequency)
+  sff_filter_tilt_multipliers = sff_filter_gains_prev + n_filters;
+  
+  top = sff_filter_tilt_multipliers + n_filters;
   freembuf(top);
   
   // Clear all filter states
