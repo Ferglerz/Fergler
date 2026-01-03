@@ -92,6 +92,10 @@ function sff_set_fft_size(new_size) local(n, maxn, n_inv, srate_inv) (
   // UI draws one bar per positive bin, capped by allocation
   sff_display_bin_count = min(pos_bin_count, SFF_MAX_DISPLAY_BINS);
 
+  // Delay compensation: FFT analysis window is centered around fft_size/2 samples ago
+  // We delay input audio by this amount so filters process audio matching the analysis timing
+  sff_analysis_delay = (n * 0.5)|0;  // Delay in samples (half the FFT window size)
+
   // Cache inverses for multiplication optimization
   n_inv = 1.0 / (n + eps);
   srate_inv = 1.0 / (srate + eps);

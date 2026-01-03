@@ -25,17 +25,18 @@ function sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo) (
   is_stereo ? sff_stereo_avg(magL_base[bin], magR_base[bin]) : mag_base[bin];
 );
 
-// Helper: Collect neighbor magnitudes into median buffer
-function sff_collect_neighbor_mags(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, rad, d, idx, count) (
+// Helper: Collect neighbor magnitudes into median buffer (in dB for level-agnostic calculation)
+function sff_collect_neighbor_mags_db(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, rad, d, idx, count, mag_lin) (
   npos = pos_bin_count|0;
   rad = sff_clamp(radius, 1, SFF_MAX_MEDIAN_RADIUS);
   count = 0;
   d = -rad;
   loop(rad*2 + 1,
     d != 0 ? (  // Skip current bin (d=0)
-      idx = bin + d;
-      idx = idx < 0 ? 0 : (idx >= npos ? (npos-1) : idx);
-      sff_median_buf[count] = sff_get_mag_value(mag_base, magL_base, magR_base, idx, is_stereo);
+      idx = sff_clamp_bin_index(bin + d, npos);
+      mag_lin = sff_get_mag_value(mag_base, magL_base, magR_base, idx, is_stereo);
+      // Convert to dB for level-agnostic median calculation
+      sff_median_buf[count] = sff_safe_linear_to_db(mag_lin);
       count += 1;
     ) : 0;
     d += 1;
@@ -43,41 +44,60 @@ function sff_collect_neighbor_mags(mag_base, magL_base, magR_base, bin, radius, 
   count;
 );
 
-function sff_median_target_lin(mag_base, bin, radius) local(count) (
-  count = sff_collect_neighbor_mags(mag_base, 0, 0, bin, radius, 0);
-  count > 0 ? sff_median_sort_buf(count) : mag_base[bin];
+function sff_median_target_lin(mag_base, bin, radius) local(count, median_db) (
+  count = sff_collect_neighbor_mags_db(mag_base, 0, 0, bin, radius, 0);
+  count > 0 ? (
+    median_db = sff_median_sort_buf(count);
+    // Convert back to linear for ratio calculation
+    sff_db_to_linear(median_db)
+  ) : mag_base[bin];
 );
 
-function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(count) (
-  count = sff_collect_neighbor_mags(0, magL_base, magR_base, bin, radius, 1);
-  count > 0 ? sff_median_sort_buf(count) : sff_stereo_avg(magL_base[bin], magR_base[bin]);
+function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(count, median_db, current_db) (
+  count = sff_collect_neighbor_mags_db(0, magL_base, magR_base, bin, radius, 1);
+  count > 0 ? (
+    median_db = sff_median_sort_buf(count);
+    // Convert back to linear for ratio calculation
+    sff_db_to_linear(median_db)
+  ) : (
+    current_db = sff_safe_linear_to_db(sff_stereo_avg(magL_base[bin], magR_base[bin]));
+    sff_db_to_linear(current_db)
+  );
 );
 
 // Helper: Weighted mean neighbor calculation (shared by mono/stereo)
-function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, d, sum, sumw, w, idxL, idxR, v, sumw_inv) (
+// CRITICAL: Calculate mean in dB space for level-agnostic behavior
+// Averaging in linear space biases toward larger values, making the effect level-dependent
+// For radius=1, this averages bin-1 and bin+1 in dB space, then converts back to linear
+function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, d, sum_db, count, idxL, idxR, v_lin, v_db, avg_db) (
   npos = pos_bin_count|0;
-  sum = 0;
-  sumw = 0;
+  sum_db = 0;
+  count = 0;
   d = 1;
   loop(radius,
-    w = 1.0 / (d + eps);
     idxL = bin - d;
     idxL >= 0 ? (
-      v = sff_get_mag_value(mag_base, magL_base, magR_base, idxL, is_stereo);
-      sum += v * w;
-      sumw += w;
+      idxL = sff_clamp_bin_index(idxL, npos);
+      v_lin = sff_get_mag_value(mag_base, magL_base, magR_base, idxL, is_stereo);
+      v_db = sff_safe_linear_to_db(v_lin);
+      sum_db += v_db;
+      count += 1;
     ) : 0;
     idxR = bin + d;
     idxR < npos ? (
-      v = sff_get_mag_value(mag_base, magL_base, magR_base, idxR, is_stereo);
-      sum += v * w;
-      sumw += w;
+      idxR = sff_clamp_bin_index(idxR, npos);
+      v_lin = sff_get_mag_value(mag_base, magL_base, magR_base, idxR, is_stereo);
+      v_db = sff_safe_linear_to_db(v_lin);
+      sum_db += v_db;
+      count += 1;
     ) : 0;
     d += 1;
   );
-  sumw > 0 ? (
-    sumw_inv = 1.0 / sumw;
-    sum * sumw_inv
+  count > 0 ? (
+    // Average in dB space (arithmetic mean of dB = geometric mean of linear = level-agnostic)
+    avg_db = sum_db / count;
+    // Convert back to linear for ratio calculation
+    sff_db_to_linear(avg_db)
   ) : sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
 );
 
@@ -113,10 +133,20 @@ function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
 
 
 // Helper function: compute base delta from magnitude and target
-function sff_compute_base_delta(mag_lin, target_lin, bin) local(ratio, mag_lin_inv) (
-  mag_lin_inv = 1.0 / (mag_lin + eps);
-  ratio = target_lin * mag_lin_inv;
-  sff_linear_to_db(max(ratio, eps));
+// Delta is symmetric: if target > mag, positive delta (boost); if target < mag, negative delta (cut)
+// Formula: delta_db = 20 * log10(target_lin / mag_lin)
+// This is mathematically symmetric: boosting by +X dB and cutting by -X dB are inverse operations
+// CRITICAL: The ratio calculation is inherently level-agnostic - scaling both values by the same
+// factor preserves the ratio. However, we need to handle very small magnitudes carefully to avoid
+// numerical instability while maintaining level-agnostic behavior.
+function sff_compute_base_delta(mag_lin, target_lin, bin) local(ratio) (
+  // Pure ratio calculation - this is level-agnostic by design
+  // If mag_lin is very small, we add eps to prevent division issues, but this doesn't affect
+  // the level-agnostic nature since eps is constant (not relative to signal level)
+  ratio = target_lin / (mag_lin + eps);
+  // Clamp ratio to prevent extreme values from numerical issues, but this is still level-agnostic
+  ratio = max(ratio, eps);
+  sff_linear_to_db(ratio);
 );
 
 // Helper: Compute effective radius with band scaling
@@ -127,15 +157,20 @@ function sff_compute_effective_radius(bin, radius) local(hz, band) (
 );
 
 // Unified delta computation (handles both mono and stereo)
+// CRITICAL: Always calculate target from neighbors first (level-agnostic ratio-based calculation)
+// Then check if bin is active only for whether to apply the delta (operating range is a feature, not a bug)
+// This ensures the delta calculation itself is level-agnostic: ratio of target/mag doesn't depend on absolute levels
 function sff_compute_delta_db_unified(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(mag_lin, radius_eff, target_lin, delta) (
   mag_lin = sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
-  sff_bin_is_active(bin, mag_lin) ? (
-    radius_eff = sff_compute_effective_radius(bin, radius);
-    target_lin = is_stereo ? 
-      sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff) :
-      sff_neighbor_target_lin(mag_base, bin, radius_eff);
-    delta = sff_compute_base_delta(mag_lin, target_lin, bin);
-  ) : 0;
+  // Always calculate target from neighbors (level-agnostic - uses ratio, not absolute levels)
+  radius_eff = sff_compute_effective_radius(bin, radius);
+  target_lin = is_stereo ? 
+    sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff) :
+    sff_neighbor_target_lin(mag_base, bin, radius_eff);
+  // Calculate delta (ratio-based, level-agnostic)
+  delta = sff_compute_base_delta(mag_lin, target_lin, bin);
+  // Only apply delta if bin is active (operating range check)
+  sff_bin_is_active(bin, mag_lin) ? delta : 0;
 );
 
 function sff_compute_delta_db_for_bin(mag_base, bin, radius) (

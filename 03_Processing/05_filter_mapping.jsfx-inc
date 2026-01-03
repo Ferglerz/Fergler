@@ -2,6 +2,99 @@
 
 @init
 
+// Tilt filter constants
+SFF_TILT_CENTER_HZ = 1800.0;  // Tilt center frequency (1.8kHz)
+SFF_TILT_LOW_MULT = 0.25;  // Tilt multiplier at 0Hz (25% strength)
+SFF_TILT_CENTER_MULT = 1.0;  // Tilt multiplier at center (100% strength, no change)
+SFF_TILT_HIGH_MULT = 4.0;  // Tilt multiplier at Nyquist (400% strength)
+
+// Calculate tilt multiplier for a given frequency
+// Tilt is centered at 1.8kHz with 25% strength at 0Hz and 400% strength at Nyquist
+// Uses the same blended linear/logarithmic mapping as the graph display (85% log / 15% linear)
+// This ensures the tilt appears linear on the graph while maintaining mostly logarithmic audio response
+// Returns multiplier: 0.25 at 0Hz, 1.0 at 1.8kHz, 4.0 at Nyquist
+// NOTE: Uses sff_freq_to_pos from UI module - function must be defined before this is called
+function sff_calculate_tilt_multiplier(freq_hz) local(
+  nyquist_hz, min_freq, max_freq, freq_pos, center_pos, normalized_pos, center_normalized, s_curve, ratio_curved, center_s_curve, center_ratio_curved, center_sq, denom, denom_abs, a, b, tilt_mult
+) (
+  // Get Nyquist frequency and frequency range (matching graph display)
+  nyquist_hz = srate * 0.5;
+  min_freq = 10.0;  // Match graph min_freq
+  max_freq = nyquist_hz;
+  
+  // Handle edge cases
+  freq_hz <= 0 ? (
+    tilt_mult = SFF_TILT_LOW_MULT;
+  ) : freq_hz >= nyquist_hz ? (
+    tilt_mult = SFF_TILT_HIGH_MULT;
+  ) : (
+    // Use the exact same function as the graph display to convert frequency to position
+    // This ensures perfect matching with how frequencies are displayed
+    freq_pos = sff_freq_to_pos(freq_hz, min_freq, max_freq);
+    center_pos = sff_freq_to_pos(SFF_TILT_CENTER_HZ, min_freq, max_freq);
+    
+    // Interpolate tilt multiplier using a single smooth quadratic formula with S-curve ease-in-out
+    // Single continuous function eliminates corner at center point
+    // Uses quadratic (ratio^2) throughout with smoothstep for S-curve shape
+    
+    // Normalize position: 0 at left edge, 1 at right edge, center_pos at 1.8kHz
+    normalized_pos = freq_pos;  // Already 0-1 from sff_freq_to_pos
+    center_normalized = center_pos;  // Center position in 0-1 range
+    
+    // Apply smoothstep for S-curve ease-in-out: smoothstep(t) = 3t^2 - 2t^3
+    // This creates smooth acceleration at start and deceleration at end
+    s_curve = normalized_pos * normalized_pos * (3.0 - 2.0 * normalized_pos);
+    
+    // Apply quadratic throughout: square the S-curve value
+    // This gives us quadratic behavior with smooth S-curve ease-in-out
+    ratio_curved = s_curve * s_curve;
+    
+    // Single continuous formula mapping ratio_curved (0 to 1) to tilt_mult (0.25 to 4.0)
+    // We need: ratio_curved=0 -> 0.25, ratio_curved at center -> 1.0, ratio_curved=1 -> 4.0
+    // Use a quadratic interpolation through three points for smooth continuous curve
+    
+    // Calculate center point in curved space
+    center_s_curve = center_normalized * center_normalized * (3.0 - 2.0 * center_normalized);
+    center_ratio_curved = center_s_curve * center_s_curve;
+    
+    // Single continuous quadratic interpolation through three points:
+    // (0, 0.25), (center_ratio_curved, 1.0), (1.0, 4.0)
+    // Use Lagrange interpolation or quadratic formula
+    // For three points, we can use: y = a*x^2 + b*x + c
+    // Solving for a, b, c:
+    // At x=0: c = 0.25
+    // At x=center_ratio_curved: a*center^2 + b*center + 0.25 = 1.0
+    // At x=1: a + b + 0.25 = 4.0
+    
+    // Solve system:
+    // a*center^2 + b*center = 0.75
+    // a + b = 3.75
+    // b = 3.75 - a
+    // a*center^2 + (3.75 - a)*center = 0.75
+    // a*center^2 + 3.75*center - a*center = 0.75
+    // a*(center^2 - center) = 0.75 - 3.75*center
+    // a = (0.75 - 3.75*center) / (center^2 - center)
+    // b = 3.75 - a
+    
+    center_sq = center_ratio_curved * center_ratio_curved;
+    denom = center_sq - center_ratio_curved;
+    denom_abs = abs(denom);
+    denom_abs > eps ? (
+      a = (0.75 - 3.75 * center_ratio_curved) / denom;
+      b = 3.75 - a;
+      tilt_mult = a * ratio_curved * ratio_curved + b * ratio_curved + 0.25;
+    ) : (
+      // Fallback to linear if center is at edge
+      tilt_mult = SFF_TILT_LOW_MULT + ratio_curved * (SFF_TILT_HIGH_MULT - SFF_TILT_LOW_MULT);
+    );
+    
+    // Clamp to ensure we stay in valid range
+    tilt_mult = sff_clamp(tilt_mult, SFF_TILT_LOW_MULT, SFF_TILT_HIGH_MULT);
+  );
+  
+  tilt_mult;
+);
+
 // Helper: Apply rate of change scaling to filter gain
 // Reduces action at low deltas (small rate of change)
 function sff_apply_rate_of_change_scaling(target_gain_linear, prev_gain_linear) local(
@@ -19,8 +112,8 @@ function sff_apply_rate_of_change_scaling(target_gain_linear, prev_gain_linear) 
   // Threshold of 1.0 dB means deltas < 1 dB are significantly reduced
   delta_abs > 0.001 ? (
     // Scale factor: 1.0 for large deltas, approaching 0 for small deltas
-    // Using threshold of 1.0 dB - adjust this value to control sensitivity
-    scale_factor = 1.0 - exp(-delta_abs / 1.0);
+    // Using threshold from constants - adjust this value to control sensitivity
+    scale_factor = 1.0 - exp(-delta_abs / SFF_RATE_OF_CHANGE_THRESHOLD_DB);
     // Apply scaling to the delta
     scaled_delta_db = delta_db * scale_factor;
     // Calculate scaled gain
@@ -37,7 +130,7 @@ function sff_apply_rate_of_change_scaling(target_gain_linear, prev_gain_linear) 
 // Map FFT bin gains to filter gains
 // Each filter gets gain from the closest FFT bin(s)
 // FFT gains are in dB relative to unity (0dB = no change)
-function sff_map_fft_gains_to_filters() local(i, filter_idx, bin_idx, gain_db, gain_linear, target_gain_linear, prev_gain_linear, scaled_gain_linear) (
+function sff_map_fft_gains_to_filters() local(i, filter_idx, bin_idx, gain_db, gain_linear, target_gain_linear, prev_gain_linear, scaled_gain_linear, filter_freq, tilt_mult, tilt_mult_scaled, tilt_mult_inv) (
   // If strength_internal is zero, set all filters to unity gain and return early
   strength_internal == 0 ? (
     i = 0;
@@ -68,9 +161,36 @@ function sff_map_fft_gains_to_filters() local(i, filter_idx, bin_idx, gain_db, g
         gain_db = sff_stereo_avg(sff_gain_db_L[bin_idx], sff_gain_db_R[bin_idx]);
       );
       
+      // Apply tilt filter BEFORE clamping to ensure it affects the raw gain value
+      // Tilt modifies the strength of boost/cut by multiplying gain_db by a frequency-dependent multiplier
+      // At 0Hz: 25% strength (multiplier 0.25), at 1.8kHz: 100% (1.0), at Nyquist: 400% (4.0)
+      // Negative tilt_amount inverts the curve (high frequencies reduced, low frequencies boosted)
+      abs(tilt_amount) > 0.001 ? (
+        // Get filter frequency
+        filter_freq = sff_filter_freq[i];
+        // Calculate tilt multiplier for this frequency (0.25 to 4.0 range)
+        tilt_mult = sff_calculate_tilt_multiplier(filter_freq);
+        // Interpolate between 1.0 (no tilt) and calculated multiplier based on tilt_amount
+        // tilt_amount = 0: multiplier = 1.0 (no effect)
+        // tilt_amount > 0: multiplier = tilt_mult (normal tilt: low reduced, high boosted)
+        // tilt_amount < 0: multiplier = inverted (inverse tilt: low boosted, high reduced)
+        tilt_amount > 0 ? (
+          // Normal tilt: low frequencies reduced, high frequencies boosted
+          tilt_mult_scaled = 1.0 + (tilt_mult - 1.0) * tilt_amount;
+        ) : (
+          // Inverse tilt: invert the multiplier (1.0 / tilt_mult), then apply negative tilt_amount
+          // This gives: low frequencies boosted, high frequencies reduced
+          tilt_mult_inv = 1.0 / tilt_mult;  // Invert: 4.0 -> 0.25, 1.0 -> 1.0, 0.25 -> 4.0
+          tilt_mult_scaled = 1.0 + (tilt_mult_inv - 1.0) * abs(tilt_amount);
+        );
+        // Multiply gain by tilt multiplier (affects strength of boost/cut)
+        // This scales the boost/cut amount: positive gains get scaled up/down, negative gains get scaled up/down
+        gain_db = gain_db * tilt_mult_scaled;
+      ) : 0;
+      
+      // Clamp gain after tilt application (if any)
       // The FFT gain_db is already clamped to max_boost_db/max_cut_db in the FFT processing
-      // We just need to ensure it's within reasonable bounds as a safety check
-      // Use the same limits as the FFT processing (max_boost_db/max_cut_db)
+      // We need to re-clamp after tilt since tilt can increase gains beyond limits
       gain_db = sff_clamp_gain(gain_db, max_boost_db, max_cut_db);
       
       // Convert dB gain to linear gain for filter

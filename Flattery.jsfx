@@ -6,7 +6,7 @@ options:gfx_hz=30
 
 // --- User parameters  ---
 // Core
-slider1:fft_size_sel=5<0,8,1{8,16,32,64,128,256,512,1024,2048}>FFT Size
+slider1:fft_size_sel=5<0,10,1{8,16,32,64,128,256,512,1024,2048,4096,8192}>FFT Size
 slider2:strength=35<0,200,1>Strength (%)
 slider3:max_boost_db=12<0,48,0.1>Max Boost (dB)
 slider4:max_cut_db=12<0,48,0.1>Max Cut (dB)
@@ -16,8 +16,8 @@ slider6:output_gain_db=0<-12,12,0.01>Output Gain (dB)
 // Processing mode
 slider7:ms_mode=1<0,1,1{LR,MS}>Process Domain
 slider8:stereo_link=0<0,100,1>Stereo Link (%)
-slider9:neighbor_radius=1<1,12,1>Radius (bins)
-slider10:neighbor_mode=0<0,1,1{Mean,Median}>Neighbor Mode
+slider9:neighbor_radius=1<1,12,1>-Radius (bins)
+slider10:neighbor_mode=1<0,1,1{Mean,Median}>Neighbor Mode
 
 // Timing
 slider11:attack_ms=2<0.1,200,0.1>Attack (ms)
@@ -29,6 +29,9 @@ slider14:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
 slider15:max_operate_db=0<-120,0,0.1>Operate Max (dB)
 slider16:low_cut_hz=20<10,20000,1>-Low Cut (Hz)
 slider17:high_cut_hz=20000<20,20000,1>-High Cut (Hz)
+
+// Tilt filter
+slider18:tilt=0<-100,100,1>Tilt (%)
 
 
 // --- Future 4-band split points (hidden for now, but editable) ---
@@ -93,9 +96,10 @@ import 04_UI/01_ui.jsfx-inc
   // Update filter coefficients with initialized unity gains
   sff_update_filter_coeffs();
 
-  // Latency: no latency from filters (they process in real-time)
-  // FFT analysis has latency but doesn't affect output timing
-  sff_latency = 0;
+  // Delay compensation: FFT analysis window is centered around fft_size/2 samples ago
+  // Input audio is delayed by this amount so filters process audio matching the analysis timing
+  // sff_analysis_delay is calculated in sff_set_fft_size() as fft_size/2
+  sff_latency = 0;  // Legacy variable (not used, kept for compatibility)
 
   sff_init_param_trackers();
   
@@ -104,6 +108,9 @@ import 04_UI/01_ui.jsfx-inc
   sff_high_cut_hz_cached = high_cut_hz;
   // Initialize active filter range
   sff_update_active_filter_range();
+  
+  // Initialize tilt amount (-1 to 1 range, full effectiveness)
+  tilt_amount = tilt * 0.01;
 
 @slider
   // Derive FFT size from selection
@@ -142,14 +149,22 @@ import 04_UI/01_ui.jsfx-inc
   wet_mix = wet * 0.01;
   // Cache output gain for @sample
   output_gain_linear = sff_db_to_linear(output_gain_db);
+  // Cache tilt amount (-1 to 1 range, full effectiveness)
+  // -100% = full inverse tilt, 0% = no effect, +100% = full normal tilt
+  tilt_amount = tilt * 0.01;
   sff_update_delta_recompute_flag();
 
   // PDC (unconditional, per rules)
-  // No latency from filters (they process in real-time)
-  // FFT analysis has latency but doesn't affect output
-  pdc_delay = 0;
-  pdc_bot_ch = 0;
-  pdc_top_ch = 2;
+  // Delay compensation: input audio delayed by fft_size/2 samples to sync with FFT analysis
+  // This ensures filters process audio that matches the center of the analysis window
+  pdc_delay = sff_analysis_delay|0;
+  pdc_delay > 0 ? (
+    pdc_bot_ch = 0;  // Bottom channel (left)
+    pdc_top_ch = 2;  // Top channel + 1 (right)
+  ) : (
+    pdc_bot_ch = 0;
+    pdc_top_ch = 2;
+  );
 
 @block
   // Update hop-time-based smoothing coeffs
@@ -162,6 +177,18 @@ import 04_UI/01_ui.jsfx-inc
   sff_in_ring_R[sff_ring_pos] = spl1;
   sff_ring_pos = (sff_ring_pos + 1) % n;
 
+  // Delay compensation: write current input to delay buffer
+  // Delay buffer size matches fft_size (sufficient for delay up to fft_size/2)
+  sff_dry_delay_L[sff_dry_write_pos] = spl0;
+  sff_dry_delay_R[sff_dry_write_pos] = spl1;
+  sff_dry_write_pos = (sff_dry_write_pos + 1) % n;
+
+  // Read delayed samples (delayed by fft_size/2 to match FFT analysis window center)
+  // After increment, sff_dry_write_pos points to next write, so subtract 1 for current sample
+  delay_read_pos = (sff_dry_write_pos - 1 - sff_analysis_delay + n) % n;
+  delayed_L = sff_dry_delay_L[delay_read_pos];
+  delayed_R = sff_dry_delay_R[delay_read_pos];
+
   // Hop trigger for FFT analysis
   sff_hop_counter += 1;
   sff_hop_counter >= hop_size ? (
@@ -170,20 +197,22 @@ import 04_UI/01_ui.jsfx-inc
     sff_map_fft_gains_to_filters();  // Update filter gains from FFT analysis
   );
 
-  // Process through IIR filter bank (real-time, no latency)
+  // Process delayed audio through IIR filter bank
+  // Filters now process audio that matches the center of the FFT analysis window
   // Bypass filters if strength_internal is zero (no processing needed)
   strength_internal == 0 ? (
-    wetL = spl0;
-    wetR = spl1;
+    wetL = delayed_L;
+    wetR = delayed_R;
   ) : (
     // Filters apply frequency-dependent gains based on FFT analysis
-    wetL = sff_process_filter_bank(spl0, spl1);
+    // Processing delayed audio ensures sync with analysis timing
+    wetL = sff_process_filter_bank(delayed_L, delayed_R);
     wetR = sff_get_filter_output_R();
   );
   
-  // Output: mix dry and filtered signal
-  spl0 = sff_mix_dry_wet(spl0, wetL, wet_mix) * output_gain_linear;
-  spl1 = sff_mix_dry_wet(spl1, wetR, wet_mix) * output_gain_linear;
+  // Output: mix dry (also delayed for phase alignment) and filtered signal
+  spl0 = sff_mix_dry_wet(delayed_L, wetL, wet_mix) * output_gain_linear;
+  spl1 = sff_mix_dry_wet(delayed_R, wetR, wet_mix) * output_gain_linear;
 
 @gfx 900 260
   sff_ui_draw();

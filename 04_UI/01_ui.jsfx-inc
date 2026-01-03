@@ -5,56 +5,8 @@
 // UI drag state (persists across function calls)
 sff_dragging_cut = 0;  // 0=none, 1=low_cut, 2=high_cut
 
-// Frequency mapping blend: 0.0 = pure linear, 1.0 = pure logarithmic
-sff_freq_map_log_amount = 0.85;  // 85% logarithmic, 15% linear
-
-// Convert normalized position (0-1) to frequency using blended linear/logarithmic mapping
-function sff_pos_to_freq(pos, local_min_freq, local_max_freq) local(linear_freq, log_freq, freq_log_min, freq_log_max, freq_log_range) (
-  // Linear mapping
-  linear_freq = local_min_freq + (local_max_freq - local_min_freq) * pos;
-  // Logarithmic mapping
-  freq_log_min = log(max(local_min_freq, 1));
-  freq_log_max = log(max(local_max_freq, local_min_freq + 1));
-  freq_log_range = freq_log_max - freq_log_min;
-  log_freq = exp(freq_log_min + freq_log_range * pos);
-  // Blend: 85% log, 15% linear
-  linear_freq * (1 - sff_freq_map_log_amount) + log_freq * sff_freq_map_log_amount;
-);
-
-// Convert frequency to normalized position (0-1) using blended linear/logarithmic mapping
-function sff_freq_to_pos(freq, local_min_freq, local_max_freq) local(pos, test_freq, test_linear, test_log, pos_step, iter, freq_log_min, freq_log_max, freq_log_range, freq_range, error, best_pos, best_error, derivative, freq_log_range_inv, derivative_inv) (
-  // Reverse mapping: frequency to normalized position (0-1) using blended mapping
-  // Use iterative approximation starting from log position
-  freq_log_min = log(max(local_min_freq, 1));
-  freq_log_max = log(max(local_max_freq, local_min_freq + 1));
-  freq_log_range = freq_log_max - freq_log_min;
-  freq_log_range_inv = 1.0 / freq_log_range;
-  freq_range = local_max_freq - local_min_freq;
-  pos = (log(max(freq, 1)) - freq_log_min) * freq_log_range_inv;
-  pos = sff_clamp(pos, 0, 1);
-  best_pos = pos;
-  best_error = abs(freq - sff_pos_to_freq(pos, local_min_freq, local_max_freq));
-  // Refine with Newton-Raphson method, keeping track of best result
-  iter = 0;
-  loop(15,
-    test_linear = local_min_freq + freq_range * pos;
-    test_log = exp(freq_log_min + freq_log_range * pos);
-    test_freq = test_linear * (1 - sff_freq_map_log_amount) + test_log * sff_freq_map_log_amount;
-    error = abs(freq - test_freq);
-    error < best_error ? (
-      best_error = error;
-      best_pos = pos;
-    ) : 0;
-    // Calculate derivative for Newton-Raphson
-    derivative = freq_range * (1 - sff_freq_map_log_amount) + freq_log_range * test_log * sff_freq_map_log_amount;
-    // Newton-Raphson update: pos = pos - f(pos) / f'(pos)
-    derivative_inv = 1.0 / (derivative + eps);
-    pos_step = (freq - test_freq) * derivative_inv;
-    pos = sff_clamp(pos + pos_step, 0, 1);
-    iter += 1;
-  );
-  best_pos;
-);
+// Note: sff_pos_to_freq and sff_freq_to_pos are now defined in 01_Utils/02_math_utils.jsfx-inc
+// to make them available to both Processing and UI modules
 
 // Convert normalized position (0-1) to X coordinate in graph
 // This matches exactly how pixels are positioned
@@ -66,7 +18,7 @@ function sff_pos_to_x(pos, graph_x0, draw_bins) (
   graph_x0 + 2 + pos * max(draw_bins - 1, 1);
 );
 
-function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y, freq1, freq_div1, freq_div2, label_freq, label_log, label_pos, label_x, low_cut_x, high_cut_x, triangle_size, mouse_over_low, mouse_over_high, new_freq, new_pos, hit_dist, norm_pos, low_cut_pos, high_cut_pos, next_norm_pos, new_cut_x, pos1, pos_max, pos_range, pos_div1, pos_div2, x1, triangle_top_y, triangle_width, draw_bins_inv, bin_hz_inv, mag_count_inv, gain_count_inv, db_scale_inv, gain_scale_inv, triangle_size_inv, filter_count, prev_x, prev_y, filter_freq, filter_pos, filter_x, filter_gain_linear, filter_gain_db, filter_y) (
+function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y, freq1, freq_div1, freq_div2, label_freq, label_log, label_pos, label_x, low_cut_x, high_cut_x, triangle_size, mouse_over_low, mouse_over_high, new_freq, new_pos, hit_dist, norm_pos, low_cut_pos, high_cut_pos, next_norm_pos, new_cut_x, pos1, pos_max, pos_range, pos_div1, pos_div2, x1, triangle_top_y, triangle_width, draw_bins_inv, bin_hz_inv, mag_count_inv, gain_count_inv, db_scale_inv, gain_scale_inv, triangle_size_inv, filter_count, prev_x, prev_y, prev_prev_x, prev_prev_y, filter_freq, filter_pos, filter_x, filter_gain_linear, filter_gain_db, filter_y, point_idx, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, next_filter_freq, next_filter_pos, next_gain_linear, next_gain_db, next_v, interp_x, interp_y, prev_interp_x, prev_interp_y, x_dist, interp_steps, interp_step_inv, t, t2, t3, a0_x, a1_x, a2_x, a3_x, a0_y, a1_y, a2_y, a3_y, mag_point_idx, mag_y, mag_x, mag_height, mag_v, mag_db_scale_inv, bin_center_freq, bin_center_pos, mag_p0_x, mag_p0_y, mag_p1_x, mag_p1_y, mag_p2_x, mag_p2_y, mag_p3_x, mag_p3_y, mag_prev_prev_x, mag_prev_prev_y, mag_prev_x, mag_prev_y, mag_x_dist, mag_interp_steps, mag_interp_step_inv, mag_prev_interp_x, mag_prev_interp_y, mag_t, mag_t2, mag_t3, mag_a0_x, mag_a1_x, mag_a2_x, mag_a3_x, mag_a0_y, mag_a1_y, mag_a2_y, mag_a3_y, mag_interp_x, mag_interp_y, next_bin_center_freq, next_bin_center_pos, next_mag_avg_db, next_mag_v, next_mag_height, seg_width, seg_height, seg_x, seg_x_end, seg_top_y, seg_bottom_y, prev_x_int, interp_x_int, p2_x_int, prev_tilt_x, prev_tilt_y, tilt_mult, tilt_mult_scaled, tilt_mult_inv, tilt_db, tilt_v, tilt_x, tilt_y) (
   gfx_set(0.10, 0.10, 0.11, 1);
   gfx_rect(0, 0, gfx_w, gfx_h);
 
@@ -119,91 +71,255 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   low_cut_pos = sff_freq_to_pos(low_cut_hz, min_freq, max_freq);
   high_cut_pos = sff_freq_to_pos(high_cut_hz, min_freq, max_freq);
 
-  // Draw magnitude bars with logarithmic frequency mapping
+  // Draw magnitude as smooth curve with filled area underneath
+  // Use bin center frequencies (like yellow line uses filter centers)
+  mag_db_scale_inv = 1.0 / 120;
+  mag_point_idx = 0;
   i = 0;
-  loop(draw_bins,
-    // Map pixel position to frequency (logarithmic)
-    norm_pos = i * draw_bins_inv;
-    pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
-    pixel_bin = pixel_freq * bin_hz_inv;
+  loop(sff_display_bin_count,
+    // Get bin center frequency (bin k center is at (k + 0.5) * bin_hz)
+    bin_center_freq = (i + 0.5) * bin_hz;
     
-    // Map next pixel to frequency to determine bin range for this pixel
-    next_norm_pos = i < (draw_bins - 1) ? ((i + 1) * draw_bins_inv) : 1.0;
-    next_pixel_freq = sff_pos_to_freq(next_norm_pos, min_freq, max_freq);
-    next_pixel_bin = next_pixel_freq * bin_hz_inv;
-    
-    // Determine which bins contribute to this pixel
-    bin_start = max(pixel_bin|0, 0);
-    bin_end = min(next_pixel_bin|0, sff_display_bin_count - 1);
-    bin_end < bin_start ? (bin_end = bin_start;);
-    
-    // Average magnitudes in linear space for bins in this frequency range
-    mag_sum_lin = 0;
-    mag_count = 0;
-    j = bin_start;
-    loop(max(bin_end - bin_start + 1, 0),
-      (j <= bin_end && j < sff_display_bin_count) ? (
-        mag_sum_lin += sff_db_to_linear(sff_display_mag_db[j]);
-        mag_count += 1;
+    // Check if bin is within cut range
+    (bin_center_freq >= low_cut_hz && bin_center_freq <= high_cut_hz) ? (
+      // Convert bin center frequency to normalized position
+      bin_center_pos = sff_freq_to_pos(bin_center_freq, min_freq, max_freq);
+      
+      // Convert position to X coordinate (exact center point of bin)
+      mag_x = sff_pos_to_x(bin_center_pos, x0, draw_bins);
+      
+      // Get magnitude for this bin (already in dB)
+      mag_avg_db = sff_display_mag_db[i];
+      
+      // Map input signal: -120 dB (bottom) to 0 dB (center line)
+      mag_v = sff_clamp((mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
+      mag_height = mag_v * ((h-8) * 0.5);  // Height from baseline
+      mag_y = y_base - mag_height;  // Convert to Y coordinate (y_base is at bottom)
+      
+      // Get previous, current, next, and next+1 points for Catmull-Rom
+      mag_p0_x = mag_point_idx > 0 ? mag_prev_prev_x : mag_x;
+      mag_p0_y = mag_point_idx > 0 ? mag_prev_prev_y : mag_y;
+      mag_p1_x = mag_point_idx > 0 ? mag_prev_x : mag_x;
+      mag_p1_y = mag_point_idx > 0 ? mag_prev_y : mag_y;
+      mag_p2_x = mag_x;
+      mag_p2_y = mag_y;
+      
+      // Find next point for p3
+      mag_p3_x = mag_x;
+      mag_p3_y = mag_y;
+      j = i + 1;
+      loop(sff_display_bin_count - i - 1,
+        next_bin_center_freq = (j + 0.5) * bin_hz;
+        (next_bin_center_freq >= low_cut_hz && next_bin_center_freq <= high_cut_hz) ? (
+          next_bin_center_pos = sff_freq_to_pos(next_bin_center_freq, min_freq, max_freq);
+          mag_p3_x = sff_pos_to_x(next_bin_center_pos, x0, draw_bins);
+          next_mag_avg_db = sff_display_mag_db[j];
+          next_mag_v = sff_clamp((next_mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
+          next_mag_height = next_mag_v * ((h-8) * 0.5);
+          mag_p3_y = y_base - next_mag_height;
+          j = sff_display_bin_count;  // Exit loop
+        ) : 0;
+        j += 1;
       );
-      j += 1;
-    );
-    mag_count_inv = 1.0 / (mag_count + eps);
-    mag_avg_db = mag_count > 0 ? sff_linear_to_db(mag_sum_lin * mag_count_inv) : -120;
-    
-    // Map input signal: -120 dB (bottom) to 0 dB (center line)
-    // Bottom of graph (y_base) = -120 dB, center line = 0 dB
-    db_scale_inv = 1.0 / 120;
-    v = sff_clamp((mag_avg_db + 120) * db_scale_inv, 0, 1);
-    y = v * ((h-8) * 0.5);  // Only use bottom half of graph (up to center line)
-
-    // Determine visibility: hide if bin coverage is outside low/high cut range (using logarithmic position space)
-    (next_norm_pos >= low_cut_pos && norm_pos <= high_cut_pos) ? (
-      gfx_set(0.25, 0.55, 0.95, 0.5);
-      gfx_rect(x0 + 2 + x_offset + i*bin_w, y_base - y, bin_w, y);
+      
+      // Draw smooth curve and filled area from previous point to current point
+      mag_point_idx > 0 ? (
+        // Calculate number of interpolation steps based on distance
+        // Limit to at most 1 step per pixel, and ensure we don't exceed graph width
+        mag_x_dist = abs(mag_p2_x - mag_p1_x);
+        mag_interp_steps = max((mag_x_dist)|0, 1);  // At least 1 step per pixel
+        mag_interp_steps = min(mag_interp_steps, draw_bins);  // Never exceed graph width
+        mag_interp_step_inv = 1.0 / mag_interp_steps;
+        
+        // Draw Catmull-Rom spline segments with filled area
+        mag_prev_interp_x = mag_p1_x;
+        mag_prev_interp_y = mag_p1_y;
+        k = 1;
+        loop(mag_interp_steps,
+          mag_t = k * mag_interp_step_inv;
+          // Catmull-Rom spline interpolation
+          mag_t2 = mag_t * mag_t;
+          mag_t3 = mag_t2 * mag_t;
+          mag_a0_x = -0.5 * mag_p0_x + 1.5 * mag_p1_x - 1.5 * mag_p2_x + 0.5 * mag_p3_x;
+          mag_a1_x = mag_p0_x - 2.5 * mag_p1_x + 2.0 * mag_p2_x - 0.5 * mag_p3_x;
+          mag_a2_x = -0.5 * mag_p0_x + 0.5 * mag_p2_x;
+          mag_a3_x = mag_p1_x;
+          mag_interp_x = mag_a0_x * mag_t3 + mag_a1_x * mag_t2 + mag_a2_x * mag_t + mag_a3_x;
+          
+          mag_a0_y = -0.5 * mag_p0_y + 1.5 * mag_p1_y - 1.5 * mag_p2_y + 0.5 * mag_p3_y;
+          mag_a1_y = mag_p0_y - 2.5 * mag_p1_y + 2.0 * mag_p2_y - 0.5 * mag_p3_y;
+          mag_a2_y = -0.5 * mag_p0_y + 0.5 * mag_p2_y;
+          mag_a3_y = mag_p1_y;
+          mag_interp_y = mag_a0_y * mag_t3 + mag_a1_y * mag_t2 + mag_a2_y * mag_t + mag_a3_y;
+          
+          // Round X coordinates to integers to avoid rounding errors
+          prev_x_int = mag_prev_interp_x|0;
+          interp_x_int = mag_interp_x|0;
+          
+          // Draw filled area (rectangle from baseline to curve)
+          // Ensure continuous fill with exact pixel alignment
+          seg_x = min(prev_x_int, interp_x_int);
+          seg_x_end = max(prev_x_int, interp_x_int);
+          seg_width = seg_x_end - seg_x;
+          seg_top_y = min(mag_prev_interp_y, mag_interp_y);  // Top of curve (smaller Y = higher on screen)
+          seg_bottom_y = y_base;  // Bottom at baseline
+          seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
+          gfx_set(0.25, 0.55, 0.95, 0.3);  // Semi-transparent blue for fill
+          (seg_width > 0 && seg_height > 0) ? (
+            gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
+          ) : 0;
+          
+          // Draw curve line (round X coordinates for consistent alignment)
+          prev_x_int = mag_prev_interp_x|0;
+          interp_x_int = mag_interp_x|0;
+          gfx_set(0.25, 0.55, 0.95, 0.8);  // More opaque blue for curve
+          gfx_line(prev_x_int, mag_prev_interp_y, interp_x_int, mag_interp_y, 0);
+          
+          // Store for next segment
+          mag_prev_interp_x = mag_interp_x;
+          mag_prev_interp_y = mag_interp_y;
+          k += 1;
+        );
+        // Draw final segment to actual point
+        // Round X coordinates to integers to avoid rounding errors
+        prev_x_int = mag_prev_interp_x|0;
+        p2_x_int = mag_p2_x|0;
+        seg_x = min(prev_x_int, p2_x_int);
+        seg_x_end = max(prev_x_int, p2_x_int);
+        seg_width = seg_x_end - seg_x;
+        seg_top_y = min(mag_prev_interp_y, mag_p2_y);  // Top of curve
+        seg_bottom_y = y_base;  // Bottom at baseline
+        seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
+        gfx_set(0.25, 0.55, 0.95, 0.3);
+        (seg_width > 0 && seg_height > 0) ? (
+          gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
+        ) : 0;
+        gfx_set(0.25, 0.55, 0.95, 0.8);
+        prev_x_int = mag_prev_interp_x|0;
+        p2_x_int = mag_p2_x|0;
+        gfx_line(prev_x_int, mag_prev_interp_y, p2_x_int, mag_p2_y, 0);
+      ) : 0;
+      
+      // Store points for next iteration
+      mag_prev_prev_x = mag_p1_x;
+      mag_prev_prev_y = mag_p1_y;
+      mag_prev_x = mag_p2_x;
+      mag_prev_y = mag_p2_y;
+      mag_point_idx += 1;
     ) : 0;
-
     i += 1;
   );
 
   // Draw filter gains as connected yellow line across frequency spectrum
   // Show what's happening to the filters, not the FFT analysis
-  gain_scale_inv = 1.0 / 48;
+  // Uses Catmull-Rom spline interpolation for smooth curves of best fit
+  gain_scale_inv = 1.0 / 24;  // Changed from 48 to 24 for +12/-12 range
   filter_count = sff_filter_count;
   filter_count > 0 ? (
-    // Draw connected line between filter points
-    prev_x = -1;
-    prev_y = -1;
+    // Draw smoothed line using Catmull-Rom splines
+    gfx_set(0.95, 0.85, 0.20, 1.0);
+    
+    // Draw smooth curves between points using Catmull-Rom splines
+    point_idx = 0;
     i = 0;
     loop(filter_count,
-      // Get filter center frequency
       filter_freq = sff_filter_freq[i];
-      
-      // Check if filter is within cut range
       (filter_freq >= low_cut_hz && filter_freq <= high_cut_hz) ? (
-        // Convert filter frequency to normalized position
+        // Convert filter center frequency to normalized position
         filter_pos = sff_freq_to_pos(filter_freq, min_freq, max_freq);
         
-        // Convert position to X coordinate
+        // Convert position to X coordinate (exact center point of filter)
         filter_x = sff_pos_to_x(filter_pos, x0, draw_bins);
         
         // Get filter gain (linear) and convert to dB
         filter_gain_linear = sff_filter_gains[i];
         filter_gain_db = sff_linear_to_db(filter_gain_linear);
         
-        // Map gain relative to 0dB center: -24dB (bottom) to +24dB (top), with 0dB at center
-        v = sff_clamp((filter_gain_db + 24) * gain_scale_inv, 0, 1);
+        // Map gain relative to 0dB center: -12dB (bottom) to +12dB (top), with 0dB at center
+        v = sff_clamp((filter_gain_db + 12) * gain_scale_inv, 0, 1);
         filter_y = y_base - v * (h-8);
         
-        // Draw line connecting to previous point
-        prev_x >= 0 ? (
-          gfx_set(0.95, 0.85, 0.20, 1.0);
-          gfx_line(prev_x, prev_y, filter_x, filter_y, 0);
+        // Get previous, current, next, and next+1 points for Catmull-Rom
+        p0_x = point_idx > 0 ? prev_prev_x : filter_x;  // Use current point if no previous
+        p0_y = point_idx > 0 ? prev_prev_y : filter_y;
+        p1_x = point_idx > 0 ? prev_x : filter_x;  // Previous point (or current if first)
+        p1_y = point_idx > 0 ? prev_y : filter_y;
+        p2_x = filter_x;  // Current point
+        p2_y = filter_y;
+        
+        // Find next point for p3
+        p3_x = filter_x;  // Default to current if no next
+        p3_y = filter_y;
+        j = i + 1;
+        loop(filter_count - i - 1,
+          next_filter_freq = sff_filter_freq[j];
+          (next_filter_freq >= low_cut_hz && next_filter_freq <= high_cut_hz) ? (
+            next_filter_pos = sff_freq_to_pos(next_filter_freq, min_freq, max_freq);
+            p3_x = sff_pos_to_x(next_filter_pos, x0, draw_bins);
+            next_gain_linear = sff_filter_gains[j];
+            next_gain_db = sff_linear_to_db(next_gain_linear);
+            next_v = sff_clamp((next_gain_db + 12) * gain_scale_inv, 0, 1);
+            p3_y = y_base - next_v * (h-8);
+            j = filter_count;  // Exit loop
+          ) : 0;
+          j += 1;
+        );
+        
+        // Draw smooth curve from previous point to current point using Catmull-Rom spline
+        point_idx > 0 ? (
+          // Calculate number of interpolation steps based on distance
+          // Limit to at most 1 step per pixel, and ensure we don't exceed graph width
+          x_dist = abs(p2_x - p1_x);
+          interp_steps = max((x_dist)|0, 1);  // At least 1 step per pixel
+          interp_steps = min(interp_steps, draw_bins);  // Never exceed graph width
+          interp_step_inv = 1.0 / interp_steps;
+          
+          // Draw Catmull-Rom spline segments
+          prev_interp_x = p1_x;
+          prev_interp_y = p1_y;
+          k = 1;
+          loop(interp_steps,
+            t = k * interp_step_inv;  // 0 to 1
+            // Catmull-Rom spline interpolation (inlined)
+            t2 = t * t;
+            t3 = t2 * t;
+            // Catmull-Rom coefficients
+            a0_x = -0.5 * p0_x + 1.5 * p1_x - 1.5 * p2_x + 0.5 * p3_x;
+            a1_x = p0_x - 2.5 * p1_x + 2.0 * p2_x - 0.5 * p3_x;
+            a2_x = -0.5 * p0_x + 0.5 * p2_x;
+            a3_x = p1_x;
+            interp_x = a0_x * t3 + a1_x * t2 + a2_x * t + a3_x;
+            
+            a0_y = -0.5 * p0_y + 1.5 * p1_y - 1.5 * p2_y + 0.5 * p3_y;
+            a1_y = p0_y - 2.5 * p1_y + 2.0 * p2_y - 0.5 * p3_y;
+            a2_y = -0.5 * p0_y + 0.5 * p2_y;
+            a3_y = p1_y;
+            interp_y = a0_y * t3 + a1_y * t2 + a2_y * t + a3_y;
+            
+            // Round X coordinates to integers for consistent pixel alignment
+            prev_x_int = prev_interp_x|0;
+            interp_x_int = interp_x|0;
+            
+            // Draw line segment
+            gfx_line(prev_x_int, prev_interp_y, interp_x_int, interp_y, 0);
+            
+            // Store for next segment (keep floating point for smooth interpolation)
+            prev_interp_x = interp_x;
+            prev_interp_y = interp_y;
+            k += 1;
+          );
+          // Draw final segment to actual point (round X coordinates)
+          prev_x_int = prev_interp_x|0;
+          p2_x_int = p2_x|0;
+          gfx_line(prev_x_int, prev_interp_y, p2_x_int, p2_y, 0);
         ) : 0;
         
-        // Store current point for next connection
-        prev_x = filter_x;
-        prev_y = filter_y;
+        // Store points for next iteration
+        prev_prev_x = p1_x;
+        prev_prev_y = p1_y;
+        prev_x = p2_x;
+        prev_y = p2_y;
+        point_idx += 1;
       ) : 0;
       i += 1;
     );
@@ -214,6 +330,58 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   gfx_set(0.5, 0.5, 0.5, 0.5);  // Semi-transparent gray line
   gfx_line(x0 + 2, label_y, x0 + 2 + avail_w, label_y, 1);
 
+  // Draw tilt multiplier visualization line (only if tilt is enabled)
+  // Shows the tilt multiplier response: 25% at 0Hz (-12dB), 100% at 1.8kHz (0dB), 400% at Nyquist (+12dB)
+  // Negative tilt inverts the curve (high frequencies reduced, low frequencies boosted)
+  abs(tilt_amount) > 0.001 ? (
+    tilt_amount > 0 ? (
+      gfx_set(1.0, 0.3, 0.6, 0.7);  // Magenta/pink color for normal tilt
+    ) : (
+      gfx_set(0.3, 0.6, 1.0, 0.7);  // Blue color for inverse tilt
+    );
+    // Draw tilt line across frequency range
+    prev_tilt_x = -1;
+    prev_tilt_y = -1;
+    i = 0;
+    loop(draw_bins,
+      // Map pixel position to frequency
+      norm_pos = i * draw_bins_inv;
+      pixel_freq = sff_pos_to_freq(norm_pos, min_freq, max_freq);
+      
+      // Calculate tilt multiplier for this frequency
+      tilt_mult = sff_calculate_tilt_multiplier(pixel_freq);
+      // Scale by tilt_amount (-1.0 to +1.0 range, full effectiveness)
+      tilt_amount > 0 ? (
+        // Normal tilt: low frequencies reduced, high frequencies boosted
+        tilt_mult_scaled = 1.0 + (tilt_mult - 1.0) * tilt_amount;
+      ) : (
+        // Inverse tilt: invert the multiplier
+        tilt_mult_inv = 1.0 / tilt_mult;
+        tilt_mult_scaled = 1.0 + (tilt_mult_inv - 1.0) * abs(tilt_amount);
+      );
+      
+      // Convert multiplier to dB relative to 1.0 (100%)
+      // 0.25 = -12dB, 1.0 = 0dB, 4.0 = +12dB
+      tilt_db = sff_linear_to_db(tilt_mult_scaled);
+      
+      // Map to graph Y position: -12dB (bottom) to +12dB (top), with 0dB at center
+      tilt_v = sff_clamp((tilt_db + 12) * gain_scale_inv, 0, 1);
+      tilt_y = y_base - tilt_v * (h-8);
+      
+      // Convert position to X coordinate
+      tilt_x = x0 + 2 + i;
+      
+      // Draw line segment from previous point
+      prev_tilt_x >= 0 ? (
+        gfx_line(prev_tilt_x|0, prev_tilt_y, tilt_x|0, tilt_y, 0);
+      ) : 0;
+      
+      prev_tilt_x = tilt_x;
+      prev_tilt_y = tilt_y;
+      i += 1;
+    );
+  ) : 0;
+
   // Calculate X positions for lines (always from positions calculated above)
   // Use helper function to ensure exact match with graph pixel positioning
   low_cut_x = sff_pos_to_x(low_cut_pos, x0, draw_bins);
@@ -221,6 +389,7 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   
   // Triangle size for handles
   triangle_size = 6;
+  triangle_size_inv = 1.0 / triangle_size;
   triangle_top_y = y0 + 2;
   
   // Mouse interaction: handle dragging
@@ -270,7 +439,7 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
   // Draw filled triangle pointing down at top
   i = 0;
   loop(triangle_size + 1,
-    v = i / triangle_size;  // 0 to 1
+    v = i * triangle_size_inv;  // 0 to 1
     // Calculate width at this Y position (triangle gets narrower as we go down)
     triangle_width = triangle_size * (1 - v);
     gfx_line(low_cut_x - triangle_width, triangle_top_y + i, low_cut_x + triangle_width, triangle_top_y + i, 0);
@@ -290,31 +459,36 @@ function sff_ui_draw() local(i, j, x0, y0, w, h, v, db, y, y_base, avail_w, draw
     i += 1;
   );
 
-  // Draw dB scale on left side (every 6dB from -24 to +24, centered at 0 dB)
+  // Draw dB scale on left side (+3, +6, +9, +12, -3, -6, -9, -12, centered at 0 dB)
   gfx_set(1.0, 1.0, 1.0, 1.0);  // White text
-  db_val = -24;
-  loop(9,  // -24, -18, -12, -6, 0, +6, +12, +18, +24 (9 labels)
-    // Skip 0 dB label
-    db_val != 0 ? (
-      // Map dB value to Y position: -24 dB = bottom (y_base), 0 dB = center, +24 dB = top
-      label_y = y_base - (db_val + 24) * gain_scale_inv * (h-8);
-      // Format dB text with + sign for positive values
-      db_val > 0 ? (
-        sprintf(#sff_tmp_str, "+%.0fdB", db_val);
-      ) : (
-        sprintf(#sff_tmp_str, "%.0fdB", db_val);
-      );
-      // Draw text on left side (x0 + 2, with small offset for readability)
-      gfx_x = x0 + 4;
-      gfx_y = label_y - 6;  // Offset to center text vertically
-      gfx_drawstr(#sff_tmp_str);
-    ) : 0;
-    db_val += 6;
+  // Draw negative values: -12, -9, -6, -3
+  db_val = -12;
+  loop(4,
+    // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
+    label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
+    sprintf(#sff_tmp_str, "%.0fdB", db_val);
+    // Draw text on left side (x0 + 2, with small offset for readability)
+    gfx_x = x0 + 4;
+    gfx_y = label_y - 6;  // Offset to center text vertically
+    gfx_drawstr(#sff_tmp_str);
+    db_val += 3;
+  );
+  // Draw positive values: +3, +6, +9, +12
+  db_val = 3;
+  loop(4,
+    // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
+    label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
+    sprintf(#sff_tmp_str, "+%.0fdB", db_val);
+    // Draw text on left side (x0 + 2, with small offset for readability)
+    gfx_x = x0 + 4;
+    gfx_y = label_y - 6;  // Offset to center text vertically
+    gfx_drawstr(#sff_tmp_str);
+    db_val += 3;
   );
 
-  // Draw frequency labels at bottom (at same level as -24 dB label)
-  // Calculate Y position for -24 dB label
-  label_y = y_base - ((-24 + 24) * gain_scale_inv * (h-8));  // Same Y position as -24 dB label (y_base)
+  // Draw frequency labels at bottom (at same level as -12 dB label)
+  // Calculate Y position for -12 dB label
+  label_y = y_base - ((-12 + 12) * gain_scale_inv * (h-8));  // Same Y position as -12 dB label (y_base)
   
   // Fixed frequency markers: 500Hz, 1kHz, 2kHz, 5kHz, and 10kHz
   freq_500 = 500;   // 500Hz

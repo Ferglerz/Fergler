@@ -4,7 +4,7 @@
 
 function sff_display_write_mag_db(bin, mag_lin) (
   (bin < sff_display_bin_count) ? (
-    sff_display_mag_db[bin] = sff_linear_to_db(max(mag_lin, eps));
+    sff_display_mag_db[bin] = sff_safe_linear_to_db(mag_lin);
   ) : 0;
 );
 
@@ -156,7 +156,7 @@ function sff_apply_linked_gains_to_specs() local(n, k, mag_avg, str_eff, target_
 
 function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_lin, i, ri, m, s, w, outn, out_write_base) (
   n = fft_size|0;
-  radius = neighbor_radius|0;
+  radius = 1;  // Hardcoded to 1 (Radius slider removed)
 
   // Build + FFT (LR or MS domain)
   ms_mode ? (
