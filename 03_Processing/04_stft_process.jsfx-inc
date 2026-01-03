@@ -1,263 +1,43 @@
 // Surround FFT Flattener - STFT processing (analysis/synthesis)
+// Main orchestration file - helper functions moved to focused modules
 
 @init
 
-function sff_display_write_mag_db(bin, mag_lin) (
-  (bin < sff_display_bin_count) ? (
-    sff_display_mag_db[bin] = sff_safe_linear_to_db(mag_lin);
-  ) : 0;
-);
-
-function sff_display_write_gain_db(bin, gain_db, is_right) (
-  (bin < sff_display_bin_count) ? (
-    is_right ? (
-      sff_display_gain_db[bin] = sff_stereo_avg(sff_display_gain_db[bin], gain_db);
-    ) : (
-      sff_display_gain_db[bin] = gain_db;
-    );
-  ) : 0;
-);
-
-function sff_fill_spec_from_ring(spec_base, in_ring_base) local(n, i, ri, ts) (
-  n = fft_size|0;
-  i = 0;
-  loop(n,
-    // Read backwards from current position to get the N most recent samples
-    // sff_ring_pos points to the next write position, so we read from (pos - n + i)
-    // Add n before modulo to ensure positive index
-    ri = (sff_ring_pos - n + i + n) % n;
-    ts = in_ring_base[ri] * sff_window[i];
-    sff_spec_set_re(spec_base, i, ts);
-    sff_spec_set_im(spec_base, i, 0);
-    i += 1;
-  );
-);
-
-function sff_compute_mag_cache_from_spec(mag_cache_base, spec_base) local(k, re, im, mag) (
-  k = 0;
-  loop(pos_bin_count,
-    re = sff_spec_re(spec_base, k);
-    im = sff_spec_im(spec_base, k);
-    // Simple FFT magnitude: just the raw magnitude with standard normalization
-    mag = sqrt(re*re + im*im) * fft_mag_norm;
-    mag_cache_base[k] = mag;
-    k += 1;
-  );
-);
-
-function sff_apply_rms_smoothing(magL_base, magR_base) local(k, invc, vL, vR, pL, pR) (
-  invc = sff_rms_inv;
-
-  k = 0;
-  loop(pos_bin_count,
-    vL = magL_base[k];
-    vR = magR_base[k];
-
-    pL = sff_mag_rms_state_L[k];
-    pR = sff_mag_rms_state_R[k];
-
-    pL += ((vL*vL) - pL) * invc;
-    pR += ((vR*vR) - pR) * invc;
-
-    sff_mag_rms_state_L[k] = pL;
-    sff_mag_rms_state_R[k] = pR;
-
-    sff_mag_rms_out_L[k] = sqrt(max(pL, 0));
-    sff_mag_rms_out_R[k] = sqrt(max(pR, 0));
-
-    k += 1;
-  );
-);
-
-// Helper: Apply gain to spec bin (positive and negative frequencies)
-// For real signals: DC (k=0) and Nyquist (k=N/2) are real-only, others have negative mirror
-function sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n) local(kn) (
-  sff_spec_set_re(spec_base, k, sff_spec_re(spec_base, k) * g_lin);
-  sff_spec_set_im(spec_base, k, sff_spec_im(spec_base, k) * g_lin);
-  // Mirror to negative frequency bin (for k > 0 and k < N/2)
-  // DC (k=0) and Nyquist (k=N/2) don't have negative frequency mirrors
-  (k > 0 && k < pos_bin_count) ? (
-    kn = (n - k)|0;
-    sff_spec_set_re(spec_base, kn, sff_spec_re(spec_base, kn) * g_lin);
-    sff_spec_set_im(spec_base, kn, sff_spec_im(spec_base, kn) * g_lin);
-  ) : 0;
-);
-
-// Helper: Compute effective strength for a bin
-function sff_compute_effective_strength(bin) local(hz, band) (
-  hz = sff_bin_to_hz(bin);
-  band = sff_get_band_index_for_hz(hz);
-  strength_internal * sff_get_band_strength_mul(band);
-);
-
-function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
-  n = fft_size|0;
-  link = stereo_link * 0.01;
-
-  k = 0;
-  loop(pos_bin_count,
-    active = sff_bin_is_active(k, mag_base[k]);
-    str_eff = sff_compute_effective_strength(k);
-
-    ind_delta = delta_db_base[k];
-    link_delta = sff_delta_db_link[k];
-    delta = ind_delta * (1 - link) + link_delta * link;
-
-    target_gain_db = active ? sff_clamp_gain(delta * str_eff, max_boost_db, max_cut_db) : 0;
-    smooth_gain_db = sff_smooth_gain_db(gain_db_base, k, target_gain_db);
-    g_lin = sff_db_to_linear(smooth_gain_db);
-
-    sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n);
-    sff_display_write_gain_db(k, smooth_gain_db, is_right);
-
-    k += 1;
-  );
-);
-
-function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_write_base, i, sample, win_val) (
-  n = fft_size|0;
-  outn = out_buf_size|0;
-  out_write_base = (sff_out_read_pos + sff_latency) % outn;
-
-  // Overlap-add with synthesis window (same as analysis window for perfect reconstruction)
-  // For Hann window with 50% overlap: w[n] + w[n+N/2] = 1
-  // This higher overlap significantly reduces phase smearing compared to 50% overlap
-  i = 0;
-  loop(n,
-    sample = sff_spec_re(spec_base, i) * ifft_scale;
-    win_val = sff_window[i];
-    // Apply synthesis window and add to output buffer (overlap-add)
-    out_ring_base[(out_write_base + i) % outn] += sample * win_val;
-    i += 1;
-  );
-);
-
-function sff_apply_linked_gains_to_specs() local(n, k, mag_avg, str_eff, target_gain_db, smooth_gain_db, g_lin) (
-  n = fft_size|0;
-  memset(sff_display_gain_db, 0, sff_display_bin_count);
-
-  k = 0;
-  loop(pos_bin_count,
-    mag_avg = sff_stereo_avg(magL_base[k], magR_base[k]);
-    str_eff = sff_compute_effective_strength(k);
-
-    target_gain_db = sff_bin_is_active(k, mag_avg) ? (
-      sff_clamp_gain(sff_delta_db_link[k] * str_eff, max_boost_db, max_cut_db)
-    ) : 0;
-    smooth_gain_db = sff_smooth_gain_db(sff_gain_db_link, k, target_gain_db);
-    g_lin = sff_db_to_linear(smooth_gain_db);
-
-    sff_apply_gain_to_spec_bin(sff_spec_L, k, g_lin, n);
-    sff_apply_gain_to_spec_bin(sff_spec_R, k, g_lin, n);
-    sff_display_write_gain_db(k, smooth_gain_db, 0);
-    k += 1;
-  );
-);
-
-function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_lin, i, ri, m, s, w, outn, out_write_base) (
-  n = fft_size|0;
-  radius = 1;  // Hardcoded to 1 (Radius slider removed)
-
-  // Build + FFT (LR or MS domain)
-  ms_mode ? (
-    // Spec L = Mid, Spec R = Side
-    i = 0;
-    loop(n,
-      // Read backwards from current position to get the N most recent samples
-      ri = (sff_ring_pos - n + i + n) % n;
-      m = sff_stereo_avg(sff_in_ring_L[ri], sff_in_ring_R[ri]);
-      s = 0.5 * (sff_in_ring_L[ri] - sff_in_ring_R[ri]);
-      w = sff_window[i];
-      sff_spec_set_re(sff_spec_L, i, m * w);
-      sff_spec_set_im(sff_spec_L, i, 0);
-      sff_spec_set_re(sff_spec_R, i, s * w);
-      sff_spec_set_im(sff_spec_R, i, 0);
-      i += 1;
-    );
-  ) : (
-    sff_fill_spec_from_ring(sff_spec_L, sff_in_ring_L);
-    sff_fill_spec_from_ring(sff_spec_R, sff_in_ring_R);
-  );
-  fft(sff_spec_L, n);
-  fft(sff_spec_R, n);
-  // Put FFT output into natural bin order for processing
-  fft_permute(sff_spec_L, n);
-  fft_permute(sff_spec_R, n);
-
-  // Magnitude caches (linear)
-  sff_compute_mag_cache_from_spec(sff_mag_cache_L, sff_spec_L);
-  sff_compute_mag_cache_from_spec(sff_mag_cache_R, sff_spec_R);
-
-  magL_base = sff_mag_cache_L;
-  magR_base = sff_mag_cache_R;
-
-  // Optional RMS smoothing of per-bin magnitudes
-  sff_rms_enabled ? (
-    sff_apply_rms_smoothing(magL_base, magR_base);
-    magL_base = sff_mag_rms_out_L;
-    magR_base = sff_mag_rms_out_R;
-  ) : 0;
-
-  // Recompute heavy deltas every hop
+// Main STFT processing function - orchestrates all stages
+function sff_process_stereo_frame() local(do_recompute) (
+  // Stage 1: Build spectrum from ring buffer
+  sff_build_spectrum_from_ring();
+  
+  // Stage 2: Perform FFT analysis
+  sff_analyze_spectrum();
+  
+  // Stage 3: Compute magnitude caches
+  sff_compute_magnitude_caches();
+  
+  // Stage 4: Apply RMS smoothing if enabled
+  sff_apply_magnitude_smoothing();
+  
+  // Stage 5: Compute gain deltas (or update UI magnitudes if skipping)
   do_recompute = 1;
-
   // Force delta refresh on relevant parameter changes
   sff_force_recompute_deltas ? (
     do_recompute = 1;
     sff_force_recompute_deltas = 0;
   ) : 0;
-
+  
   do_recompute ? (
-    k = 0;
-    loop(pos_bin_count,
-      sff_delta_db_L[k] = sff_compute_delta_db_for_bin(magL_base, k, radius);
-      sff_delta_db_R[k] = sff_compute_delta_db_for_bin(magR_base, k, radius);
-      sff_delta_db_link[k] = sff_compute_delta_db_for_bin_link(magL_base, magR_base, k, radius);
-      sff_display_write_mag_db(k, sff_stereo_avg(magL_base[k], magR_base[k]));
-      k += 1;
-    );
+    sff_compute_gain_deltas();
   ) : (
-    // Still update UI magnitudes cheaply
-    k = 0;
-    loop(sff_display_bin_count,
-      sff_display_write_mag_db(k, sff_stereo_avg(magL_base[k], magR_base[k]));
-      k += 1;
-    );
+    sff_update_ui_magnitudes();
   );
-
-  // Apply gains (uses cached deltas + smoothing every hop)
-  stereo_link >= 99.5 ? (
-    sff_apply_linked_gains_to_specs();
-  ) : (
-    // Clear display gain accumulator each hop (we overwrite then average with R)
-    memset(sff_display_gain_db, 0, sff_display_bin_count);
-    sff_apply_gains_to_spec(sff_spec_L, sff_gain_db_L, sff_delta_db_L, magL_base, 0);
-    sff_apply_gains_to_spec(sff_spec_R, sff_gain_db_R, sff_delta_db_R, magR_base, 1);
-  );
-
-  // IFFT + OLA
-  // Return from natural order back to FFT internal order, then IFFT
-  fft_ipermute(sff_spec_L, n);
-  fft_ipermute(sff_spec_R, n);
-  ifft(sff_spec_L, n);
-  ifft(sff_spec_R, n);
-  ms_mode ? (
-    // Spec L = Mid, Spec R = Side -> convert to L/R during output with overlap-add
-    outn = out_buf_size|0;
-    out_write_base = (sff_out_read_pos + sff_latency) % outn;
-    i = 0;
-    loop(n,
-      m = sff_spec_re(sff_spec_L, i) * ifft_scale;
-      s = sff_spec_re(sff_spec_R, i) * ifft_scale;
-      win_val = sff_window[i];
-      // Apply synthesis window and overlap-add
-      sff_out_ring_L[(out_write_base + i) % outn] += (m + s) * win_val;
-      sff_out_ring_R[(out_write_base + i) % outn] += (m - s) * win_val;
-      i += 1;
-    );
-  ) : (
-    sff_overlap_add_from_spec(sff_out_ring_L, sff_spec_L);
-    sff_overlap_add_from_spec(sff_out_ring_R, sff_spec_R);
-  );
+  
+  // Stage 6: Apply gains to spectra
+  sff_apply_gains_to_spectra();
+  
+  // Stage 7: Synthesize spectra (IFFT)
+  sff_synthesize_spectra();
+  
+  // Stage 8: Overlap-add to output buffers
+  sff_overlap_add_spectra();
 );
 

@@ -82,7 +82,7 @@ function sff_reset_runtime_state() local(n, outn, pos_bins) (
 
 function sff_set_fft_size(new_size) local(n, maxn, n_inv, srate_inv) (
   maxn = SFF_MAX_FFT_SIZE;
-  n = sff_clamp(new_size, 8, maxn) | 0;
+  n = sff_clamp(new_size, 128, maxn) | 0;
 
   // Derived parameters
   fft_size = n;
