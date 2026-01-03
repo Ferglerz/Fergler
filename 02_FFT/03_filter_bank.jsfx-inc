@@ -1,0 +1,98 @@
+// Surround FFT Flattener - IIR Filter Bank
+// Uses FFT for analysis, IIR filters for processing (avoids phase issues)
+
+@init
+
+// Filter bank constants
+SFF_FILTER_MIN_HZ = 20;      // Minimum filter frequency
+SFF_FILTER_MAX_HZ = 18000;   // Maximum filter frequency (cap to save CPU)
+SFF_FILTERS_PER_OCTAVE = 24; // Quarter-tone resolution
+SFF_LOW_FREQ_THRESHOLD = 300; // Below this, use fewer filters
+SFF_LOW_FREQ_RATIO = 0.5;    // Use half the filters below threshold
+
+// Calculate number of filters needed
+// No limit on filter count - create as many as needed for the frequency range
+function sff_calculate_filter_count() local(freq, count, ratio, octaves_low, octaves_high, filters_low, filters_high) (
+  // Calculate octaves from min to threshold
+  octaves_low = log(SFF_LOW_FREQ_THRESHOLD / SFF_FILTER_MIN_HZ) / log(2);
+  filters_low = (octaves_low * SFF_FILTERS_PER_OCTAVE * SFF_LOW_FREQ_RATIO) | 0;
+  
+  // Calculate octaves from threshold to max
+  octaves_high = log(SFF_FILTER_MAX_HZ / SFF_LOW_FREQ_THRESHOLD) / log(2);
+  filters_high = (octaves_high * SFF_FILTERS_PER_OCTAVE) | 0;
+  
+  sff_filter_count = filters_low + filters_high;
+  // Ensure we have at least a few filters
+  sff_filter_count = max(sff_filter_count, 8);
+);
+
+// Calculate filter center frequencies
+function sff_init_filter_frequencies() local(i, freq, filter_idx, ratio_low, ratio_high, max_iter) (
+  sff_calculate_filter_count();
+  
+  // Set filter frequency array base
+  sff_filter_freq = sff_filter_freq_base;
+  
+  // Frequency ratios: 24 per octave above 300Hz, 12 per octave below
+  ratio_low = pow(2, 1.0 / (SFF_FILTERS_PER_OCTAVE * SFF_LOW_FREQ_RATIO));
+  ratio_high = pow(2, 1.0 / SFF_FILTERS_PER_OCTAVE);
+  
+  freq = SFF_FILTER_MIN_HZ;
+  filter_idx = 0;
+  max_iter = sff_filter_count + 10;  // Safety limit
+  
+  i = 0;
+  loop(max_iter,
+    freq > SFF_FILTER_MAX_HZ ? (
+      i = max_iter;  // Exit loop
+    ) : (
+      sff_filter_freq[filter_idx] = freq;
+      filter_idx += 1;
+      
+      // Calculate next frequency
+      freq < SFF_LOW_FREQ_THRESHOLD ? (
+        freq *= ratio_low;  // Wider spacing below 300Hz (12 per octave)
+      ) : (
+        freq *= ratio_high; // Quarter-tone spacing above 300Hz (24 per octave)
+      );
+    );
+    i += 1;
+  );
+  
+  // Update actual count
+  sff_filter_count = filter_idx;
+);
+
+// Map FFT bin to filter index
+function sff_bin_to_filter_index(bin) local(hz, i, best_idx, best_diff, diff) (
+  hz = sff_bin_to_hz(bin);
+  hz < SFF_FILTER_MIN_HZ ? (
+    best_idx = 0;
+  ) : hz > SFF_FILTER_MAX_HZ ? (
+    best_idx = sff_filter_count - 1;
+  ) : (
+    best_idx = 0;
+    best_diff = 999999;
+    i = 0;
+    loop(sff_filter_count,
+      diff = abs(sff_filter_freq[i] - hz);
+      diff < best_diff ? (
+        best_diff = diff;
+        best_idx = i;
+      );
+      i += 1;
+    );
+  );
+  best_idx;
+);
+
+// Map filter index to FFT bin
+function sff_filter_to_bin_index(filter_idx) local(hz) (
+  filter_idx >= sff_filter_count ? (
+    pos_bin_count - 1;
+  ) : (
+    hz = sff_filter_freq[filter_idx];
+    sff_hz_to_bin(hz);
+  );
+);
+

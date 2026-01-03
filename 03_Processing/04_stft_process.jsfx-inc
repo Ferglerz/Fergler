@@ -22,7 +22,10 @@ function sff_fill_spec_from_ring(spec_base, in_ring_base) local(n, i, ri, ts) (
   n = fft_size|0;
   i = 0;
   loop(n,
-    ri = (sff_ring_pos + i) % n;
+    // Read backwards from current position to get the N most recent samples
+    // sff_ring_pos points to the next write position, so we read from (pos - n + i)
+    // Add n before modulo to ensure positive index
+    ri = (sff_ring_pos - n + i + n) % n;
     ts = in_ring_base[ri] * sff_window[i];
     sff_spec_set_re(spec_base, i, ts);
     sff_spec_set_im(spec_base, i, 0);
@@ -67,11 +70,13 @@ function sff_apply_rms_smoothing(magL_base, magR_base) local(k, invc, vL, vR, pL
 );
 
 // Helper: Apply gain to spec bin (positive and negative frequencies)
+// For real signals: DC (k=0) and Nyquist (k=N/2) are real-only, others have negative mirror
 function sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n) local(kn) (
   sff_spec_set_re(spec_base, k, sff_spec_re(spec_base, k) * g_lin);
   sff_spec_set_im(spec_base, k, sff_spec_im(spec_base, k) * g_lin);
-  // Mirror to negative frequency bin
-  (k > 0 && k < (pos_bin_count-1)) ? (
+  // Mirror to negative frequency bin (for k > 0 and k < N/2)
+  // DC (k=0) and Nyquist (k=N/2) don't have negative frequency mirrors
+  (k > 0 && k < pos_bin_count) ? (
     kn = (n - k)|0;
     sff_spec_set_re(spec_base, kn, sff_spec_re(spec_base, kn) * g_lin);
     sff_spec_set_im(spec_base, kn, sff_spec_im(spec_base, kn) * g_lin);
@@ -82,7 +87,7 @@ function sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n) local(kn) (
 function sff_compute_effective_strength(bin) local(hz, band) (
   hz = sff_bin_to_hz(bin);
   band = sff_get_band_index_for_hz(hz);
-  strength * sff_get_band_strength_mul(band) * transient_strength_scale;
+  strength_internal * sff_get_band_strength_mul(band);
 );
 
 function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_base, is_right) local(n, k, target_gain_db, smooth_gain_db, g_lin, link, ind_delta, link_delta, delta, str_eff, active) (
@@ -109,15 +114,20 @@ function sff_apply_gains_to_spec(spec_base, gain_db_base, delta_db_base, mag_bas
   );
 );
 
-function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_write_base, i) (
+function sff_overlap_add_from_spec(out_ring_base, spec_base) local(n, outn, out_write_base, i, sample, win_val) (
   n = fft_size|0;
   outn = out_buf_size|0;
   out_write_base = (sff_out_read_pos + sff_latency) % outn;
 
-  // With 0% overlap, write directly without windowing (no overlap to add)
+  // Overlap-add with synthesis window (same as analysis window for perfect reconstruction)
+  // For Hann window with 50% overlap: w[n] + w[n+N/2] = 1
+  // This higher overlap significantly reduces phase smearing compared to 50% overlap
   i = 0;
   loop(n,
-    out_ring_base[(out_write_base + i) % outn] = sff_spec_re(spec_base, i) * ifft_scale;
+    sample = sff_spec_re(spec_base, i) * ifft_scale;
+    win_val = sff_window[i];
+    // Apply synthesis window and add to output buffer (overlap-add)
+    out_ring_base[(out_write_base + i) % outn] += sample * win_val;
     i += 1;
   );
 );
@@ -153,7 +163,8 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     // Spec L = Mid, Spec R = Side
     i = 0;
     loop(n,
-      ri = (sff_ring_pos + i) % n;
+      // Read backwards from current position to get the N most recent samples
+      ri = (sff_ring_pos - n + i + n) % n;
       m = sff_stereo_avg(sff_in_ring_L[ri], sff_in_ring_R[ri]);
       s = 0.5 * (sff_in_ring_L[ri] - sff_in_ring_R[ri]);
       w = sff_window[i];
@@ -177,18 +188,8 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   sff_compute_mag_cache_from_spec(sff_mag_cache_L, sff_spec_L);
   sff_compute_mag_cache_from_spec(sff_mag_cache_R, sff_spec_R);
 
-  // Eco magnitude smoothing
-  eco_mode ? (
-    k = 0;
-    loop(pos_bin_count,
-      sff_mag_eco_L[k] += (sff_mag_cache_L[k] - sff_mag_eco_L[k]) * eco_blend;
-      sff_mag_eco_R[k] += (sff_mag_cache_R[k] - sff_mag_eco_R[k]) * eco_blend;
-      k += 1;
-    );
-  );
-
-  magL_base = eco_mode ? sff_mag_eco_L : sff_mag_cache_L;
-  magR_base = eco_mode ? sff_mag_eco_R : sff_mag_cache_R;
+  magL_base = sff_mag_cache_L;
+  magR_base = sff_mag_cache_R;
 
   // Optional RMS smoothing of per-bin magnitudes
   sff_rms_enabled ? (
@@ -197,11 +198,8 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
     magR_base = sff_mag_rms_out_R;
   ) : 0;
 
-  // Decide whether to recompute heavy deltas this hop
-  do_recompute = eco_mode ? (
-    sff_eco_hop_index += 1;
-    (sff_eco_hop_index % max(eco_interval, 1)) == 0 ? 1 : 0;
-  ) : 1;
+  // Recompute heavy deltas every hop
+  do_recompute = 1;
 
   // Force delta refresh on relevant parameter changes
   sff_force_recompute_deltas ? (
@@ -244,15 +242,17 @@ function sff_process_stereo_frame() local(n, k, do_recompute, radius, mag_avg_li
   ifft(sff_spec_L, n);
   ifft(sff_spec_R, n);
   ms_mode ? (
-    // Spec L = Mid, Spec R = Side -> convert to L/R during output
+    // Spec L = Mid, Spec R = Side -> convert to L/R during output with overlap-add
     outn = out_buf_size|0;
     out_write_base = (sff_out_read_pos + sff_latency) % outn;
     i = 0;
     loop(n,
       m = sff_spec_re(sff_spec_L, i) * ifft_scale;
       s = sff_spec_re(sff_spec_R, i) * ifft_scale;
-      sff_out_ring_L[(out_write_base + i) % outn] = m + s;
-      sff_out_ring_R[(out_write_base + i) % outn] = m - s;
+      win_val = sff_window[i];
+      // Apply synthesis window and overlap-add
+      sff_out_ring_L[(out_write_base + i) % outn] += (m + s) * win_val;
+      sff_out_ring_R[(out_write_base + i) % outn] += (m - s) * win_val;
       i += 1;
     );
   ) : (

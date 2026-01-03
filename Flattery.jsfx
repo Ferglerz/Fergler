@@ -6,75 +6,61 @@ options:gfx_hz=30
 
 // --- User parameters  ---
 // Core
-slider1:fft_size_sel=3<0,8,1{8,16,32,64,128,256,512,1024,2048}>FFT Size
-slider2:wet=100<0,100,1>Wet (%)
-slider3:strength=1<0,2,0.01>Strength
-slider4:max_boost_db=12<0,48,0.1>Max Boost (dB)
-slider15:max_cut_db=12<0,48,0.1>Max Cut (dB)
+slider1:fft_size_sel=5<0,8,1{8,16,32,64,128,256,512,1024,2048}>FFT Size
+slider2:strength=35<0,200,1>Strength (%)
+slider3:max_boost_db=12<0,48,0.1>Max Boost (dB)
+slider4:max_cut_db=12<0,48,0.1>Max Cut (dB)
+slider5:wet=100<0,100,1>Wet (%)
+slider6:output_gain_db=0<-12,12,0.01>Output Gain (dB)
 
-// Nearby bins logic
-slider5:neighbor_radius=1<1,12,1>Radius (bins)
-slider6:neighbor_mode=0<0,1,1{Mean,Median}>Neighbor Mode
-slider7:stereo_link=100<0,100,1>Stereo Link (%)
-slider8:ms_mode=0<0,1,1{LR,MS}>Process Domain
+// Processing mode
+slider7:ms_mode=1<0,1,1{LR,MS}>Process Domain
+slider8:stereo_link=0<0,100,1>Stereo Link (%)
+slider9:neighbor_radius=1<1,12,1>Radius (bins)
+slider10:neighbor_mode=0<0,1,1{Mean,Median}>Neighbor Mode
 
 // Timing
-slider9:attack_ms=10<0.1,200,0.1>Attack (ms)
-slider10:release_ms=100<1,2000,1>Release (ms)
-slider54:input_rms_ms=0<0,2000,1>Input RMS (ms)
+slider11:attack_ms=2<0.1,200,0.1>Attack (ms)
+slider12:release_ms=30<1,2000,1>Release (ms)
+slider13:input_rms_ms=0<0,10,0.1>Input RMS (ms)
 
 // Operating range + cut band
-slider11:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
-slider12:max_operate_db=0<-120,0,0.1>Operate Max (dB)
-slider13:low_cut_hz=20<10,20000,1>Low Cut (Hz)
-slider14:high_cut_hz=20000<20,20000,1>High Cut (Hz)
+slider14:min_operate_db=-80<-120,0,0.1>Operate Min (dB)
+slider15:max_operate_db=0<-120,0,0.1>Operate Max (dB)
+slider16:low_cut_hz=20<10,20000,1>-Low Cut (Hz)
+slider17:high_cut_hz=20000<20,20000,1>-High Cut (Hz)
 
-// Delta shaping + noise handling
-slider17:delta_knee_db=6<0,24,0.1>Delta Knee (soften small deltas, dB)
-slider18:delta_shape_exp=2<1,4,0.1>Delta Shape (exp>1 steeper near knee)
-slider19:no_boost_below_db=-90<-150,0,1>No-Boost Below (dB)
-
-// Eco mode
-slider20:eco_mode=0<0,1,1{Off,On}>Eco Mode
-slider21:eco_blend=0.25<0,1,0.01>Eco Blend
-slider22:eco_interval=2<1,8,1>Eco Interval (hops)
-
-// Transient protection
-slider23:transient_protect_pct=0<0,100,1>Transient Protect (%)
-slider24:transient_sensitivity=2<0,10,0.1>Transient Sensitivity
-slider25:transient_fast_ms=1<0.1,20,0.1>-Transient Fast (ms)
-slider26:transient_slow_ms=30<1,200,1>-Transient Slow (ms)
 
 // --- Future 4-band split points (hidden for now, but editable) ---
-slider27:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
-slider28:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
-slider29:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
+slider28:band_split1_hz=100<20,20000,1>-Band Split 1 (Hz)
+slider29:band_split2_hz=1000<20,20000,1>-Band Split 2 (Hz)
+slider30:band_split3_hz=2000<20,20000,1>-Band Split 3 (Hz)
 
 // Future per-band enable/strength/radius offsets (hidden)
-slider30:band1_enabled=1<0,1,1>-Band1 Enabled
-slider31:band2_enabled=1<0,1,1>-Band2 Enabled
-slider32:band3_enabled=1<0,1,1>-Band3 Enabled
-slider33:band4_enabled=1<0,1,1>-Band4 Enabled
+slider31:band1_enabled=1<0,1,1>-Band1 Enabled
+slider32:band2_enabled=1<0,1,1>-Band2 Enabled
+slider33:band3_enabled=1<0,1,1>-Band3 Enabled
+slider34:band4_enabled=1<0,1,1>-Band4 Enabled
 
-slider34:band1_strength_mul=1<0,2,0.01>-Band1 Strength Mul
-slider35:band2_strength_mul=1<0,2,0.01>-Band2 Strength Mul
-slider36:band3_strength_mul=1<0,2,0.01>-Band3 Strength Mul
-slider37:band4_strength_mul=1<0,2,0.01>-Band4 Strength Mul
+slider35:band1_strength_mul=1<0,2,0.01>-Band1 Strength Mul
+slider36:band2_strength_mul=1<0,2,0.01>-Band2 Strength Mul
+slider37:band3_strength_mul=1<0,2,0.01>-Band3 Strength Mul
+slider38:band4_strength_mul=1<0,2,0.01>-Band4 Strength Mul
 
-slider38:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
-slider39:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
-slider40:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
-slider41:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
+slider39:band1_radius_mul=1<0.25,4,0.01>-Band1 Radius Mul
+slider40:band2_radius_mul=1<0.25,4,0.01>-Band2 Radius Mul
+slider41:band3_radius_mul=1<0.25,4,0.01>-Band3 Radius Mul
+slider42:band4_radius_mul=1<0.25,4,0.01>-Band4 Radius Mul
 
 // Per-band operate ranges (hidden; used only if we later stop mirroring globals)
-slider46:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
-slider47:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
-slider48:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
-slider49:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
-slider50:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
-slider51:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
-slider52:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
-slider53:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
+slider43:band1_min_db=-80<-120,0,0.1>-Band1 Min (dB)
+slider44:band1_max_db=0<-120,0,0.1>-Band1 Max (dB)
+slider45:band2_min_db=-80<-120,0,0.1>-Band2 Min (dB)
+slider46:band2_max_db=0<-120,0,0.1>-Band2 Max (dB)
+slider47:band3_min_db=-80<-120,0,0.1>-Band3 Min (dB)
+slider48:band3_max_db=0<-120,0,0.1>-Band3 Max (dB)
+slider49:band4_min_db=-80<-120,0,0.1>-Band4 Min (dB)
+slider50:band4_max_db=0<-120,0,0.1>-Band4 Max (dB)
 
 // --- Imports (relative to this .jsfx file) ---
 import 01_Utils/01_constants.jsfx-inc
@@ -82,13 +68,15 @@ import 01_Utils/02_math_utils.jsfx-inc
 
 import 02_FFT/01_fft_memory.jsfx-inc
 import 02_FFT/02_fft_core.jsfx-inc
+import 02_FFT/03_filter_bank.jsfx-inc
+import 02_FFT/04_iir_filters.jsfx-inc
 
 import 03_Processing/05_param_cache.jsfx-inc
-import 03_Processing/00_transient_protect.jsfx-inc
 import 03_Processing/01_band_config.jsfx-inc
 import 03_Processing/02_attack_release.jsfx-inc
 import 03_Processing/03_surround_logic.jsfx-inc
 import 03_Processing/04_stft_process.jsfx-inc
+import 03_Processing/05_filter_mapping.jsfx-inc
 import 03_Processing/06_output_mix.jsfx-inc
 
 import 04_UI/01_ui.jsfx-inc
@@ -99,81 +87,103 @@ import 04_UI/01_ui.jsfx-inc
   // Set initial FFT size from enum selection
   sff_set_fft_size(8 << (fft_size_sel|0));
 
-  // Latency/pipeline: keep simple fixed latency = fft_size samples
-  sff_latency = fft_size|0;
+  // Initialize filter bank (FFT for analysis, IIR filters for processing)
+  sff_init_filter_frequencies();
+  sff_init_filter_bank();
+  // Update filter coefficients with initialized unity gains
+  sff_update_filter_coeffs();
 
-  // Transient protection init
-  transient_env_fast = 0;
-  transient_env_slow = 0;
-  transient_amount = 0;
-  transient_strength_scale = 1;
+  // Latency: no latency from filters (they process in real-time)
+  // FFT analysis has latency but doesn't affect output timing
+  sff_latency = 0;
+
   sff_init_param_trackers();
+  
+  // Initialize cached cut frequencies for filter bank
+  sff_low_cut_hz_cached = low_cut_hz;
+  sff_high_cut_hz_cached = high_cut_hz;
+  // Initialize active filter range
+  sff_update_active_filter_range();
 
 @slider
   // Derive FFT size from selection
   desired_fft = 8 << (fft_size_sel|0);
   desired_fft != (fft_size|0) ? (
     sff_set_fft_size(desired_fft);
-    sff_latency = fft_size|0;
+    // Reinitialize filter bank if FFT size changes
+    // This resets filter gains to 1.0 and updates coefficients
+    sff_init_filter_frequencies();
+    sff_init_filter_bank();
   );
+  
+  // Convert strength from 0-200 range (100 = 100%) to 0-2 range internally
+  strength_internal = strength * 0.01;
+  
+  // Update filter coefficients if sample rate changed
+  // Also ensures gains stay at 1.0 if strength_internal=0
+  strength_internal == 0 ? (
+    // Reset all filter gains to unity when strength is zero
+    // This ensures filters are transparent when no processing is needed
+    sff_map_fft_gains_to_filters();  // This will set all gains to 1.0 when strength_internal=0
+  ) : 0;
+  sff_update_filter_coeffs();
 
   sff_update_band_ranges_from_global();
   sff_order_band_splits();
   sff_update_cutoff_bins();
 
-  // Cache noise-floor boost cutoff
-  no_boost_below_lin = sff_db_to_linear(no_boost_below_db);
+  // Cache cut frequencies for filter bank (ensures immediate update when cuts change)
+  sff_low_cut_hz_cached = low_cut_hz;
+  sff_high_cut_hz_cached = high_cut_hz;
+  // Update active filter range based on cut frequencies
+  sff_update_active_filter_range();
 
   // Cache wet mix for @sample
   wet_mix = wet * 0.01;
+  // Cache output gain for @sample
+  output_gain_linear = sff_db_to_linear(output_gain_db);
   sff_update_delta_recompute_flag();
 
-  // Transient protect normalized
-  transient_protect = transient_protect_pct * 0.01;
-
   // PDC (unconditional, per rules)
-  pdc_delay = sff_latency|0;
+  // No latency from filters (they process in real-time)
+  // FFT analysis has latency but doesn't affect output
+  pdc_delay = 0;
   pdc_bot_ch = 0;
   pdc_top_ch = 2;
 
 @block
   // Update hop-time-based smoothing coeffs
   sff_update_time_coeffs();
-  sff_update_transient_coeffs();
 
 @sample
-  // Update transient detector (scales effective strength)
-  sff_transient_tick(spl0, spl1);
-
-  // Read scheduled output and clear slot (overlap-add accumulator)
-  outn = out_buf_size|0;
-  outL = sff_out_ring_L[sff_out_read_pos];
-  outR = sff_out_ring_R[sff_out_read_pos];
-  sff_out_ring_L[sff_out_read_pos] = 0;
-  sff_out_ring_R[sff_out_read_pos] = 0;
-
-  // Push new input into analysis ring
+  // Push input to analysis ring for FFT analysis
   n = fft_size|0;
-  // Dry path must be delayed by same latency as wet (avoid comb filtering)
-  dryL = sff_in_ring_L[sff_ring_pos];
-  dryR = sff_in_ring_R[sff_ring_pos];
   sff_in_ring_L[sff_ring_pos] = spl0;
   sff_in_ring_R[sff_ring_pos] = spl1;
-
-  // Advance positions
   sff_ring_pos = (sff_ring_pos + 1) % n;
-  sff_out_read_pos = (sff_out_read_pos + 1) % outn;
 
-  // Hop trigger
+  // Hop trigger for FFT analysis
   sff_hop_counter += 1;
   sff_hop_counter >= hop_size ? (
     sff_hop_counter = 0;
-    sff_process_stereo_frame();
+    sff_process_stereo_frame();  // FFT analysis only
+    sff_map_fft_gains_to_filters();  // Update filter gains from FFT analysis
   );
 
-  // Output
-  spl0 = sff_mix_dry_wet(dryL, outL, wet_mix);
-  spl1 = sff_mix_dry_wet(dryR, outR, wet_mix);
+  // Process through IIR filter bank (real-time, no latency)
+  // Bypass filters if strength_internal is zero (no processing needed)
+  strength_internal == 0 ? (
+    wetL = spl0;
+    wetR = spl1;
+  ) : (
+    // Filters apply frequency-dependent gains based on FFT analysis
+    wetL = sff_process_filter_bank(spl0, spl1);
+    wetR = sff_get_filter_output_R();
+  );
+  
+  // Output: mix dry and filtered signal
+  spl0 = sff_mix_dry_wet(spl0, wetL, wet_mix) * output_gain_linear;
+  spl1 = sff_mix_dry_wet(spl1, wetR, wet_mix) * output_gain_linear;
 
 @gfx 900 260
   sff_ui_draw();

@@ -54,7 +54,7 @@ function sff_median_target_lin_stereo(magL_base, magR_base, bin, radius) local(c
 );
 
 // Helper: Weighted mean neighbor calculation (shared by mono/stereo)
-function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, d, sum, sumw, w, idxL, idxR, v) (
+function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius, is_stereo) local(npos, d, sum, sumw, w, idxL, idxR, v, sumw_inv) (
   npos = pos_bin_count|0;
   sum = 0;
   sumw = 0;
@@ -75,7 +75,10 @@ function sff_weighted_mean_neighbors(mag_base, magL_base, magR_base, bin, radius
     ) : 0;
     d += 1;
   );
-  sumw > 0 ? (sum / sumw) : sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
+  sumw > 0 ? (
+    sumw_inv = 1.0 / sumw;
+    sum * sumw_inv
+  ) : sff_get_mag_value(mag_base, magL_base, magR_base, bin, is_stereo);
 );
 
 function sff_neighbor_target_lin(mag_base, bin, radius) (
@@ -108,30 +111,11 @@ function sff_bin_is_active(bin, mag_lin) local(hz, band, min_lin, max_lin) (
   );
 );
 
-// Helper function: apply delta shaping (knee and exponential curve)
-function sff_apply_delta_shaping(delta, mag_lin) local(knee, expv, a, shaped_delta) (
-  shaped_delta = delta;
-  // Noise-floor boost protection
-  (delta > 0 && mag_lin < no_boost_below_lin) ? (
-    shaped_delta = 0;
-  ) : (
-    // Delta shaping: reduce subtle deltas, leave big deltas
-    knee = max(delta_knee_db, 0);
-    expv = max(delta_shape_exp, 1);
-    (knee > 0 && expv > 1) ? (
-      a = abs(shaped_delta);
-      a < knee ? (
-        a = a * pow(a / (knee + eps), expv - 1);
-        shaped_delta = shaped_delta < 0 ? -a : a;
-      ) : 0;
-    ) : 0;
-  );
-  shaped_delta;
-);
 
 // Helper function: compute base delta from magnitude and target
-function sff_compute_base_delta(mag_lin, target_lin, bin) local(ratio) (
-  ratio = target_lin / (mag_lin + eps);
+function sff_compute_base_delta(mag_lin, target_lin, bin) local(ratio, mag_lin_inv) (
+  mag_lin_inv = 1.0 / (mag_lin + eps);
+  ratio = target_lin * mag_lin_inv;
   sff_linear_to_db(max(ratio, eps));
 );
 
@@ -151,7 +135,6 @@ function sff_compute_delta_db_unified(mag_base, magL_base, magR_base, bin, radiu
       sff_neighbor_target_lin_stereo(magL_base, magR_base, bin, radius_eff) :
       sff_neighbor_target_lin(mag_base, bin, radius_eff);
     delta = sff_compute_base_delta(mag_lin, target_lin, bin);
-    sff_apply_delta_shaping(delta, mag_lin);
   ) : 0;
 );
 

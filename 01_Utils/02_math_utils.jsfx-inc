@@ -50,8 +50,9 @@ function sff_bin_to_hz(bin) (
 );
 
 // Helper: Convert frequency in Hz to bin index
-function sff_hz_to_bin(hz) (
-  floor(hz / (bin_hz + eps));
+function sff_hz_to_bin(hz) local(bin_hz_inv) (
+  bin_hz_inv = 1.0 / (bin_hz + eps);
+  floor(hz * bin_hz_inv);
 );
 
 // Helper: Convert milliseconds to seconds

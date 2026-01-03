@@ -1,0 +1,108 @@
+// Surround FFT Flattener - Map FFT analysis to filter gains
+
+@init
+
+// Helper: Apply rate of change scaling to filter gain
+// Reduces action at low deltas (small rate of change)
+function sff_apply_rate_of_change_scaling(target_gain_linear, prev_gain_linear) local(
+  target_gain_db, prev_gain_db, delta_db, delta_abs, scale_factor, scaled_delta_db, scaled_gain_db, scaled_gain_linear
+) (
+  // Calculate rate of change in dB
+  target_gain_db = sff_linear_to_db(target_gain_linear);
+  prev_gain_db = sff_linear_to_db(prev_gain_linear);
+  delta_db = target_gain_db - prev_gain_db;
+  delta_abs = abs(delta_db);
+  
+  // Scale factor: reduce action at low deltas
+  // Small deltas get scaled down more, large deltas pass through
+  // Using a smooth curve: scale = 1 - exp(-delta_abs / threshold)
+  // Threshold of 1.0 dB means deltas < 1 dB are significantly reduced
+  delta_abs > 0.001 ? (
+    // Scale factor: 1.0 for large deltas, approaching 0 for small deltas
+    // Using threshold of 1.0 dB - adjust this value to control sensitivity
+    scale_factor = 1.0 - exp(-delta_abs / 1.0);
+    // Apply scaling to the delta
+    scaled_delta_db = delta_db * scale_factor;
+    // Calculate scaled gain
+    scaled_gain_db = prev_gain_db + scaled_delta_db;
+    scaled_gain_linear = sff_db_to_linear(scaled_gain_db);
+  ) : (
+    // No change or very small change - keep previous gain
+    scaled_gain_linear = prev_gain_linear;
+  );
+  
+  scaled_gain_linear;
+);
+
+// Map FFT bin gains to filter gains
+// Each filter gets gain from the closest FFT bin(s)
+// FFT gains are in dB relative to unity (0dB = no change)
+function sff_map_fft_gains_to_filters() local(i, filter_idx, bin_idx, gain_db, gain_linear, target_gain_linear, prev_gain_linear, scaled_gain_linear) (
+  // If strength_internal is zero, set all filters to unity gain and return early
+  strength_internal == 0 ? (
+    i = 0;
+    loop(sff_filter_count,
+      sff_filter_gains_prev[i] = sff_filter_gains[i];
+      sff_filter_gains[i] = 1.0;
+      i += 1;
+    );
+    sff_update_filter_coeffs();
+    // Update cached unity flag (all filters are at unity when strength=0)
+    sff_update_unity_cache_flag();
+  ) : (
+    i = 0;
+    loop(sff_filter_count,
+      // Find closest FFT bin for this filter
+      bin_idx = sff_filter_to_bin_index(i);
+      // Clamp to valid range and ensure bin_idx is valid
+      bin_idx = sff_clamp(bin_idx, 0, pos_bin_count - 1);
+      
+      // Get gain from FFT analysis (use stereo-linked or individual)
+      // These are already in dB (0dB = unity, positive = boost, negative = cut)
+      // The FFT has already calculated the target gain for this frequency bin
+      // and clamped it to max_boost_db/max_cut_db. We apply it directly to the filter.
+      stereo_link >= 99.5 ? (
+        gain_db = sff_gain_db_link[bin_idx];
+      ) : (
+        // Average left/right for now (could be improved)
+        gain_db = sff_stereo_avg(sff_gain_db_L[bin_idx], sff_gain_db_R[bin_idx]);
+      );
+      
+      // The FFT gain_db is already clamped to max_boost_db/max_cut_db in the FFT processing
+      // We just need to ensure it's within reasonable bounds as a safety check
+      // Use the same limits as the FFT processing (max_boost_db/max_cut_db)
+      gain_db = sff_clamp_gain(gain_db, max_boost_db, max_cut_db);
+      
+      // Convert dB gain to linear gain for filter
+      // gain_db = 0 means no change (gain_linear = 1.0)
+      // gain_db > 0 means boost, gain_db < 0 means cut
+      target_gain_linear = sff_db_to_linear(gain_db);
+      
+      // Safety clamp to prevent extreme values (shouldn't be needed if FFT clamping works)
+      // But add as a failsafe: max_boost_db typically 12-48dB, max_cut_db similar
+      // 48dB = ~251x linear, so clamp to reasonable range
+      target_gain_linear = sff_clamp(target_gain_linear, 0.01, 1000.0);
+      
+      // Get previous gain for rate of change calculation
+      prev_gain_linear = sff_filter_gains_prev[i];
+      
+      // Apply rate of change scaling to reduce action at low deltas
+      scaled_gain_linear = sff_apply_rate_of_change_scaling(target_gain_linear, prev_gain_linear);
+      
+      // Update filter gain with scaled value
+      sff_filter_gains[i] = scaled_gain_linear;
+      
+      // Store current gain as previous for next update
+      sff_filter_gains_prev[i] = scaled_gain_linear;
+      
+      i += 1;
+    );
+    
+    // Update filter coefficients with new gains
+    sff_update_filter_coeffs();
+    
+    // Update cached unity flag after gains change
+    sff_update_unity_cache_flag();
+  );
+);
+

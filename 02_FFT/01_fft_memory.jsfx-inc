@@ -22,6 +22,11 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, displ
   sff_in_ring_L = sff_mem_next;        sff_mem_next += maxn;
   sff_in_ring_R = sff_mem_next;        sff_mem_next += maxn;
 
+  // Dry path delay buffers (match wet path latency for perfect nulling)
+  sff_dry_delay_L = sff_mem_next;      sff_mem_next += maxn;
+  sff_dry_delay_R = sff_mem_next;      sff_mem_next += maxn;
+  sff_dry_write_pos = 0;
+
   sff_out_ring_L = sff_mem_next;       sff_mem_next += out_len;
   sff_out_ring_R = sff_mem_next;       sff_mem_next += out_len;
 
@@ -31,13 +36,9 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, displ
   // Stereo-linked gain smoothing state (dB per positive bin)
   sff_gain_db_link = sff_mem_next;     sff_mem_next += pos_bins;
 
-  // Optional eco-mode cached magnitudes (linear) per positive bin
+  // Magnitude caches (linear) per positive bin
   sff_mag_cache_L = sff_mem_next;      sff_mem_next += pos_bins;
   sff_mag_cache_R = sff_mem_next;      sff_mem_next += pos_bins;
-
-  // Eco-mode smoothed magnitude state (linear) per positive bin
-  sff_mag_eco_L = sff_mem_next;        sff_mem_next += pos_bins;
-  sff_mag_eco_R = sff_mem_next;        sff_mem_next += pos_bins;
 
   // RMS smoothing state (power) and outputs (linear) per positive bin
   sff_mag_rms_state_L = sff_mem_next;  sff_mem_next += pos_bins;
@@ -45,7 +46,7 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, displ
   sff_mag_rms_out_L = sff_mem_next;    sff_mem_next += pos_bins;
   sff_mag_rms_out_R = sff_mem_next;    sff_mem_next += pos_bins;
 
-  // Eco mode: cached "ideal delta" (dB) per positive bin (unscaled by Strength)
+  // Cached "ideal delta" (dB) per positive bin (unscaled by Strength)
   sff_delta_db_L = sff_mem_next;       sff_mem_next += pos_bins;
   sff_delta_db_R = sff_mem_next;       sff_mem_next += pos_bins;
   sff_delta_db_link = sff_mem_next;    sff_mem_next += pos_bins;
@@ -57,10 +58,19 @@ function sff_allocate_memory() local(maxn, fft_buf_len, out_len, pos_bins, displ
   // Median scratch buffer (radius-aware window)
   sff_median_buf = sff_mem_next;       sff_mem_next += SFF_MAX_MEDIAN_WIN;
 
+  // Filter bank memory will be allocated after filter count is calculated
+  // (allocated in sff_init_filter_bank after sff_init_filter_frequencies)
+  sff_filter_freq_base = sff_mem_next;  // Reserve space for filter frequencies
+  // Max filters: ~10 octaves * 24 filters/octave = 240 filters max
+  // But with reduced below 300Hz, expect ~150-180 filters
+  sff_mem_next += 256;  // Reserve space for filter frequencies (over-allocate for safety)
+
   top = sff_mem_next;
   freembuf(top);
 
   // Clear everything
   memset(sff_mem_base, 0, top);
+  
+  // Note: Filter bank state will be allocated separately after filter count is known
 );
 
