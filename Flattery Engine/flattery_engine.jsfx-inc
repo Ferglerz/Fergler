@@ -17,18 +17,22 @@ import ./02_FFT/03_filter_bank.jsfx-inc
 import ./02_FFT/04_iir_filters.jsfx-inc
 
 // Phase 2: Processing
-import ./03_Processing/05d_param_cache.jsfx-inc
-import ./03_Processing/02_attack_release.jsfx-inc
-import ./03_Processing/03_surround_logic.jsfx-inc
-import ./03_Processing/04a_stft_spectrum.jsfx-inc
-import ./03_Processing/04b_stft_deltas.jsfx-inc
-import ./03_Processing/04c_stft_gains.jsfx-inc
-import ./03_Processing/04d_stft_synthesis.jsfx-inc
-import ./03_Processing/04_stft_process.jsfx-inc
-import ./03_Processing/05a_tilt_calculation.jsfx-inc
-import ./03_Processing/05b_rate_of_change.jsfx-inc
-import ./03_Processing/05c_filter_mapping.jsfx-inc
-import ./03_Processing/06_output_mix.jsfx-inc
+// Core processing
+import ./03_Processing/01_Core/01_param_cache.jsfx-inc
+import ./03_Processing/01_Core/02_attack_release.jsfx-inc
+import ./03_Processing/01_Core/03_surround_logic.jsfx-inc
+// STFT processing
+import ./03_Processing/02_STFT/01_stft_spectrum.jsfx-inc
+import ./03_Processing/02_STFT/02_stft_deltas.jsfx-inc
+import ./03_Processing/02_STFT/03_stft_gains.jsfx-inc
+import ./03_Processing/02_STFT/04_stft_synthesis.jsfx-inc
+import ./03_Processing/02_STFT/05_stft_process.jsfx-inc
+// Filtering
+import ./03_Processing/03_Filtering/01_tilt_calculation.jsfx-inc
+import ./03_Processing/03_Filtering/02_rate_of_change.jsfx-inc
+import ./03_Processing/03_Filtering/03_filter_mapping.jsfx-inc
+// Output
+import ./03_Processing/04_Output/01_output_mix.jsfx-inc
 
 // Phase 3: UI
 import ./04_UI/01_ui_constants.jsfx-inc
@@ -37,7 +41,7 @@ import ./04_UI/03_ui_rendering_helpers.jsfx-inc
 import ./04_UI/04_ui_graph_rendering.jsfx-inc
 import ./04_UI/05_ui_interaction.jsfx-inc
 import ./04_UI/06_ui_orchestration.jsfx-inc
-import ./04_UI/01_ui.jsfx-inc
+import ./04_UI/07_ui.jsfx-inc
 
 // Phase 4: Engine API (must be last - depends on everything)
 import ./00_engine_api.jsfx-inc
