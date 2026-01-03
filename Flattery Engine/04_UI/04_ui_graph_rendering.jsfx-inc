@@ -106,9 +106,9 @@ function sff_draw_labels(x0, y_base, h, draw_bins, min_freq, max_freq) local(sca
     x0 + SFF_LABEL_OFFSET_X, y_base, h, scale, 0);
   sff_draw_db_labels(SFF_DB_LABEL_START_POS, SFF_DB_LABEL_END_POS, SFF_DB_LABEL_STEP_POS,
     x0 + SFF_LABEL_OFFSET_X, y_base, h, scale, 1);
-  sff_draw_frequency_label(SFF_FREQ_LABEL_500, min_freq, max_freq, x0, draw_bins, y_base, "500Hz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_1K, min_freq, max_freq, x0, draw_bins, y_base, "1kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_2K, min_freq, max_freq, x0, draw_bins, y_base, "2kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_5K, min_freq, max_freq, x0, draw_bins, y_base, "5kHz");
-  sff_draw_frequency_label(SFF_FREQ_LABEL_10K, min_freq, max_freq, x0, draw_bins, y_base, "10kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_500, min_freq, max_freq, x0, draw_bins, y_base, "500 Hz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_1K, min_freq, max_freq, x0, draw_bins, y_base, "1 kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_2K, min_freq, max_freq, x0, draw_bins, y_base, "2 kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_5K, min_freq, max_freq, x0, draw_bins, y_base, "5 kHz");
+  sff_draw_frequency_label(SFF_FREQ_LABEL_10K, min_freq, max_freq, x0, draw_bins, y_base, "10 kHz");
 );

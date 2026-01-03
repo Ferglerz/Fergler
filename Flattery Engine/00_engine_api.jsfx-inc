@@ -13,6 +13,36 @@ sff_last_input_rms_ms = -1;
 sff_last_frame_dt = -1;
 sff_last_tilt_amount = -999;
 
+
+// Initialize or update FFT and filter bank if FFT size changed
+function sff_handle_fft_size_change(desired_fft) (
+  sff_set_fft_size(desired_fft);
+  sff_init_filter_frequencies();
+  sff_init_filter_bank();
+  sff_update_tilt_multiplier_cache();
+);
+
+// Initialize or update cached filter range values (clamped to Nyquist)
+function sff_update_cached_cut_range(params_base) (
+  nyq = 0.5 * srate;
+  sff_low_cut_hz_cached = sff_clamp(sff_param_get_low_cut_hz(params_base), 0, nyq);
+  sff_high_cut_hz_cached = sff_clamp(sff_param_get_high_cut_hz(params_base), sff_low_cut_hz_cached, nyq);
+  // Mirror into globals so @slider updates are immediately reflected
+  low_cut_hz = sff_low_cut_hz_cached;
+  high_cut_hz = sff_high_cut_hz_cached;
+  sff_update_active_filter_range();
+);
+
+// Update cached time constants, only call if changed or after init
+function sff_update_time_caches(params_base) (
+  sff_last_attack_ms = sff_param_get_attack_ms(params_base);
+  sff_last_release_ms = sff_param_get_release_ms(params_base);
+  sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
+  sff_last_frame_dt = frame_dt;
+);
+
+// --- Main API ---
+
 // Initialize engine
 function flattery_init(params_base) (
   sff_engine_params_base = params_base;
@@ -20,25 +50,20 @@ function flattery_init(params_base) (
   sff_allocate_memory();
 
   desired_fft = 128 << (sff_param_get_fft_size_sel(params_base)|0);
-  sff_set_fft_size(desired_fft);
+  sff_handle_fft_size_change(desired_fft);
 
-  sff_init_filter_frequencies();
-  sff_init_filter_bank();
   sff_update_filter_coeffs();
 
-  sff_init_param_trackers();
+  sff_update_cached_cut_range(params_base);
+  sff_update_cutoff_bins();
+  sff_update_operate_range_cache();
 
-  sff_low_cut_hz_cached = sff_param_get_low_cut_hz(params_base);
-  sff_high_cut_hz_cached = sff_param_get_high_cut_hz(params_base);
-  sff_update_active_filter_range();
+  sff_init_param_trackers();
 
   tilt_amount = sff_param_get_tilt(params_base) * 0.01;
   sff_update_tilt_multiplier_cache();
 
-  sff_last_attack_ms = sff_param_get_attack_ms(params_base);
-  sff_last_release_ms = sff_param_get_release_ms(params_base);
-  sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
-  sff_last_frame_dt = frame_dt;
+  sff_update_time_caches(params_base);
   sff_last_tilt_amount = tilt_amount;
 
   sff_engine_initialized = 1;
@@ -52,10 +77,7 @@ function flattery_update_params(params_base) (
 
   desired_fft = 128 << (sff_param_get_fft_size_sel(params_base)|0);
   desired_fft != (fft_size|0) ? (
-    sff_set_fft_size(desired_fft);
-    sff_init_filter_frequencies();
-    sff_init_filter_bank();
-    sff_update_tilt_multiplier_cache();
+    sff_handle_fft_size_change(desired_fft);
   );
 
   strength_internal = sff_param_get_strength(params_base) * 0.01;
@@ -63,13 +85,10 @@ function flattery_update_params(params_base) (
   strength_internal == 0 ? sff_map_fft_gains_to_filters();
   sff_update_filter_coeffs();
 
-  sff_update_band_ranges_from_global();
-  sff_order_band_splits();
+  // Apply cut ranges immediately so active filters update on slider changes
+  sff_update_cached_cut_range(params_base);
   sff_update_cutoff_bins();
-
-  sff_low_cut_hz_cached = sff_param_get_low_cut_hz(params_base);
-  sff_high_cut_hz_cached = sff_param_get_high_cut_hz(params_base);
-  sff_update_active_filter_range();
+  sff_update_operate_range_cache();
 
   wet_mix = sff_param_get_wet(params_base) * 0.01;
   output_gain_linear = sff_db_to_linear(sff_param_get_output_gain_db(params_base));
@@ -88,10 +107,7 @@ function flattery_update_params(params_base) (
    sff_param_get_input_rms_ms(params_base) != sff_last_input_rms_ms ||
    frame_dt != sff_last_frame_dt) ? (
     sff_update_time_coeffs();
-    sff_last_attack_ms = sff_param_get_attack_ms(params_base);
-    sff_last_release_ms = sff_param_get_release_ms(params_base);
-    sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
-    sff_last_frame_dt = frame_dt;
+    sff_update_time_caches(params_base);
   );
 
   // PDC channels
@@ -154,22 +170,24 @@ function flattery_get_pdc_delay() (
 // SIMPLIFIED API - For slider-based plugins
 // ============================================================================
 
-// Initialize engine from sliders
-function flattery_init_from_sliders() (
+// Common function to allocate engine parameters base if not done
+function flattery_ensure_params_base() (
   sff_engine_params_allocated == 0 ? (
     sff_engine_params_base = 100000;
     sff_engine_params_allocated = 1;
   );
+);
+
+// Initialize engine from sliders
+function flattery_init_from_sliders() (
+  flattery_ensure_params_base();
   sff_params_from_sliders(sff_engine_params_base);
   flattery_init(sff_engine_params_base);
 );
 
 // Update engine from sliders
 function flattery_update_from_sliders() (
-  sff_engine_params_allocated == 0 ? (
-    sff_engine_params_base = 100000;
-    sff_engine_params_allocated = 1;
-  );
+  flattery_ensure_params_base();
   sff_params_from_sliders(sff_engine_params_base);
   flattery_update_params(sff_engine_params_base);
 );

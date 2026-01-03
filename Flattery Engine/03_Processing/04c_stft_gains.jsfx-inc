@@ -16,11 +16,9 @@ function sff_apply_gain_to_spec_bin(spec_base, k, g_lin, n) local(kn) (
   ) : 0;
 );
 
-// Helper: Compute effective strength for a bin
-function sff_compute_effective_strength(bin) local(hz, band) (
-  hz = sff_bin_to_hz(bin);
-  band = sff_get_band_index_for_hz(hz);
-  strength_internal * sff_get_band_strength_mul(band);
+// Helper: Compute effective strength for a bin (no band scaling)
+function sff_compute_effective_strength(bin) (
+  strength_internal;
 );
 
 // Apply gains to a single spectrum

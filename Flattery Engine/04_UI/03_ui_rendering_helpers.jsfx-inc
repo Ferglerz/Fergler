@@ -75,11 +75,11 @@ function sff_draw_cut_line(x, y_top, y_bottom, tri_size, r,g,b)(
   tri_size>0 ? sff_draw_triangle(x, y_top, tri_size, r,g,b):0;
 );
 
-// Draw a single dB label
+// Draw a single dB label (unit removed for cleaner axis)
 function sff_draw_db_label(db, x, y_base, h, inv_scale, plus) local(y)(
   y = y_base - (db+12)*inv_scale*(h-8);
-  plus && db>0 ? sprintf(#sff_tmp_str,"+%.0fdB",db)
-               : sprintf(#sff_tmp_str,"%.0fdB",db);
+  plus && db>0 ? sprintf(#sff_tmp_str,"+%.0f",db)
+               : sprintf(#sff_tmp_str,"%.0f",db);
   gfx_set(SFF_COLOR_TEXT_R,SFF_COLOR_TEXT_G,SFF_COLOR_TEXT_B,1);
   gfx_x=x; gfx_y=y-SFF_LABEL_OFFSET_Y;
   gfx_drawstr(#sff_tmp_str);

@@ -459,14 +459,14 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     i += 1;
   );
 
-  // Draw dB scale on left side (+3, +6, +9, +12, -3, -6, -9, -12, centered at 0 dB)
+  // Draw scale on left side (+3, +6, +9, +12, -3, -6, -9, -12, centered at 0 dB)
   gfx_set(1.0, 1.0, 1.0, 1.0);  // White text
   // Draw negative values: -12, -9, -6, -3
   db_val = -12;
   loop(4,
     // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
     label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
-    sprintf(#sff_tmp_str, "%.0fdB", db_val);
+    sprintf(#sff_tmp_str, "%.0f", db_val);
     // Draw text on left side (x0 + 2, with small offset for readability)
     gfx_x = x0 + 4;
     gfx_y = label_y - 6;  // Offset to center text vertically
@@ -478,7 +478,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   loop(4,
     // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
     label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
-    sprintf(#sff_tmp_str, "+%.0fdB", db_val);
+    sprintf(#sff_tmp_str, "+%.0f", db_val);
     // Draw text on left side (x0 + 2, with small offset for readability)
     gfx_x = x0 + 4;
     gfx_y = label_y - 6;  // Offset to center text vertically
@@ -500,7 +500,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Draw label: 500Hz
   label_pos = sff_freq_to_pos(freq_500, min_freq, max_freq);
   label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, "500Hz");
+  sprintf(#sff_tmp_str, "500 Hz");
   gfx_x = label_x;
   gfx_y = label_y - 6;
   gfx_drawstr(#sff_tmp_str);
@@ -508,7 +508,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Draw label: 1kHz
   label_pos = sff_freq_to_pos(freq_1k, min_freq, max_freq);
   label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, "1kHz");
+  sprintf(#sff_tmp_str, "1 kHz");
   gfx_x = label_x;
   gfx_y = label_y - 6;
   gfx_drawstr(#sff_tmp_str);
@@ -516,7 +516,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Draw label: 2kHz
   label_pos = sff_freq_to_pos(freq_2k, min_freq, max_freq);
   label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, "2kHz");
+  sprintf(#sff_tmp_str, "2 kHz");
   gfx_x = label_x;
   gfx_y = label_y - 6;
   gfx_drawstr(#sff_tmp_str);
@@ -524,7 +524,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Draw label: 5kHz
   label_pos = sff_freq_to_pos(freq_5k, min_freq, max_freq);
   label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, "5kHz");
+  sprintf(#sff_tmp_str, "5 kHz");
   gfx_x = label_x;
   gfx_y = label_y - 6;
   gfx_drawstr(#sff_tmp_str);
@@ -532,7 +532,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Draw label: 10kHz
   label_pos = sff_freq_to_pos(freq_10k, min_freq, max_freq);
   label_x = sff_pos_to_x(label_pos, x0, draw_bins);
-  sprintf(#sff_tmp_str, "10kHz");
+  sprintf(#sff_tmp_str, "10 kHz");
   gfx_x = label_x;
   gfx_y = label_y - 6;
   gfx_drawstr(#sff_tmp_str);

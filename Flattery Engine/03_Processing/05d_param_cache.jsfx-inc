@@ -13,25 +13,10 @@ function sff_init_param_trackers() (
   sff_force_recompute_deltas = 1;
 );
 
-function sff_order_band_splits() (
-  band_split2_hz < band_split1_hz ? (band_split2_hz = band_split1_hz;) : 0;
-  band_split3_hz < band_split2_hz ? (band_split3_hz = band_split2_hz;) : 0;
-);
-
-function sff_update_band_ranges_from_global() (
-  // Map single operate range sliders into all band ranges for now
-  band1_min_db = band2_min_db = band3_min_db = band4_min_db = min_operate_db;
-  band1_max_db = band2_max_db = band3_max_db = band4_max_db = max_operate_db;
-
-  // Precompute per-band linear thresholds (for fast gating)
-  band1_min_lin = sff_db_to_linear(band1_min_db);
-  band1_max_lin = sff_db_to_linear(band1_max_db);
-  band2_min_lin = sff_db_to_linear(band2_min_db);
-  band2_max_lin = sff_db_to_linear(band2_max_db);
-  band3_min_lin = sff_db_to_linear(band3_min_db);
-  band3_max_lin = sff_db_to_linear(band3_max_db);
-  band4_min_lin = sff_db_to_linear(band4_min_db);
-  band4_max_lin = sff_db_to_linear(band4_max_db);
+// Cache global operate range in linear for fast gating
+function sff_update_operate_range_cache() (
+  sff_operate_min_lin = sff_db_to_linear(min_operate_db);
+  sff_operate_max_lin = sff_db_to_linear(max_operate_db);
 );
 
 function sff_update_cutoff_bins() local(nyq) (
