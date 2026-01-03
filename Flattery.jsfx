@@ -82,7 +82,12 @@ import 03_Processing/04_stft_process.jsfx-inc
 import 03_Processing/05_filter_mapping.jsfx-inc
 import 03_Processing/06_output_mix.jsfx-inc
 
-import 04_UI/01_ui.jsfx-inc
+import 04_UI/01_ui_constants.jsfx-inc
+import 04_UI/02_ui_coordinates.jsfx-inc
+import 04_UI/03_ui_rendering_helpers.jsfx-inc
+import 04_UI/04_ui_graph_rendering.jsfx-inc
+import 04_UI/05_ui_interaction.jsfx-inc
+import 04_UI/06_ui_orchestration.jsfx-inc
 
 @init
   sff_allocate_memory();
