@@ -1,0 +1,225 @@
+// Flattery Engine - Main API Entry Point
+// This is the library interface that other scripts can use
+// All functions accept a parameter array instead of reading sliders
+
+@init
+
+// Engine state structure
+// This holds all the internal state needed by the engine
+sff_engine_params_base = 0;  // Parameter array (allocated internally)
+sff_engine_initialized = 0;   // Initialization flag
+sff_engine_params_allocated = 0;  // Track if params array is allocated
+sff_last_attack_ms = -1;  // Track last attack_ms for auto block updates
+sff_last_release_ms = -1;  // Track last release_ms for auto block updates
+sff_last_input_rms_ms = -1;  // Track last input_rms_ms for auto block updates
+sff_last_frame_dt = -1;  // Track last frame_dt for auto block updates
+
+// Initialize the Flattery Engine
+// params_base: array of SFF_PARAM_COUNT parameters (from 01_parameters.jsfx-inc)
+// Returns: 1 on success, 0 on failure
+function flattery_init(params_base) (
+  sff_engine_params_base = params_base;
+  
+  // Sync parameters to globals
+  sff_sync_params_to_globals(params_base);
+  
+  // Allocate memory
+  sff_allocate_memory();
+  
+  // Set initial FFT size from parameter
+  desired_fft = 128 << (sff_param_get_fft_size_sel(params_base)|0);
+  sff_set_fft_size(desired_fft);
+  
+  // Initialize filter bank
+  sff_init_filter_frequencies();
+  sff_init_filter_bank();
+  sff_update_filter_coeffs();
+  
+  // Initialize parameter trackers
+  sff_init_param_trackers();
+  
+  // Initialize cached cut frequencies
+  sff_low_cut_hz_cached = sff_param_get_low_cut_hz(params_base);
+  sff_high_cut_hz_cached = sff_param_get_high_cut_hz(params_base);
+  sff_update_active_filter_range();
+  
+  // Initialize tilt amount
+  tilt_amount = sff_param_get_tilt(params_base) * 0.01;
+  
+  // Initialize time coeff tracking
+  sff_last_attack_ms = sff_param_get_attack_ms(params_base);
+  sff_last_release_ms = sff_param_get_release_ms(params_base);
+  sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
+  sff_last_frame_dt = frame_dt;
+  
+  sff_engine_initialized = 1;
+  1;
+);
+
+// Update engine parameters (call when parameters change)
+// params_base: updated parameter array
+function flattery_update_params(params_base) (
+  sff_engine_params_base = params_base;
+  
+  // Sync parameters to globals first
+  sff_sync_params_to_globals(params_base);
+  
+  // Derive FFT size from selection
+  desired_fft = 128 << (sff_param_get_fft_size_sel(params_base)|0);
+  desired_fft != (fft_size|0) ? (
+    sff_set_fft_size(desired_fft);
+    sff_init_filter_frequencies();
+    sff_init_filter_bank();
+  ) : 0;
+  
+  // Convert strength from 0-200 range to 0-2 range internally
+  strength_internal = sff_param_get_strength(params_base) * 0.01;
+  
+  // Update filter coefficients
+  strength_internal == 0 ? (
+    sff_map_fft_gains_to_filters();
+  ) : 0;
+  sff_update_filter_coeffs();
+  
+  sff_update_band_ranges_from_global();
+  sff_order_band_splits();
+  sff_update_cutoff_bins();
+  
+  // Cache cut frequencies
+  sff_low_cut_hz_cached = sff_param_get_low_cut_hz(params_base);
+  sff_high_cut_hz_cached = sff_param_get_high_cut_hz(params_base);
+  sff_update_active_filter_range();
+  
+  // Cache wet mix and output gain
+  wet_mix = sff_param_get_wet(params_base) * 0.01;
+  output_gain_linear = sff_db_to_linear(sff_param_get_output_gain_db(params_base));
+  tilt_amount = sff_param_get_tilt(params_base) * 0.01;
+  sff_update_delta_recompute_flag();
+  
+  // Update time coeffs if timing parameters changed
+  (sff_param_get_attack_ms(params_base) != sff_last_attack_ms ||
+   sff_param_get_release_ms(params_base) != sff_last_release_ms ||
+   sff_param_get_input_rms_ms(params_base) != sff_last_input_rms_ms ||
+   frame_dt != sff_last_frame_dt) ? (
+    sff_update_time_coeffs();
+    sff_last_attack_ms = sff_param_get_attack_ms(params_base);
+    sff_last_release_ms = sff_param_get_release_ms(params_base);
+    sff_last_input_rms_ms = sff_param_get_input_rms_ms(params_base);
+    sff_last_frame_dt = frame_dt;
+  ) : 0;
+  
+  // PDC
+  pdc_delay = sff_analysis_delay|0;
+  pdc_delay > 0 ? (
+    pdc_bot_ch = 0;
+    pdc_top_ch = 2;
+  ) : (
+    pdc_bot_ch = 0;
+    pdc_top_ch = 2;
+  );
+);
+
+// Process audio sample (call in @sample section)
+// spl0, spl1: input samples (will be modified to output)
+// Time coefficients are automatically updated in @slider when parameters change
+// No @block section needed - engine handles everything automatically
+function flattery_process_sample() local(params_base, n, delay_read_pos, delayed_L, delayed_R, wetL, wetR) (
+  params_base = sff_engine_params_base;
+  
+  // Push input to analysis ring for FFT analysis
+  n = fft_size|0;
+  sff_in_ring_L[sff_ring_pos] = spl0;
+  sff_in_ring_R[sff_ring_pos] = spl1;
+  sff_ring_pos = (sff_ring_pos + 1) % n;
+  
+  // Delay compensation: write current input to delay buffer
+  sff_dry_delay_L[sff_dry_write_pos] = spl0;
+  sff_dry_delay_R[sff_dry_write_pos] = spl1;
+  sff_dry_write_pos = (sff_dry_write_pos + 1) % n;
+  
+  // Read delayed samples
+  delay_read_pos = (sff_dry_write_pos - 1 - sff_analysis_delay + n) % n;
+  delayed_L = sff_dry_delay_L[delay_read_pos];
+  delayed_R = sff_dry_delay_R[delay_read_pos];
+  
+  // Hop trigger for FFT analysis
+  sff_hop_counter += 1;
+  sff_hop_counter >= hop_size ? (
+    sff_hop_counter = 0;
+    sff_process_stereo_frame();
+    sff_map_fft_gains_to_filters();
+  );
+  
+  // Process delayed audio through IIR filter bank
+  strength_internal == 0 ? (
+    wetL = delayed_L;
+    wetR = delayed_R;
+  ) : (
+    wetL = sff_process_filter_bank(delayed_L, delayed_R);
+    wetR = sff_get_filter_output_R();
+  );
+  
+  // Output: mix dry and filtered signal
+  spl0 = sff_mix_dry_wet(delayed_L, wetL, wet_mix) * output_gain_linear;
+  spl1 = sff_mix_dry_wet(delayed_R, wetR, wet_mix) * output_gain_linear;
+);
+
+// Update block-level parameters (call in @block section)
+function flattery_update_block() (
+  sff_update_time_coeffs();
+);
+
+// Render UI (call in @gfx section)
+// params_base: parameter array (can be same as engine params or different for preview)
+// If params_base is 0, uses current engine parameters
+function flattery_render_ui(params_base) (
+  params_base == 0 ? (
+    sff_ui_draw();  // Use existing function that reads globals (synced from engine params)
+  ) : (
+    sff_ui_draw_with_params(params_base);  // Use parameterized version
+  );
+);
+
+// Get PDC delay (for external PDC management if needed)
+function flattery_get_pdc_delay() (
+  sff_analysis_delay|0;
+);
+
+// ============================================================================
+// SIMPLIFIED API - For use with slider-based plugins
+// These functions handle parameter array allocation and slider reading
+// ============================================================================
+
+// Initialize engine from sliders (handles everything automatically)
+// Call this in @init - it allocates parameter array, reads sliders, and initializes engine
+function flattery_init_from_sliders() (
+  // Allocate parameter array if not already allocated
+  sff_engine_params_allocated == 0 ? (
+    // Use high memory index to avoid conflicts with engine's internal memory
+    sff_engine_params_base = 100000;
+    sff_engine_params_allocated = 1;
+  ) : 0;
+  
+  // Read sliders into parameter array
+  sff_params_from_sliders(sff_engine_params_base);
+  
+  // Initialize engine with parameters
+  flattery_init(sff_engine_params_base);
+);
+
+// Update engine from sliders (handles slider reading and engine update)
+// Call this in @slider - it reads sliders and updates the engine
+function flattery_update_from_sliders() (
+  // Ensure params array is allocated (shouldn't happen, but safety check)
+  sff_engine_params_allocated == 0 ? (
+    sff_engine_params_base = 100000;
+    sff_engine_params_allocated = 1;
+  ) : 0;
+  
+  // Read sliders into parameter array
+  sff_params_from_sliders(sff_engine_params_base);
+  
+  // Update engine with new parameters
+  flattery_update_params(sff_engine_params_base);
+);
+

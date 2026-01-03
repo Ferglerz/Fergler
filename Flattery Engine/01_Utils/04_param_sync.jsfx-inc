@@ -1,0 +1,71 @@
+// Flattery Engine - Parameter Synchronization
+// Syncs parameter array to global variables that existing code expects
+// This allows existing code to work without modification
+
+@init
+
+// Sync parameters from parameter array to global variables
+// This function should be called before any processing that reads globals
+function sff_sync_params_to_globals(params_base) (
+  // Core parameters
+  fft_size_sel = sff_param_get_fft_size_sel(params_base);
+  strength = sff_param_get_strength(params_base);
+  max_boost_db = sff_param_get_max_boost_db(params_base);
+  max_cut_db = sff_param_get_max_cut_db(params_base);
+  wet = sff_param_get_wet(params_base);
+  output_gain_db = sff_param_get_output_gain_db(params_base);
+  
+  // Processing mode
+  ms_mode = sff_param_get_ms_mode(params_base);
+  stereo_link = sff_param_get_stereo_link(params_base);
+  neighbor_radius = sff_param_get_neighbor_radius(params_base);
+  neighbor_mode = sff_param_get_neighbor_mode(params_base);
+  
+  // Timing
+  attack_ms = sff_param_get_attack_ms(params_base);
+  release_ms = sff_param_get_release_ms(params_base);
+  input_rms_ms = sff_param_get_input_rms_ms(params_base);
+  
+  // Operating range
+  min_operate_db = sff_param_get_min_operate_db(params_base);
+  max_operate_db = sff_param_get_max_operate_db(params_base);
+  low_cut_hz = sff_param_get_low_cut_hz(params_base);
+  high_cut_hz = sff_param_get_high_cut_hz(params_base);
+  
+  // Tilt
+  tilt = sff_param_get_tilt(params_base);
+  
+  // Band splits
+  band_split1_hz = sff_param_get_band_split1_hz(params_base);
+  band_split2_hz = sff_param_get_band_split2_hz(params_base);
+  band_split3_hz = sff_param_get_band_split3_hz(params_base);
+  
+  // Band enables
+  band1_enabled = sff_param_get_band1_enabled(params_base);
+  band2_enabled = sff_param_get_band2_enabled(params_base);
+  band3_enabled = sff_param_get_band3_enabled(params_base);
+  band4_enabled = sff_param_get_band4_enabled(params_base);
+  
+  // Band strength multipliers
+  band1_strength_mul = sff_param_get_band1_strength_mul(params_base);
+  band2_strength_mul = sff_param_get_band2_strength_mul(params_base);
+  band3_strength_mul = sff_param_get_band3_strength_mul(params_base);
+  band4_strength_mul = sff_param_get_band4_strength_mul(params_base);
+  
+  // Band radius multipliers
+  band1_radius_mul = sff_param_get_band1_radius_mul(params_base);
+  band2_radius_mul = sff_param_get_band2_radius_mul(params_base);
+  band3_radius_mul = sff_param_get_band3_radius_mul(params_base);
+  band4_radius_mul = sff_param_get_band4_radius_mul(params_base);
+  
+  // Band operate ranges
+  band1_min_db = sff_param_get_band1_min_db(params_base);
+  band1_max_db = sff_param_get_band1_max_db(params_base);
+  band2_min_db = sff_param_get_band2_min_db(params_base);
+  band2_max_db = sff_param_get_band2_max_db(params_base);
+  band3_min_db = sff_param_get_band3_min_db(params_base);
+  band3_max_db = sff_param_get_band3_max_db(params_base);
+  band4_min_db = sff_param_get_band4_min_db(params_base);
+  band4_max_db = sff_param_get_band4_max_db(params_base);
+);
+
