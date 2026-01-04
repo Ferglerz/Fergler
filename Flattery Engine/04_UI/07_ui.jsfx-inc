@@ -80,133 +80,143 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     // Get bin center frequency (bin k center is at (k + 0.5) * bin_hz)
     bin_center_freq = (i + 0.5) * bin_hz;
     
-    // Check if bin is within cut range
-    (bin_center_freq >= low_cut_hz && bin_center_freq <= high_cut_hz) ? (
-      // Convert bin center frequency to normalized position
-      bin_center_pos = sff_freq_to_pos(bin_center_freq, min_freq, max_freq);
+    // Calculate opacity based on whether bin is within cut range
+    // Inside range: full opacity (0.8 for line, 0.3 for fill)
+    // Outside range: reduced opacity (0.2 for line, 0.1 for fill)
+    // Use > for low_cut to exclude the bin at the exact cut frequency (one bin offset fix)
+    (bin_center_freq > low_cut_hz && bin_center_freq <= high_cut_hz) ? (
+      opacity_line = 0.8;
+      opacity_fill = 0.3;
+    ) : (
+      opacity_line = 0.2;
+      opacity_fill = 0.1;
+    );
+    
+    // Convert bin center frequency to normalized position
+    bin_center_pos = sff_freq_to_pos(bin_center_freq, min_freq, max_freq);
+    
+    // Convert position to X coordinate (exact center point of bin)
+    mag_x = sff_pos_to_x(bin_center_pos, x0, draw_bins);
+    
+    // Get magnitude for this bin (already in dB)
+    mag_avg_db = sff_display_mag_db[i];
+    
+    // Map input signal: -120 dB (bottom) to 0 dB (center line)
+    mag_v = sff_clamp((mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
+    mag_height = mag_v * ((h-8) * 0.5);  // Height from baseline
+    mag_y = y_base - mag_height;  // Convert to Y coordinate (y_base is at bottom)
+    
+    // Get previous, current, next, and next+1 points for Catmull-Rom
+    mag_p0_x = mag_point_idx > 0 ? mag_prev_prev_x : mag_x;
+    mag_p0_y = mag_point_idx > 0 ? mag_prev_prev_y : mag_y;
+    mag_p1_x = mag_point_idx > 0 ? mag_prev_x : mag_x;
+    mag_p1_y = mag_point_idx > 0 ? mag_prev_y : mag_y;
+    mag_p2_x = mag_x;
+    mag_p2_y = mag_y;
+    
+    // Find next point for p3 (always find next point, regardless of cutoff)
+    mag_p3_x = mag_x;
+    mag_p3_y = mag_y;
+    j = i + 1;
+    j < sff_display_bin_count ? (
+      next_bin_center_freq = (j + 0.5) * bin_hz;
+      next_bin_center_pos = sff_freq_to_pos(next_bin_center_freq, min_freq, max_freq);
+      mag_p3_x = sff_pos_to_x(next_bin_center_pos, x0, draw_bins);
+      next_mag_avg_db = sff_display_mag_db[j];
+      next_mag_v = sff_clamp((next_mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
+      next_mag_height = next_mag_v * ((h-8) * 0.5);
+      mag_p3_y = y_base - next_mag_height;
+    ) : 0;
+    
+    // Draw smooth curve and filled area from previous point to current point
+    mag_point_idx > 0 ? (
+      // Calculate number of interpolation steps based on distance
+      // Limit to at most 1 step per pixel, and ensure we don't exceed graph width
+      mag_x_dist = abs(mag_p2_x - mag_p1_x);
+      mag_interp_steps = max((mag_x_dist)|0, 1);  // At least 1 step per pixel
+      mag_interp_steps = min(mag_interp_steps, draw_bins);  // Never exceed graph width
+      mag_interp_step_inv = 1.0 / mag_interp_steps;
       
-      // Convert position to X coordinate (exact center point of bin)
-      mag_x = sff_pos_to_x(bin_center_pos, x0, draw_bins);
-      
-      // Get magnitude for this bin (already in dB)
-      mag_avg_db = sff_display_mag_db[i];
-      
-      // Map input signal: -120 dB (bottom) to 0 dB (center line)
-      mag_v = sff_clamp((mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
-      mag_height = mag_v * ((h-8) * 0.5);  // Height from baseline
-      mag_y = y_base - mag_height;  // Convert to Y coordinate (y_base is at bottom)
-      
-      // Get previous, current, next, and next+1 points for Catmull-Rom
-      mag_p0_x = mag_point_idx > 0 ? mag_prev_prev_x : mag_x;
-      mag_p0_y = mag_point_idx > 0 ? mag_prev_prev_y : mag_y;
-      mag_p1_x = mag_point_idx > 0 ? mag_prev_x : mag_x;
-      mag_p1_y = mag_point_idx > 0 ? mag_prev_y : mag_y;
-      mag_p2_x = mag_x;
-      mag_p2_y = mag_y;
-      
-      // Find next point for p3
-      mag_p3_x = mag_x;
-      mag_p3_y = mag_y;
-      j = i + 1;
-      loop(sff_display_bin_count - i - 1,
-        next_bin_center_freq = (j + 0.5) * bin_hz;
-        (next_bin_center_freq >= low_cut_hz && next_bin_center_freq <= high_cut_hz) ? (
-          next_bin_center_pos = sff_freq_to_pos(next_bin_center_freq, min_freq, max_freq);
-          mag_p3_x = sff_pos_to_x(next_bin_center_pos, x0, draw_bins);
-          next_mag_avg_db = sff_display_mag_db[j];
-          next_mag_v = sff_clamp((next_mag_avg_db + 120) * mag_db_scale_inv, 0, 1);
-          next_mag_height = next_mag_v * ((h-8) * 0.5);
-          mag_p3_y = y_base - next_mag_height;
-          j = sff_display_bin_count;  // Exit loop
-        ) : 0;
-        j += 1;
-      );
-      
-      // Draw smooth curve and filled area from previous point to current point
-      mag_point_idx > 0 ? (
-        // Calculate number of interpolation steps based on distance
-        // Limit to at most 1 step per pixel, and ensure we don't exceed graph width
-        mag_x_dist = abs(mag_p2_x - mag_p1_x);
-        mag_interp_steps = max((mag_x_dist)|0, 1);  // At least 1 step per pixel
-        mag_interp_steps = min(mag_interp_steps, draw_bins);  // Never exceed graph width
-        mag_interp_step_inv = 1.0 / mag_interp_steps;
+      // Draw Catmull-Rom spline segments with filled area
+      mag_prev_interp_x = mag_p1_x;
+      mag_prev_interp_y = mag_p1_y;
+      k = 1;
+      loop(mag_interp_steps,
+        mag_t = k * mag_interp_step_inv;
+        // Catmull-Rom spline interpolation
+        mag_t2 = mag_t * mag_t;
+        mag_t3 = mag_t2 * mag_t;
+        mag_a0_x = -0.5 * mag_p0_x + 1.5 * mag_p1_x - 1.5 * mag_p2_x + 0.5 * mag_p3_x;
+        mag_a1_x = mag_p0_x - 2.5 * mag_p1_x + 2.0 * mag_p2_x - 0.5 * mag_p3_x;
+        mag_a2_x = -0.5 * mag_p0_x + 0.5 * mag_p2_x;
+        mag_a3_x = mag_p1_x;
+        mag_interp_x = mag_a0_x * mag_t3 + mag_a1_x * mag_t2 + mag_a2_x * mag_t + mag_a3_x;
         
-        // Draw Catmull-Rom spline segments with filled area
-        mag_prev_interp_x = mag_p1_x;
-        mag_prev_interp_y = mag_p1_y;
-        k = 1;
-        loop(mag_interp_steps,
-          mag_t = k * mag_interp_step_inv;
-          // Catmull-Rom spline interpolation
-          mag_t2 = mag_t * mag_t;
-          mag_t3 = mag_t2 * mag_t;
-          mag_a0_x = -0.5 * mag_p0_x + 1.5 * mag_p1_x - 1.5 * mag_p2_x + 0.5 * mag_p3_x;
-          mag_a1_x = mag_p0_x - 2.5 * mag_p1_x + 2.0 * mag_p2_x - 0.5 * mag_p3_x;
-          mag_a2_x = -0.5 * mag_p0_x + 0.5 * mag_p2_x;
-          mag_a3_x = mag_p1_x;
-          mag_interp_x = mag_a0_x * mag_t3 + mag_a1_x * mag_t2 + mag_a2_x * mag_t + mag_a3_x;
-          
-          mag_a0_y = -0.5 * mag_p0_y + 1.5 * mag_p1_y - 1.5 * mag_p2_y + 0.5 * mag_p3_y;
-          mag_a1_y = mag_p0_y - 2.5 * mag_p1_y + 2.0 * mag_p2_y - 0.5 * mag_p3_y;
-          mag_a2_y = -0.5 * mag_p0_y + 0.5 * mag_p2_y;
-          mag_a3_y = mag_p1_y;
-          mag_interp_y = mag_a0_y * mag_t3 + mag_a1_y * mag_t2 + mag_a2_y * mag_t + mag_a3_y;
-          
-          // Round X coordinates to integers to avoid rounding errors
-          prev_x_int = mag_prev_interp_x|0;
-          interp_x_int = mag_interp_x|0;
-          
-          // Draw filled area (rectangle from baseline to curve)
-          // Ensure continuous fill with exact pixel alignment
-          seg_x = min(prev_x_int, interp_x_int);
-          seg_x_end = max(prev_x_int, interp_x_int);
-          seg_width = seg_x_end - seg_x;
-          seg_top_y = min(mag_prev_interp_y, mag_interp_y);  // Top of curve (smaller Y = higher on screen)
-          seg_bottom_y = y_base;  // Bottom at baseline
-          seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
-          gfx_set(0.25, 0.55, 0.95, 0.3);  // Semi-transparent blue for fill
-          (seg_width > 0 && seg_height > 0) ? (
-            gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
-          ) : 0;
-          
-          // Draw curve line (round X coordinates for consistent alignment)
-          prev_x_int = mag_prev_interp_x|0;
-          interp_x_int = mag_interp_x|0;
-          gfx_set(0.25, 0.55, 0.95, 0.8);  // More opaque blue for curve
-          gfx_line(prev_x_int, mag_prev_interp_y, interp_x_int, mag_interp_y, 0);
-          
-          // Store for next segment
-          mag_prev_interp_x = mag_interp_x;
-          mag_prev_interp_y = mag_interp_y;
-          k += 1;
-        );
-        // Draw final segment to actual point
+        mag_a0_y = -0.5 * mag_p0_y + 1.5 * mag_p1_y - 1.5 * mag_p2_y + 0.5 * mag_p3_y;
+        mag_a1_y = mag_p0_y - 2.5 * mag_p1_y + 2.0 * mag_p2_y - 0.5 * mag_p3_y;
+        mag_a2_y = -0.5 * mag_p0_y + 0.5 * mag_p2_y;
+        mag_a3_y = mag_p1_y;
+        mag_interp_y = mag_a0_y * mag_t3 + mag_a1_y * mag_t2 + mag_a2_y * mag_t + mag_a3_y;
+        
+        // Calculate opacity for interpolated point (use opacity of current point for simplicity)
+        // This ensures smooth transitions at cutoff boundaries
+        interp_opacity_line = opacity_line;
+        interp_opacity_fill = opacity_fill;
+        
         // Round X coordinates to integers to avoid rounding errors
         prev_x_int = mag_prev_interp_x|0;
-        p2_x_int = mag_p2_x|0;
-        seg_x = min(prev_x_int, p2_x_int);
-        seg_x_end = max(prev_x_int, p2_x_int);
+        interp_x_int = mag_interp_x|0;
+        
+        // Draw filled area (rectangle from baseline to curve)
+        // Ensure continuous fill with exact pixel alignment
+        seg_x = min(prev_x_int, interp_x_int);
+        seg_x_end = max(prev_x_int, interp_x_int);
         seg_width = seg_x_end - seg_x;
-        seg_top_y = min(mag_prev_interp_y, mag_p2_y);  // Top of curve
+        seg_top_y = min(mag_prev_interp_y, mag_interp_y);  // Top of curve (smaller Y = higher on screen)
         seg_bottom_y = y_base;  // Bottom at baseline
         seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
-        gfx_set(0.25, 0.55, 0.95, 0.3);
+        gfx_set(0.25, 0.55, 0.95, interp_opacity_fill);  // Variable opacity for fill
         (seg_width > 0 && seg_height > 0) ? (
           gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
         ) : 0;
-        gfx_set(0.25, 0.55, 0.95, 0.8);
+        
+        // Draw curve line (round X coordinates for consistent alignment)
         prev_x_int = mag_prev_interp_x|0;
-        p2_x_int = mag_p2_x|0;
-        gfx_line(prev_x_int, mag_prev_interp_y, p2_x_int, mag_p2_y, 0);
+        interp_x_int = mag_interp_x|0;
+        gfx_set(0.25, 0.55, 0.95, interp_opacity_line);  // Variable opacity for curve
+        gfx_line(prev_x_int, mag_prev_interp_y, interp_x_int, mag_interp_y, 0);
+        
+        // Store for next segment
+        mag_prev_interp_x = mag_interp_x;
+        mag_prev_interp_y = mag_interp_y;
+        k += 1;
+      );
+      // Draw final segment to actual point
+      // Round X coordinates to integers to avoid rounding errors
+      prev_x_int = mag_prev_interp_x|0;
+      p2_x_int = mag_p2_x|0;
+      seg_x = min(prev_x_int, p2_x_int);
+      seg_x_end = max(prev_x_int, p2_x_int);
+      seg_width = seg_x_end - seg_x;
+      seg_top_y = min(mag_prev_interp_y, mag_p2_y);  // Top of curve
+      seg_bottom_y = y_base;  // Bottom at baseline
+      seg_height = seg_bottom_y - seg_top_y;  // Height in pixels
+      gfx_set(0.25, 0.55, 0.95, opacity_fill);
+      (seg_width > 0 && seg_height > 0) ? (
+        gfx_rect(seg_x, seg_top_y, seg_width, seg_height);
       ) : 0;
-      
-      // Store points for next iteration
-      mag_prev_prev_x = mag_p1_x;
-      mag_prev_prev_y = mag_p1_y;
-      mag_prev_x = mag_p2_x;
-      mag_prev_y = mag_p2_y;
-      mag_point_idx += 1;
+      gfx_set(0.25, 0.55, 0.95, opacity_line);
+      prev_x_int = mag_prev_interp_x|0;
+      p2_x_int = mag_p2_x|0;
+      gfx_line(prev_x_int, mag_prev_interp_y, p2_x_int, mag_p2_y, 0);
     ) : 0;
+    
+    // Store points for next iteration
+    mag_prev_prev_x = mag_p1_x;
+    mag_prev_prev_y = mag_p1_y;
+    mag_prev_x = mag_p2_x;
+    mag_prev_y = mag_p2_y;
+    mag_point_idx += 1;
     i += 1;
   );
 
@@ -416,19 +426,24 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     // Convert normalized position to frequency using helper function (same as graph rendering)
     new_freq = sff_pos_to_freq(new_pos, min_freq, max_freq);
     
-    // Clamp to valid range and ensure low < high
+    // Clamp to valid range
     new_freq = sff_clamp(new_freq, min_freq, max_freq);
+    
+    // Snap to nearest bin center
+    new_freq = sff_snap_freq_to_bin_center(new_freq);
     
     sff_dragging_cut == 1 ? (
       new_freq > high_cut_hz ? (new_freq = high_cut_hz;) : 0;
       low_cut_hz = new_freq;
       flattery_low_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 15);  // slider16 = bit 15
+      sff_ui_slider_changed = 1;  // Flag for main @gfx to update engine
     ) : (
       new_freq < low_cut_hz ? (new_freq = low_cut_hz;) : 0;
       high_cut_hz = new_freq;
       flattery_high_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 16);  // slider17 = bit 16
+      sff_ui_slider_changed = 1;  // Flag for main @gfx to update engine
     );
     // Position will be recalculated from frequency on next frame (above)
   ) : 0;

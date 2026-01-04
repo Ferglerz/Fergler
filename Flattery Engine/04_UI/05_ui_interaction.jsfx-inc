@@ -2,6 +2,7 @@
 
 @init
 sff_dragging_cut = 0; // 0=none, 1=low_cut, 2=high_cut
+sff_ui_slider_changed = 0; // Flag to indicate UI changed a slider (checked in main @gfx)
 
 function sff_handle_cut_line_interaction(low_cut_x, high_cut_x, triangle_top_y, h, x0, draw_bins, draw_bins_inv, min_freq, max_freq) local(
   mouse_over_low, mouse_over_high, hit_dist, new_freq, new_pos
@@ -18,17 +19,22 @@ function sff_handle_cut_line_interaction(low_cut_x, high_cut_x, triangle_top_y, 
   sff_dragging_cut ? (
     new_pos = sff_clamp((mouse_x - (x0 + SFF_UI_INNER_MARGIN)) * draw_bins_inv, 0, 1);
     new_freq = sff_clamp(sff_pos_to_freq(new_pos, min_freq, max_freq), min_freq, max_freq);
+    
+    // Snap to nearest bin center
+    new_freq = sff_snap_freq_to_bin_center(new_freq);
 
     sff_dragging_cut == 1 ? (
       new_freq > high_cut_hz ? (new_freq = high_cut_hz;) : 0;
       low_cut_hz = new_freq;
       flattery_low_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 15);  // slider16 = bit 15
+      sff_ui_slider_changed = 1;  // Flag for main @gfx to update engine
     ) : (
       new_freq < low_cut_hz ? (new_freq = low_cut_hz;) : 0;
       high_cut_hz = new_freq;
       flattery_high_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 16);  // slider17 = bit 16
+      sff_ui_slider_changed = 1;  // Flag for main @gfx to update engine
     );
   );
 );

@@ -79,14 +79,23 @@ function sff_map_single_filter_gain(filter_idx) local(
 // Map FFT bin gains to filter gains
 // Each filter gets gain from the closest FFT bin(s)
 // FFT gains are in dB relative to unity (0dB = no change)
-function sff_map_fft_gains_to_filters() local(i) (
+function sff_map_fft_gains_to_filters() local(i, filter_freq) (
   // If strength_internal is zero, set all filters to unity gain and return early
   strength_internal == 0 ? (
     sff_reset_filters_to_unity();
   ) : (
     i = 0;
     loop(sff_filter_count,
-      sff_map_single_filter_gain(i);
+      filter_freq = sff_filter_freq[i];
+      // Only map gains for filters within the active cut range
+      // Filters outside the range are set to unity (bypassed)
+      (filter_freq >= sff_low_cut_hz_cached && filter_freq <= sff_high_cut_hz_cached) ? (
+        sff_map_single_filter_gain(i);
+      ) : (
+        // Filter outside active range - set to unity gain
+        sff_filter_gains_prev[i] = sff_filter_gains[i];
+        sff_filter_gains[i] = 1.0;
+      );
       i += 1;
     );
     
