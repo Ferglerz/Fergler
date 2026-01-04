@@ -24,7 +24,8 @@ SFF_PARAM_MAX_OPERATE_DB = 14;
 SFF_PARAM_LOW_CUT_HZ = 15;
 SFF_PARAM_HIGH_CUT_HZ = 16;
 SFF_PARAM_TILT = 17;
-SFF_PARAM_COUNT = 18;
+SFF_PARAM_TILT_FREQ_HZ = 18;
+SFF_PARAM_COUNT = 19;
 
 // Helper functions to access parameters from parameter array
 function sff_param_get_fft_size_sel(params) ( params[SFF_PARAM_FFT_SIZE_SEL]; );
@@ -45,6 +46,7 @@ function sff_param_get_max_operate_db(params) ( params[SFF_PARAM_MAX_OPERATE_DB]
 function sff_param_get_low_cut_hz(params) ( params[SFF_PARAM_LOW_CUT_HZ]; );
 function sff_param_get_high_cut_hz(params) ( params[SFF_PARAM_HIGH_CUT_HZ]; );
 function sff_param_get_tilt(params) ( params[SFF_PARAM_TILT]; );
+function sff_param_get_tilt_freq_hz(params) ( params[SFF_PARAM_TILT_FREQ_HZ]; );
 
 // Initialize parameter array from slider values (called by UI)
 // This function creates a parameter array from current slider values
@@ -68,5 +70,6 @@ function sff_params_from_sliders(params_base) (
   params_base[SFF_PARAM_LOW_CUT_HZ] = flattery_low_cut_hz;
   params_base[SFF_PARAM_HIGH_CUT_HZ] = flattery_high_cut_hz;
   params_base[SFF_PARAM_TILT] = flattery_tilt;
+  params_base[SFF_PARAM_TILT_FREQ_HZ] = flattery_tilt_freq_hz;
 );
 

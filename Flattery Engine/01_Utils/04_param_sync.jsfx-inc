@@ -34,5 +34,6 @@ function sff_sync_params_to_globals(params_base) (
   
   // Tilt
   tilt = sff_param_get_tilt(params_base);
+  tilt_freq_hz = sff_param_get_tilt_freq_hz(params_base);
 );
 

@@ -12,6 +12,7 @@ sff_last_release_ms = -1;
 sff_last_input_rms_ms = -1;
 sff_last_frame_dt = -1;
 sff_last_tilt_amount = -999;
+sff_last_tilt_freq_hz = -1;
 sff_last_low_cut_hz = -1;
 sff_last_high_cut_hz = -1;
 
@@ -64,10 +65,12 @@ function flattery_init(params_base) (
   sff_init_param_trackers();
 
   tilt_amount = sff_param_get_tilt(params_base) * 0.01;
+  tilt_freq_hz = sff_param_get_tilt_freq_hz(params_base);
   sff_update_tilt_multiplier_cache();
 
   sff_update_time_caches(params_base);
   sff_last_tilt_amount = tilt_amount;
+  sff_last_tilt_freq_hz = tilt_freq_hz;
   sff_last_low_cut_hz = sff_param_get_low_cut_hz(params_base);
   sff_last_high_cut_hz = sff_param_get_high_cut_hz(params_base);
 
@@ -107,10 +110,12 @@ function flattery_update_params(params_base) (
   wet_mix = sff_param_get_wet(params_base) * 0.01;
   output_gain_linear = sff_db_to_linear(sff_param_get_output_gain_db(params_base));
   tilt_amount = sff_param_get_tilt(params_base) * 0.01;
+  tilt_freq_hz = sff_param_get_tilt_freq_hz(params_base);
 
-  tilt_amount != sff_last_tilt_amount ? (
+  (tilt_amount != sff_last_tilt_amount || tilt_freq_hz != sff_last_tilt_freq_hz) ? (
     sff_update_tilt_multiplier_cache();
     sff_last_tilt_amount = tilt_amount;
+    sff_last_tilt_freq_hz = tilt_freq_hz;
   );
 
   sff_update_delta_recompute_flag();

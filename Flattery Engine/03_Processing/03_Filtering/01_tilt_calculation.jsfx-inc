@@ -3,17 +3,18 @@
 @init
 
 // Tilt filter constants
-SFF_TILT_CENTER_HZ = 1800.0;  // Tilt center frequency (1.8kHz)
+// Note: SFF_TILT_CENTER_HZ is now a variable (tilt_freq_hz) set from parameters
 SFF_TILT_LOW_MULT = 0.25;  // Tilt multiplier at 0Hz (25% strength)
 SFF_TILT_CENTER_MULT = 1.0;  // Tilt multiplier at center (100% strength, no change)
 SFF_TILT_HIGH_MULT = 4.0;  // Tilt multiplier at Nyquist (400% strength)
 
 // Calculate tilt multiplier for a given frequency
-// Tilt is centered at 1.8kHz with 25% strength at 0Hz and 400% strength at Nyquist
+// Tilt is centered at tilt_freq_hz with 25% strength at 0Hz and 400% strength at Nyquist
 // Uses the same blended linear/logarithmic mapping as the graph display (85% log / 15% linear)
 // This ensures the tilt appears linear on the graph while maintaining mostly logarithmic audio response
-// Returns multiplier: 0.25 at 0Hz, 1.0 at 1.8kHz, 4.0 at Nyquist
+// Returns multiplier: 0.25 at 0Hz, 1.0 at tilt_freq_hz, 4.0 at Nyquist
 // NOTE: Uses sff_freq_to_pos from math utils - function must be defined before this is called
+// NOTE: tilt_freq_hz must be set from parameters before calling this function
 function sff_calculate_tilt_multiplier(freq_hz) local(
   nyquist_hz, min_freq, max_freq, freq_pos, center_pos, normalized_pos, center_normalized, s_curve, ratio_curved, center_s_curve, center_ratio_curved, center_sq, denom, denom_abs, a, b, tilt_mult
 ) (
@@ -31,7 +32,7 @@ function sff_calculate_tilt_multiplier(freq_hz) local(
     // Use the exact same function as the graph display to convert frequency to position
     // This ensures perfect matching with how frequencies are displayed
     freq_pos = sff_freq_to_pos(freq_hz, min_freq, max_freq);
-    center_pos = sff_freq_to_pos(SFF_TILT_CENTER_HZ, min_freq, max_freq);
+    center_pos = sff_freq_to_pos(tilt_freq_hz, min_freq, max_freq);
     
     // Interpolate tilt multiplier using a single smooth quadratic formula with S-curve ease-in-out
     // Single continuous function eliminates corner at center point

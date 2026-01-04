@@ -407,6 +407,100 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     );
   ) : 0;
 
+  // Draw tilt control (purple circle with white inner circle)
+  // Position: horizontally at tilt frequency, vertically at tilt amount
+  // Always visible when tilt frequency is set
+  tilt_freq_hz > 0 ? (
+    // Calculate tilt control position
+    tilt_freq_pos = sff_freq_to_pos(tilt_freq_hz, min_freq, max_freq);
+    tilt_control_x = sff_pos_to_x(tilt_freq_pos, x0, draw_bins);
+    
+    // Calculate tilt control Y position based on tilt amount
+    // Tilt amount ranges from -100 to +100, map to graph Y position
+    // Map to the tilt line position (quarter height range: 0.375-0.625)
+    abs(tilt_amount) > 0.001 ? (
+      tilt_mult_at_freq = sff_calculate_tilt_multiplier(tilt_freq_hz);
+      tilt_amount > 0 ? (
+        tilt_mult_scaled_at_freq = 1.0 + (tilt_mult_at_freq - 1.0) * tilt_amount;
+      ) : (
+        tilt_mult_inv_at_freq = 1.0 / tilt_mult_at_freq;
+        tilt_mult_scaled_at_freq = 1.0 + (tilt_mult_inv_at_freq - 1.0) * abs(tilt_amount);
+      );
+      tilt_db_at_freq = sff_linear_to_db(tilt_mult_scaled_at_freq);
+      tilt_v_at_freq = sff_clamp((tilt_db_at_freq + 12) * gain_scale_inv, 0, 1);
+    ) : (
+      // When tilt_amount is 0, place control at center of tilt line range (0dB)
+      tilt_v_at_freq = 0.5;
+    );
+    tilt_control_y = y_base - (0.375 + tilt_v_at_freq * 0.25) * (h-8);
+    
+    // Check if mouse is over tilt control (8px radius for hit testing)
+    tilt_control_radius = 4.0;  // 8px diameter = 4px radius
+    dist_to_control = sqrt((mouse_x - tilt_control_x)^2 + (mouse_y - tilt_control_y)^2);
+    sff_tilt_control_hover = dist_to_control <= tilt_control_radius ? 1 : 0;
+    
+    // Start dragging on mouse down
+    (mouse_cap & 1) && !sff_dragging_tilt && !sff_dragging_cut ? (
+      sff_tilt_control_hover ? (
+        sff_dragging_tilt = 1;
+        // Store initial mouse Y and tilt amount for relative movement calculation
+        sff_tilt_drag_start_y = mouse_y;
+        sff_tilt_drag_start_amount = flattery_tilt;
+      ) : 0;
+    );
+    
+    // Stop dragging on mouse up
+    !(mouse_cap & 1) ? (sff_dragging_tilt = 0;) : 0;
+    
+    // Handle dragging: horizontal = frequency, vertical = tilt amount
+    sff_dragging_tilt ? (
+      // Horizontal drag: change tilt frequency
+      new_tilt_freq_pos = sff_clamp((mouse_x - (x0 + SFF_UI_INNER_MARGIN)) * draw_bins_inv, 0, 1);
+      new_tilt_freq = sff_clamp(sff_pos_to_freq(new_tilt_freq_pos, min_freq, max_freq), min_freq, max_freq);
+      new_tilt_freq = sff_snap_freq_to_bin_center(new_tilt_freq);
+      tilt_freq_hz = new_tilt_freq;
+      flattery_tilt_freq_hz = new_tilt_freq;
+      sliderchange(1 << 18);  // slider19 = bit 18
+      sff_ui_slider_changed = 1;
+      
+      // Vertical drag: change tilt amount (with half sensitivity - double movement needed)
+      // Calculate tilt line range
+      tilt_line_top_y = y_base - 0.625 * (h-8);  // Top of tilt range (smaller Y, higher on screen)
+      tilt_line_bottom_y = y_base - 0.375 * (h-8);  // Bottom of tilt range (larger Y, lower on screen)
+      tilt_line_height = tilt_line_bottom_y - tilt_line_top_y;  // Positive height (bottom - top)
+      tilt_line_height > 0 ? (
+        // Calculate movement delta from start position
+        // Note: smaller Y = upward movement = increase tilt, larger Y = downward movement = decrease tilt
+        mouse_y_delta = sff_tilt_drag_start_y - mouse_y;  // Positive = moved up, negative = moved down
+        
+        // Apply half sensitivity: divide delta by 2 (double the movement needed)
+        mouse_y_delta = mouse_y_delta * 0.5;
+        
+        // Map Y movement delta to tilt amount delta
+        // Full tilt line height maps to -100% to +100% range (200% total)
+        tilt_amount_delta = (mouse_y_delta / tilt_line_height) * 200.0;
+        
+        // Apply delta to initial tilt amount
+        new_tilt_amount = sff_tilt_drag_start_amount + tilt_amount_delta;
+        new_tilt_amount = sff_clamp(new_tilt_amount, -100.0, 100.0);
+        tilt_amount = new_tilt_amount * 0.01;  // Convert to -1.0 to +1.0 range
+        flattery_tilt = new_tilt_amount;
+        sliderchange(1 << 17);  // slider18 = bit 17
+        sff_ui_slider_changed = 1;
+      ) : 0;
+    ) : 0;
+    
+    // Draw purple circle (8px diameter = 4px radius)
+    gfx_set(0.5, 0.0, 0.5, 1.0);  // Purple color
+    gfx_circle(tilt_control_x, tilt_control_y, tilt_control_radius, 1, 1);  // Filled, antialiased
+    
+    // Draw white inner circle (6px diameter = 3px radius)
+    // Make fully opaque when hovering or dragging
+    white_opacity = (sff_tilt_control_hover || sff_dragging_tilt) ? 1.0 : 0.5;  // Transparent white normally, fully opaque when highlighted
+    gfx_set(1.0, 1.0, 1.0, white_opacity);  // White color with variable opacity
+    gfx_circle(tilt_control_x, tilt_control_y, 3.0, 1, 1);  // Filled, antialiased
+  ) : 0;
+
   // Calculate X positions for lines (always from positions calculated above)
   // Use helper function to ensure exact match with graph pixel positioning
   low_cut_x = sff_pos_to_x(low_cut_pos, x0, draw_bins);

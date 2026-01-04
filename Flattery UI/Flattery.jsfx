@@ -32,7 +32,8 @@ slider16:flattery_low_cut_hz=20<10,20000,1>-Low Cut (Hz)
 slider17:flattery_high_cut_hz=20000<20,20000,1>-High Cut (Hz)
 
 // Tilt filter
-slider18:flattery_tilt=0<-100,100,1>Tilt (%)
+slider18:flattery_tilt=0<-100,100,1>-Tilt (%)
+slider19:flattery_tilt_freq_hz=1800<20,20000,1>-Tilt Frequency (Hz)
 
 // --- Import Flattery Engine Library ---
 // Phase 0: Parameters and Constants
