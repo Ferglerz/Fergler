@@ -422,12 +422,12 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     sff_dragging_cut == 1 ? (
       new_freq > high_cut_hz ? (new_freq = high_cut_hz;) : 0;
       low_cut_hz = new_freq;
-      slider16 = new_freq;
+      flattery_low_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 15);  // slider16 = bit 15
     ) : (
       new_freq < low_cut_hz ? (new_freq = low_cut_hz;) : 0;
       high_cut_hz = new_freq;
-      slider17 = new_freq;
+      flattery_high_cut_hz = new_freq;  // Update slider variable
       sliderchange(1 << 16);  // slider17 = bit 16
     );
     // Position will be recalculated from frequency on next frame (above)

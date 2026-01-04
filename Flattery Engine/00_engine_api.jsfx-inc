@@ -25,11 +25,12 @@ function sff_handle_fft_size_change(desired_fft) (
 // Initialize or update cached filter range values (clamped to Nyquist)
 function sff_update_cached_cut_range(params_base) (
   nyq = 0.5 * srate;
-  sff_low_cut_hz_cached = sff_clamp(sff_param_get_low_cut_hz(params_base), 0, nyq);
-  sff_high_cut_hz_cached = sff_clamp(sff_param_get_high_cut_hz(params_base), sff_low_cut_hz_cached, nyq);
-  // Mirror into globals so @slider updates are immediately reflected
-  low_cut_hz = sff_low_cut_hz_cached;
-  high_cut_hz = sff_high_cut_hz_cached;
+  // Read slider values (preserve original, don't overwrite)
+  low_cut_hz = sff_param_get_low_cut_hz(params_base);
+  high_cut_hz = sff_param_get_high_cut_hz(params_base);
+  // Cache clamped values for processing (but don't modify slider values)
+  sff_low_cut_hz_cached = sff_clamp(low_cut_hz, 0, nyq);
+  sff_high_cut_hz_cached = sff_clamp(high_cut_hz, sff_low_cut_hz_cached, nyq);
   sff_update_active_filter_range();
 );
 

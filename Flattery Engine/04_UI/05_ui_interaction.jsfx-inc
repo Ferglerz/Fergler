@@ -20,13 +20,15 @@ function sff_handle_cut_line_interaction(low_cut_x, high_cut_x, triangle_top_y, 
     new_freq = sff_clamp(sff_pos_to_freq(new_pos, min_freq, max_freq), min_freq, max_freq);
 
     sff_dragging_cut == 1 ? (
-      low_cut_hz = new_freq = (new_freq > high_cut_hz ? high_cut_hz : new_freq);
-      slider16 = new_freq;
-      sliderchange(1 << 15);
+      new_freq > high_cut_hz ? (new_freq = high_cut_hz;) : 0;
+      low_cut_hz = new_freq;
+      flattery_low_cut_hz = new_freq;  // Update slider variable
+      sliderchange(1 << 15);  // slider16 = bit 15
     ) : (
-      high_cut_hz = new_freq = (new_freq < low_cut_hz ? low_cut_hz : new_freq);
-      slider17 = new_freq;
-      sliderchange(1 << 16);
+      new_freq < low_cut_hz ? (new_freq = low_cut_hz;) : 0;
+      high_cut_hz = new_freq;
+      flattery_high_cut_hz = new_freq;  // Update slider variable
+      sliderchange(1 << 16);  // slider17 = bit 16
     );
   );
 );
