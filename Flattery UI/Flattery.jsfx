@@ -28,7 +28,7 @@ slider13:flattery_input_rms_ms=0<0,10,0.1>Input RMS (ms)
 // Operating range + cut band
 slider14:flattery_min_operate_db=-80<-120,0,0.1>Operate Min (dB)
 slider15:flattery_max_operate_db=0<-120,0,0.1>Operate Max (dB)
-slider16:flattery_low_cut_hz=20<10,20000,1>Low Cut (Hz)
+slider16:flattery_low_cut_hz=20<10,20000,1>-Low Cut (Hz)
 slider17:flattery_high_cut_hz=20000<20,20000,1>-High Cut (Hz)
 
 // Tilt filter

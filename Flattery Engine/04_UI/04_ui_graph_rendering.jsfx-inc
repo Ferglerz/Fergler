@@ -67,14 +67,10 @@ function sff_draw_center_line(x0, y_base, h, avail_w) (
 );
 
 // Simplified tilt visualization
-function sff_draw_tilt_visualization(x0, y_base, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(i, lastx, lasty, x, y, scale, tilt_db, tilt_mult) (
+function sff_draw_tilt_visualization(x0, y_base, h, draw_bins, draw_bins_inv, min_freq, max_freq) local(i, lastx, lasty, x, y, scale, tilt_db, tilt_mult, tilt_v) (
   (abs(tilt_amount) > 0.001) ? (
-    gfx_set(
-      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_R : SFF_COLOR_TILT_INVERSE_R,
-      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_G : SFF_COLOR_TILT_INVERSE_G,
-      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_B : SFF_COLOR_TILT_INVERSE_B,
-      tilt_amount > 0 ? SFF_COLOR_TILT_NORMAL_A : SFF_COLOR_TILT_INVERSE_A
-    );
+    // Always use purple/magenta color regardless of tilt direction
+    gfx_set(SFF_COLOR_TILT_NORMAL_R, SFF_COLOR_TILT_NORMAL_G, SFF_COLOR_TILT_NORMAL_B, SFF_COLOR_TILT_NORMAL_A);
     scale = 1.0 / SFF_GAIN_DB_SCALE;
     lastx = lasty = -1;
     i = 0;
@@ -83,7 +79,9 @@ function sff_draw_tilt_visualization(x0, y_base, h, draw_bins, draw_bins_inv, mi
       tilt_mult = tilt_amount > 0 ? (1.0 + (tilt_mult-1.0)*tilt_amount)
                                   : (1.0 + ((1.0/tilt_mult)-1.0)*abs(tilt_amount));
       tilt_db = sff_linear_to_db(tilt_mult);
-      y = y_base - sff_clamp((tilt_db + 12) * scale, 0, 1) * (h-8);
+      // Scale tilt line to quarter height: map 0-1 range to 0.375-0.625 range (reduced by 50% from previous 0.25-0.75)
+      tilt_v = sff_clamp((tilt_db + 12) * scale, 0, 1);
+      y = y_base - (0.375 + tilt_v * 0.25) * (h-8);
       x = x0 + SFF_UI_INNER_MARGIN + i;
       (lastx >= 0) ? (
         gfx_line(lastx|0, lasty, x|0, y, 0);

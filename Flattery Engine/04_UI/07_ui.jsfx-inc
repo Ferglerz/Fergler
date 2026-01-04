@@ -19,11 +19,14 @@ function sff_pos_to_x(pos, graph_x0, draw_bins) (
 );
 
 function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, draw_bins, bin_w, x_offset, mag_sum_lin, mag_count, mag_avg_db, gain_sum, gain_count, gain_avg_db, min_freq, max_freq, pixel_freq, pixel_bin, next_pixel_freq, next_pixel_bin, bin_start, bin_end, opacity, db_val, label_y, freq1, freq_div1, freq_div2, label_freq, label_log, label_pos, label_x, low_cut_x, high_cut_x, triangle_size, mouse_over_low, mouse_over_high, new_freq, new_pos, hit_dist, norm_pos, low_cut_pos, high_cut_pos, next_norm_pos, new_cut_x, pos1, pos_max, pos_range, pos_div1, pos_div2, x1, triangle_top_y, triangle_width, draw_bins_inv, bin_hz_inv, mag_count_inv, gain_count_inv, db_scale_inv, gain_scale_inv, triangle_size_inv, filter_count, prev_x, prev_y, prev_prev_x, prev_prev_y, filter_freq, filter_pos, filter_x, filter_gain_linear, filter_gain_db, filter_y, point_idx, p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, next_filter_freq, next_filter_pos, next_gain_linear, next_gain_db, next_v, interp_x, interp_y, prev_interp_x, prev_interp_y, x_dist, interp_steps, interp_step_inv, t, t2, t3, a0_x, a1_x, a2_x, a3_x, a0_y, a1_y, a2_y, a3_y, mag_point_idx, mag_y, mag_x, mag_height, mag_v, mag_db_scale_inv, bin_center_freq, bin_center_pos, mag_p0_x, mag_p0_y, mag_p1_x, mag_p1_y, mag_p2_x, mag_p2_y, mag_p3_x, mag_p3_y, mag_prev_prev_x, mag_prev_prev_y, mag_prev_x, mag_prev_y, mag_x_dist, mag_interp_steps, mag_interp_step_inv, mag_prev_interp_x, mag_prev_interp_y, mag_t, mag_t2, mag_t3, mag_a0_x, mag_a1_x, mag_a2_x, mag_a3_x, mag_a0_y, mag_a1_y, mag_a2_y, mag_a3_y, mag_interp_x, mag_interp_y, next_bin_center_freq, next_bin_center_pos, next_mag_avg_db, next_mag_v, next_mag_height, seg_width, seg_height, seg_x, seg_x_end, seg_top_y, seg_bottom_y, prev_x_int, interp_x_int, p2_x_int, prev_tilt_x, prev_tilt_y, tilt_mult, tilt_mult_scaled, tilt_mult_inv, tilt_db, tilt_v, tilt_x, tilt_y) (
+  // Set clean font for all text rendering
+  gfx_setfont(SFF_FONT_SIZE, "Helvetica");
+  
   gfx_set(0.10, 0.10, 0.11, 1);
   gfx_rect(0, 0, gfx_w, gfx_h);
 
-  x0 = 10; y0 = 10;
-  w = gfx_w - 20;
+  x0 = 30; y0 = 10;  // x0 increased by 20 pixels to offset graph and make room for dB markers
+  w = gfx_w - 40;  // Adjusted width to account for increased left margin
   h = gfx_h - 20;
 
   // Bars area
@@ -60,12 +63,7 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     i += 1;
   );
 
-  // Frame border (drawn after bins so it's on top)
-  gfx_set(0.22, 0.22, 0.24, 1);
-  gfx_line(x0, y0, x0 + w, y0, 0);  // Top
-  gfx_line(x0 + w, y0, x0 + w, y0 + h, 0);  // Right
-  gfx_line(x0 + w, y0 + h, x0, y0 + h, 0);  // Bottom
-  gfx_line(x0, y0 + h, x0, y0, 0);  // Left
+  // Border removed - keeping only alternating background bins
 
   // Calculate cut positions in logarithmic space (always from frequency - single source of truth)
   low_cut_pos = sff_freq_to_pos(low_cut_hz, min_freq, max_freq);
@@ -344,11 +342,8 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   // Shows the tilt multiplier response: 25% at 0Hz (-12dB), 100% at 1.8kHz (0dB), 400% at Nyquist (+12dB)
   // Negative tilt inverts the curve (high frequencies reduced, low frequencies boosted)
   abs(tilt_amount) > 0.001 ? (
-    tilt_amount > 0 ? (
-      gfx_set(1.0, 0.3, 0.6, 0.7);  // Magenta/pink color for normal tilt
-    ) : (
-      gfx_set(0.3, 0.6, 1.0, 0.7);  // Blue color for inverse tilt
-    );
+    // Always use purple/magenta color regardless of tilt direction
+    gfx_set(1.0, 0.3, 0.6, 0.7);  // Magenta/pink color
     // Draw tilt line across frequency range
     prev_tilt_x = -1;
     prev_tilt_y = -1;
@@ -374,9 +369,9 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
       // 0.25 = -12dB, 1.0 = 0dB, 4.0 = +12dB
       tilt_db = sff_linear_to_db(tilt_mult_scaled);
       
-      // Map to graph Y position: -12dB (bottom) to +12dB (top), with 0dB at center
+      // Map to graph Y position: -12dB to +12dB scaled to quarter height (0.375-0.625 range), with 0dB at center
       tilt_v = sff_clamp((tilt_db + 12) * gain_scale_inv, 0, 1);
-      tilt_y = y_base - tilt_v * (h-8);
+      tilt_y = y_base - (0.375 + tilt_v * 0.25) * (h-8);
       
       // Convert position to X coordinate
       tilt_x = x0 + 2 + i;
@@ -398,12 +393,12 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
   high_cut_x = sff_pos_to_x(high_cut_pos, x0, draw_bins);
   
   // Triangle size for handles
-  triangle_size = 6;
+  triangle_size = SFF_TRIANGLE_SIZE;
   triangle_size_inv = 1.0 / triangle_size;
   triangle_top_y = y0 + 2;
   
   // Mouse interaction: handle dragging
-  hit_dist = 5;  // Hit test distance in pixels
+  hit_dist = SFF_HIT_DISTANCE;  // Hit test distance in pixels (doubled)
   mouse_over_low = abs(mouse_x - low_cut_x) < hit_dist && mouse_y >= triangle_top_y && mouse_y <= triangle_top_y + triangle_size + (h - 4);
   mouse_over_high = abs(mouse_x - high_cut_x) < hit_dist && mouse_y >= triangle_top_y && mouse_y <= triangle_top_y + triangle_size + (h - 4);
   
@@ -448,9 +443,16 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     // Position will be recalculated from frequency on next frame (above)
   ) : 0;
   
-  // Draw low cut line and triangle
-  gfx_set(0.9, 0.3, 0.3, 1);  // Red color
-  gfx_line(low_cut_x, triangle_top_y, low_cut_x, y_base, 0);
+  // Draw low cut line and triangle with hover highlight
+  mouse_over_low ? (
+    // Highlight color when hovering
+    gfx_set(SFF_COLOR_LOW_CUT_HIGHLIGHT_R, SFF_COLOR_LOW_CUT_HIGHLIGHT_G, SFF_COLOR_LOW_CUT_HIGHLIGHT_B, 1);
+  ) : (
+    // Normal pastel color
+    gfx_set(SFF_COLOR_LOW_CUT_R, SFF_COLOR_LOW_CUT_G, SFF_COLOR_LOW_CUT_B, 1);
+  );
+  // Draw 3-pixel wide line as filled rectangle (shifted 1 pixel right to center with triangle)
+  gfx_rect(low_cut_x - 0.5, triangle_top_y, SFF_CUT_LINE_WIDTH, y_base - triangle_top_y);
   // Draw filled triangle pointing down at top
   i = 0;
   loop(triangle_size + 1,
@@ -461,9 +463,16 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     i += 1;
   );
   
-  // Draw high cut line and triangle
-  gfx_set(0.3, 0.9, 0.3, 1);  // Green color
-  gfx_line(high_cut_x, triangle_top_y, high_cut_x, y_base, 0);
+  // Draw high cut line and triangle with hover highlight
+  mouse_over_high ? (
+    // Highlight color when hovering
+    gfx_set(SFF_COLOR_HIGH_CUT_HIGHLIGHT_R, SFF_COLOR_HIGH_CUT_HIGHLIGHT_G, SFF_COLOR_HIGH_CUT_HIGHLIGHT_B, 1);
+  ) : (
+    // Normal pastel color
+    gfx_set(SFF_COLOR_HIGH_CUT_R, SFF_COLOR_HIGH_CUT_G, SFF_COLOR_HIGH_CUT_B, 1);
+  );
+  // Draw 3-pixel wide line as filled rectangle (shifted 1 pixel right to center with triangle)
+  gfx_rect(high_cut_x - 0.5, triangle_top_y, SFF_CUT_LINE_WIDTH, y_base - triangle_top_y);
   // Draw filled triangle pointing down at top
   i = 0;
   loop(triangle_size + 1,
@@ -482,8 +491,8 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
     label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
     sprintf(#sff_tmp_str, "%.0f", db_val);
-    // Draw text on left side (x0 + 2, with small offset for readability)
-    gfx_x = x0 + 4;
+    // Draw text on left side, closer to window edge for better readability
+    gfx_x = 10;
     gfx_y = label_y - 6;  // Offset to center text vertically
     gfx_drawstr(#sff_tmp_str);
     db_val += 3;
@@ -494,8 +503,8 @@ function sff_ui_draw() local(i, j, k, x0, y0, w, h, v, db, y, y_base, avail_w, d
     // Map dB value to Y position: -12 dB = bottom (y_base), 0 dB = center, +12 dB = top
     label_y = y_base - (db_val + 12) * gain_scale_inv * (h-8);
     sprintf(#sff_tmp_str, "+%.0f", db_val);
-    // Draw text on left side (x0 + 2, with small offset for readability)
-    gfx_x = x0 + 4;
+    // Draw text on left side, closer to window edge for better readability
+    gfx_x = 10;
     gfx_y = label_y - 6;  // Offset to center text vertically
     gfx_drawstr(#sff_tmp_str);
     db_val += 3;

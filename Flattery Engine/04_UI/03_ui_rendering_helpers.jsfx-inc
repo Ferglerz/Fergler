@@ -69,9 +69,13 @@ function sff_draw_triangle(x, y, size, r,g,b) local(i,v,w)(
   );
 );
 
-// Draw vertical line and optional triangle on top
-function sff_draw_cut_line(x, y_top, y_bottom, tri_size, r,g,b)(
-  gfx_set(r,g,b,1); gfx_line(x, y_top, x, y_bottom, 0);
+// Draw vertical line (3 pixels wide) and optional triangle on top
+function sff_draw_cut_line(x, y_top, y_bottom, tri_size, r,g,b) local(line_width, half_width)(
+  line_width = SFF_CUT_LINE_WIDTH;
+  half_width = line_width * 0.5;
+  // Draw 3-pixel wide line as a filled rectangle (shifted 1 pixel right to center with triangle)
+  gfx_set(r,g,b,1);
+  gfx_rect(x - half_width + 1, y_top, line_width, y_bottom - y_top);
   tri_size>0 ? sff_draw_triangle(x, y_top, tri_size, r,g,b):0;
 );
 

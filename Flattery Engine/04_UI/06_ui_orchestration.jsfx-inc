@@ -22,6 +22,9 @@ function sff_ui_draw_core(low_cut, high_cut) local(
   min_freq, max_freq, low_cut_pos, high_cut_pos, low_cut_x, high_cut_x,
   triangle_size, triangle_top_y
 ) (
+  // Set clean font for all text rendering
+  gfx_setfont(SFF_FONT_SIZE, "Helvetica");
+  
   sff_ui_layout(min_freq, max_freq, x0, y0, w, h, avail_w, draw_bins, draw_bins_inv, y_base);
 
   gfx_set(SFF_COLOR_BG_R, SFF_COLOR_BG_G, SFF_COLOR_BG_B, 1);
