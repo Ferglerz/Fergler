@@ -29,3 +29,51 @@ function sff_y_to_db(y_val, y_base, h, db_min, db_max, db_range_inv) (
   db_min + (y_base - y_val) / (h - 8) / db_range_inv;
 );
 
+// Calculate edge fade opacity based on normalized X position (0-1)
+// Fades from 0 to 1 over left 20%, stays at 1 for center 60%, fades from 1 to 0 over right 20%
+function sff_calculate_edge_fade_opacity(norm_pos) (
+  norm_pos < 0.2 ? (
+    // Left fade: 0 to 1 over 0-0.2 range
+    norm_pos * 5.0  // Multiply by 5 to get 0-1 range
+  ) : norm_pos > 0.8 ? (
+    // Right fade: 1 to 0 over 0.8-1.0 range
+    (1.0 - norm_pos) * 5.0  // Invert and multiply by 5
+  ) : (
+    // Center: fully opaque
+    1.0
+  );
+);
+
+// Calculate cut-based fade opacity based on normalized position relative to low/high cut positions
+// Fades in 20% of the distance from low_cut, stays at 1 for center 60%, fades out 20% to high_cut
+function sff_calculate_cut_fade_opacity(norm_pos, low_cut_pos, high_cut_pos) local(cut_range, fade_width, left_fade_end, right_fade_start) (
+  // Calculate the range between cuts
+  cut_range = high_cut_pos - low_cut_pos;
+  cut_range > 0.0001 ? (
+    // 20% of the cut range
+    fade_width = cut_range * 0.2;
+    left_fade_end = low_cut_pos + fade_width;
+    right_fade_start = high_cut_pos - fade_width;
+    
+    norm_pos < low_cut_pos ? (
+      // Before low cut: fully transparent
+      0.0
+    ) : norm_pos < left_fade_end ? (
+      // Left fade: 0 to 1 over fade_width
+      (norm_pos - low_cut_pos) / fade_width
+    ) : norm_pos <= right_fade_start ? (
+      // Center: fully opaque
+      1.0
+    ) : norm_pos <= high_cut_pos ? (
+      // Right fade: 1 to 0 over fade_width
+      (high_cut_pos - norm_pos) / fade_width
+    ) : (
+      // After high cut: fully transparent
+      0.0
+    );
+  ) : (
+    // If cuts are too close together, just check if position is within range
+    (norm_pos >= low_cut_pos && norm_pos <= high_cut_pos) ? 1.0 : 0.0
+  );
+);
+
