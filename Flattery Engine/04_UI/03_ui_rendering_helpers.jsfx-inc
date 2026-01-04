@@ -1,63 +1,6 @@
 // UI Rendering Helpers (Simplified)
 @init 
 
-// Catmull-Rom spline helper
-function sff_draw_catmull_rom_spline(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, draw_bins, r, g, b, a) local(
-  steps, t, x0, y0, x1, y1, k
-)(
-  steps = min(max(abs(p2_x-p1_x)|0,1),draw_bins);
-  x0 = p1_x; y0 = p1_y;
-  k = 1;
-  loop(steps,
-    t = k/steps;
-    x1 = ((-0.5*p0_x+1.5*p1_x-1.5*p2_x+0.5*p3_x)*t*t*t
-         +(p0_x-2.5*p1_x+2.0*p2_x-0.5*p3_x)*t*t
-         +(-0.5*p0_x+0.5*p2_x)*t
-         +p1_x);
-    y1 = ((-0.5*p0_y+1.5*p1_y-1.5*p2_y+0.5*p3_y)*t*t*t
-         +(p0_y-2.5*p1_y+2.0*p2_y-0.5*p3_y)*t*t
-         +(-0.5*p0_y+0.5*p2_y)*t
-         +p1_y);
-    gfx_set(r,g,b,a);
-    gfx_line(x0|0,y0,x1|0,y1,0);
-    x0 = x1; y0 = y1; k+=1;
-  );
-  gfx_set(r,g,b,a);
-  gfx_line(x0|0,y0,p2_x|0,p2_y,0);
-);
-
-// Catmull-Rom spline + filled area helper
-function sff_draw_catmull_rom_spline_filled(
-  p0_x,p0_y,p1_x,p1_y,p2_x,p2_y,p3_x,p3_y,
-  draw_bins, y_base,
-  rL,gL,bL,aL,rF,gF,bF,aF
-) local(
-  steps, t, x0, y0, x1, y1, k, sx,sxe,sw,sty,sh
-)(
-  steps = min(max(abs(p2_x-p1_x)|0,1),draw_bins);
-  x0 = p1_x; y0 = p1_y;
-  k = 1;
-  loop(steps,
-    t = k/steps;
-    x1 = ((-0.5*p0_x+1.5*p1_x-1.5*p2_x+0.5*p3_x)*t*t*t
-         +(p0_x-2.5*p1_x+2.0*p2_x-0.5*p3_x)*t*t
-         +(-0.5*p0_x+0.5*p2_x)*t
-         +p1_x);
-    y1 = ((-0.5*p0_y+1.5*p1_y-1.5*p2_y+0.5*p3_y)*t*t*t
-         +(p0_y-2.5*p1_y+2.0*p2_y-0.5*p3_y)*t*t
-         +(-0.5*p0_y+0.5*p2_y)*t
-         +p1_y);
-    sx = min(x0|0,x1|0); sxe = max(x0|0,x1|0);
-    sw=sxe-sx; sty = min(y0,y1); sh = y_base-sty;
-    gfx_set(rF,gF,bF,aF); (sw>0&&sh>0) ? gfx_rect(sx,sty,sw,sh);
-    gfx_set(rL,gL,bL,aL); gfx_line(x0|0,y0,x1|0,y1,0);
-    x0 = x1; y0 = y1; k+=1;
-  );
-  sx = min(x0|0,p2_x|0); sxe = max(x0|0,p2_x|0); sw = sxe-sx; sty = min(y0,p2_y); sh = y_base-sty;
-  gfx_set(rF,gF,bF,aF); (sw>0&&sh>0) ? gfx_rect(sx,sty,sw,sh);
-  gfx_set(rL,gL,bL,aL); gfx_line(x0|0,y0,p2_x|0,p2_y,0);
-);
-
 // Draw downward triangle
 function sff_draw_triangle(x, y, size, r,g,b) local(i,v,w)(
   i=0;

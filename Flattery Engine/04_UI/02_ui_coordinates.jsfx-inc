@@ -4,29 +4,12 @@
 
 // Convert normalized position (0-1) to X coordinate in graph
 // This matches exactly how pixels are positioned
-// Pixel i is drawn at: x0 + 2 + x_offset + i*bin_w where x_offset=0, bin_w=1
+// Pixel i is drawn at: x0 + SFF_UI_INNER_MARGIN + x_offset + i*bin_w where x_offset=0, bin_w=1
 // For pixel i: norm_pos = i / max(draw_bins - 1, 1)
 // Reverse: i = norm_pos * max(draw_bins - 1, 1)
-// So: X = x0 + 2 + norm_pos * max(draw_bins - 1, 1)
+// So: X = x0 + SFF_UI_INNER_MARGIN + norm_pos * max(draw_bins - 1, 1)
 function sff_pos_to_x(pos, graph_x0, draw_bins) (
   graph_x0 + SFF_UI_INNER_MARGIN + pos * max(draw_bins - 1, 1);
-);
-
-// Convert frequency to X coordinate (convenience function)
-function sff_freq_to_x(freq_hz, min_freq, max_freq, x0, draw_bins) local(pos) (
-  pos = sff_freq_to_pos(freq_hz, min_freq, max_freq);
-  sff_pos_to_x(pos, x0, draw_bins);
-);
-
-// Convert dB value to Y coordinate
-// Maps dB range to graph height: db_min (bottom) to db_max (top)
-function sff_db_to_y(db_val, y_base, h, db_min, db_max, db_range_inv) (
-  y_base - sff_clamp((db_val - db_min) * db_range_inv, 0, 1) * (h - 8);
-);
-
-// Convert Y coordinate to dB value (reverse mapping)
-function sff_y_to_db(y_val, y_base, h, db_min, db_max, db_range_inv) (
-  db_min + (y_base - y_val) / (h - 8) / db_range_inv;
 );
 
 // Calculate edge fade opacity based on normalized X position (0-1)
