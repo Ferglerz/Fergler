@@ -60,39 +60,6 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
 );
 
 //==============================================================================
-// METERING BUTTON
-//==============================================================================
-
-// Draws a small 10x10px Metering button below the meter (5px gap)
-function draw_metering_button(meter_x, meter_y, meter_w, meter_h) local(bx, by, is_enabled) (
-  bx = meter_x + (meter_w - 10) * 0.5;
-  by = meter_y + meter_h + 5;
-  is_enabled = slider(38) > 0.5;
-  // Background: white if enabled, dark gray if not
-  gfx_set(is_enabled ? 1 : 0.3, is_enabled ? 1 : 0.3, is_enabled ? 1 : 0.3, 0.75);
-  gfx_rect(bx, by, 10,10);
-  // Border
-  gfx_set(0.6,0.6,0.6,0.75);
-  gfx_line(bx,by, bx+10,by, 1);
-  gfx_line(bx+10,by, bx+10,by+10, 1);
-  gfx_line(bx+10,by+10, bx,by+10, 1);
-  gfx_line(bx,by+10, bx,by, 1);
-);
-
-// Returns true if (x,y) is inside the Metering button
-function is_point_in_metering_button(x, y) local(mx, my, mw, mh, bx, by) (
-  mx = get_meter_x(); my = get_meter_y(); mw = get_meter_w(); mh = get_meter_h();
-  bx = mx + (mw-10) * 0.5; by = my+mh+5;
-  x >= bx && x <= bx+10 && y >= by && y <= by+10;
-);
-
-// Toggle metering on Metering button click
-function handle_metering_button_click() (
-  slider(38) = slider(38) > 0.5 ? 0 : 1;
-  sliderchange(1<<(38-1));
-);
-
-//==============================================================================
 // GAIN REDUCTION METER
 //==============================================================================
 
@@ -103,8 +70,8 @@ function draw_gain_reduction_meter() local(x, y, w, h, gr_height, is_audio_activ
   gfx_set(0.2, 0.2, 0.2, 0.5);
   gfx_rect(x, y, w, h);
 
-  // Only draw meter fill if metering enabled and audio is active
-  if (slider(38) > 0.5 && ((play_state == 1) || (play_state == 5))) (
+  // Draw meter fill if audio is active
+  ((play_state == 1) || (play_state == 5)) ? (
     gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
     gr_height = min(gr_height, h);
     current_gr_db < 0 ? (
@@ -122,7 +89,6 @@ function draw_gain_reduction_meter() local(x, y, w, h, gr_height, is_audio_activ
     render_rate_change_threshold_line(x, y, w, h);
   );
 
-  // Draw reflection and metering button
+  // Draw reflection
   draw_meter_reflection(x, y, w, h);
-  draw_metering_button(x, y, w, h);
 );

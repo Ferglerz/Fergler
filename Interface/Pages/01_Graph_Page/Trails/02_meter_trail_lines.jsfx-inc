@@ -70,7 +70,7 @@ function update_meter_trail_lines() (
 // Render all active trail lines on the meter
 // Called from @gfx section after draw_gain_reduction_meter()
 function render_meter_trail_lines() (
-  meter_trail_initialized && meter_trail_count > 0 && slider(38) > 0.5 ? (
+  meter_trail_initialized && meter_trail_count > 0 ? (
     gr_meter_x = get_meter_x();
     gr_meter_y = get_meter_y();
     gr_meter_w = get_meter_w();
@@ -126,7 +126,6 @@ function update_and_render_meter_trail_lines() (
   
   // Always render if there are lines to render (regardless of audio state)
   // This allows lines to continue fading after playback stops
-  // The render function itself checks for metering enabled (slider(38))
   render_meter_trail_lines();
 );
 

@@ -181,7 +181,7 @@ function draw_gr_histogram_line_pixel(buffer, r_neg, g_neg, b_neg, a_neg, r_pos,
 // Input Histogram
 // ==================
 function draw_input_histogram(opacity) (
-  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38)>0.5 && opacity>0 ?
+  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && opacity>0 ?
     draw_input_histogram_line(input_histogram_buffer, input_histogram_pos, input_histogram_max_samples, INPUT_HISTOGRAM_COLOR_R, INPUT_HISTOGRAM_COLOR_G, INPUT_HISTOGRAM_COLOR_B, opacity);
 );
 
@@ -189,7 +189,7 @@ function draw_input_histogram(opacity) (
 // Histogram
 // ===============
 function draw_histogram(opacity) (
-  HISTOGRAM_ENABLED && slider(38)>0.5 && histogram_pixel_initialized && opacity>0 ? (
+  HISTOGRAM_ENABLED && histogram_pixel_initialized && opacity>0 ? (
     draw_gr_histogram_line_pixel(histogram_pixel_buffer, 1,0.5,0,opacity,   0.2,0.5,1,opacity);
     draw_histogram_reflection_unified_pixel(opacity);
   );

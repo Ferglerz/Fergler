@@ -47,7 +47,6 @@ slider34:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
 slider35:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modifier
 slider36:gr_blend_threshold_reduction_knee_db=2<0,12,0.1>-GR Threshold Cut Knee (dB)
 slider37:gr_blend_threshold_addition_knee_db=2<0,12,0.1>-GR Threshold Boost Knee (dB)
-slider38:metering_enabled=1<0,1,1{Off,On}>-Metering
 slider39:linear_program_release_modes=0<0,1,1{Off,On}>-Linear Program Release Modes
 
 // SEARCH STOP
