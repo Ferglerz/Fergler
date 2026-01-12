@@ -24,6 +24,14 @@ function is_control_on_settings_page(control_index) (
   (control_index == 23 || control_index == 24 || control_index == 25 || control_index == 26) ? 1 : 0;
 );
 
+// Override library's is_control_interactive to provide page filtering
+// This function overrides the default in UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+function is_control_interactive(i)(
+  is_control_on_filters_page(i) ? should_render_page(PAGE_FILTERS)
+  : is_control_on_settings_page(i) ? should_render_page(PAGE_SETTINGS)
+  : 1;
+);
+
 //==============================================================================
 // CONTROL RENDERING
 //==============================================================================

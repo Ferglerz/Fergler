@@ -2,13 +2,12 @@
 // Generic control definition system for creating UI controls
 // This is a reusable library - no plugin-specific code
 // Dependencies: 
-//   - UI_Sliders/01_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
-//   - Interface/Core/04_drawing_primitives.jsfx-inc (for draw_group)
+//   - UI_Sliders/Core/01_slider_constants.jsfx-inc (for create_ui_control, ORIENTATION_*, DISPLAY_*, FILL_*, FORMAT_*, OPTION_*)
 //
 // USAGE:
 //   Use define_group(), define_slider(), define_button(), define_dropdown() to create controls
 //   Use render_all_groups() to draw group backgrounds
-//   Use render_control() from 09_control_dispatcher.jsfx-inc to render individual controls
+//   Use render_control() from Runtime/01_control_dispatcher.jsfx-inc to render individual controls
 
 @init
 
@@ -261,11 +260,35 @@ function define_parallax_fader(index, x, y, w, h, param_index, min_val, max_val,
 
 
 //==============================================================================
+// DEFAULT GROUP RENDERING (Host plugin can override)
+//==============================================================================
+
+// Default draw_group implementation (simple rendering)
+// Host plugin can override this function to provide custom group rendering
+function draw_group(idx, fade) local(gx, gy, gw, gh, show_title, title_ptr) (
+  gx = group_defs[idx*6];
+  gy = group_defs[idx*6 + 1];
+  gw = group_defs[idx*6 + 2];
+  gh = group_defs[idx*6 + 3];
+  show_title = group_defs[idx*6 + 4];
+  title_ptr = group_defs[idx*6 + 5];
+  fade <= 0 ? fade = 1;
+  
+  // Simple rendering: just draw title if enabled
+  show_title > 0.5 ? (
+    gfx_set(1, 1, 1, fade);  // White text
+    gfx_x = gx + 5;
+    gfx_y = gy + 5;
+    gfx_drawstr(title_ptr);
+  );
+);
+
+//==============================================================================
 // GENERIC RENDERING FUNCTIONS
 //==============================================================================
 
 function render_all_groups() (
-  // Draw all group backgrounds (group 6 removed - filters are ungrouped)
+  // Draw all group backgrounds
   i = 0;
   while (i < NUM_GROUPS) (
     // Normal rendering for all groups with full opacity

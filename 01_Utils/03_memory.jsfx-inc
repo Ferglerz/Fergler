@@ -108,6 +108,19 @@ function allocate_memory() (
   knob_line_offsets = freemem;
   freemem += NUM_CONTROLS;
   
+  // Step-point arrays for UI_Sliders library
+  // Maximum step points per parameter (from UI_Sliders/Core/05_step_points.jsfx-inc)
+  MAX_STEP_POINTS_PER_PARAM = 100;
+  // Allocate step-point arrays base (all step points for all parameters)
+  step_points_arrays_base = freemem;
+  freemem += NUM_CONTROLS * MAX_STEP_POINTS_PER_PARAM;
+  // Allocate step-point bases array (one per parameter, points to start of that param's step points)
+  step_points_bases = freemem;
+  freemem += NUM_CONTROLS;
+  // Allocate step-point counts array (one per parameter, stores count of step points)
+  step_points_counts = freemem;
+  freemem += NUM_CONTROLS;
+  
   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
   // Fixed settings: fade 600ms, interval 20ms → ~30 dots; allocate generous headroom
   // Store original allocated size to prevent buffer overflow

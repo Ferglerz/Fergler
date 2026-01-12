@@ -142,10 +142,40 @@ class JSFXFunctionAnalyzer:
         }
         
     def load_modules(self):
-        """Load all JSFX module files from the base path (including subdirectories)"""
-        # Search recursively for all .jsfx-inc and .jsfx files
+        """Load all JSFX module files from the base path (including subdirectories)
+        Also loads external libraries referenced via relative paths (e.g., ../FerglerUI/)
+        """
+        # Search recursively for all .jsfx-inc and .jsfx files in base_path
         jsfx_files = list(self.base_path.rglob("*.jsfx-inc")) + list(self.base_path.glob("*.jsfx"))
         
+        # Also check for external libraries (e.g., ../FerglerUI/)
+        # Look for ../FerglerUI/ relative to base_path
+        base_path_obj = Path(self.base_path).resolve()
+        parent_dir = base_path_obj.parent
+        fergler_ui_path = parent_dir / "FerglerUI"
+        
+        if fergler_ui_path.exists() and fergler_ui_path.is_dir():
+            # Load files from external library
+            external_files = list(fergler_ui_path.rglob("*.jsfx-inc"))
+            for file_path in external_files:
+                # Store with path relative to base_path (using ../FerglerUI/ prefix)
+                try:
+                    rel_to_fergler = file_path.relative_to(fergler_ui_path)
+                    relative_path_str = f"../FerglerUI/{rel_to_fergler}"
+                    
+                    # Skip excluded files
+                    if file_path.name in self.exclude_files:
+                        print(f"Excluded (external): {relative_path_str}")
+                        continue
+                    
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        self.modules[relative_path_str] = content
+                        print(f"Loaded (external): {relative_path_str}")
+                except Exception as e:
+                    print(f"Error loading external file {file_path}: {e}")
+        
+        # Load files from base_path
         for file_path in jsfx_files:
             try:
                 # Store with relative path from base_path
@@ -165,61 +195,193 @@ class JSFXFunctionAnalyzer:
                 print(f"Error loading {file_path}: {e}")
     
     def parse_imports(self):
-        """Parse import statements from each module (handles folder paths)"""
+        """Parse import statements from each module (handles folder paths and relative paths)"""
         # Updated pattern to handle folder paths like 01_Utils/02_math_utils.jsfx-inc
+        # Also handles relative paths like ../FerglerUI/UI_Sliders/Core/00_file_reading.jsfx-inc
         import_pattern = r'import\s+([a-zA-Z0-9_\-/\.]+\.jsfx-inc)'
         
         for filename, content in self.modules.items():
             imports = re.findall(import_pattern, content, re.IGNORECASE)
-            self.imports[filename] = imports
+            # Resolve relative paths to match module keys
+            resolved_imports = []
+            for imp in imports:
+                # If import starts with ../, it's a relative path
+                if imp.startswith('../'):
+                    # Check if this import exists in our modules (as-is or normalized)
+                    found = False
+                    for module_key in self.modules.keys():
+                        # Direct match
+                        if imp == module_key:
+                            resolved_imports.append(module_key)
+                            found = True
+                            break
+                        # Normalized path match (handle path separators)
+                        if Path(imp).as_posix() == Path(module_key).as_posix():
+                            resolved_imports.append(module_key)
+                            found = True
+                            break
+                    
+                    if not found:
+                        # Keep original - might be resolved later or might not exist
+                        resolved_imports.append(imp)
+                else:
+                    # Absolute path from base_path - check if exists in modules
+                    found = False
+                    for module_key in self.modules.keys():
+                        if imp == module_key or Path(imp).as_posix() == Path(module_key).as_posix():
+                            resolved_imports.append(module_key)
+                            found = True
+                            break
+                    
+                    if not found:
+                        resolved_imports.append(imp)
+            
+            self.imports[filename] = resolved_imports
             if imports:
-                print(f"{filename} imports: {imports}")
+                print(f"{filename} imports: {resolved_imports}")
     
     def parse_function_declarations(self):
-        """Parse function declarations from each module"""
+        """Parse function declarations from each module
+        Handles multi-line function declarations properly by matching balanced parentheses
+        """
         # Pattern to match function declarations
         # Matches: function function_name(...) or function function_name(...) local(...) (...)
-        # Now handles multi-line local() declarations
         function_pattern = r'function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\('
         
         for filename, content in self.modules.items():
             functions = set()
             function_params = {}
             
-            # Remove comments first
+            # Remove comments first, handling multi-line comments
             lines = []
+            in_multiline_comment = False
             for line in content.split('\n'):
+                # Handle multi-line comments
+                if '/*' in line:
+                    in_multiline_comment = True
+                    # If comment closes on same line
+                    if '*/' in line:
+                        in_multiline_comment = False
+                        # Remove comment portion
+                        comment_start = line.find('/*')
+                        comment_end = line.find('*/') + 2
+                        line = line[:comment_start] + line[comment_end:]
+                    else:
+                        # Remove everything up to comment start
+                        line = line[:line.find('/*')]
+                
+                if in_multiline_comment:
+                    if '*/' in line:
+                        in_multiline_comment = False
+                        # Remove comment portion
+                        comment_end = line.find('*/') + 2
+                        line = line[comment_end:]
+                    else:
+                        continue  # Skip entire line if in comment
+                
                 # Skip comment-only lines
                 stripped = line.strip()
-                if stripped.startswith('//') or stripped.startswith('/*'):
+                if stripped.startswith('//') or (stripped.startswith('/*') and '*/' not in stripped):
                     continue
+                
                 # Remove inline comments
                 if '//' in line:
                     line = line[:line.find('//')]
+                
                 lines.append(line)
             
-            # Join lines to handle multi-line declarations
+            # Join lines with spaces to handle multi-line declarations
+            # This allows function signatures that span multiple lines to be treated as one
             clean_content = ' '.join(lines)
             
-            # Find all function declarations
-            matches = re.finditer(function_pattern, clean_content)
-            for match in matches:
-                func_name = match.group(1)
-                # Verify this is actually a function declaration by checking what follows
-                # Look for the opening parenthesis of the function body
-                pos = match.end()
-                # Skip to find the function body opening (
-                # This could be after ) or after local(...) )
-                remaining = clean_content[pos:pos+500]  # Look ahead max 500 chars
+            # Find all function declarations using balanced parenthesis matching
+            pos = 0
+            while True:
+                match = re.search(function_pattern, clean_content[pos:], re.IGNORECASE)
+                if not match:
+                    break
                 
-                # Simple heuristic: if we see a pattern like ") (" or ") local(...) ("
-                # then it's a function declaration
-                if re.search(r'\)(?:\s+local\s*\([^)]*\))?\s*\(', remaining):
+                func_start = pos + match.start()
+                func_name = match.group(1)
+                param_start = pos + match.end() - 1  # Position of opening ( for parameters
+                
+                # Find the matching closing parenthesis for parameters using balanced matching
+                paren_count = 0
+                i = param_start
+                param_end = -1
+                body_start = -1
+                
+                # First, find the closing paren of the parameter list
+                while i < len(clean_content):
+                    char = clean_content[i]
+                    if char == '(':
+                        paren_count += 1
+                    elif char == ')':
+                        paren_count -= 1
+                        if paren_count == 0:
+                            param_end = i
+                            break
+                    i += 1
+                
+                if param_end > 0:
+                    # Check what comes after the parameter list
+                    remaining = clean_content[param_end + 1:].strip()
+                    
+                    # Check for "local(...)" pattern - need to match balanced parens
+                    if remaining.startswith('local'):
+                        # Find "local("
+                        local_match = re.match(r'local\s*\(', remaining)
+                        if local_match:
+                            local_paren_start = param_end + 1 + local_match.end() - 1
+                            # Find closing paren of local()
+                            local_paren_count = 0
+                            j = local_paren_start
+                            local_paren_end = -1
+                            while j < len(clean_content):
+                                if clean_content[j] == '(':
+                                    local_paren_count += 1
+                                elif clean_content[j] == ')':
+                                    local_paren_count -= 1
+                                    if local_paren_count == 0:
+                                        local_paren_end = j
+                                        break
+                                j += 1
+                            
+                            if local_paren_end > 0:
+                                # After local(...), should be function body (
+                                body_remaining = clean_content[local_paren_end + 1:].strip()
+                                if body_remaining.startswith('('):
+                                    body_start = local_paren_end + 1 + body_remaining.find('(')
+                    elif remaining.startswith('('):
+                        # Direct function body without local()
+                        body_start = param_end + 1 + remaining.find('(')
+                
+                # If we found a valid function declaration (has body start)
+                if body_start > 0:
                     functions.add(func_name)
                     
                     # Extract parameter count
-                    param_count = self._extract_parameter_count(clean_content, match.start())
-                    function_params[func_name] = param_count
+                    if param_end > param_start:
+                        param_text = clean_content[param_start + 1:param_end].strip()
+                        if param_text:
+                            # Count parameters (commas not inside nested parens)
+                            comma_count = 0
+                            paren_depth = 0
+                            for char in param_text:
+                                if char == '(':
+                                    paren_depth += 1
+                                elif char == ')':
+                                    paren_depth -= 1
+                                elif char == ',' and paren_depth == 0:
+                                    comma_count += 1
+                            function_params[func_name] = comma_count + 1
+                        else:
+                            function_params[func_name] = 0
+                    else:
+                        function_params[func_name] = 0
+                
+                # Move position forward to avoid finding the same function again
+                pos = func_start + len(func_name) + 10
             
             self.function_declarations[filename] = functions
             self.function_parameters[filename] = function_params
@@ -488,8 +650,37 @@ class JSFXFunctionAnalyzer:
         # This is the explicit dependency order defined by the developer
         import_order = self.imports.get(main_file, [])
         
+        # Resolve relative paths in import_order to match module keys
+        # Import paths might be relative (../FerglerUI/...) but module keys use the same format
+        resolved_import_order = []
+        for imp in import_order:
+            # Check if import exists as-is in modules
+            if imp in all_files:
+                resolved_import_order.append(imp)
+            else:
+                # Try to find matching file (handle case sensitivity, path variations)
+                # For relative paths like ../FerglerUI/..., they should already match
+                # But we might need to normalize paths
+                found = False
+                for module_key in all_files:
+                    # Compare normalized paths
+                    if Path(imp).as_posix() == Path(module_key).as_posix():
+                        resolved_import_order.append(module_key)
+                        found = True
+                        break
+                    # Also check if just the filename matches (for cases where path differs)
+                    if Path(imp).name == Path(module_key).name and imp not in resolved_import_order:
+                        # Only use filename match if paths are similar
+                        if str(Path(imp).parent) in str(module_key) or str(Path(module_key).parent) in str(imp):
+                            resolved_import_order.append(module_key)
+                            found = True
+                            break
+                
+                if not found:
+                    print(f"Warning: Import '{imp}' not found in loaded modules")
+        
         # Filter to only include files that exist in our modules
-        result = [f for f in import_order if f in all_files]
+        result = [f for f in resolved_import_order if f in all_files]
         
         # Add the main file at the end
         result.append(main_file)

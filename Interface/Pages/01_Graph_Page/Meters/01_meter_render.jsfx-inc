@@ -2,8 +2,8 @@
 // Gain reduction meter rendering functions
 // Depends on: 
 //   - UI_General/00_ui_constants.jsfx-inc
-//   - UI_General/07_coordinate_conversion.jsfx-inc (for GR_PIXELS_PER_DB, get_meter_x, get_meter_y, get_meter_w, get_meter_h)
-//   - UI_General/06_threshold_lines.jsfx-inc (for render_gr_blend_threshold_line, render_rate_change_threshold_line)
+//   - UI_General/07_coordinate_conversion.jsfx-inc
+//   - UI_General/06_threshold_lines.jsfx-inc
 
 @init
 
@@ -11,87 +11,51 @@
 // METER REFLECTION
 //==============================================================================
 
-// Draw meter reflection below the meter (on same horizontal plane as histogram reflection)
 function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
-  reflection_y, meter_reference_y, max_distance, meter_gr_abs, meter_weight,
-  meter_alpha, acc_r, acc_g, acc_b, middle_alpha, edge_alpha,
-  blue_weight, orange_weight, blue_opacity, orange_opacity, total_opacity
+  reflection_y, meter_weight, meter_alpha, acc_r, acc_g, acc_b,
+  blue_weight, orange_weight, blue_opacity, orange_opacity, total_opacity,
+  middle_alpha, edge_alpha, mid_edge_alpha
 ) (
-  reflection_y = GRAPH_Y + GRAPH_SIZE + 61;  // Moved down 45 pixels (was 16)
-  meter_reference_y = meter_y + meter_h * 0.75;  // 3/4 of the way down the meter
-  max_distance = meter_h * 0.75;  // Distance from top to reference point
-  
-  // Calculate meter contribution based on current GR/GA
-  meter_gr_abs = abs(current_gr_db);
-  meter_weight = min(1.0, meter_gr_abs / 20.0);  // Normalize to 0-1 based on 20dB max
-  
-  // At 0dB, meter_alpha should be 0 (invisible)
-  // Weight toward blue opacity as value gets smaller (closer to zero)
-  // Blue gets higher opacity contribution than orange
-  meter_alpha = 0.28125 * meter_weight;  // Half of 0.5625 (0.5625 * 0.5 = 0.28125)
-  
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 61; // Reflection 45px below meter base
+
+  // Normalize gain reduction for color/alpha determination
+  meter_weight = min(1, abs(current_gr_db) / 20);
+  meter_alpha = 0.28125 * meter_weight; // 50% of 0.5625
+
+  // Only render if visible
   meter_alpha > 0.001 ? (
-    // Calculate color based on GR direction
     current_gr_db < 0 ? (
-      // Negative GR (compression) - primarily orange, but blend with blue as it approaches zero
-      // At -20dB: mostly orange, at 0dB: invisible
-      // Weight toward blue as value gets smaller (closer to zero)
-      blue_weight = 1.0 - (meter_weight * 0.7);  // 1.0 at 0dB, 0.3 at 20dB
-      orange_weight = 1.0 - blue_weight;  // 0.0 at 0dB, 0.7 at 20dB
-      
-      // Blue gets higher opacity contribution (weighted more)
-      blue_opacity = meter_alpha * (blue_weight * 1.5);  // Blue opacity weighted 1.5x
-      orange_opacity = meter_alpha * (orange_weight * 1.0);  // Orange opacity normal
-      total_opacity = blue_opacity + orange_opacity;
-      
-      // Blend colors based on opacity-weighted contributions
-      acc_r = (1.0 * orange_opacity + 0.2 * blue_opacity) / max(total_opacity, 0.001);
-      acc_g = (0.5 * orange_opacity + 0.5 * blue_opacity) / max(total_opacity, 0.001);
-      acc_b = (0.0 * orange_opacity + 1.0 * blue_opacity) / max(total_opacity, 0.001);
-      meter_alpha = total_opacity;  // Use combined opacity
+      // Compression (orange blending to blue)
+      blue_weight    = 1 - meter_weight * 0.7;
+      orange_weight  = 1 - blue_weight;
+      blue_opacity   = meter_alpha * blue_weight * 1.5;
+      orange_opacity = meter_alpha * orange_weight;
+      total_opacity  = blue_opacity + orange_opacity;
+
+      acc_r      = (1*orange_opacity + 0.2*blue_opacity) / max(total_opacity,0.001);
+      acc_g      = (0.5*orange_opacity + 0.5*blue_opacity) / max(total_opacity,0.001);
+      acc_b      = (0*orange_opacity + 1*blue_opacity) / max(total_opacity,0.001);
+      meter_alpha = total_opacity; // Use combined opacity
     ) : current_gr_db > 0 ? (
-      // Positive GR (gain addition) - blue
-      acc_r = 0.2;
-      acc_g = 0.5;
-      acc_b = 1.0;
+      // Gain addition (blue)
+      acc_r = 0.2; acc_g = 0.5; acc_b = 1.0;
     ) : (
-      // Zero GR - invisible (meter_alpha already 0, won't render)
-      acc_r = 0.2;
-      acc_g = 0.5;
-      acc_b = 1.0;
-      meter_alpha = 0;  // Explicitly set to 0 for clarity
+      // Zero GR (invisible)
+      acc_r = 0.2; acc_g = 0.5; acc_b = 1.0; meter_alpha=0;
     );
-    
-    // Apply white tint (70% original, 30% white)
-    acc_r = acc_r * 0.7 + 1.0 * 0.3;
-    acc_g = acc_g * 0.7 + 1.0 * 0.3;
-    acc_b = acc_b * 0.7 + 1.0 * 0.3;
-    
-    // Draw 5-pixel tall reflection with gradient opacity
-    // Top and bottom at 50% of middle opacity, second and fourth at 75%
+
+    // White tint (70% color, 30% white)
+    acc_r = acc_r * 0.7 + 0.3; acc_g = acc_g * 0.7 + 0.3; acc_b = acc_b * 0.7 + 0.3;
+
+    // Simple 5-pixel vertical gradient: 50%, 75%, 100%, 75%, 50% opacity
     middle_alpha = meter_alpha;
     edge_alpha = meter_alpha * 0.5;
     mid_edge_alpha = meter_alpha * 0.75;
-    
-    // Top pixel
-    gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-    gfx_rect(meter_x, reflection_y, meter_w, 1);
-    
-    // Second pixel
-    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
-    gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
-    
-    // Middle pixel
-    gfx_set(acc_r, acc_g, acc_b, middle_alpha);
-    gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
-    
-    // Fourth pixel
-    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
-    gfx_rect(meter_x, reflection_y + 3, meter_w, 1);
-    
-    // Bottom pixel
-    gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-    gfx_rect(meter_x, reflection_y + 4, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, edge_alpha);     gfx_rect(meter_x, reflection_y + 0, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha); gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, middle_alpha);   gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha); gfx_rect(meter_x, reflection_y + 3, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, edge_alpha);     gfx_rect(meter_x, reflection_y + 4, meter_w, 1);
   );
 );
 
@@ -99,97 +63,66 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
 // METERING BUTTON
 //==============================================================================
 
-// Draw small 10x10 pixel 75% opaque white Metering button below the meter
-// Parameters: meter_x, meter_y, meter_w, meter_h - meter position and dimensions
-function draw_metering_button(meter_x, meter_y, meter_w, meter_h) local(button_x, button_y, button_w, button_h, is_enabled) (
-  button_w = 10;
-  button_h = 10;
-  // Center horizontally on meter, 5 pixels below
-  button_x = meter_x + (meter_w - button_w) / 2;
-  button_y = meter_y + meter_h + 5;
+// Draws a small 10x10px Metering button below the meter (5px gap)
+function draw_metering_button(meter_x, meter_y, meter_w, meter_h) local(bx, by, is_enabled) (
+  bx = meter_x + (meter_w - 10) * 0.5;
+  by = meter_y + meter_h + 5;
   is_enabled = slider(38) > 0.5;
-  
-  // Draw button background (75% opaque white when enabled, darker when disabled)
-  is_enabled ? (
-    gfx_set(1, 1, 1, 0.75);  // 75% opaque white
-  ) : (
-    gfx_set(0.3, 0.3, 0.3, 0.75);  // 75% opaque dark gray
-  );
-  gfx_rect(button_x, button_y, button_w, button_h);
-  
-  // Draw border
-  gfx_set(0.6, 0.6, 0.6, 0.75);
-  gfx_line(button_x, button_y, button_x + button_w, button_y, 1);
-  gfx_line(button_x + button_w, button_y, button_x + button_w, button_y + button_h, 1);
-  gfx_line(button_x + button_w, button_y + button_h, button_x, button_y + button_h, 1);
-  gfx_line(button_x, button_y + button_h, button_x, button_y, 1);
+  // Background: white if enabled, dark gray if not
+  gfx_set(is_enabled ? 1 : 0.3, is_enabled ? 1 : 0.3, is_enabled ? 1 : 0.3, 0.75);
+  gfx_rect(bx, by, 10,10);
+  // Border
+  gfx_set(0.6,0.6,0.6,0.75);
+  gfx_line(bx,by, bx+10,by, 1);
+  gfx_line(bx+10,by, bx+10,by+10, 1);
+  gfx_line(bx+10,by+10, bx,by+10, 1);
+  gfx_line(bx,by+10, bx,by, 1);
 );
 
-// Check if point is inside Metering button
-function is_point_in_metering_button(x, y) local(meter_x, meter_y, meter_w, meter_h, button_x, button_y, button_w, button_h) (
-  meter_x = get_meter_x();
-  meter_y = get_meter_y();
-  meter_w = get_meter_w();
-  meter_h = get_meter_h();
-  button_w = 10;
-  button_h = 10;
-  button_x = meter_x + (meter_w - button_w) / 2;
-  button_y = meter_y + meter_h + 5;
-  x >= button_x && x <= button_x + button_w &&
-  y >= button_y && y <= button_y + button_h;
+// Returns true if (x,y) is inside the Metering button
+function is_point_in_metering_button(x, y) local(mx, my, mw, mh, bx, by) (
+  mx = get_meter_x(); my = get_meter_y(); mw = get_meter_w(); mh = get_meter_h();
+  bx = mx + (mw-10) * 0.5; by = my+mh+5;
+  x >= bx && x <= bx+10 && y >= by && y <= by+10;
 );
 
-// Handle click on Metering button
+// Toggle metering on Metering button click
 function handle_metering_button_click() (
-  // Toggle metering (slider38)
   slider(38) = slider(38) > 0.5 ? 0 : 1;
-  sliderchange(1 << (38 - 1));
+  sliderchange(1<<(38-1));
 );
 
 //==============================================================================
 // GAIN REDUCTION METER
 //==============================================================================
 
-function draw_gain_reduction_meter() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h) (
-  // Always draw meter background (no conditional)
-  gr_meter_x = get_meter_x();
-  gr_meter_y = get_meter_y();
-  gr_meter_w = get_meter_w();
-  gr_meter_h = get_meter_h();
-  meter_center_y = gr_meter_y + gr_meter_h / 2;
+function draw_gain_reduction_meter() local(x, y, w, h, gr_height, is_audio_active) (
+  x = get_meter_x(); y = get_meter_y(); w = get_meter_w(); h = get_meter_h();
 
+  // Meter background
   gfx_set(0.2, 0.2, 0.2, 0.5);
-  gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+  gfx_rect(x, y, w, h);
 
-  // Only draw orange/blue meters when histogram (metering) is enabled
-  slider(38) > 0.5 ? (
-    is_audio_active = (play_state == 1) || (play_state == 5);
-
-    is_audio_active ? (
-      // Render gain reduction meter
-      current_gr_db < 0 ? (
-        gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
-        gr_height = min(gr_height, gr_meter_h);
-        gfx_set(1, 0.5, 0, 1);
-        gfx_rect(gr_meter_x, gr_meter_y, gr_meter_w, gr_height);
-      ) : current_gr_db > 0 ? (
-        gr_height = current_gr_db * GR_PIXELS_PER_DB;
-        gr_height = min(gr_height, gr_meter_h);
-        gfx_set(0.2, 0.5, 1, 1);
-        gfx_rect(gr_meter_x, gr_meter_y + gr_meter_h - gr_height, gr_meter_w, gr_height);
-      );
+  // Only draw meter fill if metering enabled and audio is active
+  if (slider(38) > 0.5 && ((play_state == 1) || (play_state == 5))) (
+    gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
+    gr_height = min(gr_height, h);
+    current_gr_db < 0 ? (
+      gfx_set(1, 0.5, 0, 1);
+      gfx_rect(x, y, w, gr_height);
+    ) : current_gr_db > 0 ? (
+      gfx_set(0.2, 0.5, 1, 1);
+      gfx_rect(x, y + h - gr_height, w, gr_height);
     );
   );
-  
-  // Only render meter threshold lines when on graph page
+
+  // Meter threshold lines when on graph page
   should_render_page(PAGE_GRAPH) ? (
-    render_gr_blend_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
-    render_rate_change_threshold_line(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+    render_gr_blend_threshold_line(x, y, w, h);
+    render_rate_change_threshold_line(x, y, w, h);
   );
-  
-  // Draw meter reflection below the meter (on same plane as histogram reflection)
-  draw_meter_reflection(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
-  
-  // Draw small Metering button below the meter (10x10 pixels, 5 pixels below meter)
-  draw_metering_button(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h);
+
+  // Draw reflection and metering button
+  draw_meter_reflection(x, y, w, h);
+  draw_metering_button(x, y, w, h);
 );

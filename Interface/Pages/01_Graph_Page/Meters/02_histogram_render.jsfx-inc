@@ -1,320 +1,196 @@
 // UI Graph Histogram Render Module
-// Histogram rendering functions
-// Depends on: 
-//   - UI_General/00_ui_constants.jsfx-inc (for HISTOGRAM_ENABLED, INPUT_HISTOGRAM_ENABLED, HISTOGRAM_OPACITY, INPUT_HISTOGRAM_OPACITY, INPUT_HISTOGRAM_COLOR_*, GRAPH_X, GRAPH_Y, GRAPH_SIZE, GRAPH_MIN_DB, GRAPH_MAX_DB)
-//   - UI_General/07_coordinate_conversion.jsfx-inc (for DB_TO_PIXEL_SCALE, GR_PIXELS_PER_DB, HISTOGRAM_Y_OFFSET, db_to_graph_x, db_to_graph_y)
-//   - Interface/Pages/Graph/Meters/00_histogram_state.jsfx-inc (for histogram buffers and state variables)
-//   - 01_Utils/02_math_utils.jsfx-inc (for clamp function)
-//   - 03_Compression/02_graph_data_core.jsfx-inc (for graph_points, num_points)
+// Depends on UI constants, graph pixel conversion, histogram state, clamp, graph data
 
 @init
 
-//==============================================================================
-// HISTOGRAM REFLECTION HELPERS
-//==============================================================================
+// ===================
+// Reflections & Helpers
+// ===================
 
-// Unified reflection function that merges all histogram colors (orange, blue, green) and curve points
-// Renders horizontal reflection at fixed Y position with color blending
-// opacity sets the reflection strength for this frame (caller decides)
-// Additional scaling keeps the reflection subtle while still following page fades
-function draw_histogram_reflection_unified_pixel(opacity) local(
-  graph_reference_y, max_distance, reflection_y, width_pixels, buffer_size, histogram_reflection_opacity, base_reflection_opacity,
-  i, age, buffer_idx, gr_value, x_pos, gr_height, original_y,
-  distance_from_reference, reference_factor, reflection_alpha,
-  acc_r, acc_g, acc_b, acc_alpha, total_alpha,
-  input_age, input_sample_idx, input_level_db, input_y_pos, input_distance, input_reference_factor, input_alpha,
-  point_idx, point_input_db, point_output_db, point_x, point_y, point_distance, point_reference_factor, point_alpha,
-  point_i, middle_alpha, edge_alpha,
-  dot_clamped_input_db, dot_x, dot_y, dot_distance, dot_reference_factor, dot_alpha
-) (
-  graph_reference_y = GRAPH_Y + GRAPH_SIZE * 0.75;  // 3/4 of the way down toward bottom
-  max_distance = GRAPH_SIZE * 0.75;  // Distance from top to reference point
-  reflection_y = GRAPH_Y + GRAPH_SIZE + 61;  // Moved down 45 pixels (was 16)
-  width_pixels = GRAPH_SIZE;
-  buffer_size = histogram_pixel_max_samples;
-  base_reflection_opacity = opacity * 0.234375;           // Matches previous 0.140625 when opacity=0.6
-  histogram_reflection_opacity = base_reflection_opacity * 0.65; // Slightly dimmer for histogram bands
+// Reflection alpha with smooth falloff
+function calc_reflection_alpha(y, ref_y, max_dist, opacity) (
+  d = abs(y - ref_y);
+  f = max(0, min(1, 1 - (d / max_dist)));
+  opacity * (f * f);
+);
+
+// Draws small vertical gradient (reflection shimmer) at pixel
+function draw_reflection_gradient(x, y, r, g, b, alpha) (
+  r = min(1.0, r / max(alpha, 0.001));
+  g = min(1.0, g / max(alpha, 0.001));
+  b = min(1.0, b / max(alpha, 0.001));
+  alpha = min(1, alpha);
+  gfx_set(r, g, b, 0.5 * alpha); gfx_rect(x, y,     1, 1);
+  gfx_set(r, g, b, 0.75 * alpha); gfx_rect(x, y+1,  1, 1);
+  gfx_set(r, g, b, alpha);        gfx_rect(x, y+2,  1, 1);
+  gfx_set(r, g, b, 0.75 * alpha); gfx_rect(x, y+3,  1, 1);
+  gfx_set(r, g, b, 0.5 * alpha);  gfx_rect(x, y+4,  1, 1);
+);
+
+// Unified histogram reflection: merges all colors and curve points
+function draw_histogram_reflection_unified_pixel(opacity) (
+  // Reflection reference
+  ref_y = GRAPH_Y + GRAPH_SIZE * 0.75;
+  max_dist = GRAPH_SIZE * 0.75;
+  refl_y = GRAPH_Y + GRAPH_SIZE + 61;
+  w = GRAPH_SIZE;
+  hist_size = histogram_pixel_max_samples;
+
+  base_op = opacity * 0.234375;
+  hist_op = base_op * 0.65;
+
   i = 0;
-  
-  while (i < width_pixels) (
-    // Initialize accumulated color for this pixel
-    acc_r = 0;
-    acc_g = 0;
-    acc_b = 0;
-    acc_alpha = 0;
-    
-    // Process orange histogram (negative GR) - pixel mode
+  loop(w,
+    acc_r = acc_g = acc_b = acc_a = 0;
+
+    // Negative GR (orange)
     histogram_pixel_initialized ? (
-      age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
-      buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
-      gr_value = histogram_pixel_buffer[buffer_idx];
-      
-      gr_value < 0 ? (
-        gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-        original_y = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
-        distance_from_reference = abs(original_y - graph_reference_y);
-        reference_factor = 1 - (distance_from_reference / max_distance);
-        reference_factor = max(0, min(1, reference_factor));
-        reflection_alpha = histogram_reflection_opacity * (reference_factor ^ 2);  // Squared falloff
-        
-        reflection_alpha > 0.001 ? (
-          // Orange color with white tint: blend (1, 0.5, 0) with white (1, 1, 1) - 70% original, 30% white
-          acc_r += (1.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_g += (0.5 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_b += (0.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_alpha += reflection_alpha;
+      age = floor((w-1-i) * (hist_size-1) / max(w-1,1));
+      bi = (histogram_pixel_idx - age + hist_size) % hist_size;
+      gr = histogram_pixel_buffer[bi];
+      gr < 0 ? (
+        y0 = min(GRAPH_Y + abs(gr) * GR_PIXELS_PER_DB, GRAPH_Y + GRAPH_SIZE);
+        a0 = calc_reflection_alpha(y0, ref_y, max_dist, hist_op);
+        a0 > 0.001 ? (
+          acc_r += (0.7+0.3)*a0;
+          acc_g += (0.5*0.7+1*0.3)*a0;
+          acc_b += (1*0.3)*a0;
+          acc_a += a0;
         );
       );
     );
-    
-    // Process blue histogram (positive GR) - pixel mode
+
+    // Positive GR (blue)
     histogram_pixel_initialized ? (
-      age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
-      buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
-      gr_value = histogram_pixel_buffer[buffer_idx];
-      
-      gr_value > 0 ? (
-        gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-        original_y = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
-        distance_from_reference = abs(original_y - graph_reference_y);
-        reference_factor = 1 - (distance_from_reference / max_distance);
-        reference_factor = max(0, min(1, reference_factor));
-        reflection_alpha = histogram_reflection_opacity * (reference_factor ^ 2);  // Squared falloff
-        
-        reflection_alpha > 0.001 ? (
-          // Blue color with white tint: blend (0.2, 0.5, 1) with white (1, 1, 1) - 70% original, 30% white
-          acc_r += (0.2 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_g += (0.5 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_b += (1.0 * 0.7 + 1.0 * 0.3) * reflection_alpha;
-          acc_alpha += reflection_alpha;
+      gr > 0 ? (
+        y1 = max(GRAPH_Y+GRAPH_SIZE-abs(gr)*GR_PIXELS_PER_DB, GRAPH_Y);
+        a1 = calc_reflection_alpha(y1, ref_y, max_dist, hist_op);
+        a1 > 0.001 ? (
+          acc_r += (0.2*0.7+1*0.3)*a1;
+          acc_g += (0.5*0.7+1*0.3)*a1;
+          acc_b += (0.7+0.3)*a1;
+          acc_a += a1;
         );
       );
     );
-    
-    // Process green input histogram - pixel mode equivalent
+
+    // Green input histogram
     input_histogram_initialized ? (
-      input_age = floor((width_pixels - 1 - i) * (input_histogram_max_samples - 1) / max(width_pixels - 1, 1));
-      input_sample_idx = (input_histogram_pos - 1 - input_age + input_histogram_max_samples) % input_histogram_max_samples;
-      input_level_db = input_histogram_buffer[input_sample_idx];
-      
-      input_level_db > GRAPH_MIN_DB ? (
-        input_y_pos = HISTOGRAM_Y_OFFSET - input_level_db * DB_TO_PIXEL_SCALE;
-        input_y_pos = max(input_y_pos, GRAPH_Y);  // Clamp to graph top
-        input_distance = abs(input_y_pos - graph_reference_y);
-        input_reference_factor = 1 - (input_distance / max_distance);
-        input_reference_factor = max(0, min(1, input_reference_factor));
-        input_alpha = histogram_reflection_opacity * (input_reference_factor ^ 2);  // Squared falloff
-        
-        input_alpha > 0.001 ? (
-          // White color with white tint: blend (1.0, 1.0, 1.0) with white (1, 1, 1) - 70% original, 30% white
-          acc_r += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
-          acc_g += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
-          acc_b += (1.0 * 0.7 + 1.0 * 0.3) * input_alpha;
-          acc_alpha += input_alpha;
+      n = input_histogram_max_samples;
+      age2 = floor((w-1-i)*(n-1)/max(w-1,1));
+      iy = (input_histogram_pos-1-age2+n)%n;
+      lvl = input_histogram_buffer[iy];
+      lvl > GRAPH_MIN_DB ? (
+        y2 = max(HISTOGRAM_Y_OFFSET-lvl*DB_TO_PIXEL_SCALE, GRAPH_Y);
+        a2 = calc_reflection_alpha(y2, ref_y, max_dist, hist_op);
+        a2 > 0.001 ? (
+          acc_r+=a2; acc_g+=a2; acc_b+=a2; acc_a+=a2;
         );
       );
     );
-    
-    // Process white curve points - check if any point is at this x position
+
+    // White curve points
     point_i = 1;
-    while (point_i < num_points - 1) (
-      point_idx = point_i * 2;
-      point_input_db = graph_points[point_idx];
-      point_output_db = graph_points[point_idx + 1];
-      point_x = db_to_graph_x(point_input_db);
-      point_y = db_to_graph_y(point_output_db);
-      
-      // Check if this point's x position is within 2 pixels of current i
-      abs(point_x - (GRAPH_X + i)) <= 2 ? (
-        point_distance = abs(point_y - graph_reference_y);
-        point_reference_factor = 1 - (point_distance / max_distance);
-        point_reference_factor = max(0, min(1, point_reference_factor));
-        point_alpha = base_reflection_opacity * (point_reference_factor ^ 2);  // Squared falloff
-        
-        point_alpha > 0.001 ? (
-          // White point color: (1, 1, 1) with white tint (already white, but keep it bright)
-          acc_r += 1.0 * point_alpha;
-          acc_g += 1.0 * point_alpha;
-          acc_b += 1.0 * point_alpha;
-          acc_alpha += point_alpha;
+    while (point_i < num_points-1) (
+      idx = point_i*2;
+      px = db_to_graph_x(graph_points[idx]);
+      py = db_to_graph_y(graph_points[idx+1]);
+      abs(px-(GRAPH_X+i))<=2 ? (
+        pa = calc_reflection_alpha(py, ref_y, max_dist, base_op);
+        pa > 0.001 ? (
+          acc_r+=pa; acc_g+=pa; acc_b+=pa; acc_a+=pa;
         );
       );
       point_i += 1;
     );
-    
-    // Process pastel green input dot - check if dot is at this x position
-    ((play_state == 1) || (play_state == 5)) ? (
-      dot_clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
-      dot_x = db_to_graph_x(dot_clamped_input_db);
-      dot_y = db_to_graph_y(dot_clamped_input_db);
-      
-      // Check if dot's x position is within 2 pixels of current i
-      abs(dot_x - (GRAPH_X + i)) <= 2 ? (
-        dot_distance = abs(dot_y - graph_reference_y);
-        dot_reference_factor = 1 - (dot_distance / max_distance);
-        dot_reference_factor = max(0, min(1, dot_reference_factor));
-        dot_alpha = base_reflection_opacity * (dot_reference_factor ^ 2);  // Squared falloff
-        
-        dot_alpha > 0.001 ? (
-          // Pastel green color with white tint: blend (0.5, 0.9, 0.5) with white (1, 1, 1) - 70% original, 30% white
-          acc_r += (0.5 * 0.7 + 1.0 * 0.3) * dot_alpha;
-          acc_g += (0.9 * 0.7 + 1.0 * 0.3) * dot_alpha;
-          acc_b += (0.5 * 0.7 + 1.0 * 0.3) * dot_alpha;
-          acc_alpha += dot_alpha;
+
+    // Input dot (pastel green)
+    (play_state==1||play_state==5) ? (
+      ddb = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+      dx = db_to_graph_x(ddb);
+      dy = db_to_graph_y(ddb);
+      abs(dx-(GRAPH_X+i))<=2 ? (
+        da = calc_reflection_alpha(dy, ref_y, max_dist, base_op);
+        da > 0.001 ? (
+          acc_r += (0.5*0.7+1*0.3)*da;
+          acc_g += (0.9*0.7+1*0.3)*da;
+          acc_b += (0.5*0.7+1*0.3)*da;
+          acc_a += da;
         );
       );
     );
-    
-    // Render merged color if there's any contribution
-    acc_alpha > 0.001 ? (
-      // Normalize colors by total alpha for proper blending
-      total_alpha = min(1.0, acc_alpha);  // Cap at 100% opacity
-      acc_r = min(1.0, acc_r / max(acc_alpha, 0.001));
-      acc_g = min(1.0, acc_g / max(acc_alpha, 0.001));
-      acc_b = min(1.0, acc_b / max(acc_alpha, 0.001));
-      
-      // Draw 5-pixel tall reflection with gradient opacity
-      // Top and bottom at 50% of middle opacity, second and fourth at 75%
-      middle_alpha = total_alpha;
-      edge_alpha = total_alpha * 0.5;
-      mid_edge_alpha = total_alpha * 0.75;
-      
-      // Top pixel
-      gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y, 1, 1);
-      
-      // Second pixel
-      gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 1, 1, 1);
-      
-      // Middle pixel
-      gfx_set(acc_r, acc_g, acc_b, middle_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 2, 1, 1);
-      
-      // Fourth pixel
-      gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 3, 1, 1);
-      
-      // Bottom pixel
-      gfx_set(acc_r, acc_g, acc_b, edge_alpha);
-      gfx_rect(GRAPH_X + i, reflection_y + 4, 1, 1);
+
+    // Draw if visible
+    acc_a > 0.001 ? (
+      draw_reflection_gradient(GRAPH_X + i, refl_y, acc_r, acc_g, acc_b, acc_a);
     );
-    
+
     i += 1;
   );
 );
 
-//==============================================================================
-// HISTOGRAM HELPERS
-//==============================================================================
+// =============================
+// Histogram Drawing Helpers
+// =============================
 
-function draw_input_histogram_line(buffer, buffer_pos, max_samples, r, g, b, a) (
-  samples_span = max_samples;
-  width_pixels = GRAPH_SIZE;
-  step_size = max(1, floor(width_pixels / 200));
-  
+function draw_input_histogram_line(buffer, pos, max_samples, r, g, b, a) (
+  w = GRAPH_SIZE; step = max(1, floor(w/200));
   i = 0;
-  
-  while (i < width_pixels) (
-    age = floor((width_pixels - 1 - i) * (samples_span - 1) / (width_pixels - 1));
-    sample_idx = (buffer_pos - 1 - age + samples_span) % samples_span;
-    level_db = buffer[sample_idx];
-    
-    level_db > GRAPH_MIN_DB ? (
-      // Linear fade for leftmost 100 pixels (i=0 is far left)
-      fade_factor = i < 100 ? (i / 100) : 1;
-      faded_alpha = a * fade_factor;
-      
-      gfx_set(r, g, b, faded_alpha);
-      x_pos = GRAPH_X + i;
-      y_pos = HISTOGRAM_Y_OFFSET - level_db * DB_TO_PIXEL_SCALE;
-      y_pos = max(y_pos, GRAPH_Y);  // Clamp to graph top
-      bottom_y = GRAPH_Y + GRAPH_SIZE;
-      
-      // Draw vertical line from bottom to calculated position (inverted)
-      gfx_line(x_pos, bottom_y, x_pos, y_pos, 1);
+  loop(w,
+    age = floor((w-1-i)*(max_samples-1)/(w-1));
+    si = (pos-1-age+max_samples)%max_samples;
+    lvl = buffer[si];
+    lvl > GRAPH_MIN_DB ? (
+      f = i < 100 ? (i/100) : 1;
+      fa = a*f;
+      gfx_set(r, g, b, fa);
+      x = GRAPH_X + i;
+      y = max(HISTOGRAM_Y_OFFSET - lvl*DB_TO_PIXEL_SCALE, GRAPH_Y);
+      gfx_line(x, GRAPH_Y+GRAPH_SIZE, x, y, 1);
     );
-    
-    i += step_size;
+    i += step;
   );
 );
 
 function draw_gr_histogram_line_pixel(buffer, r_neg, g_neg, b_neg, a_neg, r_pos, g_pos, b_pos, a_pos) (
-  i = 0;
-  
-  width_pixels = GRAPH_SIZE;
-  buffer_size = histogram_pixel_max_samples;
-  
-  while (i < width_pixels) (
-    age = floor((width_pixels - 1 - i) * (buffer_size - 1) / max(width_pixels - 1, 1));
-    buffer_idx = (histogram_pixel_idx - age + buffer_size) % buffer_size;
-    gr_value = buffer[buffer_idx];
-    
-    // Linear fade for leftmost 100 pixels (i=0 is far left)
-    fade_factor = i < 100 ? (i / 100) : 1;
-    
-    gr_value < 0 ? (
-      faded_alpha = a_neg * fade_factor;
-      
-      gfx_set(r_neg, g_neg, b_neg, faded_alpha);
-      x_pos = GRAPH_X + i;
-      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = min(GRAPH_Y + gr_height, GRAPH_Y + GRAPH_SIZE);
-      top_y = GRAPH_Y;
-      
-      // Draw vertical line from top to calculated position
-      gfx_line(x_pos, top_y, x_pos, y_pos, 1);
-    ) :
-    gr_value > 0 ? (
-      faded_alpha = a_pos * fade_factor;
-      
-      gfx_set(r_pos, g_pos, b_pos, faded_alpha);
-      x_pos = GRAPH_X + i;
-      gr_height = abs(gr_value) * GR_PIXELS_PER_DB;
-      y_pos = max(GRAPH_Y + GRAPH_SIZE - gr_height, GRAPH_Y);
-      bottom_y = GRAPH_Y + GRAPH_SIZE;
-      
-      // Draw vertical line from bottom to calculated position
-      gfx_line(x_pos, bottom_y, x_pos, y_pos, 1);
+  w = GRAPH_SIZE; n = histogram_pixel_max_samples; i = 0;
+  loop(w,
+    age = floor((w-1-i)*(n-1)/max(w-1,1));
+    bi = (histogram_pixel_idx-age+n)%n;
+    v = buffer[bi];
+    f = i<100 ? (i/100) : 1;
+    v < 0 ? (
+      fa = a_neg * f;
+      gfx_set(r_neg, g_neg, b_neg, fa);
+      x = GRAPH_X+i;
+      y = min(GRAPH_Y+abs(v)*GR_PIXELS_PER_DB, GRAPH_Y+GRAPH_SIZE);
+      gfx_line(x, GRAPH_Y, x, y, 1);
+    )
+    : v > 0 ? (
+      fa = a_pos * f;
+      gfx_set(r_pos, g_pos, b_pos, fa);
+      x = GRAPH_X+i;
+      y = max(GRAPH_Y+GRAPH_SIZE-abs(v)*GR_PIXELS_PER_DB, GRAPH_Y);
+      gfx_line(x, GRAPH_Y+GRAPH_SIZE, x, y, 1);
     );
-    
     i += 1;
   );
 );
 
-//==============================================================================
-// INPUT HISTOGRAM
-//==============================================================================
-
+// ==================
+// Input Histogram
+// ==================
 function draw_input_histogram(opacity) (
-  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38) > 0.5 && opacity > 0 ? (
-    draw_input_histogram_line(
-      input_histogram_buffer,
-      input_histogram_pos,
-      input_histogram_max_samples,
-      INPUT_HISTOGRAM_COLOR_R,
-      INPUT_HISTOGRAM_COLOR_G,
-      INPUT_HISTOGRAM_COLOR_B,
-      opacity
-    );
-  );
+  INPUT_HISTOGRAM_ENABLED && input_histogram_initialized && slider(38)>0.5 && opacity>0 ?
+    draw_input_histogram_line(input_histogram_buffer, input_histogram_pos, input_histogram_max_samples, INPUT_HISTOGRAM_COLOR_R, INPUT_HISTOGRAM_COLOR_G, INPUT_HISTOGRAM_COLOR_B, opacity);
 );
 
-//==============================================================================
-// HISTOGRAM
-//==============================================================================
-
+// ===============
+// Histogram
+// ===============
 function draw_histogram(opacity) (
-  HISTOGRAM_ENABLED && slider(38) > 0.5 && histogram_pixel_initialized && opacity > 0 ? (
-    // Render histogram lines (negative and positive in a single pass)
-    draw_gr_histogram_line_pixel(
-      histogram_pixel_buffer,
-      1, 0.5, 0, opacity,      // Negative GR color/alpha
-      0.2, 0.5, 1, opacity     // Positive GR color/alpha
-    );
-    
-    // Draw unified reflection (merges orange, blue, and green) using the same opacity
+  HISTOGRAM_ENABLED && slider(38)>0.5 && histogram_pixel_initialized && opacity>0 ? (
+    draw_gr_histogram_line_pixel(histogram_pixel_buffer, 1,0.5,0,opacity,   0.2,0.5,1,opacity);
     draw_histogram_reflection_unified_pixel(opacity);
   );
 );
-

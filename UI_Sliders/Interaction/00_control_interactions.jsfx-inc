@@ -12,36 +12,24 @@ ui_last_clicked_control = -1;
 ui_double_click_threshold = 0.3;
 ui_prev_ctrl_key = 0;
 
-// PDC lookahead update, only for param 13
+// PDC lookahead update (optional - host plugin can override)
+// Default implementation: no PDC updates
+// Host plugin can override this function to provide custom PDC update behavior
 function update_pdc_delay_if_needed(param)(
-  param == 13 ? (
-    pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
-    pdc_delay > 0 ? (pdc_bot_ch = 0; pdc_top_ch = 2; );
-  );
+  // Default: do nothing
+  0;
 );
 
-// Preview Filters Listen auto-enable/restore
+// Preview Filters Listen auto-enable/restore (optional - host plugin can override)
+// Default implementation: no preview filter handling
+// Host plugin can override these functions to provide custom preview filter behavior
 function handle_preview_filters(param, start)(
-  menu_preview_filters_enabled > 0.5 && (param == 16 || param == 17) ? (
-    start ? ( // Drag start
-      preview_filters_listen_initial_state = slider(15) > 0.5 ? 1 : 0;
-      preview_filters_listen_initial_state < 0.5 ? (
-        listen_to_sidechain = 1;
-        slider(15) = 1; sliderchange(1 << 14);
-      );
-    ) : (
-      preview_filters_listen_initial_state < 0.5 ? (
-        listen_to_sidechain = 1;
-        slider(15) = 1; sliderchange(1 << 14);
-      );
-    );
-  );
+  // Default: do nothing
+  0;
 );
 function handle_preview_filters_drag_end() (
-  preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
-    listen_to_sidechain = 0; slider(15) = 0; sliderchange(1 << 14);
-  );
-  preview_filters_listen_initial_state = -1;
+  // Default: do nothing
+  0;
 );
 
 // Reset control to default value
@@ -196,10 +184,10 @@ local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i,
 );
 
 // Check if a control should be interactive (page visible)
+// Default implementation: all controls are always interactive
+// Host plugin can override this function to provide custom page filtering
 function is_control_interactive(i)(
-  is_control_on_filters_page(i) ? should_render_page(PAGE_FILTERS)
-  : is_control_on_settings_page(i) ? should_render_page(PAGE_SETTINGS)
-  : 1;
+  1;  // Default: all controls always interactive
 );
 
 // Main mouse handler

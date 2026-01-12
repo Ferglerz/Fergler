@@ -86,7 +86,8 @@ import 01_Utils/00_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
 
 // UI_Sliders/Core/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
-import UI_Sliders/Core/00_file_reading.jsfx-inc
+// Library is now externalized to ../FerglerUI/UI_Sliders/
+import ../FerglerUI/UI_Sliders/Core/00_file_reading.jsfx-inc
 
 import 01_Utils/03_memory.jsfx-inc
 
@@ -127,8 +128,10 @@ import Interface/Core/02_ui_layout.jsfx-inc
 import Interface/Core/00_ui_config.jsfx-inc
 // Part 4: Graph positioning constants (GRAPH_X, GRAPH_Y, GRAPH_SIZE, etc.)
 import Interface/Core/03_ui_graph_layout.jsfx-inc
-// Core modules (drawing primitives, utilities)
+// Core modules (drawing primitives)
 import Interface/Core/04_drawing_primitives.jsfx-inc
+// Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
+// But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
 import Interface/Core/05_utils.jsfx-inc
 // Debug module (constants first, then debug functions)
 import Interface/Debug/00_debug_constants.jsfx-inc
@@ -141,29 +144,44 @@ import Interface/Services/03_threshold_lines_render.jsfx-inc
 // Interaction modules (page buttons, custom buttons, radio groups)
 import Interface/Interaction/00_page_buttons.jsfx-inc
 
-// UI_Sliders: Slider control library (depends on Interface)
-// Core modules (constants, definitions, formatting)
-import UI_Sliders/Core/01_slider_constants.jsfx-inc
-import UI_Sliders/Core/02_control_definitions.jsfx-inc
-import UI_Sliders/Core/03_value_formatting.jsfx-inc
-import UI_Sliders/Core/04_value_text_rendering.jsfx-inc
+// UI_Sliders: Slider control library configuration
+// Import config before library modules (provides constants and optional function overrides)
+import ../FerglerUI/UI_Sliders/00_library_config.jsfx-inc
+
+// UI_Sliders: Slider control library (depends on Interface constants)
+// Library is now externalized to ../FerglerUI/UI_Sliders/
+// Core modules (must be in dependency order):
+//   1. Constants and definitions (no dependencies)
+//   2. Step-points (needed by formatting and utils)
+//   3. Value formatting (needs step-points)
+//   4. Value text rendering (needs formatting)
+//   5. Control utils (needs step-points)
+//   6. Radio buttons (standalone)
+import ../FerglerUI/UI_Sliders/Core/01_slider_constants.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/02_control_definitions.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/05_step_points.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/03_value_formatting.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/04_value_text_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/06_control_utils.jsfx-inc
+import ../FerglerUI/UI_Sliders/Core/07_radio_buttons.jsfx-inc
 // Render modules (slider, knob, fader, button, dropdown rendering)
-import UI_Sliders/Render/00_slider_rendering.jsfx-inc
-import UI_Sliders/Render/01_knob_rendering.jsfx-inc
-import UI_Sliders/Render/02_parallax_fader_rendering.jsfx-inc
-import UI_Sliders/Render/03_button_rendering.jsfx-inc
-import UI_Sliders/Render/04_dropdown_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Render/00_slider_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Render/01_knob_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Render/02_parallax_fader_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Render/03_button_rendering.jsfx-inc
+import ../FerglerUI/UI_Sliders/Render/04_dropdown_rendering.jsfx-inc
 // Runtime modules (slider objects, control dispatcher)
-import UI_Sliders/Runtime/00_slider_objects.jsfx-inc
-import Interface/Interaction/02_radio_groups.jsfx-inc
-import UI_Sliders/Runtime/01_control_dispatcher.jsfx-inc
+import ../FerglerUI/UI_Sliders/Runtime/00_slider_objects.jsfx-inc
+import ../FerglerUI/UI_Sliders/Runtime/01_control_dispatcher.jsfx-inc
+// Interaction module (must be after Interface/Interaction modules for overrides)
+import ../FerglerUI/UI_Sliders/Interaction/00_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
 import 04_UI_Controls/02_step_points.jsfx-inc
 import 04_UI_Controls/03_control_layout.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
-import UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+// Note: UI_Sliders/Interaction/00_control_interactions.jsfx-inc imported above
 
 // Graph: Graph rendering and interaction (depends on Interface)
 // threshold_lines is now in Interface and independent

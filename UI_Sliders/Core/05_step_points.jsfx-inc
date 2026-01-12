@@ -1,0 +1,180 @@
+// Step-Point Management Module (Library)
+// Generic step-point system for stepped sliders
+// This module is part of the UI_Sliders library and is self-contained
+// Dependencies: UI_Sliders/Core/00_file_reading.jsfx-inc (for string_to_number)
+
+@init
+
+//==============================================================================
+// STEP-POINT STORAGE
+//==============================================================================
+
+// Step-point data storage: base address and count per parameter
+// Maximum 256 parameters (NUM_CONTROLS), each can have up to 100 step points
+// Storage: step_points_bases[param_index] = base address, step_points_counts[param_index] = count
+// step_points_bases and step_points_counts are allocated by host plugin in memory allocation
+// step_points_arrays_base is the base of all step-point arrays (allocated by host)
+
+// Maximum step points per parameter (allocate 100 slots per parameter for headroom)
+MAX_STEP_POINTS_PER_PARAM = 100;
+
+// Step-point arrays base (allocated by host plugin, must be set before use)
+// Host plugin allocates: step_points_arrays_base = freemem; freemem += NUM_CONTROLS * MAX_STEP_POINTS_PER_PARAM;
+step_points_arrays_base = 0;
+
+// Step-point bases array (one per parameter, points to start of that param's step points)
+// Host plugin allocates: step_points_bases = freemem; freemem += NUM_CONTROLS;
+step_points_bases = 0;
+
+// Step-point counts array (one per parameter, stores count of step points)
+// Host plugin allocates: step_points_counts = freemem; freemem += NUM_CONTROLS;
+step_points_counts = 0;
+
+//==============================================================================
+// STEP-POINT PARSING
+//==============================================================================
+
+// Helper function to parse comma-separated step-point string into array
+// Returns the count of parsed values
+// Parameters:
+//   step_points_str: String slot containing comma-separated values
+//   step_points_base: Base address of array to store parsed values
+// Returns: Count of parsed step points
+function parse_step_points_string(step_points_str, step_points_base) local(
+  str_len, opt_count, option_start, pos, current_char, len, temp_slot, numeric_value
+) (
+  str_len = strlen(step_points_str);
+  opt_count = 0;
+  option_start = 0;
+  pos = 0;
+  
+  // Parse all values (comma-separated)
+  while (pos <= str_len) (
+    current_char = str_getchar(step_points_str, pos);
+    (current_char == 44 || pos == str_len) ? (  // 44 = comma character
+      len = pos - option_start;
+      len > 0 ? (
+        // Extract substring and convert to number
+        temp_slot = 50;  // Use temp string slot (from constants)
+        strcpy_substr(temp_slot, step_points_str, option_start, len);
+        numeric_value = string_to_number(temp_slot);
+        // Store in array
+        step_points_base[opt_count] = numeric_value;
+        opt_count += 1;
+        option_start = pos + 1;
+      );
+    );
+    pos += 1;
+  );
+  opt_count;
+);
+
+//==============================================================================
+// STEP-POINT INITIALIZATION
+//==============================================================================
+
+// Initialize step points for a specific parameter
+// Parameters:
+//   param_index: Parameter index (1-based JSFX slider number)
+//   step_points_str: String slot containing comma-separated step-point values
+// Returns: Count of step points initialized, or 0 on error
+function init_step_points_for_param(param_index, step_points_str) local(
+  array_index, step_points_base, count
+) (
+  // Validate parameter index (1-based, so 1-256)
+  param_index >= 1 && param_index <= NUM_CONTROLS && step_points_bases > 0 ? (
+    array_index = param_index - 1;  // Convert to 0-based array index
+    // Calculate base address for this parameter's step points
+    step_points_base = step_points_arrays_base + (array_index * MAX_STEP_POINTS_PER_PARAM);
+    // Parse step points into array
+    count = parse_step_points_string(step_points_str, step_points_base);
+    // Store base address and count
+    step_points_bases[array_index] = step_points_base;
+    step_points_counts[array_index] = count;
+    count;
+  ) : (
+    0
+  );
+);
+
+//==============================================================================
+// STEP-POINT ACCESSORS
+//==============================================================================
+
+// Get step-point count for a parameter
+// Parameters: param_index (1-based JSFX slider number)
+// Returns: Count of step points, or 0 if not a stepped slider
+function get_step_point_count(param_index) (
+  param_index >= 1 && param_index <= NUM_CONTROLS && step_points_counts > 0 ? (
+    step_points_counts[param_index - 1]
+  ) : (
+    0
+  );
+);
+
+// Get step-point array base address for a parameter
+// Parameters: param_index (1-based JSFX slider number)
+// Returns: Base address of step-point array, or 0 if not a stepped slider
+function get_step_points_base(param_index) (
+  param_index >= 1 && param_index <= NUM_CONTROLS && step_points_bases > 0 ? (
+    step_points_bases[param_index - 1]
+  ) : (
+    0
+  );
+);
+
+// Find the index of the closest step-point for a given value
+// Parameters:
+//   value: Value to find closest step-point for
+//   step_points_base: Base address of step-point array
+//   step_count: Number of step points in array
+// Returns: Index (0-based) of the closest step-point
+function find_step_point_index(value, step_points_base, step_count) local(
+  closest_index, closest_diff, i, test_value, test_diff
+) (
+  step_count > 0 && step_points_base > 0 ? (
+    closest_index = 0;
+    closest_diff = abs(step_points_base[0] - value);
+    i = 1;
+    while (i < step_count) (
+      test_value = step_points_base[i];
+      test_diff = abs(test_value - value);
+      test_diff < closest_diff ? (
+        closest_index = i;
+        closest_diff = test_diff;
+      );
+      i += 1;
+    );
+    closest_index;
+  ) : (
+    0
+  );
+);
+
+// Find the closest step-point value for a given value
+// Parameters:
+//   value: Value to find closest step-point for
+//   step_points_base: Base address of step-point array
+//   step_count: Number of step points in array
+// Returns: Closest step-point value
+function find_closest_step_point(value, step_points_base, step_count) local(
+  closest_value, closest_diff, i, test_value, test_diff
+) (
+  step_count > 0 && step_points_base > 0 ? (
+    closest_value = step_points_base[0];
+    closest_diff = abs(step_points_base[0] - value);
+    i = 1;
+    while (i < step_count) (
+      test_value = step_points_base[i];
+      test_diff = abs(test_value - value);
+      test_diff < closest_diff ? (
+        closest_value = test_value;
+        closest_diff = test_diff;
+      );
+      i += 1;
+    );
+    closest_value;
+  ) : (
+    value
+  );
+);

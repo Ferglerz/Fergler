@@ -40,19 +40,9 @@ function construct_from_param(param_index) instance(param_index default min max 
   this.name_slot = name_slot;
   // Expose label as property (same as name_slot, for consistency with min/max)
   this.label = name_slot;
-  // Get step point count from global variables (step counts are initialized in 04_UI_Controls/02_step_points.jsfx-inc before slider objects)
-  this.step_count = 
-    param_index == 1 ? attack_step_count :
-    param_index == 4 ? release_step_count :
-    param_index == 13 ? lookahead_step_count :
-    param_index == 16 ? hp_step_count :
-    param_index == 17 ? lp_step_count :
-    param_index == 21 ? drive_step_count :
-    param_index == 22 ? mix_step_count :
-    param_index == 23 ? even_step_count :
-    param_index == 24 ? odd_step_count :
-    param_index == 8 ? prog_release_blend_step_count :
-    0;
+  // Get step point count from library's step-point system
+  // Uses get_step_point_count() from UI_Sliders/Core/05_step_points.jsfx-inc
+  this.step_count = get_step_point_count(param_index);
 );
 
 //------------------------------------------------------------------------------
