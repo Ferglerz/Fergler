@@ -85,8 +85,8 @@ import 01_Utils/00_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
 
 // UI_Sliders/Core/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
-// Library is now externalized to ../FerglerUI/UI_Sliders/
-import ../FerglerUI/UI_Sliders/Core/00_file_reading.jsfx-inc
+// Library is now externalized to ../FerglerUI/
+import ../FerglerUI/Core/00_file_reading.jsfx-inc
 
 import 01_Utils/03_memory.jsfx-inc
 
@@ -145,10 +145,10 @@ import Interface/Interaction/00_page_buttons.jsfx-inc
 
 // UI_Sliders: Slider control library configuration
 // Import config before library modules (provides constants and optional function overrides)
-import ../FerglerUI/UI_Sliders/00_library_config.jsfx-inc
+import ../FerglerUI/00_library_config.jsfx-inc
 
 // UI_Sliders: Slider control library (depends on Interface constants)
-// Library is now externalized to ../FerglerUI/UI_Sliders/
+// Library is now externalized to ../FerglerUI/
 // Core modules (must be in dependency order):
 //   1. Constants and definitions (no dependencies)
 //   2. Step-points (needed by formatting and utils)
@@ -156,24 +156,24 @@ import ../FerglerUI/UI_Sliders/00_library_config.jsfx-inc
 //   4. Value text rendering (needs formatting)
 //   5. Control utils (needs step-points)
 //   6. Radio buttons (standalone)
-import ../FerglerUI/UI_Sliders/Core/01_slider_constants.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/02_control_definitions.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/05_step_points.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/03_value_formatting.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/04_value_text_rendering.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/06_control_utils.jsfx-inc
-import ../FerglerUI/UI_Sliders/Core/07_radio_buttons.jsfx-inc
+import ../FerglerUI/Core/01_slider_constants.jsfx-inc
+import ../FerglerUI/Core/02_control_definitions.jsfx-inc
+import ../FerglerUI/Core/05_step_points.jsfx-inc
+import ../FerglerUI/Core/03_value_formatting.jsfx-inc
+import ../FerglerUI/Core/04_value_text_rendering.jsfx-inc
+import ../FerglerUI/Core/06_control_utils.jsfx-inc
+import ../FerglerUI/Core/07_radio_buttons.jsfx-inc
 // Render modules (slider, knob, fader, button, dropdown rendering)
-import ../FerglerUI/UI_Sliders/Render/00_slider_rendering.jsfx-inc
-import ../FerglerUI/UI_Sliders/Render/01_knob_rendering.jsfx-inc
-import ../FerglerUI/UI_Sliders/Render/02_parallax_fader_rendering.jsfx-inc
-import ../FerglerUI/UI_Sliders/Render/03_button_rendering.jsfx-inc
-import ../FerglerUI/UI_Sliders/Render/04_dropdown_rendering.jsfx-inc
+import ../FerglerUI/Render/00_slider_rendering.jsfx-inc
+import ../FerglerUI/Render/01_knob_rendering.jsfx-inc
+import ../FerglerUI/Render/02_parallax_fader_rendering.jsfx-inc
+import ../FerglerUI/Render/03_button_rendering.jsfx-inc
+import ../FerglerUI/Render/04_dropdown_rendering.jsfx-inc
 // Runtime modules (slider objects, control dispatcher)
-import ../FerglerUI/UI_Sliders/Runtime/00_slider_objects.jsfx-inc
-import ../FerglerUI/UI_Sliders/Runtime/01_control_dispatcher.jsfx-inc
+import ../FerglerUI/Runtime/00_slider_objects.jsfx-inc
+import ../FerglerUI/Runtime/01_control_dispatcher.jsfx-inc
 // Interaction module (must be after Interface/Interaction modules for overrides)
-import ../FerglerUI/UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+import ../FerglerUI/Interaction/00_control_interactions.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
