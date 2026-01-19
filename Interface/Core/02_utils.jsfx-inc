@@ -77,21 +77,7 @@ function is_point_in_control(x, y, control_index) (
   x >= ctrl_x && x <= ctrl_x + ctrl_w && y >= ctrl_y && y <= ctrl_y + ctrl_h;
 );
 
-//---- Step-point helpers ----
-function get_step_point_count(i)(
-  i==1?S1.step_count:i==4?S4.step_count:i==13?S13.step_count
-  :i==16?S16.step_count:i==17?S17.step_count
-  :i==21?drive_step_count:i==22?mix_step_count
-  :i==23?even_step_count:i==24?odd_step_count
-  :i==8?prog_release_blend_step_count:0
-);
-function get_step_points_base(i)(
-  i==1?attack_step_points_base:i==4?release_step_points_base:i==13?lookahead_step_points_base
-  :i==16?hp_step_points_base:i==17?lp_step_points_base
-  :i==21?drive_step_points_base:i==22?mix_step_points_base
-  :i==23?even_step_points_base:i==24?odd_step_points_base
-  :i==8?prog_release_blend_step_points_base:0
-);
+// Step-point functions use library versions from UI_Sliders/Core/05_step_points.jsfx-inc
 
 //---- Slider value from mouse ----
 function update_slider_value(control_index, mouse_x, mouse_y)
@@ -132,28 +118,7 @@ local(control_type, param_index, step_count, option_count, total_options, option
   )
 );
 
-//---- Step-point search ----
-function find_step_point_index(value, step_points_base, step_count) local(i, idx, bestdiff,diff) (
-  idx=0;bestdiff=abs(step_points_base[0]-value);
-  i=1;
-  while(i<step_count)(
-    diff=abs(step_points_base[i]-value);
-    diff<bestdiff ? (idx=i;bestdiff=diff;);
-    i+=1;
-  );
-  idx;
-);
-function find_closest_step_point(value, step_points_base, step_count) local(i, v, best, diff, bestdiff)(
-  best=step_points_base[0];bestdiff=abs(best-value);
-  i=1;
-  while(i<step_count)(
-    v=step_points_base[i];
-    diff=abs(v-value);
-    diff<bestdiff ? (best=v;bestdiff=diff;);
-    i+=1;
-  );
-  best;
-);
+// Step-point search functions use library versions from UI_Sliders/Core/05_step_points.jsfx-inc
 
 //---- Graph coordinate clamping ----
 function clamp_x_to_graph(x, gx, s) (max(gx, min(gx+s, x)));

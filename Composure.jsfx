@@ -129,9 +129,6 @@ import Interface/Core/00_ui_config.jsfx-inc
 import Interface/Core/03_ui_graph_layout.jsfx-inc
 // Core modules (drawing primitives)
 import Interface/Core/04_drawing_primitives.jsfx-inc
-// Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
-// But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
-import Interface/Core/05_utils.jsfx-inc
 // Debug module (constants first, then debug functions)
 import Interface/Debug/00_debug_constants.jsfx-inc
 import Interface/Debug/01_debug.jsfx-inc
@@ -163,6 +160,9 @@ import ../FerglerUI/Core/03_value_formatting.jsfx-inc
 import ../FerglerUI/Core/04_value_text_rendering.jsfx-inc
 import ../FerglerUI/Core/06_control_utils.jsfx-inc
 import ../FerglerUI/Core/07_radio_buttons.jsfx-inc
+// Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
+// But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
+import Interface/Core/05_utils.jsfx-inc
 // Render modules (slider, knob, fader, button, dropdown rendering)
 import ../FerglerUI/Render/00_slider_rendering.jsfx-inc
 import ../FerglerUI/Render/01_knob_rendering.jsfx-inc
@@ -172,8 +172,9 @@ import ../FerglerUI/Render/04_dropdown_rendering.jsfx-inc
 // Runtime modules (slider objects, control dispatcher)
 import ../FerglerUI/Runtime/00_slider_objects.jsfx-inc
 import ../FerglerUI/Runtime/01_control_dispatcher.jsfx-inc
-// Interaction module (must be after Interface/Interaction modules for overrides)
+// Interaction modules (must be after Interface/Interaction modules for overrides)
 import ../FerglerUI/Interaction/00_control_interactions.jsfx-inc
+import ../FerglerUI/Interaction/01_point_interaction.jsfx-inc
 
 // Composure-specific control layout (uses Sliders library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
@@ -380,7 +381,6 @@ brickwall_limiter = slider(26);
 TRAIL_INTERVAL_MS_FIXED = 15;    // 15ms between dots
 TRAIL_FADE_MS_FIXED     = 2000;  // 2s fade duration
 
-// Recalculate trail buffer size
 trail_interval_ms = TRAIL_INTERVAL_MS_FIXED;
 trail_fade_duration_ms = TRAIL_FADE_MS_FIXED;
 // Recalculate trail buffer size
