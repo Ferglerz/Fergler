@@ -84,9 +84,9 @@ filename:13,Images/page_button_depressed.png
 import 01_Utils/00_constants.jsfx-inc
 import 01_Utils/02_math_utils.jsfx-inc
 
-// UI_Sliders/Core/00_file_reading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
+// UI_Sliders/Core/00_FileReading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
 // Library is now externalized to ../FerglerUI/
-import ../FerglerUI/Core/00_file_reading.jsfx-inc
+import ../FerglerUI/Core/00_FileReading/00_file_reading.jsfx-inc
 
 import 01_Utils/03_memory.jsfx-inc
 
@@ -140,30 +140,28 @@ import Interface/Services/03_threshold_lines_render.jsfx-inc
 // Interaction modules (page buttons, custom buttons, radio groups)
 import Interface/Interaction/00_page_buttons.jsfx-inc
 
-// UI_Sliders: Slider control library configuration
-// Import config before library modules (provides constants and optional function overrides)
-import ../FerglerUI/00_library_config.jsfx-inc
-
 // UI_Sliders: Slider control library (depends on Interface constants)
 // Library is now externalized to ../FerglerUI/
 // Core modules (must be in dependency order):
-//   1. Constants and definitions (no dependencies)
-//   2. Step-points (needed by formatting and utils)
-//   3. Value formatting (needs step-points)
-//   4. Value text rendering (needs formatting)
-//   5. Control utils (needs step-points)
-//   6. Radio buttons (standalone)
-import ../FerglerUI/Core/01_slider_constants.jsfx-inc
-import ../FerglerUI/Core/02_control_definitions.jsfx-inc
-import ../FerglerUI/Core/05_step_points.jsfx-inc
-import ../FerglerUI/Core/03_value_formatting.jsfx-inc
-import ../FerglerUI/Core/04_value_text_rendering.jsfx-inc
-import ../FerglerUI/Core/06_control_utils.jsfx-inc
-import ../FerglerUI/Core/07_radio_buttons.jsfx-inc
-import ../FerglerUI/Core/08_image_sets.jsfx-inc
-import ../FerglerUI/Core/09_layout_utils.jsfx-inc
-import ../FerglerUI/Core/10_interaction_constants.jsfx-inc
-import ../FerglerUI/Core/11_rendering_constants.jsfx-inc
+//   1. Constants (no dependencies)
+//   2. Definitions (no dependencies)
+//   3. Step-points (needed by formatting and utils)
+//   4. Value formatting (needs step-points)
+//   5. Value text rendering (needs formatting)
+//   6. Control utils (needs step-points)
+//   7. Components (standalone)
+//   8. Utilities (standalone)
+import ../FerglerUI/Core/01_Constants/00_slider_constants.jsfx-inc
+import ../FerglerUI/Core/01_Constants/01_interaction_constants.jsfx-inc
+import ../FerglerUI/Core/01_Constants/02_rendering_constants.jsfx-inc
+import ../FerglerUI/Core/02_Definitions/00_control_definitions.jsfx-inc
+import ../FerglerUI/Core/04_StepPoints/00_step_points.jsfx-inc
+import ../FerglerUI/Core/03_Formatting/00_value_formatting.jsfx-inc
+import ../FerglerUI/Core/03_Formatting/01_value_text_rendering.jsfx-inc
+import ../FerglerUI/Core/05_Utilities/00_control_utils.jsfx-inc
+import ../FerglerUI/Core/05_Utilities/01_layout_utils.jsfx-inc
+import ../FerglerUI/Core/06_Components/00_radio_buttons.jsfx-inc
+import ../FerglerUI/Core/06_Components/01_image_sets.jsfx-inc
 // Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
 // But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
 import Interface/Core/05_utils.jsfx-inc
@@ -180,12 +178,12 @@ import ../FerglerUI/Runtime/01_control_dispatcher.jsfx-inc
 import ../FerglerUI/Interaction/00_control_interactions.jsfx-inc
 import ../FerglerUI/Interaction/01_point_interaction.jsfx-inc
 
-// Composure-specific control layout (uses Sliders library)
+// Composure-specific control layout (uses FerglerUI library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
 import 04_UI_Controls/02_step_points.jsfx-inc
 import 04_UI_Controls/03_control_layout.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
-// Note: UI_Sliders/Interaction/00_control_interactions.jsfx-inc imported above
+// Note: FerglerUI/Interaction/00_control_interactions.jsfx-inc imported above (overridden in Interface/Interaction/03_ui_interaction.jsfx-inc)
 
 // Graph: Graph rendering and interaction (depends on Interface)
 // threshold_lines is now in Interface and independent

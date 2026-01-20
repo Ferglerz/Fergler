@@ -25,7 +25,7 @@ function is_control_on_settings_page(control_index) (
 );
 
 // Override library's is_control_interactive to provide page filtering
-// This function overrides the default in UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+// This function overrides the default in FerglerUI/Interaction/00_control_interactions.jsfx-inc
 function is_control_interactive(i)(
   is_control_on_filters_page(i) ? should_render_page(PAGE_FILTERS)
   : is_control_on_settings_page(i) ? should_render_page(PAGE_SETTINGS)

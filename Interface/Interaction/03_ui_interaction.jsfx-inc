@@ -1,25 +1,213 @@
 // UI Interaction Module - Main Orchestrator
 // Coordinates all user interaction across the interface
 // Dependencies:
-//   - UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+//   - FerglerUI/Interaction/00_control_interactions.jsfx-inc
 //   - Interface/Pages/01_Graph_Page/Core/00_graph.jsfx-inc
 //   - Interface/Services/00_coordinate_conversion.jsfx-inc (for get_meter_x, get_meter_y, get_meter_w, get_meter_h)
 //   - Interface/Services/01_threshold_lines_core.jsfx-inc
 
 @init
 
+// Composure-specific preview filter state
+preview_filters_listen_initial_state = -1;
+
 //==============================================================================
 // LIBRARY FUNCTION OVERRIDES
 //==============================================================================
 
 // Override library's update_pdc_delay_if_needed to provide PDC updates
-// This function overrides the default in UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+// This function overrides the default in FerglerUI/Interaction/00_control_interactions.jsfx-inc
 // PDC lookahead update, only for param 13 (lookahead)
 function update_pdc_delay_if_needed(param)(
   param == 13 ? (
     pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
     pdc_delay > 0 ? (pdc_bot_ch = 0; pdc_top_ch = 2; );
   );
+);
+
+
+// Composure-specific preview filter functions (not part of UI library)
+function handle_preview_filters(param, start)(
+  menu_preview_filters_enabled > 0.5 && (param == 16 || param == 17) ? (
+    start ? ( // Drag start
+      preview_filters_listen_initial_state = slider(15) > 0.5 ? 1 : 0;
+      preview_filters_listen_initial_state < 0.5 ? (
+        listen_to_sidechain = 1;
+        slider(15) = 1; sliderchange(1 << 14);
+      );
+    ) : (
+      preview_filters_listen_initial_state < 0.5 ? (
+        listen_to_sidechain = 1;
+        slider(15) = 1; sliderchange(1 << 14);
+      );
+    );
+  );
+);
+
+function handle_preview_filters_drag_end() (
+  preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
+    listen_to_sidechain = 0; slider(15) = 0; sliderchange(1 << 14);
+  );
+  preview_filters_listen_initial_state = -1;
+);
+
+// Override handle_control_click to add preview filter calls
+// This duplicates the library function and adds Composure-specific preview filter handling
+function handle_control_click(i) local(
+  type, p, v, min, max, options, steps, norm, val, max_opts
+)(
+  type = control_defs[i*11+0];
+  p = control_defs[i*11+5]; v = slider(p);
+  min = control_defs[i*11+6]; max = control_defs[i*11+7];
+
+  (is_double_click_control(i) || MOUSE_ALT_KEY) && (type != 2 && type != 1) ? (
+    reset_control_to_default(i); ui_drag_control = -2;
+  ) : (
+    (type == 0 || type == 3 || type == 4) ? (
+      ui_drag_control = i;
+      MOUSE_CTRL_KEY ? (
+        options = get_dropdown_option_count(p);
+        steps = get_step_point_count(p);
+        (options > 0 || steps > 0) ? (
+          get_slider_config(i, type);
+          norm = (type == 4 ? calculate_knob_normalized_position(i, mouse_x, mouse_y, 0)
+                            : calculate_normalized_position(i, mouse_x, mouse_y, 0, 0));
+          val = min + norm * (max-min); slider(p) = val;
+        );
+      ) : (
+        (type == 4) ? 0 : (slider(p) = update_slider_value(i, mouse_x, mouse_y));
+      );
+      sliderchange(1 << (p-1));
+      update_pdc_delay_if_needed(p);
+      handle_preview_filters(p, 1);
+    ) : type == 1 ? (
+      min == max ? handle_radio_button_click(i,p,min)
+                 : (slider(p) = v>0.5 ? 0 : 1; sliderchange(1 << (p-1)));
+      ui_drag_control = -2;
+    ) : type == 2 ? (
+      max_opts = get_dropdown_option_count(p);
+      max_opts>0 ? (slider(p) = (v+1)%max_opts; sliderchange(1 << (p-1)); );
+      ui_drag_control = -2;
+    );
+  );
+);
+
+// Override handle_drag_continuation to add preview filter calls during drag
+function handle_drag_continuation()
+local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i, inc, snap, bidir, fmt)
+(
+  fine = MOUSE_CTRL_KEY ? FINE_DRAG_MULTIPLIER : 1.0;
+  ctrl_rel = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
+  ui_drag_control >= 0 ? (
+    type = control_defs[ui_drag_control*11+0];
+    p = control_defs[ui_drag_control*11+5];
+    min = control_defs[ui_drag_control*11+6];
+    max = control_defs[ui_drag_control*11+7];
+    v = slider(p);
+    options = get_dropdown_option_count(p);
+    steps = get_step_point_count(p);
+    w = control_defs[ui_drag_control*11+3];
+    bidir = (fmt & OPTION_BIDIRECTIONAL);
+    arr_i = ui_drag_control * 4;
+    inc = (arr_i>=0 && arr_i<NUM_CONTROLS*4) ? slider_properties_base[arr_i] : 0;
+
+    (type == 4) ? ( // Knob drag
+      dx = (mouse_x-ui_prev_mouse_x)*fine;
+      dy = (mouse_y-ui_prev_mouse_y)*fine;
+
+      steps > 0 ? (
+        pts = get_step_points_base(p);
+        idx = find_step_point_index(v, pts, steps);
+        idx = floor(clamp(idx+((dx-dy)/KNOB_DRAG_SENSITIVITY)*steps,0,steps-1)+0.5);
+        slider(p)=pts[idx];
+      )
+      : options > 0 ? (
+        idx = floor(clamp(v+((dx-dy)/KNOB_DRAG_SENSITIVITY)*options,0,options-1)+0.5);
+        slider(p)=idx;
+      )
+      : (
+        range = max-min;
+        val = clamp(v+((dx-dy)/KNOB_DRAG_SENSITIVITY)*range,min,max);
+        !MOUSE_CTRL_KEY && inc>0 ? val=clamp(floor(val/inc+0.5)*inc, min, max);
+        slider(p)=val;
+      );
+    )
+    : (options>0 || steps>0) ? (
+      MOUSE_CTRL_KEY ? (
+        get_slider_config(ui_drag_control, type);
+        norm = calculate_normalized_position(ui_drag_control, mouse_x, mouse_y, 0, 0);
+        slider(p) = min + norm * (max-min);
+      ) : ( // snap by pos
+        total=options>0?options:steps;
+        ctrl_x=get_control_x_with_group_offset(ui_drag_control);
+        idx=floor(clamp((mouse_x-ctrl_x)/(w/total),0,total-1));
+        options>0 ? slider(p)=idx : (
+          pts=get_step_points_base(p); slider(p)=pts[idx];
+        );
+      );
+      ctrl_rel ? (
+        val=slider(p);
+        steps>0 ? (
+          pts=get_step_points_base(p);
+          slider(p)=find_closest_step_point(val, pts, steps);
+        ) : options>0 ? (
+          i=0; best=0; diff=abs(0-val); while(++i<options)(
+            t=abs(i-val); t<diff ? (best=i; diff=t; );
+          );
+          slider(p)=best;
+        );
+      );
+    )
+    : bidir ? (
+      dx=(mouse_x-ui_prev_mouse_x)*fine;
+      dy=(mouse_y-ui_prev_mouse_y)*fine;
+      range = max-min;
+      val = clamp(v+((dx-dy)/w)*range, min, max);
+      MOUSE_CTRL_KEY ? (slider(p)=val;) : (
+        inc>0 ? slider(p)=clamp(floor(val/inc+0.5)*inc, min, max) : slider(p)=val;
+      );
+      ctrl_rel && inc>0 ? (
+        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
+      );
+    ) : (
+      MOUSE_CTRL_KEY ? (
+        dx = (mouse_x-ui_prev_mouse_x)*fine;
+        range = max-min;
+        val = clamp(v+dx/w*range, min, max);
+        slider(p)=val;
+      ) : (
+        slider(p) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
+      );
+      ctrl_rel && inc>0 ? (
+        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
+      );
+    );
+    sliderchange(1 << (p-1));
+    update_pdc_delay_if_needed(p);
+    handle_preview_filters(p, 0);
+  );
+);
+
+// Override handle_ui_mouse_input to add preview filter drag end calls
+function handle_ui_mouse_input() (
+  MOUSE_LEFT_BUTTON ? (
+    ui_drag_control == -1 ? (
+      ui_prev_mouse_x = mouse_x; ui_prev_mouse_y = mouse_y; ui_fine_drag_accum = 0;
+      i=0; while(i<control_count && ui_drag_control==-1)(
+        is_control_interactive(i) && is_point_in_control(mouse_x, mouse_y, i) ? handle_control_click(i);
+        i+=1;
+      );
+    ) : (
+      ui_drag_control == -2 ? 0 :
+      (ui_drag_control>=0 && is_control_interactive(ui_drag_control)) ? handle_drag_continuation() :
+      (handle_preview_filters_drag_end(); ui_drag_control=-1; ui_fine_drag_accum=0;);
+    );
+  ) : (
+    handle_preview_filters_drag_end();
+    ui_drag_control=-1; ui_fine_drag_accum=0;
+  );
+  ui_prev_mouse_x = mouse_x; ui_prev_mouse_y = mouse_y;
+  ui_prev_ctrl_key = MOUSE_CTRL_KEY;
 );
 
 //==============================================================================
@@ -71,7 +259,7 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
   can_interact_with_graph = !any_button_clicked && dragging_threshold_line == -1 && should_render_page(PAGE_GRAPH) && (ui_drag_control == -1 || dragging_point >= 0);
 
   // Handle custom UI controls (they have priority over graph, but not when graph point is being dragged)
-  // handle_ui_mouse_input is defined in UI_Sliders/Interaction/00_control_interactions.jsfx-inc
+  // handle_ui_mouse_input is defined in FerglerUI/Interaction/00_control_interactions.jsfx-inc (overridden here for preview filters)
   // Only allow control interaction if no graph point is being dragged
   !any_button_clicked && dragging_point == -1 ? (
     handle_ui_mouse_input();
