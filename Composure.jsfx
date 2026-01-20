@@ -160,6 +160,10 @@ import ../FerglerUI/Core/03_value_formatting.jsfx-inc
 import ../FerglerUI/Core/04_value_text_rendering.jsfx-inc
 import ../FerglerUI/Core/06_control_utils.jsfx-inc
 import ../FerglerUI/Core/07_radio_buttons.jsfx-inc
+import ../FerglerUI/Core/08_image_sets.jsfx-inc
+import ../FerglerUI/Core/09_layout_utils.jsfx-inc
+import ../FerglerUI/Core/10_interaction_constants.jsfx-inc
+import ../FerglerUI/Core/11_rendering_constants.jsfx-inc
 // Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
 // But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
 import Interface/Core/05_utils.jsfx-inc

@@ -1,30 +1,15 @@
 @init
 
+// Dependencies:
+//   - ../FerglerUI/Core/09_layout_utils.jsfx-inc (for layout utility functions)
+//   - ../FerglerUI/Core/01_slider_constants.jsfx-inc (for OPTION_HIDE_LABEL)
+
 #forward_button_label = 90;
 #feedback_button_label = 91;
 
 function init_radio_button_labels() (
   strcpy(#feedback_button_label, get_dropdown_option(12, 0));
   strcpy(#forward_button_label, get_dropdown_option(12, 1));
-);
-
-GROUP_ROW_PADDING_DEFAULT = 32;
-
-function advance_group_row_y(current_y, control_h, padding) local(pad) (
-  pad = padding > 0 ? padding : GROUP_ROW_PADDING_DEFAULT;
-  current_y + control_h + pad
-);
-
-function get_label_hidden_row_start_offset(format_options) (
-  (format_options & OPTION_HIDE_LABEL) ? -LABEL_HEIGHT : 0
-);
-
-function get_label_slot_row_start_offset(label_slot) (
-  label_slot > 0 ? 0 : -LABEL_HEIGHT
-);
-
-function center_in_group_x(group_w, control_w) (
-  (group_w - control_w) / 2
 );
 
 function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, group_h, group_spacing, rel_x_slider, rel_x_button, rel_x_dropdown, groups_start_x, groups_end_x, total_width, group_width, current_y, control_h, control_spacing) (

@@ -1,41 +1,9 @@
-// Image Set Objects and Initialization
-// Provides image set objects for parallax fader controls
-// Dependencies: UI_Sliders/01_control_definitions.jsfx-inc
+// Image Set Initialization for Composure
+// Composure-specific image set initialization using the FerglerUI library
+// Dependencies: 
+//   - ../FerglerUI/Core/08_image_sets.jsfx-inc (for construct_image_set)
 
 @init
-
-//==============================================================================
-// IMAGE SET OBJECTS (Namespace-based)
-//==============================================================================
-//
-// Image set objects provide a convenient way to store all properties for an
-// image set (e.g., parallax fader images) in one place, similar to Slider objects.
-// This allows easy reuse and maintenance of image set configurations.
-//
-
-//------------------------------------------------------------------------------
-// Constructor for an image set "object"
-//------------------------------------------------------------------------------
-// Fields populated:
-//   this.image_top_index  - Image index for top layer
-//   this.image_bot_index  - Image index for bottom layer
-//   this.image_w          - Image width in pixels
-//   this.image_h          - Image height in pixels
-//   this.para_depth       - Parallax depth (affects top image travel distance)
-//   this.y_offset         - Y offset to lower images (accounts for shadows)
-//   this.x_offset         - Manual X offset for bottom image
-//   this.image_scale      - Scale factor for images (1.0 = no scaling)
-function construct_image_set(image_top_index, image_bot_index, image_w, image_h, para_depth, y_offset, x_offset, image_scale) instance(image_top_index image_bot_index image_w image_h para_depth y_offset x_offset image_scale)
-(
-  this.image_top_index = image_top_index;
-  this.image_bot_index = image_bot_index;
-  this.image_w = image_w;
-  this.image_h = image_h;
-  this.para_depth = para_depth;
-  this.y_offset = y_offset;
-  this.x_offset = x_offset;
-  this.image_scale = image_scale;
-);
 
 //==============================================================================
 // PARALLAX FADER CONSTANTS
