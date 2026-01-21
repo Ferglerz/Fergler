@@ -1,29 +1,8 @@
 // UI Rendering - Drawing Primitives Module
-// Rounded rectangles, groups, color helpers, and threshold line drawing
+// Color helpers and threshold line drawing
 // Dependencies: 01_Utils/00_constants.jsfx-inc, UI_General/00_ui_constants.jsfx-inc
 
 @init
-
-function draw_group(idx, fade) local(gx, gy, gw, gh, show_title, title_ptr, tw, th, tx, ty) (
-  gx = group_defs[idx*6    ];
-  gy = group_defs[idx*6 + 1];
-  gw = group_defs[idx*6 + 2];
-  gh = group_defs[idx*6 + 3];
-  show_title = group_defs[idx*6 + 4];
-  title_ptr = group_defs[idx*6 + 5];
-  fade <= 0 ? fade = 1;
-
-  show_title > 0.5 ? (
-    gfx_setfont(1, "Courier", 13);
-    gfx_measurestr(title_ptr, tw, th);
-    tx = gx + (gw-tw-GROUP_TITLE_PADDING*2)/2 + GROUP_TITLE_PADDING;
-    ty = gy + (GROUP_TITLE_HEIGHT-th)/2;
-    gfx_set(GROUP_TITLE_TEXT_R, GROUP_TITLE_TEXT_G, GROUP_TITLE_TEXT_B, fade);
-    gfx_x = tx; gfx_y = ty;
-    gfx_drawstr(title_ptr);
-    gfx_setfont(0);
-  );
-);
 
 function set_point_color(h, c) (
   h ? ( c ? gfx_set(1,0.8,0.2,1) : gfx_set(1,1,0.5,1) )

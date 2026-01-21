@@ -39,7 +39,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   slider_w = SLIDER_W;
   slider_x = center_in_group_x(group_w, slider_w);
   define_parallax_fader(1, slider_x, current_y, slider_w, control_h, 2, S2.min, S2.max, S2.label, sm_fader_left.image_top_index, sm_fader_left.image_bot_index, sm_fader_left.image_w, sm_fader_left.image_h, sm_fader_left.para_depth - 3, sm_fader_left.y_offset, sm_fader_left.x_offset, sm_fader_left.image_scale, "", FORMAT_NORMAL, OPTION_HIDE_LABEL, DISPLAY_HIDE_VALUE);
-  current_y = advance_group_row_y(current_y, control_h, 40);
+  current_y = advance_group_row_y(current_y, control_h, 24);
   control_h = SLIDER_H;
   slider_w = SLIDER_W;
   slider_x = center_in_group_x(group_w, slider_w);
