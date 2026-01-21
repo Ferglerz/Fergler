@@ -173,8 +173,7 @@ import ../FerglerUI/Render/01_knob_rendering.jsfx-inc
 import ../FerglerUI/Render/02_parallax_fader_rendering.jsfx-inc
 import ../FerglerUI/Render/03_button_rendering.jsfx-inc
 import ../FerglerUI/Render/04_dropdown_rendering.jsfx-inc
-// Runtime modules (slider objects, control dispatcher)
-import ../FerglerUI/Runtime/00_slider_objects.jsfx-inc
+// Runtime modules (control dispatcher)
 import ../FerglerUI/Runtime/01_control_dispatcher.jsfx-inc
 // Interaction modules (must be after Interface/Interaction modules for overrides)
 import ../FerglerUI/Interaction/00_control_interactions.jsfx-inc
@@ -330,8 +329,6 @@ init_limiter_constants();
 init_curve_data();
 
 // 5. Set up control layout
-// Initialize slider objects (namespace-based) before layout uses them
-init_slider_objects();
 setup_control_layout();
 
 // 6. Initialize graph points (only on first load)
