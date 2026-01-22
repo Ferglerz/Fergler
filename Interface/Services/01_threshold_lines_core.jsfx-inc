@@ -20,13 +20,14 @@ THRESHOLD_INPUT_LEVEL_2 = 3;         // Second input level threshold (on graph)
 THRESHOLD_RATE_CHANGE_MODIFIER = 4;  // Rate of change threshold modifier (on meter)
 
 // Slider mappings for each threshold line (for programmatic sliderchange calls)
-THRESHOLD_SLIDER_GR_BLEND_REDUCTION = 27;  // slider27: gr_blend_threshold_reduction_db
-THRESHOLD_SLIDER_GR_BLEND_ADDITION = 34;   // slider34: gr_blend_threshold_addition_db
-THRESHOLD_SLIDER_INPUT_LEVEL = 28;         // slider28: input_level_threshold_db
-THRESHOLD_SLIDER_INPUT_LEVEL_2 = 29;       // slider29: input_level_threshold_2_db
+THRESHOLD_SLIDER_GR_BLEND_REDUCTION = 31;  // slider31: gr_blend_threshold_reduction_db
+THRESHOLD_SLIDER_GR_BLEND_ADDITION = 33;   // slider33: gr_blend_threshold_addition_db
+THRESHOLD_SLIDER_INPUT_LEVEL = 29;         // slider29: input_level_threshold_db
+THRESHOLD_SLIDER_INPUT_LEVEL_2 = 30;       // slider30: input_level_threshold_2_db
 THRESHOLD_SLIDER_RATE_CHANGE_MODIFIER = 35; // slider35: rate_change_threshold_modifier
-THRESHOLD_SLIDER_GR_BLEND_REDUCTION_KNEE = 36;  // slider36: gr_blend_threshold_reduction_knee_db
-THRESHOLD_SLIDER_GR_BLEND_ADDITION_KNEE = 37;   // slider37: gr_blend_threshold_addition_knee_db
+THRESHOLD_SLIDER_GR_BLEND_REDUCTION_KNEE = 32;  // slider32: gr_blend_threshold_reduction_knee_db
+THRESHOLD_SLIDER_GR_BLEND_ADDITION_KNEE = 34;   // slider34: gr_blend_threshold_addition_knee_db
+
 
 // Interaction state (shared with interaction module)
 dragging_threshold_line = -1;  // Which line is being dragged (-1 = none)

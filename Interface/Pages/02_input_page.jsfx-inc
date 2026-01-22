@@ -12,7 +12,7 @@
 // Button dimensions - match three-button row width
 // FILTER_THREE_BUTTON_W = 75 (from control_layout.jsfx-inc)
 INPUT_PAGE_BUTTON_W = 75;  // Same as FILTER_THREE_BUTTON_W
-INPUT_PAGE_BUTTON_H = BUTTON_H;
+INPUT_PAGE_BUTTON_H = 27;
 FILTER_THREE_BUTTON_GAP = 10;  // Same gap as three-button row
 
 // Button position (will be calculated in @gfx based on Listen button position)
@@ -38,19 +38,21 @@ function init_input_page() (
 //==============================================================================
 
 // Calculate Auto-preview button position (between Listen and Use Sidechain buttons)
-function update_preview_filters_button_position() local(listen_x, listen_y, listen_w, use_sidechain_x) (
-  // Get Listen button position from control_defs (control index 9)
-  listen_x = control_defs[9*11 + 1];  // X position
-  listen_y = control_defs[9*11 + 2];  // Y position
-  listen_w = control_defs[9*11 + 3];  // Width
+function update_preview_filters_button_position() (
+  // Manual position update for Auto-preview button
+  // Should follow Listen (control 18) and precede Use Sidechain (control 19)
+  // Indices: Listen = 18, Sidechain = 19
+  listen_x = get_control_x_with_group_offset(18);
+  listen_y = get_control_y_with_group_offset(18);
+  listen_w = control_defs[18*11 + 3]; // Direct access to avoid undefined function error
+  gap = 5;
   
-  // Get Use Sidechain button position from control_defs (control index 27)
-  use_sidechain_x = control_defs[27*11 + 1];  // X position
-  
-  // Position Auto-preview button between Listen and Use Sidechain buttons
-  preview_filters_button_x = listen_x + listen_w + FILTER_THREE_BUTTON_GAP;
+  preview_filters_button_x = listen_x + listen_w + gap;
   preview_filters_button_y = listen_y;
+  preview_filters_button_w = listen_w; // Same width as others (3-column layout)
+  preview_filters_button_h = 27;
 );
+
 
 //==============================================================================
 // BUTTON RENDERING
@@ -60,14 +62,14 @@ function update_preview_filters_button_position() local(listen_x, listen_y, list
 // Parameters:
 //   is_enabled: 1 = enabled/on, 0 = disabled/off
 function draw_preview_filters_button(is_enabled) local() (
-  draw_button_background(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, is_enabled);
-  draw_button_border(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H);
+  draw_button_background(preview_filters_button_x, preview_filters_button_y, preview_filters_button_w, preview_filters_button_h, is_enabled);
+  draw_button_border(preview_filters_button_x, preview_filters_button_y, preview_filters_button_w, preview_filters_button_h);
   draw_button_text(preview_filters_button_x, preview_filters_button_y, #preview_filters_button_label);
   
   // Draw checkmark if enabled
   is_enabled ? (
     gfx_set(button_style_on_r, button_style_on_g, button_style_on_b, 1);
-    gfx_x = preview_filters_button_x + INPUT_PAGE_BUTTON_W - 15;
+    gfx_x = preview_filters_button_x + preview_filters_button_w - 15;
     gfx_y = preview_filters_button_y + 8;
     gfx_drawstr("v");  // Checkmark
   );
@@ -105,8 +107,8 @@ function render_filters_page_buttons() (
 // Check if point is inside Preview Filters button
 function is_point_in_preview_filters_button(x, y) (
   preview_filters_button_x >= 0 && preview_filters_button_y >= 0 ? (
-    x >= preview_filters_button_x && x <= preview_filters_button_x + INPUT_PAGE_BUTTON_W &&
-    y >= preview_filters_button_y && y <= preview_filters_button_y + INPUT_PAGE_BUTTON_H;
+    x >= preview_filters_button_x && x <= preview_filters_button_x + preview_filters_button_w &&
+    y >= preview_filters_button_y && y <= preview_filters_button_y + preview_filters_button_h;
   ) : (
     0;
   );

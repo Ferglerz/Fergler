@@ -27,14 +27,6 @@ function apply_page_blur_graph_area() (
   apply_blur_region(blur_start_x, blur_start_y, blur_end_x, blur_end_y);
 );
 
-// Apply page blur for graph and meter area (used by PAGE_GRAPH)
-function apply_page_blur_graph_and_meter(meter_x, meter_y, meter_w, meter_h) (
-  blur_start_x = GRAPH_X - 10;
-  blur_start_y = GRAPH_Y - 10;
-  blur_end_x = meter_x + meter_w + 10;
-  blur_end_y = meter_y + meter_h + 10;
-  apply_blur_region(blur_start_x, blur_start_y, blur_end_x, blur_end_y);
-);
 
 // Apply reflection blur (always active)
 function apply_reflection_blur(meter_x, meter_w) (
@@ -51,100 +43,43 @@ function apply_reflection_blur(meter_x, meter_w) (
 //==============================================================================
 
 // Render Graph page content (with blur handling)
-function render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) local(page_opacity, blur_amount, clamped_input_db) (
-  should_render_page(PAGE_GRAPH) ? (
-    page_opacity = get_page_fade_amount(PAGE_GRAPH);
-    page_opacity > 0.01 ? (
-      gfx_a = page_opacity;
-      draw_graph_background();  // 05j
-      draw_input_histogram(INPUT_HISTOGRAM_OPACITY * page_opacity);   // 05i - Input signal histogram (drawn first, behind GR histogram)
-      draw_histogram(HISTOGRAM_OPACITY * page_opacity);               // 05i - GR histogram
-      
-      draw_grid();                        // 05j
-      draw_mixed_curves();                // 05h
-      draw_graph_points();                // 05h
-      update_and_render_trail_dots();     // 05l - Trail dots (faded green dots)
-      
-      // Draw input level indicator (pastel green dot) - clamp to graph bounds
-      is_audio_active ? (
-        // Clamp input_histogram_db to graph range to prevent dot from rendering outside
-        clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
-        draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0.5, 0.9, 0.5, 0.8, 1);
-      );
-      
-      draw_threshold_lines_on_graph();    // 05h
-      
-      // Draw labels and info outside graph area
-      draw_labels_and_info();       // 05j
-      draw_compression_threshold_overlay(); // 05j - Red text showing compression threshold
-      draw_ctrl_hint();             // 05j - Ctrl/cmd hint when hovering over points/thresholds
-      gfx_a = 1.0;
-      
-      // Apply blur effect if blur transition is active
-      should_blur_page(PAGE_GRAPH) ? (
-        blur_amount = get_page_blur_amount(PAGE_GRAPH);
-        blur_amount > 0.01 ? (
-          // Apply blur to graph and meter area (using cached meter positions)
-          apply_page_blur_graph_and_meter(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h);
-        );
-      );
-    );
+// Render Graph page content (always visible)
+function render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) local(clamped_input_db) (
+  draw_graph_background();  // 05j
+  draw_input_histogram(INPUT_HISTOGRAM_OPACITY);   // 05i
+  draw_histogram(HISTOGRAM_OPACITY);               // 05i
+  
+  draw_grid();                        // 05j
+  draw_mixed_curves();                // 05h
+  draw_graph_points();                // 05h
+  update_and_render_trail_dots();     // 05l
+  
+  is_audio_active ? (
+    clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
+    draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0.5, 0.9, 0.5, 0.8, 1);
   );
+  
+  draw_threshold_lines_on_graph();    // 05h
+  draw_labels_and_info();       // 05j
+  draw_compression_threshold_overlay(); // 05j
+  draw_ctrl_hint();             // 05j
+  gfx_a = 1.0;
 );
 
+
 // Render Filters page content (with blur handling)
-function render_filters_page_with_blur() local(page_opacity, blur_amount) (
+// Render Filters page content (buttons only)
+function render_filters_page_with_blur() local(page_opacity) (
   should_render_page(PAGE_FILTERS) ? (
     page_opacity = get_page_fade_amount(PAGE_FILTERS);
     page_opacity > 0.01 ? (
-      // Render graph background with 15% opacity, no interactive elements
-      gfx_a = 0.15;
-      draw_graph_background();  // Graph background (no 1:1 line when on Input page)
-      
-      // Render histogram and grid at half opacity relative to page visibility
-      draw_input_histogram(INPUT_HISTOGRAM_OPACITY * 0.5 * page_opacity);   // Input signal histogram
-      draw_histogram(HISTOGRAM_OPACITY * 0.5 * page_opacity);               // GR histogram
-      draw_grid();              // Grid
-      
-      // Do not render compression curve or threshold lines when not on graph page
-      // draw_mixed_curves() removed - only show on graph page
-      // draw_threshold_lines_on_graph() removed - only show on graph page
-      
-      update_and_render_trail_dots();  // Trail dots
-      
-      // Do not render green dot when not on graph page
-      
-      gfx_a = 1.0;
-      
-      // Render Input page buttons on top
       render_filters_page_buttons();
-      
-      // Apply blur to Filters page if blur transition is active
-      should_blur_page(PAGE_FILTERS) ? (
-        blur_amount = get_page_blur_amount(PAGE_FILTERS);
-        blur_amount > 0.01 ? (
-          apply_page_blur_graph_area();
-        );
-      );
     );
   ) : (
-    // If Filters page is not active, still render buttons if transitioning
     render_filters_page_buttons();
   );
 );
 
-// Render Settings page content (with blur handling)
-function render_settings_page_with_blur() local(blur_amount) (
-  render_settings_page();
-  // Apply blur to Settings page if blur transition is active
-  should_blur_page(PAGE_SETTINGS) ? (
-    blur_amount = get_page_blur_amount(PAGE_SETTINGS);
-    blur_amount > 0.01 ? (
-      // Blur the settings area (graph area)
-      apply_page_blur_graph_area();
-    );
-  );
-);
 
 function render_background_image() (
   // Render background image first (before everything else)
@@ -166,15 +101,21 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
   gfx_clear = 0x202020;
 
   // Draw background image first (before everything else)
-  render_background_image();
+  // render_background_image();
   
   // Draw all group backgrounds and titles (only if controls are visible)
   menu_controls_hidden < 0.5 ? (
-    render_all_groups();
+    // Render groups with page filtering
+    // Group 0: INPUT (Page 0), Group 1: SETTINGS (Page 1), Group 2: HARMONICS (Always)
+    active_page == 0 ? draw_group(0, get_page_fade_amount(0));
+    active_page == 1 ? draw_group(1, get_page_fade_amount(1));
+    draw_group(2, 1.0); // Harmonics always on
+    
     // Draw all controls (uses unified control system)
     // Filter controls by page visibility
     render_all_controls_with_page_filtering();
   );
+
 
   // PAGE 1: Graph (render with fade opacity)
   render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h);
@@ -182,8 +123,6 @@ function render_complete_interface() local(cached_meter_x, cached_meter_y, cache
   // PAGE 2: Input - show graph with reduced opacity (50% for histogram/grid) and no interactive elements
   render_filters_page_with_blur();
   
-  // PAGE 3: Settings
-  render_settings_page_with_blur();
   
   // Always render meter and meter trail lines on all pages (using cached meter positions)
   draw_gain_reduction_meter();

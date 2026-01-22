@@ -9,45 +9,47 @@ desc:Composure
 // Attack is in dB/s (2 to 1000000), Release is in dB/s (2 to 250), both converted to ms in audio processing
 slider1:attack=1000<2,1000000,1>-Attack
 slider2:attack_curve=0<-2,2,0.01>-Attack Curve
-slider3:hold_ms=0<0,1000,1>-Hold
-slider4:release_ms=100<2,250,1>-Release
-slider5:release_curve=0<-2,2,0.01>-Release Curve
-slider6:prog_release_mode=0<0,2,1{Input-Dependent,GR Dependent,Rate-of-Change}>-Program Release Mode
-slider7:prog_release_inverse=0<0,1,1{Normal,Inverse}>-Program Release Inverse
-slider8:prog_release_blend=0<0,100,1>-Program Release Blend
-slider9:strength=100<0,400,5>-Strength
+slider3:release_ms=100<2,250,1>-Release
+slider4:release_curve=0<-2,2,0.01>-Release Curve
+slider5:hold_ms=0<0,1000,1>-Hold
+slider6:strength=100<0,400,5>-Strength
 
-// GROUP 1: INPUT/DETECTION (10-18)
-slider10:rms_size_ms=0<0,1000,0.1>-RMS Window
-slider11:rms_normalization=0<0,1,1{Off,On}>-Normalize
-slider12:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
-slider13:lookahead_ms=0<0,2000,1>-Lookahead
-slider14:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
-slider15:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
-slider16:hp_freq=0<0,6000,1>-High Pass
-slider17:lp_freq=0<0,14000,1>-Low Pass
-slider18:input_offset_db=0<-30,30,0.25>-Input Offset
+// GROUP 1: INPUT/DETECTION (7-15)
+slider7:rms_size_ms=0<0,1000,0.1>-RMS Window
+slider8:rms_normalization=0<0,1,1{Off,On}>-Normalize
+slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
+slider10:lookahead_ms=0<0,2000,1>-Lookahead
+slider11:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
+slider12:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
+slider13:hp_freq=0<0,6000,1>-High Pass
+slider14:lp_freq=0<0,14000,1>-Low Pass
+slider15:input_offset_db=0<-30,30,0.25>-Input Offset
 
-// GROUP 2: HARMONICS (20-24, 25)
-slider20:harmonic_type=0<0,1,1{Tape,Tube}>-Type
-slider21:harmonic_drive=0<0,100,1>-Drive
-slider22:harmonic_mix=0<0,100,1>-Mix
-slider23:harmonic_even_boost=0<0,200,1>-Even
-slider24:harmonic_odd_boost=0<0,200,1>-Odd
-slider25:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
+// GROUP 2: HARMONICS (16-21)
+slider16:harmonic_type=0<0,1,1{Tape,Tube}>-Type
+slider17:harmonic_drive=0<0,100,1>-Drive
+slider18:harmonic_mix=0<0,100,1>-Mix
+slider19:harmonic_even_boost=0<0,200,1>-Even
+slider20:harmonic_odd_boost=0<0,200,1>-Odd
+slider21:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 
-// GROUP 3: ADVANCED/HIDDEN PARAMETERS (26-39)
-slider26:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
-slider27:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
-slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
-slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider30:harmonic_amount=1<0,1,0.01>-Amount
-slider33:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)
-slider34:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
+// GROUP 3: PROGRAM RELEASE & SETTINGS (22-28)
+slider22:prog_release_mode=0<0,2,1{Input-Dependent,GR Dependent,Rate-of-Change}>-Program Release Mode
+slider23:prog_release_inverse=0<0,1,1{Normal,Inverse}>-Program Release Inverse
+slider24:prog_release_blend=0<0,100,1>-Program Release Blend
+slider25:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
+slider26:harmonic_amount=1<0,1,0.01>-Amount
+slider27:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)
+slider28:linear_program_release_modes=0<0,1,1{Off,On}>-Linear Program Release Modes
+
+// GROUP 4: THRESHOLDS & ADVANCED (29-35)
+slider29:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider30:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
+slider31:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
+slider32:gr_blend_threshold_reduction_knee_db=2<0,12,0.1>-GR Threshold Cut Knee (dB)
+slider33:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
+slider34:gr_blend_threshold_addition_knee_db=2<0,12,0.1>-GR Threshold Boost Knee (dB)
 slider35:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modifier
-slider36:gr_blend_threshold_reduction_knee_db=2<0,12,0.1>-GR Threshold Cut Knee (dB)
-slider37:gr_blend_threshold_addition_knee_db=2<0,12,0.1>-GR Threshold Boost Knee (dB)
-slider39:linear_program_release_modes=0<0,1,1{Off,On}>-Linear Program Release Modes
 
 // SEARCH STOP
 
@@ -86,7 +88,8 @@ import 01_Utils/02_math_utils.jsfx-inc
 
 // UI_Sliders/Core/00_FileReading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
 // Library is now externalized to ../FerglerUI/
-import ../FerglerUI/Core/00_FileReading/00_file_reading.jsfx-inc
+// Imported early because it contains FileReading, which is needed by 03_memory
+import ../FerglerUI/FerglerUI.jsfx-inc
 
 import 01_Utils/03_memory.jsfx-inc
 
@@ -140,51 +143,15 @@ import Interface/Services/03_threshold_lines_render.jsfx-inc
 // Interaction modules (page buttons, custom buttons, radio groups)
 import Interface/Interaction/00_page_buttons.jsfx-inc
 
-// UI_Sliders: Slider control library (depends on Interface constants)
-// Library is now externalized to ../FerglerUI/
-// Core modules (must be in dependency order):
-//   1. Constants (no dependencies)
-//   2. Definitions (no dependencies)
-//   3. Step-points (needed by formatting and utils)
-//   4. Value formatting (needs step-points)
-//   5. Value text rendering (needs formatting)
-//   6. Control utils (needs step-points)
-//   7. Components (standalone)
-//   8. Utilities (standalone)
-import ../FerglerUI/Core/01_Constants/00_slider_constants.jsfx-inc
-import ../FerglerUI/Core/01_Constants/01_interaction_constants.jsfx-inc
-import ../FerglerUI/Core/01_Constants/02_group_constants.jsfx-inc
-import ../FerglerUI/Core/01_Constants/02_rendering_constants.jsfx-inc
-import ../FerglerUI/Core/02_Definitions/00_control_definitions.jsfx-inc
-import ../FerglerUI/Render/05_group_rendering.jsfx-inc
-import ../FerglerUI/Core/04_StepPoints/00_step_points.jsfx-inc
-import ../FerglerUI/Core/03_Formatting/00_value_formatting.jsfx-inc
-import ../FerglerUI/Core/03_Formatting/01_value_text_rendering.jsfx-inc
-import ../FerglerUI/Core/05_Utilities/00_control_utils.jsfx-inc
-import ../FerglerUI/Core/05_Utilities/01_layout_utils.jsfx-inc
-import ../FerglerUI/Core/06_Components/00_radio_buttons.jsfx-inc
-import ../FerglerUI/Core/06_Components/01_image_sets.jsfx-inc
 // Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
 // But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
 import Interface/Core/05_utils.jsfx-inc
-// Render modules (slider, knob, fader, button, dropdown rendering)
-import ../FerglerUI/Render/00_slider_rendering.jsfx-inc
-import ../FerglerUI/Render/01_knob_rendering.jsfx-inc
-import ../FerglerUI/Render/02_parallax_fader_rendering.jsfx-inc
-import ../FerglerUI/Render/03_button_rendering.jsfx-inc
-import ../FerglerUI/Render/04_dropdown_rendering.jsfx-inc
-// Runtime modules (control dispatcher)
-import ../FerglerUI/Runtime/01_control_dispatcher.jsfx-inc
-// Interaction modules (must be after Interface/Interaction modules for overrides)
-import ../FerglerUI/Interaction/00_control_interactions.jsfx-inc
-import ../FerglerUI/Interaction/01_point_interaction.jsfx-inc
 
 // Composure-specific control layout (uses FerglerUI library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
 import 04_UI_Controls/02_step_points.jsfx-inc
 import 04_UI_Controls/03_control_layout.jsfx-inc
 import 04_UI_Controls/05_control_rendering.jsfx-inc
-// Note: FerglerUI/Interaction/00_control_interactions.jsfx-inc imported above (overridden in Interface/Interaction/03_ui_interaction.jsfx-inc)
 
 // Graph: Graph rendering and interaction (depends on Interface)
 // threshold_lines is now in Interface and independent
@@ -373,9 +340,10 @@ refresh_core_parameters(1);
 // Start smoothing immediately when slider changes (also smoothed in @block for continuous updates)
 smooth_rms_coefficient();
 
-// --- Settings Parameters (26, 38) ---
-// Sync brickwall_limiter variable with slider26
-brickwall_limiter = slider(26);
+// --- Settings Parameters (25, 28) ---
+// Sync brickwall_limiter variable with slider25
+brickwall_limiter = slider(25);
+
 
 // --- Trail Parameters (31-32) ---
 // Fixed trail settings (sliders removed): tighter interval = more dots/sec

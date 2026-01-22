@@ -25,15 +25,10 @@ function allocate_memory() (
   comp_lut = freemem;
   freemem += COMP_LUT_SIZE;
   
-  // Allocate control definitions memory (11 values per control: added group_index field)
-  control_defs = freemem;
-  freemem += NUM_CONTROLS * 11;
 
 
-  // Allocate group definitions memory (6 values per group: x, y, w, h, show_title, title_string_slot)
-  // title_string_slot is a JSFX string slot index (55-59)
-  group_defs = freemem;
-  freemem += NUM_GROUPS * 6;
+
+
 
   // Always allocate audio buffers (these can be reallocated safely)
   // Allocate based on lookahead slider's maximum value (slider12)
@@ -52,74 +47,11 @@ function allocate_memory() (
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
 
-  // Slider properties buffer (4 properties per control)
-  slider_properties_base = freemem;
-  freemem += NUM_CONTROLS * 4;
-  
-  // Parallax fader depths array (1 value per control for parallax depth)
-  parallax_depths = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Parallax fader Y offsets array (1 value per control for Y offset)
-  parallax_y_offsets = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Parallax fader X offsets array (1 value per control for X offset)
-  parallax_x_offsets = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Parallax fader scales array (1 value per control for image scale)
-  parallax_scales = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Parallax fader slider configs array (1 value per control for formatting/config)
-  parallax_slider_configs = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image indices array (1 value per control for background image index, 0 = no image)
-  knob_image_indices = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image widths array (1 value per control for image width)
-  knob_image_widths = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image heights array (1 value per control for image height)
-  knob_image_heights = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image X offsets array (1 value per control for X offset to fine-tune center)
-  knob_image_offsets_x = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image Y offsets array (1 value per control for Y offset to fine-tune center)
-  knob_image_offsets_y = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob image scales array (1 value per control for image scale)
-  knob_image_scales = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob slider configs array (1 value per control for formatting/config when using image)
-  knob_slider_configs = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Knob line offsets array (1 value per control for indicator line offset from outside edge)
-  knob_line_offsets = freemem;
-  freemem += NUM_CONTROLS;
-  
-  // Step-point arrays for UI_Sliders library
-  // Maximum step points per parameter (from UI_Sliders/Core/05_step_points.jsfx-inc)
-  MAX_STEP_POINTS_PER_PARAM = 100;
-  // Allocate step-point arrays base (all step points for all parameters)
-  step_points_arrays_base = freemem;
-  freemem += NUM_CONTROLS * MAX_STEP_POINTS_PER_PARAM;
-  // Allocate step-point bases array (one per parameter, points to start of that param's step points)
-  step_points_bases = freemem;
-  freemem += NUM_CONTROLS;
-  // Allocate step-point counts array (one per parameter, stores count of step points)
-  step_points_counts = freemem;
-  freemem += NUM_CONTROLS;
+  // Utilize FerglerUI library to allocate memory for UI components
+  // Passing NUM_CONTROLS and NUM_GROUPS as they are defined in Composure constants
+  FerglerUI_allocate_memory(NUM_CONTROLS, NUM_GROUPS);
+
+
   
   // Trail buffer allocation (4 values per dot: x, y, age, max_age)
   // Fixed settings: fade 600ms, interval 20ms → ~30 dots; allocate generous headroom
@@ -174,9 +106,6 @@ function allocate_memory() (
   settings_button_y_base = freemem;
   freemem += 2;  // NUM_SETTINGS_BUTTONS = 2
   
-  // Updated slider values cache (stores values updated during mouse interaction for same-frame rendering)
-  // Array of 256 values (one per slider), -999 indicates "not updated this frame"
-  updated_slider_values = freemem;
-  freemem += 256;  // NUM_SLIDERS = 256 (JSFX limit)
+
 );
 

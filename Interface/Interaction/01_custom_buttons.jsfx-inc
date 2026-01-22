@@ -1,6 +1,6 @@
 @init
 
-NUM_PAGE_BUTTONS = 4;
+NUM_PAGE_BUTTONS = 2;
 
 page_button_x_base = 0;
 page_button_y_base = 0;
@@ -16,14 +16,10 @@ page_button_label_offset_y = -35;
 
 function init_custom_button_state() (
   init_page_buttons();
-  register_page_button(0, PAGE_GRAPH);
-  register_page_button(1, PAGE_FILTERS);
-  register_page_button(2, PAGE_SETTINGS);
-  register_page_button(3, PAGE_BLANK);
-  strcpy(#page_button_label_0, "Graph");
-  strcpy(#page_button_label_1, "Input");
-  strcpy(#page_button_label_2, "Settings");
-  strcpy(#page_button_label_3, "Blank");
+  register_page_button(0, PAGE_FILTERS);
+  register_page_button(1, PAGE_SETTINGS);
+  strcpy(#page_button_label_0, "Input");
+  strcpy(#page_button_label_1, "Settings");
   turn_on_page_button(0);
 );
 
@@ -45,14 +41,11 @@ function render_custom_buttons() (
   update_all_page_transitions();
   gfx_w > 0 ? (
     update_page_button_positions();
-    i=0; while(i<NUM_PAGE_BUTTONS)(
+    i = 0; while (i < NUM_PAGE_BUTTONS) (
       is_pressed = (custom_button_pressed_index == i && MOUSE_LEFT_BUTTON) ? 1 : 0;
-      i == 0 ? label_slot = #page_button_label_0 :
-      i == 1 ? label_slot = #page_button_label_1 :
-      i == 2 ? label_slot = #page_button_label_2 :
-      i == 3 ? label_slot = #page_button_label_3 : 0;
+      label_slot = (i == 0) ? #page_button_label_0 : #page_button_label_1;
       draw_page_button(i, page_button_x_base[i], page_button_y_base[i], page_button_w, page_button_h, is_pressed, label_slot);
-      i+=1;
+      i += 1;
     );
   );
 );

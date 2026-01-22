@@ -8,21 +8,21 @@
 // CONTROL PAGE ASSIGNMENT
 //==============================================================================
 
-// Check if a control is on the Filters page
+// Check if a control is on the Filters (Input) page
 // Returns: 1 if control is on Filters page, 0 otherwise
-// Filters page controls: 7, 8, 9, 10, 12, 15, 16, 27
-// Note: Control 13 = Strength (Envelope group), Control 22 = Makeup Gain - NOT on Filters page
-// Control 23, 24, 25, 26 moved to Settings page
+// Input page controls: 0-3 (Env Curves), 16-23 (Filters/Detection)
 function is_control_on_filters_page(control_index) (
-  (control_index == 7 || control_index == 8 || control_index == 9 || control_index == 10 || control_index == 12 || control_index == 15 || control_index == 16 || control_index == 27) ? 1 : 0;
+  (control_index >= 0 && control_index <= 3) || (control_index >= 16 && control_index <= 23) ? 1 : 0;
 );
 
 // Check if a control is on the Settings page
 // Returns: 1 if control is on Settings page, 0 otherwise
-// Settings page controls: 23, 24, 25, 26 (Feedforward/Feedback, Milliseconds/Microseconds)
+// Settings page controls: 4-9 (Env/Prog Release), 24-25 (Detection Mode), 30-31 (Brickwall/Linear)
 function is_control_on_settings_page(control_index) (
-  (control_index == 23 || control_index == 24 || control_index == 25 || control_index == 26) ? 1 : 0;
+  (control_index >= 4 && control_index <= 9) || (control_index >= 24 && control_index <= 25) || (control_index >= 30 && control_index <= 31) ? 1 : 0;
 );
+
+
 
 // Override library's is_control_interactive to provide page filtering
 // This function overrides the default in FerglerUI/Interaction/00_control_interactions.jsfx-inc

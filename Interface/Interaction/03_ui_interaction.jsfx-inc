@@ -19,7 +19,7 @@ preview_filters_listen_initial_state = -1;
 // This function overrides the default in FerglerUI/Interaction/00_control_interactions.jsfx-inc
 // PDC lookahead update, only for param 13 (lookahead)
 function update_pdc_delay_if_needed(param)(
-  param == 13 ? (
+  param == 10 ? ( // Param 10: Lookahead
     pdc_delay = min(lookahead_ms * 0.001 * srate, max_lookahead_samples) | 0;
     pdc_delay > 0 ? (pdc_bot_ch = 0; pdc_top_ch = 2; );
   );
@@ -28,17 +28,17 @@ function update_pdc_delay_if_needed(param)(
 
 // Composure-specific preview filter functions (not part of UI library)
 function handle_preview_filters(param, start)(
-  menu_preview_filters_enabled > 0.5 && (param == 16 || param == 17) ? (
+  menu_preview_filters_enabled > 0.5 && (param == 13 || param == 14) ? ( // Param 13: HP, 14: LP
     start ? ( // Drag start
-      preview_filters_listen_initial_state = slider(15) > 0.5 ? 1 : 0;
+      preview_filters_listen_initial_state = slider(12) > 0.5 ? 1 : 0; // Param 12: Listen
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(15) = 1; sliderchange(1 << 14);
+        slider(12) = 1; sliderchange(1 << 11);
       );
     ) : (
       preview_filters_listen_initial_state < 0.5 ? (
         listen_to_sidechain = 1;
-        slider(15) = 1; sliderchange(1 << 14);
+        slider(12) = 1; sliderchange(1 << 11);
       );
     );
   );
@@ -46,7 +46,7 @@ function handle_preview_filters(param, start)(
 
 function handle_preview_filters_drag_end() (
   preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
-    listen_to_sidechain = 0; slider(15) = 0; sliderchange(1 << 14);
+    listen_to_sidechain = 0; slider(12) = 0; sliderchange(1 << 11);
   );
   preview_filters_listen_initial_state = -1;
 );
@@ -236,14 +236,13 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
   // Handle page navigation buttons first (they have highest priority)
   custom_button_clicked = process_custom_button_input();
   
-  // Handle filters page buttons (if Filters page is visible)
+  // Settings page manual buttons are deprecated - handled by unified system
+  // Filters page has manual Auto-preview button
   filters_page_button_clicked = process_filters_page_button_input();
-  
-  // Handle settings page buttons (if Settings page is visible)
-  settings_button_clicked = process_settings_button_input();
+  settings_button_clicked = 0;
 
   // Check if any button was clicked (used to prevent other interactions)
-  any_button_clicked = custom_button_clicked || settings_button_clicked || filters_page_button_clicked || debug_button_clicked;
+  any_button_clicked = custom_button_clicked || filters_page_button_clicked || debug_button_clicked;
   
   // Check if UI interaction is allowed (no buttons clicked, no control being dragged, and no graph point being dragged)
   // Graph point dragging has exclusive priority - when dragging a graph point, controls cannot interact
@@ -304,44 +303,30 @@ function update_cursor() local(is_hovering_button, is_hovering_point, is_hoverin
       i += 1;
     );
     
-    // Check settings page buttons (only if Settings page is visible)
-    !is_hovering_button && should_render_page(PAGE_SETTINGS) ? (
-      update_settings_button_positions();
-      i = 0;
-      while (i < NUM_SETTINGS_BUTTONS && !is_hovering_button) (
-        // Skip blank row at index 3
-        i != 3 ? (
-          is_point_in_settings_button(mouse_x, mouse_y, i) ? (
+    // Check custom buttons (Listen, Use Sidechain, Normalise)
+    // Only check if Input page is visible
+    !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
+      // Listen button (control index 19)
+      is_point_in_control(mouse_x, mouse_y, 19) ? (
+        is_hovering_button = 1;
+      ) : (
+        // Use Sidechain button (control index 18)
+        is_point_in_control(mouse_x, mouse_y, 18) ? (
+          is_hovering_button = 1;
+        ) : (
+          // Normalise button (control index 21)
+          is_point_in_control(mouse_x, mouse_y, 21) ? (
             is_hovering_button = 1;
           );
         );
-        i += 1;
       );
-    );
-    
-    // Check Preview Filters button (only if Filters page is visible)
-    !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
-      update_preview_filters_button_position();
-      is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
-        is_hovering_button = 1;
-      );
-    );
-    
-    // Check custom buttons (Listen, Use Sidechain, Normalise, Milliseconds, Microseconds)
-    // Only check if Input page is visible
-    !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
-      // Listen button (control index 9)
-      is_point_in_control(mouse_x, mouse_y, 9) && control_defs[9*11 + 0] == 1 ? (
-        is_hovering_button = 1;
-      ) : (
-        // Use Sidechain button (control index 27)
-        is_point_in_control(mouse_x, mouse_y, 27) && control_defs[27*11 + 0] == 1 ? (
+
+      
+      // Check Auto-preview button (custom button)
+      !is_hovering_button ? (
+        update_preview_filters_button_position();
+        is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
           is_hovering_button = 1;
-        ) : (
-          // Normalise button (control index 8)
-          is_point_in_control(mouse_x, mouse_y, 8) && control_defs[8*11 + 0] == 1 ? (
-            is_hovering_button = 1;
-          );
         );
       );
     );

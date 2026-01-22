@@ -40,9 +40,6 @@ function init_state_variables() (
   // Initialize custom button state (Interface/Interaction/01_custom_buttons.jsfx-inc)
   init_custom_button_state();
   
-  // Initialize settings page (Interface/Pages/03_settings_page.jsfx-inc)
-  init_settings_page();
-  
   // Initialize input page (Interface/Pages/02_input_page.jsfx-inc)
   init_input_page();
   
