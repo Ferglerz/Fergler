@@ -1,9 +1,18 @@
 // DSP Utilities Module
 // Digital Signal Processing utility functions (lookahead, limiting)
 // Filter coefficient calculations moved to 04c_filters.jsfx-inc
-// Depends on: 00b_math_utils.jsfx-inc (for tanh)
+// Depends on: MathUtils/00_core_math.jsfx-inc (for tanh)
 
 @init
+
+//==============================================================================
+// CONSTANT INITIALIZATION FUNCTIONS
+//==============================================================================
+
+// Initialize limiter normalization constant (depends on tanh function)
+function init_limiter_constants() (
+  LIMITER_TANH_NORM = 1.0 / tanh(0.95);  // ≈ 1.343
+);
 
 //==============================================================================
 // LOOKAHEAD AND LIMITER STATE INITIALIZATION

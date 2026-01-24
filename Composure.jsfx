@@ -84,7 +84,7 @@ filename:13,Images/page_button_depressed.png
 
 // 01_Utils: Foundation utilities (no dependencies)
 import 01_Utils/00_constants.jsfx-inc
-import 01_Utils/02_math_utils.jsfx-inc
+import ../MathUtils/00_core_math.jsfx-inc
 
 // UI_Sliders/Core/00_FileReading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
 // Library is now externalized to ../FerglerUI/
