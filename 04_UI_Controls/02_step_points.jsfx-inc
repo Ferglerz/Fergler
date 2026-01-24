@@ -52,13 +52,13 @@
 function init_step_points() (
   // Initialize step points for each parameter using library's init_step_points_for_param
   init_step_points_for_param(1, #attack_step_points_str);              // Attack
-  init_step_points_for_param(4, #release_step_points_str);             // Release
-  init_step_points_for_param(13, #lookahead_step_points_str);          // Lookahead
-  init_step_points_for_param(16, #hp_step_points_str);                  // HP Filter
-  init_step_points_for_param(17, #lp_step_points_str);                  // LP Filter
-  init_step_points_for_param(21, #drive_step_points_str);                // Drive
-  init_step_points_for_param(22, #mix_step_points_str);                 // Mix
-  init_step_points_for_param(23, #even_step_points_str);                 // Even
-  init_step_points_for_param(24, #odd_step_points_str);                  // Odd
-  init_step_points_for_param(8, #prog_release_blend_step_points_str);   // Program Release Blend
+  init_step_points_for_param(3, #release_step_points_str);             // Release
+  init_step_points_for_param(10, #lookahead_step_points_str);          // Lookahead
+  init_step_points_for_param(13, #hp_step_points_str);                 // HP Filter
+  init_step_points_for_param(14, #lp_step_points_str);                 // LP Filter
+  init_step_points_for_param(17, #drive_step_points_str);              // Drive
+  init_step_points_for_param(18, #mix_step_points_str);                // Mix
+  init_step_points_for_param(19, #even_step_points_str);               // Even
+  init_step_points_for_param(20, #odd_step_points_str);                // Odd
+  init_step_points_for_param(24, #prog_release_blend_step_points_str); // Program Release Blend
 );

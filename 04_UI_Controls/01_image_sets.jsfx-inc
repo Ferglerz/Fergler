@@ -16,11 +16,5 @@ PARALLAX_DEPTH = 4;
 // IMAGE SET INITIALIZATION
 //==============================================================================
 
-// Initialize left parallax fader image set object
-// Images: para_horz_fader_top (index 3), para_horz_fader_bot_left (index 4)
-sm_fader_left.construct_image_set(3, 4, 36, 45, PARALLAX_DEPTH, 11, -PARALLAX_DEPTH+2, 1.0);
-
-// Initialize right parallax fader image set object
-// Images: para_horz_fader_top (index 3), para_horz_fader_bot_right (index 5)
-sm_fader_rt.construct_image_set(3, 5, 36, 45, PARALLAX_DEPTH, 11, PARALLAX_DEPTH, 1.0);
-
+// Deprecated: Faders are now defined directly in control_layout.jsfx-inc
+// This file is kept for constant definitions if needed or future use

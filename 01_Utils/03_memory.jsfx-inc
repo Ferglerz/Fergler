@@ -33,7 +33,7 @@ function allocate_memory() (
   // Always allocate audio buffers (these can be reallocated safely)
   // Allocate based on lookahead slider's maximum value (slider12)
   // Convert from milliseconds to samples: max_ms * 0.001 * srate
-  lookahead_max_ms = get_slider_max(5); // Get max from slider definition
+  lookahead_max_ms = get_slider_max(10); // Get max from slider definition
   lookahead_needed_samples = ceil(lookahead_max_ms * 0.001 * srate);
   
   // OPTIMIZATION: Round up to next power of 2 for efficient bit masking instead of modulo

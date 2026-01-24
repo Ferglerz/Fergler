@@ -1,8 +1,5 @@
 // UI Orchestration Module
 // Main interface coordination and rendering orchestration
-// Coordinates all UI elements: controls, graph, interactions
-// Depends on: all other UI modules
-//   - Interface/Services/00_coordinate_conversion.jsfx-inc (for db_to_graph_x, db_to_graph_y)
 
 @init
 
@@ -11,134 +8,81 @@
 //==============================================================================
 
 // Apply blur to a rectangular region
-// Parameters: start_x, start_y, end_x, end_y - blur region coordinates
 function apply_blur_region(start_x, start_y, end_x, end_y) (
-  gfx_x = start_x;
-  gfx_y = start_y;
+  gfx_x = start_x; gfx_y = start_y;
   gfx_blurto(end_x, end_y);
 );
 
-// Apply page blur for graph area (used by PAGE_FILTERS and PAGE_SETTINGS)
+// Apply page blur for graph area
 function apply_page_blur_graph_area() (
-  blur_start_x = GRAPH_X - 10;
-  blur_start_y = GRAPH_Y - 10;
-  blur_end_x = GRAPH_X + GRAPH_SIZE + 10;
-  blur_end_y = GRAPH_Y + GRAPH_SIZE + 10;
-  apply_blur_region(blur_start_x, blur_start_y, blur_end_x, blur_end_y);
+  apply_blur_region(GRAPH_X - 10, GRAPH_Y - 10, GRAPH_X + GRAPH_SIZE + 10, GRAPH_Y + GRAPH_SIZE + 10);
 );
-
 
 // Apply reflection blur (always active)
 function apply_reflection_blur(meter_x, meter_w) (
-  reflection_y = GRAPH_Y + GRAPH_SIZE + 61;  // Moved down 45 pixels (was 16)
-  reflection_blur_start_x = GRAPH_X - 10;
-  reflection_blur_start_y = reflection_y;
-  reflection_blur_end_x = meter_x + meter_w + 10;
-  reflection_blur_end_y = reflection_y + 5;  // 5 pixels tall
-  apply_blur_region(reflection_blur_start_x, reflection_blur_start_y, reflection_blur_end_x, reflection_blur_end_y);
+  gfx_x = GRAPH_X - 10;
+  gfx_y = GRAPH_Y + GRAPH_SIZE + 61;
+  gfx_blurto(meter_x + meter_w + 10, gfx_y + 5);
 );
 
 //==============================================================================
 // MAIN INTERFACE ORCHESTRATION
 //==============================================================================
 
-// Render Graph page content (with blur handling)
-// Render Graph page content (always visible)
-function render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) local(clamped_input_db) (
-  draw_graph_background();  // 05j
-  draw_input_histogram(INPUT_HISTOGRAM_OPACITY);   // 05i
-  draw_histogram(HISTOGRAM_OPACITY);               // 05i
+// Render Graph page content
+function render_graph_page() local(clamped_input_db) (
+  draw_graph_background();
+  draw_input_histogram(INPUT_HISTOGRAM_OPACITY);
+  draw_histogram(HISTOGRAM_OPACITY);
   
-  draw_grid();                        // 05j
-  draw_mixed_curves();                // 05h
-  draw_graph_points();                // 05h
-  update_and_render_trail_dots();     // 05l
+  draw_grid();
+  draw_mixed_curves();
+  draw_graph_points();
+  update_and_render_trail_dots();
   
   is_audio_active ? (
     clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0.5, 0.9, 0.5, 0.8, 1);
   );
   
-  draw_threshold_lines_on_graph();    // 05h
-  draw_labels_and_info();       // 05j
-  draw_compression_threshold_overlay(); // 05j
-  draw_ctrl_hint();             // 05j
+  draw_threshold_lines_on_graph();
+  draw_labels_and_info();
+  draw_compression_threshold_overlay();
+  draw_ctrl_hint();
   gfx_a = 1.0;
 );
 
-
-// Render Filters page content (with blur handling)
-// Render Filters page content (buttons only)
-function render_filters_page_with_blur() local(page_opacity) (
-  should_render_page(PAGE_FILTERS) ? (
-    page_opacity = get_page_fade_amount(PAGE_FILTERS);
-    page_opacity > 0.01 ? (
-      render_filters_page_buttons();
-    );
-  ) : (
+// Render Filters page content
+function render_filters_page_with_blur() (
+  !should_render_page(PAGE_FILTERS) || page_fade_amounts[PAGE_FILTERS] > 0.01 ? (
     render_filters_page_buttons();
   );
 );
 
-
 function render_background_image() (
-  // Render background image first (before everything else)
-  // Set position to top-left corner
-  gfx_x = 0;
-  gfx_y = 0;
-  // Blit image at index 0, scale 1 (no scaling), rotation 0
+  gfx_x = 0; gfx_y = 0;
   gfx_blit(0, 1, 0);
 );
 
-function render_complete_interface() local(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h) (
-  // Cache meter position calculations once per frame to avoid repeated function calls
-  cached_meter_x = get_meter_x();
-  cached_meter_y = get_meter_y();
-  cached_meter_w = get_meter_w();
-  cached_meter_h = get_meter_h();
-  
-  // Set background color (fallback if image doesn't load)
+function render_complete_interface() local(m_x, m_y, m_w, m_h) (
+  m_x = get_meter_x(); m_y = get_meter_y(); m_w = get_meter_w(); m_h = get_meter_h();
   gfx_clear = 0x202020;
 
-  // Draw background image first (before everything else)
-  // render_background_image();
-  
-  // Draw all group backgrounds and titles (only if controls are visible)
   menu_controls_hidden < 0.5 ? (
-    // Render groups with page filtering
-    // Group 0: INPUT (Page 0), Group 1: SETTINGS (Page 1), Group 2: HARMONICS (Always)
-    active_page == 0 ? draw_group(0, get_page_fade_amount(0));
-    active_page == 1 ? draw_group(1, get_page_fade_amount(1));
-    draw_group(2, 1.0); // Harmonics always on
-    
-    // Draw all controls (uses unified control system)
-    // Filter controls by page visibility
+    (active_page == 0 || active_page == 1) ? draw_group(active_page, page_fade_amounts[active_page]);
+    draw_group(3, 1.0);
+    draw_group(2, 1.0);
     render_all_controls_with_page_filtering();
   );
 
-
-  // PAGE 1: Graph (render with fade opacity)
-  render_graph_page(cached_meter_x, cached_meter_y, cached_meter_w, cached_meter_h);
-
-  // PAGE 2: Input - show graph with reduced opacity (50% for histogram/grid) and no interactive elements
+  render_graph_page();
   render_filters_page_with_blur();
   
-  
-  // Always render meter and meter trail lines on all pages (using cached meter positions)
   draw_gain_reduction_meter();
-  update_and_render_meter_trail_lines();  // Meter trail lines (fading lines showing GR hotspots)
+  update_and_render_meter_trail_lines();
+  apply_reflection_blur(m_x, m_w);
   
-  // Blur reflection area separately, all the time
-  // Reflection is 5 pixels tall, between graph left side and meter right side, plus 10px either side
-  // (using cached meter positions)
-  apply_reflection_blur(cached_meter_x, cached_meter_w);
-  
-  // Draw debug performance counters (only visible when debug mode is enabled)
   draw_debug_performance_counters();
-  
-  // Draw page navigation buttons (below graph)
   render_custom_buttons();
-  
-  // Update cursor based on button hover state
   update_cursor();
 );

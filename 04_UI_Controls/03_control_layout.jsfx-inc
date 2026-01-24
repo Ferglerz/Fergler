@@ -20,6 +20,34 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   group_w = 260; // Fixed width for paged groups
   group_x = GRAPH_X - group_w - 20; // 20px gap from graph
 
+  // --- GROUP 3: ENVELOPE (Left Panel) ---
+  define_group(3, UI_PANEL_X, group_y - 26, group_w, group_h, 1, "ENVELOPE");
+  set_control_group(3);
+  env_current_y = rel_y;
+  
+  // Columns for Attack and Release
+  ENV_COL_W = (group_w - 20) / 2;
+  ENV_CENTER_LEFT = UI_PANEL_X + 10 + ENV_COL_W/2;
+  ENV_CENTER_RIGHT = UI_PANEL_X + 10 + ENV_COL_W + ENV_COL_W/2;
+  
+  // Attack Time (Knob 0) & Release Time (Knob 2)
+  KNOB_SIZE = ENV_COL_W * 0.8;
+  define_knob(0, ENV_CENTER_LEFT - KNOB_SIZE/2, env_current_y, KNOB_SIZE, KNOB_SIZE, 1, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0), 11, 163, 163, 0, 0, 0.49, 24);
+  define_knob(2, ENV_CENTER_RIGHT - KNOB_SIZE/2, env_current_y, KNOB_SIZE, KNOB_SIZE, 3, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 2), 11, 163, 163, 0, 0, 0.49, 24);
+  
+  env_current_y += KNOB_SIZE + 15;
+  
+  // Attack Curve (Slider 1) & Release Curve (Slider 3) - Bidirectional Sliders
+  CURVE_SLIDER_W = ENV_COL_W - 10;
+  // Attack Curve
+  define_slider(1, ENV_CENTER_LEFT - CURVE_SLIDER_W/2, env_current_y, CURVE_SLIDER_W, SLIDER_H, 2, 
+    create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 1)
+  );
+  // Release Curve
+  define_slider(3, ENV_CENTER_RIGHT - CURVE_SLIDER_W/2, env_current_y, CURVE_SLIDER_W, SLIDER_H, 4, 
+    create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 3)
+  );
+  
 
   // --- GROUP 0: INPUT (Page 1) ---
   define_group(0, group_x, group_y - 26, group_w, group_h, 1, "INPUT");
@@ -55,16 +83,7 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   define_slider(23, REL_X_FULL + FILTER_HP_LP_W + 10, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 15, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 23));
   current_y += FILTER_SLIDER_SPACING;
 
-  // Attack / Release Knobs
-  KNOB_W = group_w * 0.35;
-  KNOB_X1 = (group_w - KNOB_W * 2 - 20) / 2;
-  KNOB_X2 = KNOB_X1 + KNOB_W + 20;
-
-  define_knob(0, KNOB_X1, current_y, KNOB_W, KNOB_W, 1, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0), 11, 163, 163, 0, 0, 0.49, 24);
-  define_knob(1, KNOB_X2, current_y, KNOB_W, KNOB_W, 2, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 1), 11, 163, 163, 0, 0, 0.49, 24);
-  current_y += KNOB_W + 15;
-  define_knob(2, KNOB_X1, current_y, KNOB_W, KNOB_W, 3, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 2), 11, 163, 163, 0, 0, 0.49, 24);
-  define_knob(3, KNOB_X2, current_y, KNOB_W, KNOB_W, 4, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 3), 11, 163, 163, 0, 0, 0.49, 24);
+  // Attack / Release Knobs moved to Group 3
 
   // --- GROUP 1: SETTINGS (Page 2) ---
   define_group(1, group_x, group_y - 26, group_w, group_h, 1, "SETTINGS");
@@ -82,8 +101,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   IMG_X = (group_w - IMG_W * 2 - 10) / 2;
   define_image_button(24, IMG_X, current_y, IMG_W, IMG_H, 9, 7, 8, 1);
   ui_set_label(24, #feedback_button_label);
+  ui_set_range(24, 1, 1); // Radio Button: Feedforward (Value 1)
+  
   define_image_button(25, IMG_X + IMG_W + 10, current_y, IMG_W, IMG_H, 9, 9, 10, 1);
   ui_set_label(25, #forward_button_label);
+  ui_set_range(25, 0, 0); // Radio Button: Feedback (Value 0)
   current_y += IMG_H + 15;
 
   // Program Release Mode
@@ -91,8 +113,11 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   REL_X_RADIO = center_in_group_x(group_w, RADIO_W * 2 + 10);
   define_button(6, REL_X_RADIO, current_y, RADIO_W, BUTTON_H, 22);
   ui_set_label(6, "Input Dep");
+  ui_set_range(6, 0, 0); // Radio Button: Input Dependent (Value 0)
+  
   define_button(7, REL_X_RADIO + RADIO_W + 10, current_y, RADIO_W, BUTTON_H, 22);
   ui_set_label(7, "GR Dep");
+  ui_set_range(7, 1, 1); // Radio Button: GR Dependent (Value 1)
   current_y += BUTTON_H + 15;
 
   define_button(8, center_in_group_x(group_w, 100), current_y, 100, BUTTON_H, 23);
@@ -127,13 +152,13 @@ function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, g
   ui_set_label(10, get_slider_name(16));
   current_y = advance_group_row_y(harmonic_type_y, TOGGLE_BUTTON_H, 0);
   control_h = SLIDER_H;
-  define_slider(11, rel_x_slider, current_y, SLIDER_W, control_h, 17, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, "", 11));
+  define_parallax_fader(11, rel_x_slider, current_y, SLIDER_W, control_h, 17, 3, 4, 36, 45, 4, 11, -2, 1.0, "", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_slider(12, rel_x_slider, current_y, SLIDER_W, control_h, 18, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 12));
+  define_parallax_fader(12, rel_x_slider, current_y, SLIDER_W, control_h, 18, 3, 5, 36, 45, 4, 11, 4, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_slider(13, rel_x_slider, current_y, SLIDER_W, control_h, 19, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 13));
+  define_parallax_fader(13, rel_x_slider, current_y, SLIDER_W, control_h, 19, 3, 4, 36, 45, 4, 11, -2, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
   current_y = advance_group_row_y(current_y, control_h, 0);
-  define_slider(14, rel_x_slider, current_y, SLIDER_W, control_h, 20, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 14));
+  define_parallax_fader(14, rel_x_slider, current_y, SLIDER_W, control_h, 20, 3, 5, 36, 45, 4, 11, 4, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
   current_y = advance_group_row_y(current_y, control_h, 0);
   
   // Makeup knob: advance by its actual size (1.5x half-size knob = 0.75x full size)

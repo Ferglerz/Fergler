@@ -80,7 +80,7 @@ function render_filters_page_buttons() (
   // Only render if Input page should be visible
   should_render_page(PAGE_FILTERS) ? (
     // Get page opacity for fade transitions
-    page_opacity = get_page_fade_amount(PAGE_FILTERS);
+    page_opacity = page_fade_amounts[PAGE_FILTERS];
     page_opacity > 0.01 ? (
       // Update position
       gfx_w > 0 ? (

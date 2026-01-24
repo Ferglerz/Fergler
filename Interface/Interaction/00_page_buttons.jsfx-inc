@@ -104,9 +104,7 @@ function update_all_page_transitions() (
   i=0; while(i<16)(update_button_transition(i); i+=1;);
 );
 
-function get_page_fade_amount(page_index) (
-  page_fade_amounts[page_index];
-);
+
 
 function should_render_page(page_index) (
   page_fade_amounts[page_index] > 0.01;
@@ -114,10 +112,6 @@ function should_render_page(page_index) (
 
 function is_button_active(button_index) (
   button_state[button_index*4 + 1] > 0.5;
-);
-
-function get_page_blur_amount(page_index) (
-  page_blur_amounts[page_index];
 );
 
 function should_blur_page(page_index) (

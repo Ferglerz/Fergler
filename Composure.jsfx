@@ -23,7 +23,7 @@ slider11:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
 slider12:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
 slider13:hp_freq=0<0,6000,1>-High Pass
 slider14:lp_freq=0<0,14000,1>-Low Pass
-slider15:input_offset_db=0<-30,30,0.25>-Input Offset
+slider15:input_offset_db=0<-30,30,0>-Input Offset
 
 // GROUP 2: HARMONICS (16-21)
 slider16:harmonic_type=0<0,1,1{Tape,Tube}>-Type

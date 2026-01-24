@@ -12,7 +12,7 @@
 // Returns: 1 if control is on Filters page, 0 otherwise
 // Input page controls: 0-3 (Env Curves), 16-23 (Filters/Detection)
 function is_control_on_filters_page(control_index) (
-  (control_index >= 0 && control_index <= 3) || (control_index >= 16 && control_index <= 23) ? 1 : 0;
+  (control_index >= 16 && control_index <= 23) ? 1 : 0;
 );
 
 // Check if a control is on the Settings page
@@ -44,13 +44,13 @@ function render_all_controls_with_page_filtering() (
     is_control_on_filters_page(i) ? (
       should_render_page(PAGE_FILTERS) ? (
         // Render with fade opacity
-        render_control(i, get_page_fade_amount(PAGE_FILTERS));
+        render_control(i, page_fade_amounts[PAGE_FILTERS]);
       );
     ) : is_control_on_settings_page(i) ? (
       // Settings page controls - only render if Settings page should be visible
       should_render_page(PAGE_SETTINGS) ? (
         // Render with fade opacity
-        render_control(i, get_page_fade_amount(PAGE_SETTINGS));
+        render_control(i, page_fade_amounts[PAGE_SETTINGS]);
       );
     ) : (
       // Other controls - render with full opacity
