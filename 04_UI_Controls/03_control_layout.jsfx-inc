@@ -1,174 +1,144 @@
 @init
 
-// Dependencies:
-//   - ../FerglerUI/Core/09_layout_utils.jsfx-inc (for layout utility functions)
-//   - ../FerglerUI/Core/01_slider_constants.jsfx-inc (for OPTION_HIDE_LABEL)
+// Dependencies required for layout and control constants
 
+// Dropdown radio text temp buffers
 #forward_button_label = 90;
 #feedback_button_label = 91;
+// Short labels for small buttons
+#listen_button_label = 92;
+#sidechain_button_label = 93;
 
+// Use dropdown options for radio labels
 function init_radio_button_labels() (
   strcpy(#feedback_button_label, get_dropdown_option(12, 0));
   strcpy(#forward_button_label, get_dropdown_option(12, 1));
 );
 
-function setup_control_layout() local(group_x, group_y, rel_x, rel_y, group_w, group_h, group_spacing, rel_x_slider, rel_x_button, rel_x_dropdown, groups_start_x, groups_end_x, total_width, group_width, current_y, control_h, control_spacing) (
+function setup_control_layout() (
   init_radio_button_labels();
-  group_y = UI_PANEL_Y + 15;
-  group_spacing = 15;
-  group_h = GRAPH_SIZE;
-  group_w = 260; // Fixed width for paged groups
-  group_x = GRAPH_X - group_w - 20; // 20px gap from graph
+  strcpy(#empty_str, "");  // For toolbar toggles with no label
+  strcpy(#listen_button_label, "L");
+  strcpy(#sidechain_button_label, "SC");
 
-  // --- GROUP 3: ENVELOPE (Left Panel) ---
-  define_group(3, UI_PANEL_X, group_y - 26, group_w, group_h, 1, "ENVELOPE");
+  // === GROUP 3: ENVELOPE (Knobs: Attack, Release, Hold) — indices 0–2 ===
+  define_group(3, UI_PANEL_X - 80, UI_PANEL_Y + ENVELOPE_HARMONICS_Y_OFFSET, 260, GRAPH_SIZE, 0, "ENVELOPE");
   set_control_group(3);
-  env_current_y = rel_y;
-  
-  // Columns for Attack and Release
-  ENV_COL_W = (group_w - 20) / 2;
-  ENV_CENTER_LEFT = UI_PANEL_X + 10 + ENV_COL_W/2;
-  ENV_CENTER_RIGHT = UI_PANEL_X + 10 + ENV_COL_W + ENV_COL_W/2;
-  
-  // Attack Time (Knob 0) & Release Time (Knob 2)
-  KNOB_SIZE = ENV_COL_W * 0.8;
-  define_knob(0, ENV_CENTER_LEFT - KNOB_SIZE/2, env_current_y, KNOB_SIZE, KNOB_SIZE, 1, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 0), 11, 163, 163, 0, 0, 0.49, 24);
-  define_knob(2, ENV_CENTER_RIGHT - KNOB_SIZE/2, env_current_y, KNOB_SIZE, KNOB_SIZE, 3, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 2), 11, 163, 163, 0, 0, 0.49, 24);
-  
-  env_current_y += KNOB_SIZE + 15;
-  
-  // Attack Curve (Slider 1) & Release Curve (Slider 3) - Bidirectional Sliders
-  CURVE_SLIDER_W = ENV_COL_W - 10;
-  // Attack Curve
-  define_slider(1, ENV_CENTER_LEFT - CURVE_SLIDER_W/2, env_current_y, CURVE_SLIDER_W, SLIDER_H, 2, 
-    create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 1)
-  );
-  // Release Curve
-  define_slider(3, ENV_CENTER_RIGHT - CURVE_SLIDER_W/2, env_current_y, CURVE_SLIDER_W, SLIDER_H, 4, 
-    create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 3)
-  );
-  
 
-  // --- GROUP 0: INPUT (Page 1) ---
-  define_group(0, group_x, group_y - 26, group_w, group_h, 1, "INPUT");
+  KNOB_SIZE = (260-20)*0.4+32; // Knob with padding
+  ENV_CENTER_X = UI_PANEL_X+10+(260-20)/2;
+  ENV_ROW_GAP = 12;  // Extra 12px between Attack, Release, Hold rows
+  env_y = 0;
+  define_knob(0, ENV_CENTER_X-KNOB_SIZE/2, env_y,   KNOB_SIZE, KNOB_SIZE, 1, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB / S", 0),11,92,95,0,0,1.0,24);
+  env_y += KNOB_SIZE + ENV_ROW_GAP;
+  define_knob(1, ENV_CENTER_X-KNOB_SIZE/2, env_y,   KNOB_SIZE, KNOB_SIZE, 3, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB / S", 1),11,92,95,0,0,1.0,24);
+  env_y += KNOB_SIZE + ENV_ROW_GAP;
+  define_knob(2, ENV_CENTER_X-KNOB_SIZE/2, env_y,   KNOB_SIZE, KNOB_SIZE, 5, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 2),11,92,95,0,0,1.0,24);
+
+  // === GROUP 0: INPUT/SETTINGS — indices 3,4,5,6,9,11–21 ===
+  INPUT_SETTINGS_W = 260 + 108;
+  group_x = GRAPH_X - INPUT_SETTINGS_W - 20;
+  define_group(0, group_x, UI_PANEL_Y + GROUP_Y_OFFSET, INPUT_SETTINGS_W, GRAPH_SIZE, 0, "INPUT / SETTINGS");
   set_control_group(0);
-  rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 5;
-  current_y = rel_y;
-  
-  // Filters (copied from later in file)
-  FILTER_SLIDER_W = group_w - 20;
-  FILTER_SLIDER_H = SLIDER_H;
-  FILTER_SLIDER_SPACING = FILTER_SLIDER_H + 20;
-  REL_X_FULL = center_in_group_x(group_w, FILTER_SLIDER_W);
-  
-  FILTER_HP_LP_W = (FILTER_SLIDER_W / 2) - 5;
-  define_slider(16, REL_X_FULL, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 13, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_K, 0, " Hz", 16));
-  define_slider(17, REL_X_FULL + FILTER_HP_LP_W + 10, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 14, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_RIGHT_TO_LEFT, FORMAT_K, 0, " Hz", 17));
-  current_y += FILTER_SLIDER_SPACING;
+  current_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 5;
+  FILTER_W = INPUT_SETTINGS_W - 20;
+  HALF_W = (FILTER_W/2)-5;
+  REL_X = center_in_group_x(INPUT_SETTINGS_W, FILTER_W);
 
-  // Listen / Auto-preview / Use Sidechain row
-  BTN_GAP = 5;
-  BTN_W = (FILTER_SLIDER_W - BTN_GAP * 2) / 3;
-  define_button(18, REL_X_FULL, current_y, BTN_W, BUTTON_H, 12);
-  // Slot for auto-preview (rendered separately in 02_input_page.jsfx-inc)
-  define_button(19, REL_X_FULL + (BTN_W + BTN_GAP) * 2, current_y, BTN_W, BUTTON_H, 11);
-  current_y += BUTTON_H + 20;
+  // Filters row (HP, L, A, SC, LP)
+  FILTER_GAP = 6;
+  BTN_LISTEN_W = 22; BTN_AUTO_W = 22; BTN_SC_W = 30;
+  HP_LP_W = (FILTER_W - (BTN_LISTEN_W + BTN_AUTO_W + BTN_SC_W + FILTER_GAP*4)) / 2;
+  hp_x = REL_X;
+  define_slider(3, hp_x,                 current_y, HP_LP_W, SLIDER_H, 13, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT,  FORMAT_K,0," Hz",3));
+  listen_x = hp_x + HP_LP_W + FILTER_GAP;
+  define_button(5, listen_x,             current_y, BTN_LISTEN_W, BUTTON_H, 12, 0); ui_set_label(5, #listen_button_label);
+  sc_x = listen_x + BTN_LISTEN_W + FILTER_GAP + BTN_AUTO_W + FILTER_GAP;
+  define_button(6, sc_x,                 current_y, BTN_SC_W, BUTTON_H, 11, 0); ui_set_label(6, #sidechain_button_label);
+  lp_x = sc_x + BTN_SC_W + FILTER_GAP;
+  define_slider(4, lp_x,                 current_y, HP_LP_W, SLIDER_H, 14, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_RIGHT_TO_LEFT, FORMAT_K,0," Hz",4));
+  current_y += SLIDER_H + 20;
 
-  define_slider(20, REL_X_FULL, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 7, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 20));
-  define_button(21, REL_X_FULL + FILTER_HP_LP_W + 10, current_y, FILTER_HP_LP_W, BUTTON_H, 8);
-  current_y += FILTER_SLIDER_SPACING;
+  // Lookahead + Brickwall (same row) — Brickwall +10px width, text centered
+  LOOKAHEAD_GAP = 10;
+  BRICKWALL_BTN_W = 80;
+  LOOKAHEAD_W = FILTER_W - BRICKWALL_BTN_W - LOOKAHEAD_GAP;
+  define_slider(9, REL_X, current_y, LOOKAHEAD_W, SLIDER_H, 10, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL,0," ms",9));
+  define_button(18, REL_X + LOOKAHEAD_W + LOOKAHEAD_GAP, current_y, BRICKWALL_BTN_W, BUTTON_H, 25, 1); ui_set_label(18, "Brickwall");
+  current_y += SLIDER_H + 20;
 
-  // Lookahead & Input Offset side-by-side
-  define_slider(22, REL_X_FULL, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 10, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 22));
-  define_slider(23, REL_X_FULL + FILTER_HP_LP_W + 10, current_y, FILTER_HP_LP_W, FILTER_SLIDER_H, 15, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 23));
-  current_y += FILTER_SLIDER_SPACING;
+  // Program Release Blend, Inverse, Linear — Inverse/Linear 18px smaller each, slider gets +36; Inverse/Linear text centered
+  PROG_GAP = 10;
+  THIRD_W = (FILTER_W - PROG_GAP*2) / 3;
+  PROG_SLIDER_W = THIRD_W + 36;
+  PROG_BTN_W = THIRD_W - 18;
+  define_slider(16, REL_X, current_y, PROG_SLIDER_W, SLIDER_H, 24, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT,FORMAT_NONE,0," %",16));
+  define_button(17, REL_X + PROG_SLIDER_W + PROG_GAP, current_y, PROG_BTN_W, BUTTON_H, 23, 1); ui_set_label(17, "Inverse");
+  define_button(19, REL_X + PROG_SLIDER_W + PROG_GAP + PROG_BTN_W + PROG_GAP, current_y, PROG_BTN_W, BUTTON_H, 28, 1); ui_set_label(19, "Linear");
+  current_y += SLIDER_H + 20;
 
-  // Attack / Release Knobs moved to Group 3
+  // Attack & Release curve sliders (bidirectional, same row)
+  define_slider(20, REL_X,              current_y, HALF_W, SLIDER_H, 2, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 20));
+  define_slider(21, REL_X+HALF_W+10,    current_y, HALF_W, SLIDER_H, 4, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_CENTER_OUT, FORMAT_NORMAL, OPTION_BIDIRECTIONAL, "", 21));
+  current_y += SLIDER_H+15;
 
-  // --- GROUP 1: SETTINGS (Page 2) ---
-  define_group(1, group_x, group_y - 26, group_w, group_h, 1, "SETTINGS");
-  set_control_group(1);
-  current_y = rel_y;
-  
-  KNOB_W = group_w * 0.4;
-  define_knob(4, center_in_group_x(group_w, KNOB_W), current_y, KNOB_W, KNOB_W, 6, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 4), 11, 163, 163, 0, 0, 0.49075, 24);
-  current_y += KNOB_W + 10;
-  define_knob(5, center_in_group_x(group_w, KNOB_W), current_y, KNOB_W, KNOB_W, 5, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 5), 11, 163, 163, 0, 0, 0.49075, 24);
-  current_y += KNOB_W + 10;
-
-  // Detection Mode Image Buttons
-  IMG_W = 100; IMG_H = 75;
-  IMG_X = (group_w - IMG_W * 2 - 10) / 2;
-  define_image_button(24, IMG_X, current_y, IMG_W, IMG_H, 9, 7, 8, 1);
-  ui_set_label(24, #feedback_button_label);
-  ui_set_range(24, 1, 1); // Radio Button: Feedforward (Value 1)
-  
-  define_image_button(25, IMG_X + IMG_W + 10, current_y, IMG_W, IMG_H, 9, 9, 10, 1);
-  ui_set_label(25, #forward_button_label);
-  ui_set_range(25, 0, 0); // Radio Button: Feedback (Value 0)
+  // Feedback/Feedforward detection toggle (last row)
+  IMG_W = 100; IMG_H = 75; IMG_X = center_in_group_x(INPUT_SETTINGS_W, IMG_W);
+  define_image_button(12, IMG_X, current_y, IMG_W, IMG_H, 9, 10, 7, 1);
+  ui_set_label(12, #empty_str);
   current_y += IMG_H + 15;
 
-  // Program Release Mode
-  RADIO_W = (group_w - 30) / 2;
-  REL_X_RADIO = center_in_group_x(group_w, RADIO_W * 2 + 10);
-  define_button(6, REL_X_RADIO, current_y, RADIO_W, BUTTON_H, 22);
-  ui_set_label(6, "Input Dep");
-  ui_set_range(6, 0, 0); // Radio Button: Input Dependent (Value 0)
-  
-  define_button(7, REL_X_RADIO + RADIO_W + 10, current_y, RADIO_W, BUTTON_H, 22);
-  ui_set_label(7, "GR Dep");
-  ui_set_range(7, 1, 1); // Radio Button: GR Dependent (Value 1)
-  current_y += BUTTON_H + 15;
-
-  define_button(8, center_in_group_x(group_w, 100), current_y, 100, BUTTON_H, 23);
-  ui_set_label(8, get_slider_name(23));
-  current_y += BUTTON_H + 15;
-  
-  define_slider(9, center_in_group_x(group_w, 150), current_y, 150, SLIDER_H, 24, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 9));
-  current_y += SLIDER_H + 24;
-
-  // Brickwall Limiter & Linear Modes (newly added to group)
-  define_button(30, REL_X_FULL, current_y, FILTER_SLIDER_W, BUTTON_H, 25);
-  ui_set_label(30, "Brickwall Limiter");
-  current_y += BUTTON_H + 10;
-  define_button(31, REL_X_FULL, current_y, FILTER_SLIDER_W, BUTTON_H, 28);
-  ui_set_label(31, "Linear Prog Release");
-
-
-  group_x = GRAPH_X + GRAPH_SIZE + 15 + 23 + 8 + 6 + 15 + 16;
-  group_w = 150;
-  group_h = GRAPH_SIZE;
-  define_group(2, group_x, group_y - 26, group_w, group_h, 1, "HARMONICS");
+  // === GROUP 2: HARMONICS (Right Panel) — indices 22–27 ===
+  group_x = GRAPH_X + GRAPH_SIZE + 77;  // 16px left of original 93 (half of 32)
+  define_group(2, group_x, UI_PANEL_Y + ENVELOPE_HARMONICS_Y_OFFSET, 166, GRAPH_SIZE, 0, "HARMONICS");
   set_control_group(2);
-  rel_x_slider = center_in_group_x(group_w, SLIDER_W);
-  rel_x_dropdown = center_in_group_x(group_w, DROPDOWN_W);
-  TOGGLE_BUTTON_W = 84;  // Toggle button image width
-  TOGGLE_BUTTON_H = 56;  // Toggle button image height
-  rel_x_button = center_in_group_x(group_w, TOGGLE_BUTTON_W);
-  rel_y = GROUP_TITLE_HEIGHT + GROUP_PADDING + 15;
-  current_y = rel_y;
-  harmonic_type_y = current_y;
-  define_image_button(10, rel_x_button, harmonic_type_y, TOGGLE_BUTTON_W, TOGGLE_BUTTON_H, 16, 1, 2, 1);
-  ui_set_label(10, get_slider_name(16));
-  current_y = advance_group_row_y(harmonic_type_y, TOGGLE_BUTTON_H, 0);
+  rel_x_slider = center_in_group_x(166, SLIDER_W);
+  rel_x_button = center_in_group_x(166, 83); // Switch native size 83x77
+  current_y = 0;
+  define_image_button(22, rel_x_button, current_y, 83, 77, 16, 1, 2, 1); // Harmonic type toggle (native res)
+  ui_set_label(22, get_slider_name(16));
+  current_y = advance_group_row_y(current_y, 77, 22); 
   control_h = SLIDER_H;
-  define_parallax_fader(11, rel_x_slider, current_y, SLIDER_W, control_h, 17, 3, 4, 36, 45, 4, 11, -2, 1.0, "", FORMAT_NORMAL, 0, DISPLAY_NORMAL);
-  current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(12, rel_x_slider, current_y, SLIDER_W, control_h, 18, 3, 5, 36, 45, 4, 11, 4, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
-  current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(13, rel_x_slider, current_y, SLIDER_W, control_h, 19, 3, 4, 36, 45, 4, 11, -2, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
-  current_y = advance_group_row_y(current_y, control_h, 0);
-  define_parallax_fader(14, rel_x_slider, current_y, SLIDER_W, control_h, 20, 3, 5, 36, 45, 4, 11, 4, 1.0, " %", FORMAT_NONE, 0, DISPLAY_NORMAL);
-  current_y = advance_group_row_y(current_y, control_h, 0);
-  
-  // Makeup knob: advance by its actual size (1.5x half-size knob = 0.75x full size)
-  control_h = SLIDER_W * 0.75;
-  makeup_knob_format_options = OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL;
-  makeup_knob_y = current_y + get_label_hidden_row_start_offset(makeup_knob_format_options);
-  makeup_knob_w = SLIDER_W * 0.75;
-  makeup_knob_x = center_in_group_x(group_w, makeup_knob_w);
-  define_knob(15, makeup_knob_x, makeup_knob_y, makeup_knob_w, SLIDER_H * 0.75, 21, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_NORMAL, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, makeup_knob_format_options, " dB", 15), 11, 163, 163, 0, 0, 0.566, 24);
+  define_parallax_fader(23, rel_x_slider, current_y, SLIDER_W, control_h, 17, 3, 5, 36,45,4,11, 4,1.0," %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  current_y = advance_group_row_y(current_y, control_h, 22);
+  define_parallax_fader(24, rel_x_slider, current_y, SLIDER_W, control_h, 18, 3, 5, 36,45,4,11, 4,1.0," %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  current_y = advance_group_row_y(current_y, control_h, 22);
+  define_parallax_fader(25, rel_x_slider, current_y, SLIDER_W, control_h, 19, 3, 5, 36,45,4,11, 4,1.0," %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  current_y = advance_group_row_y(current_y, control_h, 22);
+  define_parallax_fader(26, rel_x_slider, current_y, SLIDER_W, control_h, 20, 3, 5, 36,45,4,11, 4,1.0," %", FORMAT_NONE, 0, DISPLAY_HIDE_VALUE);
+  current_y = advance_group_row_y(current_y, control_h, 22);
 
-  // Groups are now consolidated, removing legacy definitions
-);
+  // Makeup gain knob (bidirectional, hidden label) — size matches Attack
+  mk_opts = OPTION_BIDIRECTIONAL | OPTION_HIDE_LABEL;
+  mk_y = current_y + get_label_hidden_row_start_offset(mk_opts);
+  mk_x = center_in_group_x(166, KNOB_SIZE);
+  define_knob(27, mk_x, mk_y, KNOB_SIZE, KNOB_SIZE, 21,
+    create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, mk_opts, " dB", 27),
+    11,92,95,0,0,1.0,24
+  );
 
+  // === GROUP 4: TOOLBAR (Strength, Input Dep/GR Dep, RMS Norm, RMS Window, Input Offset) — indices 7,8,10,11,14 ===
+  define_group(4, TOOLBAR_GROUP_X, TOOLBAR_GROUP_Y, TOOLBAR_GROUP_W, TOOLBAR_GROUP_H, 0, "");
+  set_control_group(4);
+  TOOLBAR_PAD = 10;
+  TOOLBAR_GAP = 10;
+  TOOLBAR_KNOB_GAP = 5;  // Half of TOOLBAR_GAP between RMS Window and Input Offset
+  tb_knob_y = (TOOLBAR_GROUP_H - KNOB_SIZE) / 2;
+  tb_toggle_w = 83; tb_toggle_h = 77;  // Switch native resolution
+  tb_toggle_y = (TOOLBAR_GROUP_H - tb_toggle_h) / 2;
+
+  // Left: Strength knob (match Attack/Release/Hold size)
+  define_knob(11, TOOLBAR_PAD, tb_knob_y, KNOB_SIZE, KNOB_SIZE, 6, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NONE, 0, " %", 11), 11, 92, 95, 0, 0, 1.0, 24);
+  // Input Dep / GR Dep — image toggle like Harmonics type (1=left, 2=right, scale 1)
+  define_image_button(14, TOOLBAR_PAD + KNOB_SIZE + TOOLBAR_GAP, tb_toggle_y, tb_toggle_w, tb_toggle_h, 22, 1, 2, 1);
+  ui_set_label(14, #empty_str); ui_set_range(14, 0, 1);
+
+  // Right-pinned: Input Offset, RMS Window (knobs), RMS Normalize (image toggle)
+  io_x = TOOLBAR_GROUP_W - TOOLBAR_PAD - KNOB_SIZE;
+  rms_x = io_x - TOOLBAR_KNOB_GAP - KNOB_SIZE;  // Half gap between RMS and Input Offset
+  norm_x = rms_x - TOOLBAR_GAP - tb_toggle_w;
+  define_image_button(8, norm_x, tb_toggle_y, tb_toggle_w, tb_toggle_h, 8, 1, 2, 1);
+  ui_set_label(8, #empty_str); ui_set_range(8, 0, 1);
+  define_knob(7, rms_x, tb_knob_y, KNOB_SIZE, KNOB_SIZE, 7, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " ms", 7), 11, 92, 95, 0, 0, 1.0, 24);
+  define_knob(10, io_x, tb_knob_y, KNOB_SIZE, KNOB_SIZE, 15, create_ui_control(ORIENTATION_HORIZONTAL, DISPLAY_HIDE_VALUE, FILL_LEFT_TO_RIGHT, FORMAT_NORMAL, 0, " dB", 10), 11, 92, 95, 0, 0, 1.0, 24);
+)

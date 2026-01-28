@@ -38,6 +38,10 @@ GRAPH_RANGE_DB = 20;
 GRAPH_MIN_DB = -20;
 GRAPH_MAX_DB = 0;
 
+// Strict limit on gain reduction / addition (dB). Prevents compressing or boosting
+// to bit-depth floor, avoiding numerical issues and over-processing.
+MAX_GR_DB = 50;
+
 // === PERFORMANCE CONSTANTS ===
 
 DENORMAL_THRESHOLD = pow(10, -15); // Faster than eps for denormal checks

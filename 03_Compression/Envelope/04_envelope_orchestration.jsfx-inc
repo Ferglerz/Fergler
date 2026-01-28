@@ -138,6 +138,13 @@ function process_envelope_following(target_gr_db, detector_level_db) (
   debug_counter_envelope += 1;
   
   target_gr_db = process_hold(target_gr_db);
+  // Recalculate target_gr_db_before_strength from held target_gr_db to keep them in sync
+  // This ensures that when hold modifies target_gr_db, the pre-strength value matches
+  abs(strength_multiplier) > 0.0001 ? (
+    target_gr_db_before_strength = target_gr_db / strength_multiplier;
+  ) : (
+    target_gr_db_before_strength = target_gr_db;
+  );
   global_smoothed_gain_db = process_single_stage_envelope(target_gr_db, detector_level_db);
   
   global_smoothed_gain_db;

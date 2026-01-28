@@ -13,7 +13,20 @@ SLIDER_FILL_REVERSE_R = 1.0; SLIDER_FILL_REVERSE_G = 1.0; SLIDER_FILL_REVERSE_B 
 SLIDER_BG_REVERSE_R = 0.8; SLIDER_BG_REVERSE_G = 0.8; SLIDER_BG_REVERSE_B = 0.2;
 BUTTON_OFF_R = 0.4; BUTTON_OFF_G = 0.4; BUTTON_OFF_B = 0.4;
 BUTTON_ON_R = 0.2; BUTTON_ON_G = 0.8; BUTTON_ON_B = 0.2;
-TEXT_R = 1.0; TEXT_G = 1.0; TEXT_B = 1.0;
+// EBEBEB (235/255) for handles and labels; value readout/reticule keep their styling
+WHITE_RGB = 0.92157;
+TEXT_R = WHITE_RGB; TEXT_G = WHITE_RGB; TEXT_B = WHITE_RGB;
+slider_style_text_r = WHITE_RGB; slider_style_text_g = WHITE_RGB; slider_style_text_b = WHITE_RGB;
+slider_style_handle_r = WHITE_RGB; slider_style_handle_g = WHITE_RGB; slider_style_handle_b = WHITE_RGB;
+knob_style_text_r = WHITE_RGB; knob_style_text_g = WHITE_RGB; knob_style_text_b = WHITE_RGB;
+knob_style_indicator_r = WHITE_RGB; knob_style_indicator_g = WHITE_RGB; knob_style_indicator_b = WHITE_RGB;
+parallax_style_text_r = WHITE_RGB; parallax_style_text_g = WHITE_RGB; parallax_style_text_b = WHITE_RGB;
+button_style_text_r = WHITE_RGB; button_style_text_g = WHITE_RGB; button_style_text_b = WHITE_RGB;
+dropdown_style_text_r = WHITE_RGB; dropdown_style_text_g = WHITE_RGB; dropdown_style_text_b = WHITE_RGB;
+
+// Slider background 50% more transparent (was 0.33)
+SLIDER_BG_OPACITY = 0.165;
+
 VALUE_COLOR_R = 0.3333; VALUE_COLOR_G = 0.3333; VALUE_COLOR_B = 0.3333;  // #555555
 
 // Menu Button Configuration (75% of original)
@@ -43,7 +56,7 @@ NUM_GROUPS = 7;  // Total number of groups (Attack, Envelope, Release, Harmonics
 GROUP_BORDER_RADIUS = 5;  // Rounded corner radius
 GROUP_TITLE_HEIGHT = 22;  // Height of title area
 GROUP_TITLE_PADDING = 8;  // Horizontal padding around title text
-GROUP_PADDING = 10;  // Internal padding for controls
+GROUP_PADDING = 10;  // Internal padding for controlsgroups (30 = 70 - 40)
 
 // Group Colors
 GROUP_BG_R = 0.18; GROUP_BG_G = 0.18; GROUP_BG_B = 0.18;  // Slightly lighter than UI background
@@ -78,12 +91,28 @@ DEBUG_PANEL_TEXT_R = 0.9; DEBUG_PANEL_TEXT_G = 0.9; DEBUG_PANEL_TEXT_B = 0.9;
 DEBUG_PANEL_START_Y = 390;
 
 //==============================================================================
+// GROUP Y OFFSETS
+//==============================================================================
+
+GROUP_Y_OFFSET = -34;  // Base Y offset for Input/Settings groups (moved up 10px)
+ENVELOPE_HARMONICS_Y_OFFSET = -20;  // Envelope & Harmonics offset (unchanged)
+
+//==============================================================================
+// NEW TOOLBAR GROUP (Strength, Input Dep/GR Dep, RMS, Input Offset)
+//==============================================================================
+
+TOOLBAR_GROUP_X = 195;
+TOOLBAR_GROUP_Y = 327;  // 225 + 78 + 24 (moved down 102px total)
+TOOLBAR_GROUP_W = 716;
+TOOLBAR_GROUP_H = 100;
+
+//==============================================================================
 // GRAPH LAYOUT CONSTANTS (moved from 03_ui_graph_layout.jsfx-inc)
 //==============================================================================
 
-GRAPH_X = UI_PANEL_X + UI_PANEL_W + 85 - 150;  // After panel + gap - offset for harmonics
-GRAPH_Y = UI_PANEL_Y + 15;                      // Aligned with panel (moved down 15px)
-GRAPH_SIZE = 263;                              // 350 * 0.75 = 262.5 rounded up
+GRAPH_X = UI_PANEL_X + UI_PANEL_W - 43; 
+GRAPH_Y = UI_PANEL_Y - 18 + 4;   // Graph and meters (moved up 10px from +14)
+GRAPH_SIZE = 232;  // Graph size
 
 // Pre-calculated histogram step size (max(1, floor(GRAPH_SIZE / 200)))
 HISTOGRAM_STEP_SIZE = 1;  // For GRAPH_SIZE=263: floor(263/200) = 1

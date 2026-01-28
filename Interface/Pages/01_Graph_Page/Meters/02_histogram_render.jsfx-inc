@@ -23,8 +23,10 @@ function draw_reflection_gradient(x, y, r, g, b, alpha) (
   gfx_set(r, g, b, 0.5 * alpha); gfx_rect(x, y,     1, 1);
   gfx_set(r, g, b, 0.75 * alpha); gfx_rect(x, y+1,  1, 1);
   gfx_set(r, g, b, alpha);        gfx_rect(x, y+2,  1, 1);
-  gfx_set(r, g, b, 0.75 * alpha); gfx_rect(x, y+3,  1, 1);
-  gfx_set(r, g, b, 0.5 * alpha);  gfx_rect(x, y+4,  1, 1);
+  gfx_set(r, g, b, alpha);        gfx_rect(x, y+3,  1, 1);
+  gfx_set(r, g, b, alpha);        gfx_rect(x, y+4,  1, 1);
+  gfx_set(r, g, b, 0.75 * alpha); gfx_rect(x, y+5,  1, 1);
+  gfx_set(r, g, b, 0.5 * alpha);  gfx_rect(x, y+6,  1, 1);
 );
 
 // Unified histogram reflection: merges all colors and curve points
@@ -32,7 +34,7 @@ function draw_histogram_reflection_unified_pixel(opacity) (
   // Reflection reference
   ref_y = GRAPH_Y + GRAPH_SIZE * 0.75;
   max_dist = GRAPH_SIZE * 0.75;
-  refl_y = GRAPH_Y + GRAPH_SIZE + 61;
+  refl_y = GRAPH_Y + GRAPH_SIZE + 20;
   w = GRAPH_SIZE;
   hist_size = histogram_pixel_max_samples;
 

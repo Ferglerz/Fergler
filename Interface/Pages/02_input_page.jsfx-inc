@@ -20,7 +20,7 @@ preview_filters_button_x = 0;
 preview_filters_button_y = 0;
 
 // Button label string (use string slot 70)
-#preview_filters_button_label = 70;  // "Auto-preview"
+#preview_filters_button_label = 70;  // "A"
 
 //==============================================================================
 // STATE INITIALIZATION
@@ -28,7 +28,7 @@ preview_filters_button_y = 0;
 
 function init_input_page() (
   // Initialize button label
-  strcpy(#preview_filters_button_label, "Auto-preview");
+  strcpy(#preview_filters_button_label, "A");
   // Initialize auto preview to enabled by default
   menu_preview_filters_enabled = 1;
 );
@@ -40,17 +40,16 @@ function init_input_page() (
 // Calculate Auto-preview button position (between Listen and Use Sidechain buttons)
 function update_preview_filters_button_position() (
   // Manual position update for Auto-preview button
-  // Should follow Listen (control 18) and precede Use Sidechain (control 19)
-  // Indices: Listen = 18, Sidechain = 19
-  listen_x = get_control_x_with_group_offset(18);
-  listen_y = get_control_y_with_group_offset(18);
-  listen_w = control_defs[18*11 + 3]; // Direct access to avoid undefined function error
-  gap = 5;
+  // Should follow Listen and precede Use Sidechain. Dense indices: Listen = 5, Sidechain = 6.
+  listen_x = get_control_x_with_group_offset(5);
+  listen_y = get_control_y_with_group_offset(5);
+  listen_w = control_defs[5*11 + 3];
+  gap = 6;
   
   preview_filters_button_x = listen_x + listen_w + gap;
   preview_filters_button_y = listen_y;
-  preview_filters_button_w = listen_w; // Same width as others (3-column layout)
-  preview_filters_button_h = 27;
+  preview_filters_button_w = listen_w; // Match Listen button width
+  preview_filters_button_h = BUTTON_H;
 );
 
 
@@ -64,7 +63,7 @@ function update_preview_filters_button_position() (
 function draw_preview_filters_button(is_enabled) local() (
   draw_button_background(preview_filters_button_x, preview_filters_button_y, preview_filters_button_w, preview_filters_button_h, is_enabled);
   draw_button_border(preview_filters_button_x, preview_filters_button_y, preview_filters_button_w, preview_filters_button_h);
-  draw_button_text(preview_filters_button_x, preview_filters_button_y, #preview_filters_button_label);
+  draw_button_text(preview_filters_button_x, preview_filters_button_y, preview_filters_button_w, preview_filters_button_h, #preview_filters_button_label, 0);
   
   // Draw checkmark if enabled
   is_enabled ? (

@@ -130,6 +130,8 @@ function process_complete_audio_chain() (
       target_gr_db = 0;
       target_gr_db_before_strength = 0;
       gr_processing_skipped = 1;
+      // Still calculate detector_level_db for potential use in envelope processing
+      detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
     ) : (
       detector_level_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL));
       target_gr_db = calculate_gain_reduction_from_db(detector_level_db);
@@ -161,7 +163,7 @@ function process_complete_audio_chain() (
     // Update previous detector level for rate-of-change release mode
     prev_detector_db = detector_level_db;
     
-    current_gr_db = global_smoothed_gain_db;
+    current_gr_db = max(-MAX_GR_DB, min(MAX_GR_DB, global_smoothed_gain_db));
     abs(current_gr_db) > abs(gr_db_block_max) ? (
       gr_db_block_max = current_gr_db;
     );

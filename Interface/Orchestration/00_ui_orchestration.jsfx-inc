@@ -21,8 +21,57 @@ function apply_page_blur_graph_area() (
 // Apply reflection blur (always active)
 function apply_reflection_blur(meter_x, meter_w) (
   gfx_x = GRAPH_X - 10;
-  gfx_y = GRAPH_Y + GRAPH_SIZE + 61;
-  gfx_blurto(meter_x + meter_w + 10, gfx_y + 5);
+  gfx_y = GRAPH_Y + GRAPH_SIZE + 20;  // Adjusted to match reflection position
+  gfx_blurto(meter_x + meter_w + 10, gfx_y + 7);
+);
+
+//==============================================================================
+// CONTROL READOUT DISPLAY
+//==============================================================================
+
+// Display control value readout when a control is being adjusted
+function draw_control_readout() local(
+  control_index, type, param_index, current_value, slider_config, formatting, format_options,
+  suffix_str, formatted_str
+) (
+  ui_drag_control >= 0 ? (
+    control_index = ui_drag_control;
+    type = control_defs[control_index*11 + 0];
+    
+    // Only show readout for knobs (type 4) and faders/sliders (type 0, 3)
+    (type == 0 || type == 3 || type == 4) ? (
+      param_index = control_defs[control_index*11 + 5];
+      current_value = slider(param_index);
+      
+      // Get suffix string
+      get_control_suffix(control_index);
+      suffix_str = #value_str;
+      
+      // Get formatting and format_options from slider_config
+      type == 3 ? (
+        // Parallax fader: get config from separate array
+        slider_config = parallax_slider_configs[control_index];
+        formatting = slider_config & 0xFF;
+        format_options = (slider_config >> 8) & 0xFF;
+      ) : (
+        // Slider or knob: get config from control_defs
+        slider_config = control_defs[control_index*11 + 8];
+        formatting = (slider_config >> 24) & 0xFF;
+        format_options = (slider_config >> 32) & 0xFF;
+      );
+      
+      // Format the value
+      format_slider_value(param_index, current_value, suffix_str, formatting, format_options);
+      formatted_str = #temp_display_str;
+      
+      // Display at x194 y278 with size 18 font and transparent grey
+      gfx_set(0.6, 0.6, 0.6, 0.8);  // Same transparent grey as Ctrl hints
+      gfx_setfont(1, "Arial", 18);  // Size 18 font
+      gfx_x = 194;
+      gfx_y = 278;
+      gfx_drawstr(formatted_str);
+    );
+  );
 );
 
 //==============================================================================
@@ -48,7 +97,6 @@ function render_graph_page() local(clamped_input_db) (
   draw_threshold_lines_on_graph();
   draw_labels_and_info();
   draw_compression_threshold_overlay();
-  draw_ctrl_hint();
   gfx_a = 1.0;
 );
 
@@ -61,28 +109,37 @@ function render_filters_page_with_blur() (
 
 function render_background_image() (
   gfx_x = 0; gfx_y = 0;
-  gfx_blit(0, 1, 0);
+  gfx_blit(0, 0.29, 0);  // Render BG.png at 32% scale (3693x1576 -> 1182x504)
 );
 
-function render_complete_interface() local(m_x, m_y, m_w, m_h) (
+function render_complete_interface() local(m_x, m_y, m_w, m_h, m_x_right) (
   m_x = get_meter_x(); m_y = get_meter_y(); m_w = get_meter_w(); m_h = get_meter_h();
+  m_x_right = get_meter_x_right();
   gfx_clear = 0x202020;
+  
+  // Render background image first
+  render_background_image();
 
   menu_controls_hidden < 0.5 ? (
-    (active_page == 0 || active_page == 1) ? draw_group(active_page, page_fade_amounts[active_page]);
+    draw_group(0, 1.0);   // Merged Input/Settings panel always visible
     draw_group(3, 1.0);
     draw_group(2, 1.0);
+    draw_group(4, 1.0);  // Toolbar (Strength, Input Dep/GR Dep, RMS, Input Offset)
     render_all_controls_with_page_filtering();
+    render_custom_buttons();
   );
 
   render_graph_page();
   render_filters_page_with_blur();
   
   draw_gain_reduction_meter();
+  draw_gain_reduction_meter_right();  // Second meter for stereo
   update_and_render_meter_trail_lines();
-  apply_reflection_blur(m_x, m_w);
+  apply_reflection_blur(m_x_right + m_w, m_w);  // Blur extends to cover both meters
   
-  draw_debug_performance_counters();
-  render_custom_buttons();
-  update_cursor();
+  // Overlays last: control readout (when dragging) and graph hint (when hovering)
+  // Both set custom fonts; we restore default afterward so font state doesn't leak
+  draw_control_readout();
+  draw_ctrl_hint();
+  gfx_setfont(0);
 );

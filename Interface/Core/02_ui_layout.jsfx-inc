@@ -37,7 +37,7 @@ BEZIER_STEPS = 20; // Number of line segments to approximate Bezier curves
 
 // Control Dimensions (75% of original)
 SLIDER_W = 123;  // 101 + 22 (increased by 22 pixels)
-SLIDER_H = 15;   // 20 * 0.75
+SLIDER_H = 27;   // Match BUTTON_H so fill aligns with adjacent buttons (RMS, Normalize, etc.)
 SLIDER_W_VERTICAL = 15;  // 20 * 0.75
 SLIDER_H_VERTICAL = 101; // 135 * 0.75 = 101.25 rounded down
 BUTTON_W = 60;   // 80 * 0.75

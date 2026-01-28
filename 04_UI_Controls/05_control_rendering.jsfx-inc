@@ -5,30 +5,33 @@
 @init
 
 //==============================================================================
-// CONTROL PAGE ASSIGNMENT
+// CONTROL PAGE ASSIGNMENT (param-based: page follows parameter, not control index)
 //==============================================================================
 
-// Check if a control is on the Filters (Input) page
+// Toolbar params (always visible): Strength(6), RMS(7), Norm(8), Input offset(15), Input Dep/GR Dep(22)
+// Excluded from Filters and Settings.
+
+// Check if a control is on the Filters (Input) page by its parameter
 // Returns: 1 if control is on Filters page, 0 otherwise
-// Input page controls: 0-3 (Env Curves), 16-23 (Filters/Detection)
-function is_control_on_filters_page(control_index) (
-  (control_index >= 16 && control_index <= 23) ? 1 : 0;
+// Filters params: Lookahead(10), Sidechain(11), Listen(12), HP(13), LP(14)
+function is_control_on_filters_page(control_index) local(p) (
+  p = control_defs[control_index*11 + 5];
+  (p >= 10 && p <= 14) ? 1 : 0;
 );
 
-// Check if a control is on the Settings page
+// Check if a control is on the Settings page by its parameter
 // Returns: 1 if control is on Settings page, 0 otherwise
-// Settings page controls: 4-9 (Env/Prog Release), 24-25 (Detection Mode), 30-31 (Brickwall/Linear)
-function is_control_on_settings_page(control_index) (
-  (control_index >= 4 && control_index <= 9) || (control_index >= 24 && control_index <= 25) || (control_index >= 30 && control_index <= 31) ? 1 : 0;
+// Settings params: Attack curve(2), Release curve(4), Detection(9), Prog release(23,24), Brickwall(25), Linear(28)
+function is_control_on_settings_page(control_index) local(p) (
+  p = control_defs[control_index*11 + 5];
+  p == 2 || p == 4 || p == 9 || (p >= 23 && p <= 25) || p == 28 ? 1 : 0;
 );
 
-
-
-// Override library's is_control_interactive to provide page filtering
-// This function overrides the default in FerglerUI/Interaction/00_control_interactions.jsfx-inc
+// Override library's is_control_interactive
+// Merged Input/Settings panel always visible; Index 15 unused
 function is_control_interactive(i)(
-  is_control_on_filters_page(i) ? should_render_page(PAGE_FILTERS)
-  : is_control_on_settings_page(i) ? should_render_page(PAGE_SETTINGS)
+  i == 15 ? 0
+  : (is_control_on_filters_page(i) || is_control_on_settings_page(i)) ? 1
   : 1;
 );
 
@@ -36,26 +39,12 @@ function is_control_interactive(i)(
 // CONTROL RENDERING
 //==============================================================================
 
-// Render all controls with page-based filtering and opacity
+// Render all controls; merged Input/Settings panel always visible at full opacity
+// Index 15 unused (Input Dep/GR Dep merged into toggle at 14).
 function render_all_controls_with_page_filtering() (
   i = 0;
   while (i < control_count) (
-    // Input page controls - only render if Input page should be visible
-    is_control_on_filters_page(i) ? (
-      should_render_page(PAGE_FILTERS) ? (
-        // Render with fade opacity
-        render_control(i, page_fade_amounts[PAGE_FILTERS]);
-      );
-    ) : is_control_on_settings_page(i) ? (
-      // Settings page controls - only render if Settings page should be visible
-      should_render_page(PAGE_SETTINGS) ? (
-        // Render with fade opacity
-        render_control(i, page_fade_amounts[PAGE_SETTINGS]);
-      );
-    ) : (
-      // Other controls - render with full opacity
-      render_control(i, 1.0);
-    );
+    i == 15 ? 0 : (render_control(i, 1.0););
     i += 1;
   );
 );

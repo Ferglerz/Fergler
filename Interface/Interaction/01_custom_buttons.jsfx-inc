@@ -1,6 +1,6 @@
 @init
 
-NUM_PAGE_BUTTONS = 2;
+NUM_PAGE_BUTTONS = 0;  // Input/Settings merged into one panel, no page switcher
 
 page_button_x_base = 0;
 page_button_y_base = 0;
@@ -16,11 +16,9 @@ page_button_label_offset_y = -35;
 
 function init_custom_button_state() (
   init_page_buttons();
-  register_page_button(0, PAGE_FILTERS);
-  register_page_button(1, PAGE_SETTINGS);
-  strcpy(#page_button_label_0, "Input");
-  strcpy(#page_button_label_1, "Settings");
-  turn_on_page_button(0);
+  // Merged Input/Settings panel always visible (no radio buttons)
+  page_fade_amounts[PAGE_FILTERS] = 1;
+  page_fade_amounts[PAGE_SETTINGS] = 1;
 );
 
 function update_page_button_positions() local(i) (

@@ -16,7 +16,7 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
   blue_weight, orange_weight, blue_opacity, orange_opacity, total_opacity,
   middle_alpha, edge_alpha, mid_edge_alpha
 ) (
-  reflection_y = GRAPH_Y + GRAPH_SIZE + 61; // Reflection 45px below meter base
+  reflection_y = GRAPH_Y + GRAPH_SIZE + 21; // Reflection position (adjusted to compensate for graph moving up 7px)
 
   // Normalize gain reduction for color/alpha determination
   meter_weight = min(1, abs(current_gr_db) / 20);
@@ -47,15 +47,17 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
     // White tint (70% color, 30% white)
     acc_r = acc_r * 0.7 + 0.3; acc_g = acc_g * 0.7 + 0.3; acc_b = acc_b * 0.7 + 0.3;
 
-    // Simple 5-pixel vertical gradient: 50%, 75%, 100%, 75%, 50% opacity
+    // Simple 7-pixel vertical gradient: 50%, 75%, 100%, 100%, 100%, 75%, 50% opacity
     middle_alpha = meter_alpha;
     edge_alpha = meter_alpha * 0.5;
     mid_edge_alpha = meter_alpha * 0.75;
     gfx_set(acc_r, acc_g, acc_b, edge_alpha);     gfx_rect(meter_x, reflection_y + 0, meter_w, 1);
     gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha); gfx_rect(meter_x, reflection_y + 1, meter_w, 1);
     gfx_set(acc_r, acc_g, acc_b, middle_alpha);   gfx_rect(meter_x, reflection_y + 2, meter_w, 1);
-    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha); gfx_rect(meter_x, reflection_y + 3, meter_w, 1);
-    gfx_set(acc_r, acc_g, acc_b, edge_alpha);     gfx_rect(meter_x, reflection_y + 4, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, middle_alpha);   gfx_rect(meter_x, reflection_y + 3, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, middle_alpha);   gfx_rect(meter_x, reflection_y + 4, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, mid_edge_alpha); gfx_rect(meter_x, reflection_y + 5, meter_w, 1);
+    gfx_set(acc_r, acc_g, acc_b, edge_alpha);     gfx_rect(meter_x, reflection_y + 6, meter_w, 1);
   );
 );
 
@@ -71,6 +73,39 @@ function draw_gain_reduction_meter() local(x, y, w, h, gr_height, is_audio_activ
   gfx_rect(x, y, w, h);
 
   // Draw meter fill if audio is active
+  ((play_state == 1) || (play_state == 5)) ? (
+    gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
+    gr_height = min(gr_height, h);
+    current_gr_db < 0 ? (
+      gfx_set(1, 0.5, 0, 1);
+      gfx_rect(x, y, w, gr_height);
+    ) : current_gr_db > 0 ? (
+      gfx_set(0.2, 0.5, 1, 1);
+      gfx_rect(x, y + h - gr_height, w, gr_height);
+    );
+  );
+
+  // Meter threshold lines when on graph page
+  should_render_page(PAGE_GRAPH) ? (
+    render_gr_blend_threshold_line(x, y, w, h);
+    render_rate_change_threshold_line(x, y, w, h);
+  );
+
+  // Draw reflection
+  draw_meter_reflection(x, y, w, h);
+);
+
+// Draw second meter (right channel) - currently shows same value as left
+// TODO: Make this use current_gr_db_r when per-channel processing is implemented
+function draw_gain_reduction_meter_right() local(x, y, w, h, gr_height, is_audio_active) (
+  x = get_meter_x_right(); y = get_meter_y(); w = get_meter_w(); h = get_meter_h();
+
+  // Meter background
+  gfx_set(0.2, 0.2, 0.2, 0.5);
+  gfx_rect(x, y, w, h);
+
+  // Draw meter fill if audio is active
+  // Currently using current_gr_db (same as left) - will be current_gr_db_r when per-channel is implemented
   ((play_state == 1) || (play_state == 5)) ? (
     gr_height = abs(current_gr_db) * GR_PIXELS_PER_DB;
     gr_height = min(gr_height, h);

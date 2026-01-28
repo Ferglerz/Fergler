@@ -58,10 +58,10 @@ slider35:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modif
 //==============================================================================
 
 // Load background image (PNG files are loaded from same directory as effect)
-filename:0,Images/Composure_BG1.png
-// Load toggle switch images
-filename:1,Images/toggle_left2.png
-filename:2,Images/toggle_right2.png
+filename:0,Images/BG.png
+// Load toggle switch images (332x307 source, scaled to fit control size)
+filename:1,Images/switch_dn.png
+filename:2,Images/switch_up.png
 // Load parallax fader images
 filename:3,Images/Paralax_Fader/para_horz_fader_top.png
 filename:4,Images/Paralax_Fader/para_horz_fader_bot_left.png
@@ -395,7 +395,7 @@ refresh_core_parameters(0);
 // GFX RUNTIME
 //==============================================================================
 
-@gfx 1066 489 // Width: 1066 (half of 2132), Height: 489
+@gfx 1182 504 // Width: 1182, Height: 504 (BG.png at 32% scale: 3693x1576 * 0.32)
 
 // Clear updated slider values cache at start of each frame
 // This ensures cached values are only valid for one frame

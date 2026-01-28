@@ -37,13 +37,12 @@ function init_input_page() (
 
 // Calculate Auto-preview button position (between Listen and Use Sidechain buttons)
 function update_preview_filters_button_position() local(listen_x, listen_y, listen_w, use_sidechain_x) (
-  // Get Listen button position from control_defs (control index 9)
-  listen_x = control_defs[9*11 + 1];  // X position
-  listen_y = control_defs[9*11 + 2];  // Y position
-  listen_w = control_defs[9*11 + 3];  // Width
+  // Get Listen button position from control_defs. Dense indices: Listen = 5, Sidechain = 6.
+  listen_x = control_defs[5*11 + 1];  // X position
+  listen_y = control_defs[5*11 + 2];  // Y position
+  listen_w = control_defs[5*11 + 3];  // Width
   
-  // Get Use Sidechain button position from control_defs (control index 27)
-  use_sidechain_x = control_defs[27*11 + 1];  // X position
+  use_sidechain_x = control_defs[6*11 + 1];  // X position (Use Sidechain)
   
   // Position Auto-preview button between Listen and Use Sidechain buttons
   preview_filters_button_x = listen_x + listen_w + FILTER_THREE_BUTTON_GAP;
@@ -60,7 +59,7 @@ function update_preview_filters_button_position() local(listen_x, listen_y, list
 function draw_preview_filters_button(is_enabled) local() (
   draw_button_background(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, is_enabled);
   draw_button_border(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H);
-  draw_button_text(preview_filters_button_x, preview_filters_button_y, #preview_filters_button_label);
+  draw_button_text(preview_filters_button_x, preview_filters_button_y, INPUT_PAGE_BUTTON_W, INPUT_PAGE_BUTTON_H, #preview_filters_button_label, 0);
   
   // Draw checkmark if enabled
   is_enabled ? (

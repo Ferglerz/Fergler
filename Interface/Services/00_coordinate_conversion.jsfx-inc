@@ -61,11 +61,16 @@ function is_point_in_graph(x, y) (
 // METER POSITION CALCULATION
 //==============================================================================
 
+// Meter spacing constants for stereo metering
+METER_GAP = 4;  // Gap between left and right meters
+
 // Calculate gain reduction meter position relative to graph
 // Since JSFX functions return single values, we use separate functions for each property
 function get_meter_x() (
-  GRAPH_X + GRAPH_SIZE + 19  // 15 + 4 (moved 4 pixels to the right)
+  GRAPH_X + GRAPH_SIZE + 11  // Moved 8px left from 19
 );
+
+
 
 function get_meter_y() (
   GRAPH_Y
@@ -79,3 +84,7 @@ function get_meter_h() (
   GRAPH_SIZE
 );
 
+// Second meter (right channel) position
+function get_meter_x_right() (
+  GRAPH_X + GRAPH_SIZE + 11 + get_meter_w() + METER_GAP  // Left meter + width + gap
+);
