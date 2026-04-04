@@ -14,4 +14,6 @@ COMP_LUT_MAX_DB = 20;         // Maximum dB value in lookup table (allows headro
 COMP_LUT_RANGE_DB = 140;      // Total range (20 - (-120) = 140dB)
 COMP_LUT_GRANULARITY = 0.25;  // 0.25dB steps
 COMP_LUT_SIZE = 560;          // 140dB / 0.25dB = 560 entries
+// Floor on curve attenuation in the audio LUT: gain reduction (output_db - input_db) >= -COMP_LUT_MAX_REDUCTION_DB
+COMP_LUT_MAX_REDUCTION_DB = 80;
 

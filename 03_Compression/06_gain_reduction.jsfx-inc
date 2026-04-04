@@ -7,11 +7,10 @@
 // GAIN REDUCTION CALCULATION HELPERS
 //==============================================================================
 
-// Calculate GR using offset input and compression curve
-function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_output_db, target_gr_db) (
-  offset_input_db = input_level_db + input_offset_db;
-  target_output_db = lookup_compression_lut(offset_input_db);
-  target_gr_db = target_output_db - offset_input_db;
+// Calculate GR from canonical curve-space abscissa (detector dB + input offset)
+function calculate_gr_from_curve(curve_input_db) local(target_output_db, target_gr_db) (
+  target_output_db = lookup_compression_lut(curve_input_db);
+  target_gr_db = target_output_db - curve_input_db;
   target_gr_db
 );
 
@@ -19,18 +18,21 @@ function calculate_gr_from_curve(input_level_db) local(offset_input_db, target_o
 // MAIN GAIN REDUCTION CALCULATION
 //==============================================================================
 
-// Optimized version that accepts dB directly (avoids redundant conversion)
-function calculate_gain_reduction_from_db(input_level_db) (
-  debug_counter_gain_reduction += 1;
+// Accepts dB directly (avoids redundant conversion).
+// Below comp_curve_min_threshold_db the built LUT is unity (within scan tolerance), so GR=0
+// avoids redundant LUT work and matches the identity band. Threshold is derived from the LUT
+// grid in calculate_compression_threshold() (not control knots), so it stays aligned with Bezier audio.
+function calculate_gain_reduction_from_db(input_level_db) local(curve_input_db) (
+  debug_profiling_enabled > 0.5 ? debug_counter_gain_reduction += 1;
+  curve_input_db = clamp(input_level_db + input_offset_db, MIN_DETECTOR_DB_FLOOR, MAX_CURVE_INPUT_DB);
   
-  // Early exit: Input offset affects curve lookup, not compression threshold
-  input_level_db < comp_curve_min_threshold_db ? (
+  curve_input_db < comp_curve_min_threshold_db ? (
     gr_processing_skipped = 1;
     target_gr_db_before_strength = 0;
     0
   ) : (
     gr_processing_skipped = 0;
-    target_gr_db_before_strength = calculate_gr_from_curve(input_level_db);
+    target_gr_db_before_strength = calculate_gr_from_curve(curve_input_db);
     target_gr_db = target_gr_db_before_strength * strength_multiplier;
     target_gr_db = max(-MAX_GR_DB, min(MAX_GR_DB, target_gr_db));
     target_gr_db

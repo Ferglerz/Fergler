@@ -8,9 +8,10 @@
 // DEBUG PANEL LAYOUT CONSTANTS
 //==============================================================================
 
-// Debug panel column positions
-DEBUG_PANEL_RIGHT_COLUMN_X = 573;  // Right stack: UI, Math, Program Release (moved 100px left)
-DEBUG_PANEL_LEFT_COLUMN_X = 820;   // Left stack: Detection, Envelope, Effects (moved 100px left)
+// Debug panel column positions (left → right on screen)
+DEBUG_PANEL_LEFTMOST_COLUMN_X = 363;  // Curve verify: left of all other stacks (573 - width - gap)
+DEBUG_PANEL_RIGHT_COLUMN_X = 573;     // Stack: UI Rendering, Math Utils, Prog Release
+DEBUG_PANEL_LEFT_COLUMN_X = 820;      // Stack: Detection, Envelope, Effects
 
 // Debug panel dimensions
 DEBUG_PANEL_WIDTH = 200;

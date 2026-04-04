@@ -9,8 +9,9 @@
 MAX_GR_DISPLAY_DB = 40; // Gain reduction meter range
 
 // === DISPLAY MODE CONSTANTS ===
+// Must match FerglerUI/Core/01_Constants/00_slider_constants.jsfx-inc (this file loads after FerglerUI and would overwrite)
 DISPLAY_NORMAL = 0;        // Normal display (value shown with optional suffix)
-DISPLAY_HIDE_VALUE = 2;    // Hide value display (e.g., Attack Curve)
+DISPLAY_HIDE_VALUE = 1;    // Hide value on control (curve sliders, knobs, etc.)
 
 // === DRAG MODE CONSTANTS ===
 DRAG_MODE_HORIZONTAL = 0;

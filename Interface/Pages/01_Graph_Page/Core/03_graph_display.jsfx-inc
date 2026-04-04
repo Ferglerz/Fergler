@@ -8,8 +8,24 @@
 // GRAPH BACKGROUND AND GRID
 //==============================================================================
 
+grid_cached_range_db = -999;
+grid_cached_divisions = 6;
+grid_cached_step = 0;
+grid_cached_db_step = 0;
+
+function refresh_grid_cache_if_needed() (
+  abs(grid_cached_range_db - GRAPH_RANGE_DB) > 0.0001 || grid_cached_step <= 0 ? (
+    grid_cached_divisions = GRAPH_RANGE_DB <= 20.001 ? 6 :
+                            GRAPH_RANGE_DB <= 40.001 ? 8 :
+                            6;
+    grid_cached_step = GRAPH_SIZE / grid_cached_divisions;
+    grid_cached_db_step = GRAPH_RANGE_DB / grid_cached_divisions;
+    grid_cached_range_db = GRAPH_RANGE_DB;
+  );
+);
+
 function draw_graph_background() local(should_draw_unity_line) (
-  debug_counter_graph_bg += 1;
+  debug_profiling_enabled > 0.5 ? debug_counter_graph_bg += 1;
   
   // Background removed - now using plugin background image
   // Only draw unity line (1:1 diagonal reference line) when on Graph page
@@ -21,16 +37,16 @@ function draw_graph_background() local(should_draw_unity_line) (
   );
 );
 
-function draw_grid() local(i, x_pos, y_pos, grid_step, db_value, label_x, label_y, grid_opacity) (
-  debug_counter_grid += 1;
+function draw_grid() local(i, x_pos, y_pos, db_value, label_x, label_y, grid_opacity) (
+  debug_profiling_enabled > 0.5 ? debug_counter_grid += 1;
+  refresh_grid_cache_if_needed();
   // Use half opacity when not on graph page
   grid_opacity = should_render_page(PAGE_GRAPH) ? 0.33 : 0.165;
   gfx_set(0.4, 0.4, 0.4, grid_opacity);
-  grid_step = GRAPH_SIZE / 6;
   i = 0;
-  while (i <= 6) (
-    x_pos = GRAPH_X + i * grid_step;
-    y_pos = GRAPH_Y + i * grid_step;
+  while (i <= grid_cached_divisions) (
+    x_pos = GRAPH_X + i * grid_cached_step;
+    y_pos = GRAPH_Y + i * grid_cached_step;
     gfx_line(x_pos, GRAPH_Y, x_pos, GRAPH_Y + GRAPH_SIZE, 1);
     gfx_line(GRAPH_X, y_pos, GRAPH_X + GRAPH_SIZE, y_pos, 1);
     i += 1;
@@ -41,13 +57,13 @@ function draw_grid() local(i, x_pos, y_pos, grid_step, db_value, label_x, label_
   gfx_setfont(1, "Arial", 11);
   label_x = GRAPH_X - 15;  // Position to the left of graph (moved 20 pixels right from original)
   i = 0;
-  while (i <= 6) (
-    y_pos = GRAPH_Y + i * grid_step;
+  while (i <= grid_cached_divisions) (
+    y_pos = GRAPH_Y + i * grid_cached_step;
     // Calculate dB value for this grid line (from bottom: GRAPH_MIN_DB to top: GRAPH_MAX_DB)
-    // i=0 is bottom (GRAPH_MIN_DB), i=6 is top (GRAPH_MAX_DB)
-    db_value = GRAPH_MIN_DB + (GRAPH_RANGE_DB * (6 - i) / 6);
-    // Only draw labels for major grid lines (i=1,2,3,4,5 - skip top and bottom edges)
-    (i > 0 && i < 6) ? (
+    // i=0 is top (GRAPH_MAX_DB), i=grid_divisions is bottom (GRAPH_MIN_DB)
+    db_value = GRAPH_MAX_DB - i * grid_cached_db_step;
+    // Only draw labels for major grid lines (skip top and bottom edges)
+    (i > 0 && i < grid_cached_divisions) ? (
       // Format label (handle negative numbers)
       sprintf(#temp_display_str, "%.0f", db_value);
       gfx_x = label_x;
@@ -76,11 +92,11 @@ function draw_compression_threshold_overlay() (
     graph_right = GRAPH_X + GRAPH_SIZE;
     gfx_x = graph_right - 130;
     gfx_y = GRAPH_Y + 9;
-    gfx_printf("Threshold: %.1f dB", comp_curve_min_threshold_db);
+    gfx_printf("Curve onset: %.1f dB", comp_curve_min_threshold_db);
     gfx_x = graph_right - 130;
     gfx_y = GRAPH_Y + 24;
     gfx_set(0.8, 0.8, 0.8, 0.7);
-    gfx_printf("Input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
+    gfx_printf("Curve input: %.1f dB | Skip: %d", current_input_db, gr_processing_skipped);
   );
 );
 

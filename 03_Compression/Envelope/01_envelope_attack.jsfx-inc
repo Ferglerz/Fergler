@@ -30,13 +30,13 @@ function update_attack_coefficient() (
     attack_curve > 0 ? (
       // Positive curves (right): S-curve response - smooth, gradual onset
       curve_amount = attack_curve;
-      s_curve_factor = 1.0 + curve_amount * 0.3; // Reduced from 0.6 to 0.3
-      s_curve_factor *= (1.0 + curve_amount * 0.15); // Reduced from 0.3 to 0.15
+      s_curve_factor = 1.0 + curve_amount * 0.45;
+      s_curve_factor *= (1.0 + curve_amount * 0.22);
       attack_coeff = pow(attack_coeff_base, s_curve_factor);
     ) : (
       // Negative curves (left): steep exponential response - fast, aggressive onset
       curve_amount = abs(attack_curve);
-      attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.3); // Reduced from 0.7 to 0.3
+      attack_coeff = pow(attack_coeff_base, 1.0 - curve_amount * 0.45);
     );
     // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
     // No clamping here to preserve accurate time constants

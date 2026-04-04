@@ -1,0 +1,28 @@
+// Curve slider diagnostics (params 2 & 4, controls 20 & 21): click capture for debug overlay.
+// Live readouts render in Interface/Debug/01_debug.jsfx-inc (Curve verify panel when menu debug on).
+//
+// Audit (grep Composure *.jsfx / *.jsfx-inc):
+// - slider(): Composure.jsfx brickwall sync slider(25); orchestration slider(param_index) from control_defs;
+//   03_ui_interaction slider(p) with p from control_defs; threshold/graph helpers use named constants.
+// - sliderchange(): 03_ui_interaction uses 1<<(p-1) with p from control_defs; 02_threshold_lines_interaction
+//   uses THRESHOLD_SLIDER_* constants with matching bitmask — no raw 20/21 as param indices.
+// - Control indices 20/21: only 03_control_layout define_slider(20/21,…,param 2/4) and 05_control_rendering
+//   page comments. Param 20 (harmonic Odd) is control 26 (parallax) — not curve controls.
+// - Interface/Core/02_utils.jsfx-inc: legacy update_slider_value (no enum guard); not imported by Composure.jsfx.
+
+@init
+
+curve_dbg_click_ctrl = -1;
+curve_dbg_click_p = -1;
+curve_dbg_click_v = 0;
+
+function log_curve_slider_click(control_index, param_index) (
+  param_index == 2 || param_index == 4 ? (
+    curve_dbg_click_ctrl = control_index;
+    curve_dbg_click_p = param_index;
+    curve_dbg_click_v = slider(param_index);
+  ) : (
+    // Not attack/release curve params; leave last curve click snapshot unchanged
+    0
+  );
+);

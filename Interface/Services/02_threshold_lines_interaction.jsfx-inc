@@ -160,8 +160,8 @@ function update_rate_change_threshold_modifier(mouse_y, meter_y, meter_h) (
 // Converts pixel movement to dB knee size change
 function update_gr_blend_threshold_reduction_knee(mouse_y_delta, meter_h) local(knee_db_delta, new_value) (
   // Convert pixel delta to dB delta
-  // GR meter range: -20dB to +20dB (40dB total)
-  meter_range_db = 40;
+  // GR meter range uses runtime graph span on both sides.
+  meter_range_db = max(GRAPH_RANGE_DB * 2, 1);
   knee_db_delta = (mouse_y_delta / meter_h) * meter_range_db;
   // Invert: dragging down increases knee size
   new_value = gr_blend_threshold_reduction_knee_db - knee_db_delta;
@@ -174,8 +174,8 @@ function update_gr_blend_threshold_reduction_knee(mouse_y_delta, meter_h) local(
 // Converts pixel movement to dB knee size change
 function update_gr_blend_threshold_addition_knee(mouse_y_delta, meter_h) local(knee_db_delta, new_value) (
   // Convert pixel delta to dB delta
-  // GR meter range: -20dB to +20dB (40dB total)
-  meter_range_db = 40;
+  // GR meter range uses runtime graph span on both sides.
+  meter_range_db = max(GRAPH_RANGE_DB * 2, 1);
   knee_db_delta = (mouse_y_delta / meter_h) * meter_range_db;
   // Invert: dragging down increases knee size
   new_value = gr_blend_threshold_addition_knee_db - knee_db_delta;
@@ -199,6 +199,7 @@ function handle_threshold_line_mouse(meter_x, meter_y, meter_w, meter_h, graph_m
       // Check if clicking on a threshold line
       found_line = find_threshold_line_at_mouse(mouse_x, mouse_y, meter_x, meter_y, meter_w, meter_h);
       found_line >= 0 ? (
+        sliderchange(-1);
         dragging_threshold_line = found_line;
         // Check if CMD key is held at start to determine if we're adjusting knee size
         // Only GR blend thresholds support knee adjustment

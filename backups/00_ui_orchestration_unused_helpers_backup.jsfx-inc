@@ -1,0 +1,9 @@
+// Backup of removed/orphan UI orchestration helpers.
+// Source: Interface/Orchestration/00_ui_orchestration.jsfx-inc
+
+@init
+
+// Apply page blur for graph area (unused in active render path).
+function apply_page_blur_graph_area() (
+  apply_blur_region(GRAPH_X - 10, GRAPH_Y - 10, GRAPH_X + GRAPH_SIZE + 10, GRAPH_Y + GRAPH_SIZE + 10);
+);

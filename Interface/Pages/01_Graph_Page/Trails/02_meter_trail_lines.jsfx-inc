@@ -67,11 +67,9 @@ function update_meter_trail_lines() (
   );
 );
 
-// Render all active trail lines on the meter
-// Called from @gfx section after draw_gain_reduction_meter()
-function render_meter_trail_lines() (
+// Render trail lines on one GR meter at gr_meter_x (shared buffer → same history on L/R).
+function render_meter_trail_lines_at_x(gr_meter_x) local(gr_meter_y, gr_meter_w, gr_meter_h, meter_center_y, i, line_idx, gr_value_db, line_age, line_max_age, alpha, gr_height, line_y) (
   meter_trail_initialized && meter_trail_count > 0 ? (
-    gr_meter_x = get_meter_x();
     gr_meter_y = get_meter_y();
     gr_meter_w = get_meter_w();
     gr_meter_h = get_meter_h();
@@ -84,32 +82,23 @@ function render_meter_trail_lines() (
       line_age = meter_trail_buffer[line_idx + 1];
       line_max_age = meter_trail_buffer[line_idx + 2];
       
-      // Calculate fade alpha using exponential decay (0.0833 at creation, 0.0 at max_age)
-      // Exponential decay: faster decay at start, slows down as it fades (exp(-k*t) behavior)
-      // Decay rate of 2.5 provides smooth exponential fade over 2.5 seconds
-      // Starting opacity reduced to 1/3rd of 0.25 = 0.0833 for very subtle trail lines
       alpha = calculate_trail_alpha_exponential(line_age, line_max_age, 0.0833, 2.5);
       
       alpha > 0.01 ? (
-        // Calculate line position based on GR value
         gr_value_db < 0 ? (
-          // Negative GR (compression) - orange line from top
           gr_height = abs(gr_value_db) * GR_PIXELS_PER_DB;
           gr_height = min(gr_height, gr_meter_h);
           line_y = gr_meter_y + gr_height;
-          line_y = min(line_y, meter_center_y); // Don't cross center line
+          line_y = min(line_y, meter_center_y);
           
-          // Orange color: (1, 0.5, 0) - draw 3-pixel tall line for better blending
           gfx_set(1, 0.5, 0, alpha);
           gfx_rect(gr_meter_x, line_y - 1, gr_meter_w, 3);
         ) : gr_value_db > 0 ? (
-          // Positive GR (gain addition) - blue line from bottom
           gr_height = abs(gr_value_db) * GR_PIXELS_PER_DB;
           gr_height = min(gr_height, gr_meter_h);
           line_y = gr_meter_y + gr_meter_h - gr_height;
-          line_y = max(line_y, meter_center_y); // Don't cross center line
+          line_y = max(line_y, meter_center_y);
           
-          // Blue color: (0.2, 0.5, 1) - draw 3-pixel tall line for better blending
           gfx_set(0.2, 0.5, 1, alpha);
           gfx_rect(gr_meter_x, line_y - 1, gr_meter_w, 3);
         );
@@ -117,6 +106,12 @@ function render_meter_trail_lines() (
       i += 1;
     );
   );
+);
+
+// Called from @gfx after draw_gain_reduction_meter() — both stereo meters show the same GR trail
+function render_meter_trail_lines() (
+  render_meter_trail_lines_at_x(get_meter_x());
+  num_ch >= 2 ? render_meter_trail_lines_at_x(get_meter_x_right());
 );
 
 function update_and_render_meter_trail_lines() (

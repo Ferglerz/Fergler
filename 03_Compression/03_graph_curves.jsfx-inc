@@ -187,6 +187,22 @@ function generate_curve_segments_db() (
   curve_segments_db_dirty = 0;
 );
 
+// Apply symmetric extrapolation safety caps outside editable graph bounds.
+// - No boost: output cannot exceed 1:1 (input_db) — upper cap is input_db, not GRAPH_MAX_DB
+//   (using min(input, GRAPH_MAX_DB) forced a flat ceiling at the graph top and broke unity
+//   for any curve_input_db above GRAPH_MAX_DB, e.g. loud 1:1 curves looked compressed).
+// - Bounded reduction: limit extrapolated reduction depth to graph span
+function apply_extrapolation_caps(input_db, output_db) local(upper_cap_db, lower_cap_db, clamped_output_db) (
+  (input_db < GRAPH_MIN_DB || input_db > GRAPH_MAX_DB) ? (
+    upper_cap_db = input_db;
+    lower_cap_db = input_db - GRAPH_RANGE_DB;
+    clamped_output_db = max(lower_cap_db, min(output_db, upper_cap_db));
+    clamped_output_db
+  ) : (
+    output_db
+  )
+);
+
 // Internal function to sample curve without clamping (used for boundary calculations)
 function sample_curve_at_db_internal(input_db) (
   curve_segments_db_dirty ? generate_curve_segments_db();
@@ -214,7 +230,17 @@ function sample_curve_at_db_internal(input_db) (
       last_idx = curve_segments_db_count - 1;
       last_x = curve_segments_db[last_idx * 4 + 2];
       input_db >= last_x ? (
-        curve_segments_db[last_idx * 4 + 3]
+        last_seg_x1_db = curve_segments_db[last_idx * 4 + 0];
+        last_seg_y1_db = curve_segments_db[last_idx * 4 + 1];
+        last_seg_x2_db = curve_segments_db[last_idx * 4 + 2];
+        last_seg_y2_db = curve_segments_db[last_idx * 4 + 3];
+        last_seg_width = last_seg_x2_db - last_seg_x1_db;
+        abs(last_seg_width) > 0.0001 ? (
+          last_slope = (last_seg_y2_db - last_seg_y1_db) / last_seg_width;
+          last_seg_y2_db + last_slope * (input_db - last_seg_x2_db)
+        ) : (
+          last_seg_y2_db
+        )
       ) : (
         seg_idx = 0;
         output_db = input_db;
@@ -251,22 +277,6 @@ function sample_curve_at_db_internal(input_db) (
 function sample_curve_at_db(input_db) (
   // Sample the curve at the input
   output_db = sample_curve_at_db_internal(input_db);
-  
-  // Clamp below minimum graph point: allow tangent to continue, but prevent boosts
-  // The curve should continue naturally from corner point on its tangent
-  // Only clamp if it would cause a boost (output > input)
-  input_db < GRAPH_MIN_DB ? (
-    // Allow tangent to continue, but clamp to 1:1 max to prevent gain boosts
-    min(output_db, input_db)
-  ) : (
-    // Clamp above maximum graph point: maintain Y value at GRAPH_MAX_DB
-    // This prevents huge gains from angled top-right point
-    input_db > GRAPH_MAX_DB ? (
-      clamped_y_at_max = sample_curve_at_db_internal(GRAPH_MAX_DB);
-      clamped_y_at_max
-    ) : (
-      output_db
-    )
-  )
+  apply_extrapolation_caps(input_db, output_db)
 );
 

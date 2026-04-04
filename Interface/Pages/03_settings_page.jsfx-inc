@@ -1,7 +1,0 @@
-// Settings Page Module
-// Deprecated: Rendering and interaction moved to unified control system in 03_control_layout.jsfx-inc
-// Dependencies: None
-
-@init
-
-

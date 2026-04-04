@@ -8,9 +8,6 @@
 
 @init
 
-// Composure-specific preview filter state
-preview_filters_listen_initial_state = -1;
-
 //==============================================================================
 // LIBRARY FUNCTION OVERRIDES
 //==============================================================================
@@ -25,36 +22,31 @@ function update_pdc_delay_if_needed(param)(
   );
 );
 
+// REAPER: sliderchange(mask) refreshes embedded UI but does not add undo points from @gfx.
+// sliderchange(-1) from @gfx creates an undo point (see reaper.fm/sdk/js/advfunc.php — Host Interaction).
+function reset_control_to_default(i)(
+  sliderchange(-1);
+  p = control_defs[i*11+5];
+  slider(p) = get_slider_default(p);
+  sliderchange(1 << (p-1));
+  update_pdc_delay_if_needed(p);
+);
 
-// Composure-specific preview filter functions (not part of UI library)
-function handle_preview_filters(param, start)(
-  menu_preview_filters_enabled > 0.5 && (param == 13 || param == 14) ? ( // Param 13: HP, 14: LP
-    start ? ( // Drag start
-      preview_filters_listen_initial_state = slider(12) > 0.5 ? 1 : 0; // Param 12: Listen
-      preview_filters_listen_initial_state < 0.5 ? (
-        listen_to_sidechain = 1;
-        slider(12) = 1; sliderchange(1 << 11);
-      );
-    ) : (
-      preview_filters_listen_initial_state < 0.5 ? (
-        listen_to_sidechain = 1;
-        slider(12) = 1; sliderchange(1 << 11);
-      );
-    );
+// While SC adjust preview is enabled (slider 12), dragging HP/LP solos filtered detection (faded in audio)
+function handle_preview_filters(param, unused_start)(
+  sc_adjust_preview_enabled > 0.5 && (param == 13 || param == 14) ? ( // Param 13: HP, 14: LP
+    listen_preview_drag_active = 1;
   );
 );
 
 function handle_preview_filters_drag_end() (
-  preview_filters_listen_initial_state >= 0 && preview_filters_listen_initial_state < 0.5 ? (
-    listen_to_sidechain = 0; slider(12) = 0; sliderchange(1 << 11);
-  );
-  preview_filters_listen_initial_state = -1;
+  listen_preview_drag_active = 0;
 );
 
 // Override handle_control_click to add preview filter calls
 // This duplicates the library function and adds Composure-specific preview filter handling
 function handle_control_click(i) local(
-  type, p, v, min, max, options, steps, norm, val, max_opts
+  type, p, v, min, max, options, steps, norm, val, max_opts, enum_ui
 )(
   type = control_defs[i*11+0];
   p = control_defs[i*11+5]; v = slider(p);
@@ -64,11 +56,14 @@ function handle_control_click(i) local(
     reset_control_to_default(i); ui_drag_control = -2;
   ) : (
     (type == 0 || type == 3 || type == 4) ? (
+      sliderchange(-1);
       ui_drag_control = i;
+      log_curve_slider_click(i, p);
       MOUSE_CTRL_KEY ? (
         options = get_dropdown_option_count(p);
         steps = get_step_point_count(p);
-        (options > 0 || steps > 0) ? (
+        enum_ui = slider_uses_dropdown_enum_ui(p, min, max);
+        (enum_ui || steps > 0) ? (
           get_slider_config(i, type);
           norm = (type == 4 ? calculate_knob_normalized_position(i, mouse_x, mouse_y, 0)
                             : calculate_normalized_position(i, mouse_x, mouse_y, 0, 0));
@@ -81,12 +76,13 @@ function handle_control_click(i) local(
       update_pdc_delay_if_needed(p);
       handle_preview_filters(p, 1);
     ) : type == 1 ? (
+      sliderchange(-1);
       min == max ? handle_radio_button_click(i,p,min)
                  : (slider(p) = v>0.5 ? 0 : 1; sliderchange(1 << (p-1)));
       ui_drag_control = -2;
     ) : type == 2 ? (
       max_opts = get_dropdown_option_count(p);
-      max_opts>0 ? (slider(p) = (v+1)%max_opts; sliderchange(1 << (p-1)); );
+      max_opts>0 ? (sliderchange(-1); slider(p) = (v+1)%max_opts; sliderchange(1 << (p-1)); );
       ui_drag_control = -2;
     );
   );
@@ -94,7 +90,7 @@ function handle_control_click(i) local(
 
 // Override handle_drag_continuation to add preview filter calls during drag
 function handle_drag_continuation()
-local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i, inc, snap, bidir, fmt)
+local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, inc, snap, enum_ui)
 (
   fine = MOUSE_CTRL_KEY ? FINE_DRAG_MULTIPLIER : 1.0;
   ctrl_rel = ui_prev_ctrl_key && !MOUSE_CTRL_KEY;
@@ -106,10 +102,9 @@ local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i,
     v = slider(p);
     options = get_dropdown_option_count(p);
     steps = get_step_point_count(p);
+    enum_ui = slider_uses_dropdown_enum_ui(p, min, max);
     w = control_defs[ui_drag_control*11+3];
-    bidir = (fmt & OPTION_BIDIRECTIONAL);
-    arr_i = ui_drag_control * 4;
-    inc = (arr_i>=0 && arr_i<NUM_CONTROLS*4) ? slider_properties_base[arr_i] : 0;
+    inc = get_slider_increment(p);
 
     (type == 4) ? ( // Knob drag
       dx = (mouse_x-ui_prev_mouse_x)*fine;
@@ -121,27 +116,30 @@ local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i,
         idx = floor(clamp(idx+((dx-dy)/KNOB_DRAG_SENSITIVITY)*steps,0,steps-1)+0.5);
         slider(p)=pts[idx];
       )
-      : options > 0 ? (
+      : enum_ui ? (
         idx = floor(clamp(v+((dx-dy)/KNOB_DRAG_SENSITIVITY)*options,0,options-1)+0.5);
         slider(p)=idx;
       )
       : (
         range = max-min;
         val = clamp(v+((dx-dy)/KNOB_DRAG_SENSITIVITY)*range,min,max);
-        !MOUSE_CTRL_KEY && inc>0 ? val=clamp(floor(val/inc+0.5)*inc, min, max);
+        !MOUSE_CTRL_KEY && inc>0 ? val=snap_value_to_increment(val, min, max, inc);
         slider(p)=val;
       );
     )
-    : (options>0 || steps>0) ? (
+    : (enum_ui || steps>0) ? (
       MOUSE_CTRL_KEY ? (
         get_slider_config(ui_drag_control, type);
         norm = calculate_normalized_position(ui_drag_control, mouse_x, mouse_y, 0, 0);
         slider(p) = min + norm * (max-min);
-      ) : ( // snap by pos
-        total=options>0?options:steps;
+      ) : ( // snap by pos — index via (N-1) to match draw_slider / calculate_slider_normalized_pos_and_display_value
+        total=enum_ui?options:steps;
         ctrl_x=get_control_x_with_group_offset(ui_drag_control);
-        idx=floor(clamp((mouse_x-ctrl_x)/(w/total),0,total-1));
-        options>0 ? slider(p)=idx : (
+        norm = (mouse_x - ctrl_x) / w;
+        norm = max(0, min(1, norm));
+        idx = total > 1 ? floor(norm * (total - 1) + 0.5) : 0;
+        idx = max(0, min(total - 1, idx));
+        enum_ui ? slider(p)=idx : (
           pts=get_step_points_base(p); slider(p)=pts[idx];
         );
       );
@@ -150,7 +148,7 @@ local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i,
         steps>0 ? (
           pts=get_step_points_base(p);
           slider(p)=find_closest_step_point(val, pts, steps);
-        ) : options>0 ? (
+        ) : enum_ui ? (
           i=0; best=0; diff=abs(0-val); while(++i<options)(
             t=abs(i-val); t<diff ? (best=i; diff=t; );
           );
@@ -158,28 +156,18 @@ local(fine, type, p, min, max, v, options, steps, norm, val, ctrl_rel, w, arr_i,
         );
       );
     )
-    : bidir ? (
-      dx=(mouse_x-ui_prev_mouse_x)*fine;
-      dy=(mouse_y-ui_prev_mouse_y)*fine;
-      range = max-min;
-      val = clamp(v+((dx-dy)/w)*range, min, max);
-      MOUSE_CTRL_KEY ? (slider(p)=val;) : (
-        inc>0 ? slider(p)=clamp(floor(val/inc+0.5)*inc, min, max) : slider(p)=val;
-      );
-      ctrl_rel && inc>0 ? (
-        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
-      );
-    ) : (
+    : (
       MOUSE_CTRL_KEY ? (
         dx = (mouse_x-ui_prev_mouse_x)*fine;
+        dy = (mouse_y-ui_prev_mouse_y)*fine;
         range = max-min;
-        val = clamp(v+dx/w*range, min, max);
+        val = clamp(v+((dx-dy)/max(w, 1))*range, min, max);
         slider(p)=val;
       ) : (
         slider(p) = update_slider_value(ui_drag_control, mouse_x, mouse_y);
       );
-      ctrl_rel && inc>0 ? (
-        val=slider(p); slider(p)=clamp(floor(val/inc+0.5)*inc,min,max);
+      ctrl_rel && inc > 0 ? (
+        val=slider(p); slider(p)=snap_value_to_increment(val, min, max, inc);
       );
     );
     sliderchange(1 << (p-1));
@@ -214,7 +202,7 @@ function handle_ui_mouse_input() (
 // MAIN MOUSE INPUT PROCESSING
 //==============================================================================
 
-function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, settings_button_clicked, filters_page_button_clicked, debug_button_clicked, any_button_clicked, can_interact_with_ui, can_interact_with_graph) (
+function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_meter_h, custom_button_clicked, debug_button_clicked, any_button_clicked, can_interact_with_ui, can_interact_with_graph) (
   // Calculate meter position using shared functions
   gr_meter_x = get_meter_x();
   gr_meter_y = get_meter_y();
@@ -235,14 +223,8 @@ function process_mouse_input() local(gr_meter_x, gr_meter_y, gr_meter_w, gr_mete
 
   // Handle page navigation buttons first (they have highest priority)
   custom_button_clicked = process_custom_button_input();
-  
-  // Settings page manual buttons are deprecated - handled by unified system
-  // Filters page has manual Auto-preview button
-  filters_page_button_clicked = process_filters_page_button_input();
-  settings_button_clicked = 0;
 
-  // Check if any button was clicked (used to prevent other interactions)
-  any_button_clicked = custom_button_clicked || filters_page_button_clicked || debug_button_clicked;
+  any_button_clicked = custom_button_clicked || debug_button_clicked;
   
   // Check if UI interaction is allowed (no buttons clicked, no control being dragged, and no graph point being dragged)
   // Graph point dragging has exclusive priority - when dragging a graph point, controls cannot interact
@@ -303,30 +285,15 @@ function update_cursor() local(is_hovering_button, is_hovering_point, is_hoverin
       i += 1;
     );
     
-    // Check custom buttons (Listen, Use Sidechain, Normalise)
-    // Only check if Input page is visible
+    // Filters row: SC adjust preview toggle (5), Use Sidechain (6)
     !is_hovering_button && should_render_page(PAGE_FILTERS) ? (
-      // Listen button (control index 19)
-      is_point_in_control(mouse_x, mouse_y, 19) ? (
+      is_point_in_control(mouse_x, mouse_y, 5) ? (
         is_hovering_button = 1;
       ) : (
-        // Use Sidechain button (control index 18)
-        is_point_in_control(mouse_x, mouse_y, 18) ? (
+        is_point_in_control(mouse_x, mouse_y, 6) ? (
           is_hovering_button = 1;
         ) : (
-          // Normalise button (control index 21)
-          is_point_in_control(mouse_x, mouse_y, 21) ? (
-            is_hovering_button = 1;
-          );
-        );
-      );
-
-      
-      // Check Auto-preview button (custom button)
-      !is_hovering_button ? (
-        update_preview_filters_button_position();
-        is_point_in_preview_filters_button(mouse_x, mouse_y) ? (
-          is_hovering_button = 1;
+          is_hovering_button = is_hovering_button;
         );
       );
     );

@@ -13,7 +13,7 @@
 
 // Check if a control is on the Filters (Input) page by its parameter
 // Returns: 1 if control is on Filters page, 0 otherwise
-// Filters params: Lookahead(10), Sidechain(11), Listen(12), HP(13), LP(14)
+// Filters params: Lookahead(10), Sidechain(11), SC adjust preview(12), HP(13), LP(14)
 function is_control_on_filters_page(control_index) local(p) (
   p = control_defs[control_index*11 + 5];
   (p >= 10 && p <= 14) ? 1 : 0;
@@ -21,16 +21,17 @@ function is_control_on_filters_page(control_index) local(p) (
 
 // Check if a control is on the Settings page by its parameter
 // Returns: 1 if control is on Settings page, 0 otherwise
-// Settings params: Attack curve(2), Release curve(4), Detection(9), Prog release(23,24), Brickwall(25), Linear(28)
+// Settings params: Attack curve(2), Release curve(4), Detection(9), Prog release(23,24), Brickwall(25)
 function is_control_on_settings_page(control_index) local(p) (
   p = control_defs[control_index*11 + 5];
-  p == 2 || p == 4 || p == 9 || (p >= 23 && p <= 25) || p == 28 ? 1 : 0;
+  p == 2 || p == 4 || p == 9 || (p >= 23 && p <= 25) ? 1 : 0;
 );
 
 // Override library's is_control_interactive
-// Merged Input/Settings panel always visible; Index 15 unused
+// Merged Input/Settings panel always visible.
+// Indices 13, 15, 19 are reserved gaps (no define_* in 03_control_layout); skip so uninitialized defs never hit-test or render.
 function is_control_interactive(i)(
-  i == 15 ? 0
+  i == 13 || i == 15 || i == 19 ? 0
   : (is_control_on_filters_page(i) || is_control_on_settings_page(i)) ? 1
   : 1;
 );
@@ -40,11 +41,11 @@ function is_control_interactive(i)(
 //==============================================================================
 
 // Render all controls; merged Input/Settings panel always visible at full opacity
-// Index 15 unused (Input Dep/GR Dep merged into toggle at 14).
+// Skip gap indices 13, 15, 19 (see is_control_interactive).
 function render_all_controls_with_page_filtering() (
   i = 0;
   while (i < control_count) (
-    i == 15 ? 0 : (render_control(i, 1.0););
+    i == 13 || i == 15 || i == 19 ? 0 : (render_control(i, 1.0););
     i += 1;
   );
 );

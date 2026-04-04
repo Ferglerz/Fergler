@@ -119,9 +119,13 @@ function apply_detection_filters(detect_l, detect_r) (
     filter_debug_final_r = detect_r;
   );
 
-  // Return filtered signals via global variables
+  // Return filtered signals via global variables (sanitize non-finite biquad blow-ups)
   filtered_l = detect_l;
   filtered_r = detect_r;
+  (filtered_l != filtered_l) || (filtered_r != filtered_r) ? (
+    filtered_l = filter_debug_input_l;
+    filtered_r = filter_debug_input_r;
+  );
 );
 
 

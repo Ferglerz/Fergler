@@ -81,7 +81,7 @@ function is_point_in_control(x, y, control_index) (
 
 //---- Slider value from mouse ----
 function update_slider_value(control_index, mouse_x, mouse_y)
-local(control_type, param_index, step_count, option_count, total_options, option_index, slider_orientation, format_options, slider_config, min_val, max_val, normalized_pos, ctrl_w, ctrl_x, raw_value, array_index, increment, pixels_per_option, mouse_pos_in_slider, step_points_base)
+local(control_type, param_index, step_count, option_count, total_options, option_index, slider_orientation, format_options, slider_config, min_val, max_val, normalized_pos, ctrl_w, ctrl_x, raw_value, increment, pixels_per_option, mouse_pos_in_slider, step_points_base)
 (
   control_type = control_defs[control_index*11 + 0];
   get_slider_config(control_index, control_type);
@@ -112,8 +112,7 @@ local(control_type, param_index, step_count, option_count, total_options, option
     )
   ) : (
     raw_value = min_val + normalized_pos * (max_val - min_val);
-    array_index = control_index * 4;
-    increment = (array_index >= 0 && array_index < NUM_CONTROLS * 4) ? slider_properties_base[array_index] : 0;
+    increment = get_slider_increment(param_index);
     increment > 0 ? floor(raw_value / increment + 0.5) * increment : raw_value;
   )
 );

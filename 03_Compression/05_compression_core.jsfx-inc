@@ -22,7 +22,7 @@ function build_compression_lut() (
     i = 0;
     while (i < COMP_LUT_SIZE) (
       input_db = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
-      comp_lut[i] = sample_curve_at_db(input_db);
+      comp_lut[i] = max(sample_curve_at_db(input_db), input_db - COMP_LUT_MAX_REDUCTION_DB);
       i += 1;
     );
   
@@ -32,7 +32,7 @@ function build_compression_lut() (
 );
 
 function lookup_compression_lut(input_db) (
-  debug_counter_lut_lookup += 1;
+  debug_profiling_enabled > 0.5 ? debug_counter_lut_lookup += 1;
   comp_lut_dirty ? build_compression_lut();
   
   input_db < COMP_LUT_MIN_DB ? (
@@ -48,23 +48,8 @@ function lookup_compression_lut(input_db) (
     output_db = value1 + index_frac * (value2 - value1)
   );
   
-  // Clamp below minimum graph point: allow tangent to continue, but prevent boosts
-  // This matches sample_curve_at_db() behavior
-  input_db < GRAPH_MIN_DB ? (
-    // Allow tangent to continue (output_db already extends the tangent from LUT)
-    // But clamp to 1:1 max to prevent gain boosts
-    min(output_db, input_db)
-  ) : (
-    // Clamp above maximum graph point: maintain Y value at GRAPH_MAX_DB
-    // This prevents huge gains from angled top-right point
-    input_db > GRAPH_MAX_DB ? (
-      max_graph_idx = floor((GRAPH_MAX_DB - COMP_LUT_MIN_DB) / COMP_LUT_GRANULARITY);
-      max_graph_idx = max(0, min(COMP_LUT_SIZE - 1, max_graph_idx));
-      comp_lut[max_graph_idx]
-    ) : (
-      output_db
-    )
-  )
+  // Match sample_curve_at_db() extrapolation, then enforce LUT max reduction (same as build).
+  max(apply_extrapolation_caps(input_db, output_db), input_db - COMP_LUT_MAX_REDUCTION_DB)
 );
 
 function invalidate_compression_lut() (

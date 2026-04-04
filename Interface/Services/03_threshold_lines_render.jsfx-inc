@@ -15,8 +15,8 @@
 // Convert knee size in dB to pixel height on meter
 // Parameters: knee_db (knee size in dB), meter_h (meter height)
 function gr_knee_db_to_pixels(knee_db, meter_h) (
-  // GR meter range: -20dB to +20dB (40dB total)
-  meter_range_db = 40;
+  // GR meter range uses runtime graph span on both sides.
+  meter_range_db = max(GRAPH_RANGE_DB * 2, 1);
   (knee_db / meter_range_db) * meter_h
 );
 

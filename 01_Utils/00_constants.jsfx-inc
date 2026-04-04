@@ -24,6 +24,13 @@
 
 EPS = 0.000000000000000000000000000001;
 MIN_DETECTOR_LEVEL = 0.000001; // Prevent log(0)
+// Cap detector linear level before dB / GR (prevents pathological spikes from filters or mode switches)
+MAX_DETECTOR_LINEAR = 100;
+// Safe dB range into curve lookup (linear_to_db of MAX_DETECTOR_LINEAR ~+40 dB)
+MAX_DETECTOR_DB = 60;
+MIN_DETECTOR_DB_FLOOR = -240;
+// detector dB + input offset (slider) must stay finite for LUT / GR
+MAX_CURVE_INPUT_DB = 100;
 DEFAULT_ENVELOPE = 1.0;
 
 // Limiter constants (pre-calculated to avoid per-sample division)
@@ -41,6 +48,9 @@ GRAPH_MAX_DB = 0;
 // Strict limit on gain reduction / addition (dB). Prevents compressing or boosting
 // to bit-depth floor, avoiding numerical issues and over-processing.
 MAX_GR_DB = 50;
+
+// Crossfade (ms) when switching between program output and filtered sidechain/detection monitor
+LISTEN_CROSSFADE_MS = 25;
 
 // === PERFORMANCE CONSTANTS ===
 

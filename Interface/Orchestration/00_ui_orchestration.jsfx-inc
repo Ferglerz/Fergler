@@ -13,16 +13,10 @@ function apply_blur_region(start_x, start_y, end_x, end_y) (
   gfx_blurto(end_x, end_y);
 );
 
-// Apply page blur for graph area
-function apply_page_blur_graph_area() (
-  apply_blur_region(GRAPH_X - 10, GRAPH_Y - 10, GRAPH_X + GRAPH_SIZE + 10, GRAPH_Y + GRAPH_SIZE + 10);
-);
-
 // Apply reflection blur (always active)
-function apply_reflection_blur(meter_x, meter_w) (
-  gfx_x = GRAPH_X - 10;
-  gfx_y = GRAPH_Y + GRAPH_SIZE + 20;  // Adjusted to match reflection position
-  gfx_blurto(meter_x + meter_w + 10, gfx_y + 7);
+function apply_reflection_blur(meter_x, meter_w) local(ref_y) (
+  ref_y = GRAPH_Y + GRAPH_SIZE + 20;  // Match reflection strip Y
+  apply_blur_region(GRAPH_X - 10, ref_y, meter_x + meter_w + 10, ref_y + 7);
 );
 
 //==============================================================================
@@ -79,32 +73,33 @@ function draw_control_readout() local(
 //==============================================================================
 
 // Render Graph page content
-function render_graph_page() local(clamped_input_db) (
+function render_graph_page() local(clamped_input_db, graph_page_active) (
+  graph_page_active = should_render_page(PAGE_GRAPH);
+
   draw_graph_background();
-  draw_input_histogram(INPUT_HISTOGRAM_OPACITY);
-  draw_histogram(HISTOGRAM_OPACITY);
+  graph_page_active ? (
+    draw_input_histogram(INPUT_HISTOGRAM_OPACITY);
+    draw_histogram(HISTOGRAM_OPACITY);
+  );
   
   draw_grid();
   draw_mixed_curves();
-  draw_graph_points();
-  update_and_render_trail_dots();
+  graph_page_active ? (
+    draw_graph_points();
+    update_and_render_trail_dots();
+  );
   
-  is_audio_active ? (
+  (graph_page_active && is_audio_active) ? (
     clamped_input_db = clamp(input_histogram_db, GRAPH_MIN_DB, GRAPH_MAX_DB);
     draw_indicator_circle(db_to_graph_x(clamped_input_db), db_to_graph_y(clamped_input_db), 4, 0.5, 0.9, 0.5, 0.8, 1);
   );
   
-  draw_threshold_lines_on_graph();
-  draw_labels_and_info();
-  draw_compression_threshold_overlay();
-  gfx_a = 1.0;
-);
-
-// Render Filters page content
-function render_filters_page_with_blur() (
-  !should_render_page(PAGE_FILTERS) || page_fade_amounts[PAGE_FILTERS] > 0.01 ? (
-    render_filters_page_buttons();
+  graph_page_active ? (
+    draw_threshold_lines_on_graph();
+    draw_labels_and_info();
+    draw_compression_threshold_overlay();
   );
+  gfx_a = 1.0;
 );
 
 function render_background_image() (
@@ -112,9 +107,10 @@ function render_background_image() (
   gfx_blit(0, 0.29, 0);  // Render BG.png at 32% scale (3693x1576 -> 1182x504)
 );
 
-function render_complete_interface() local(m_x, m_y, m_w, m_h, m_x_right) (
+function render_complete_interface() local(m_x, m_y, m_w, m_h, m_x_right, graph_page_active_with_fade) (
   m_x = get_meter_x(); m_y = get_meter_y(); m_w = get_meter_w(); m_h = get_meter_h();
   m_x_right = get_meter_x_right();
+  graph_page_active_with_fade = should_render_page(PAGE_GRAPH) || page_fade_amounts[PAGE_GRAPH] > 0.01;
   gfx_clear = 0x202020;
   
   // Render background image first
@@ -130,16 +126,18 @@ function render_complete_interface() local(m_x, m_y, m_w, m_h, m_x_right) (
   );
 
   render_graph_page();
-  render_filters_page_with_blur();
-  
+
   draw_gain_reduction_meter();
   draw_gain_reduction_meter_right();  // Second meter for stereo
   update_and_render_meter_trail_lines();
-  apply_reflection_blur(m_x_right + m_w, m_w);  // Blur extends to cover both meters
+  graph_page_active_with_fade ? (
+    apply_reflection_blur(m_x_right + m_w, m_w);  // Blur extends to cover both meters
+  );
   
   // Overlays last: control readout (when dragging) and graph hint (when hovering)
   // Both set custom fonts; we restore default afterward so font state doesn't leak
   draw_control_readout();
   draw_ctrl_hint();
+  draw_debug_performance_counters();
   gfx_setfont(0);
 );

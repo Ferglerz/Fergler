@@ -9,6 +9,10 @@
 //==============================================================================
 
 function init_debug_state() (
+  // Runtime gate for hot-path profiling counters.
+  // Keep disabled by default for lower @sample overhead.
+  debug_profiling_enabled = 0;
+
   // Debug performance counters - individual functions (always active during development)
   // Audio processing functions
   debug_counter_audio_chain = 0;              // process_complete_audio_chain()
@@ -100,6 +104,18 @@ function draw_debug_function_entry(x, y, name, value) (
   gfx_printf("%d", value);
 );
 
+// Float / slider readout (draw_debug_function_entry uses integer %d only)
+function draw_debug_float_entry(x, y, name, value) (
+  gfx_set(DEBUG_PANEL_TEXT_R, DEBUG_PANEL_TEXT_G, DEBUG_PANEL_TEXT_B, 1);
+  gfx_x = x + DEBUG_PANEL_TEXT_OFFSET_X;
+  gfx_y = y;
+  gfx_drawstr(name);
+  gfx_x = x + DEBUG_PANEL_WIDTH - DEBUG_PANEL_VALUE_OFFSET_X;
+  gfx_y = y;
+  sprintf(#debug_temp_str, "%.4f", value);
+  gfx_drawstr(#debug_temp_str);
+);
+
 // Helper function: Draw a complete debug panel
 // Parameters:
 //   x, y: Panel position
@@ -121,13 +137,73 @@ function draw_debug_panel_start(x, y, title, title_r, title_g, title_b, num_func
   panel_h;
 );
 
-function draw_debug_performance_counters() local(current_y, panel_h, text_y, right_max_y, left_max_y) (
+// Curve slider verify (params 2 & 4, controls 20 & 21): live values when menu debug is on.
+// Globals curve_dbg_click_* set from Interface/Debug/02_curve_slider_verify.jsfx-inc on drag start.
+function draw_curve_slider_verify_debug_block(x, start_y) local(panel_h, text_y, nlines) (
+  nlines = 23;
+  panel_h = draw_debug_panel_start(x, start_y, "Curve verify", 0.9, 1.0, 0.35, nlines);
+  text_y = start_y + DEBUG_PANEL_TITLE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "names_ld", slider_names_loaded);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "names_n", slider_names_count);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "s(2)", slider(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "mn2", get_slider_min(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "mx2", get_slider_max(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "inc2", get_slider_increment(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "s(4)", slider(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "mn4", get_slider_min(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "mx4", get_slider_max(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "inc4", get_slider_increment(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c20mn", control_defs[20 * 11 + 6]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c20mx", control_defs[20 * 11 + 7]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c20p", control_defs[20 * 11 + 5]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c21mn", control_defs[21 * 11 + 6]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c21mx", control_defs[21 * 11 + 7]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "c21p", control_defs[21 * 11 + 5]);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "stp2", get_step_point_count(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "stp4", get_step_point_count(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "dd2", get_dropdown_option_count(2));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "dd4", get_dropdown_option_count(4));
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "clk_i", curve_dbg_click_ctrl);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "clk_p", curve_dbg_click_p);
+  text_y += DEBUG_PANEL_LINE_HEIGHT;
+  draw_debug_float_entry(x, text_y, "clk_v", curve_dbg_click_v);
+  panel_h;
+);
+
+function draw_debug_performance_counters() local(current_y, panel_h, text_y, right_max_y, left_max_y, curve_col_max_y) (
+  debug_profiling_enabled = menu_debug_enabled > 0.5 ? 1 : 0;
+
   // Initialize max Y position (used by debug log positioning)
   debug_boxes_max_y = 0;
   
   // Only render when debug is enabled
   menu_debug_enabled ? (
-    // === FIRST COLUMN: RIGHT STACK ===
+    // === LEFTMOST COLUMN: top row only (Curve verify) ===
+    panel_h = draw_curve_slider_verify_debug_block(DEBUG_PANEL_LEFTMOST_COLUMN_X, DEBUG_PANEL_START_Y);
+    curve_col_max_y = DEBUG_PANEL_START_Y + panel_h;
+
+    // === SECOND COLUMN: UI / Math / Prog stack ===
     // Three panels stacked vertically: UI Rendering, Math Utils, Prog Release
     current_y = DEBUG_PANEL_START_Y;
     
@@ -161,7 +237,7 @@ function draw_debug_performance_counters() local(current_y, panel_h, text_y, rig
     draw_debug_function_entry(DEBUG_PANEL_RIGHT_COLUMN_X, text_y, "single_env()", debug_display_single_envelope);
     right_max_y = current_y + panel_h;
     
-    // === SECOND COLUMN: LEFT STACK ===
+    // === THIRD COLUMN: Detection / Envelope / Effects stack ===
     // Three panels stacked vertically: Detection, Envelope, Effects
     current_y = DEBUG_PANEL_START_Y;
     
@@ -194,9 +270,9 @@ function draw_debug_performance_counters() local(current_y, panel_h, text_y, rig
     text_y += DEBUG_PANEL_LINE_HEIGHT;
     draw_debug_function_entry(DEBUG_PANEL_LEFT_COLUMN_X, text_y, "limiter()", debug_display_limiter);
     left_max_y = current_y + panel_h;
-    
-    // Store max Y position for debug log positioning (use the maximum of both columns)
-    debug_boxes_max_y = max(right_max_y, left_max_y);
+
+    // Store max Y position for debug log positioning (all columns)
+    debug_boxes_max_y = max(max(right_max_y, left_max_y), curve_col_max_y);
   ); // End menu_debug_enabled check
 );
 

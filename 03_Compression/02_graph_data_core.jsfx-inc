@@ -21,6 +21,7 @@ MOUSE_CLICK_RADIUS = 10;
 comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;
 comp_curve_min_threshold_linear = 1.0;
 comp_curve_threshold_dirty = 1;
+graph_range_mode_prev = -1;
 
 // Graph state - persist across @init calls
 !persistent_vars_initialized ? (
@@ -60,6 +61,16 @@ function set_curve_amount(point_index, amount) (
   point_index >= 0 && point_index < MAX_POINTS ? (
     curve_amounts[point_index] = clamp(amount, 0, 100);
   );
+);
+
+//==============================================================================
+// GRAPH RANGE MODE
+//==============================================================================
+
+function get_graph_range_db_from_mode(mode) (
+  mode < 0.5 ? 20 :
+  mode < 1.5 ? 40 :
+  60
 );
 
 //==============================================================================
@@ -145,25 +156,6 @@ function update_corner_points() (
   );
 );
 
-//==============================================================================
-// GRAPH DATA MANAGEMENT
-//==============================================================================
-
-function init_graph_points() (
-  // Corner points at graph boundaries
-  graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
-  graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
-  
-  // Intermediate points distributed across the graph range (20%, 40%, 60%, 80% of range)
-  // These are calculated relative to GRAPH_MIN_DB so they adapt to any range change
-  graph_points[2] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.2); graph_points[3] = graph_points[2];
-  graph_points[4] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.4); graph_points[5] = graph_points[4];
-  graph_points[6] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.6); graph_points[7] = graph_points[6];
-  graph_points[8] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.8); graph_points[9] = graph_points[8];
-  
-  update_corner_points();
-);
-
 function sort_points() (
   i = 1;
   while (i < num_points - 2) (
@@ -186,6 +178,70 @@ function sort_points() (
     );
     i += 1;
   );
+  update_corner_points();
+);
+
+function invalidate_compression_threshold() (
+  comp_curve_threshold_dirty = 1;
+);
+
+function apply_graph_range_db(new_range_db, remap_existing_points) local(
+  old_min_db, old_range_db, norm_x, norm_y, i, point_idx
+) (
+  old_min_db = GRAPH_MIN_DB;
+  old_range_db = max(GRAPH_RANGE_DB, 0.001);
+
+  GRAPH_RANGE_DB = new_range_db;
+  GRAPH_MAX_DB = 0;
+  GRAPH_MIN_DB = GRAPH_MAX_DB - GRAPH_RANGE_DB;
+
+  remap_existing_points > 0.5 ? (
+    // Preserve curve shape by remapping existing interior points by normalized position.
+    i = 1;
+    while (i < num_points - 1) (
+      point_idx = i * 2;
+      norm_x = (graph_points[point_idx] - old_min_db) / old_range_db;
+      norm_y = (graph_points[point_idx + 1] - old_min_db) / old_range_db;
+      graph_points[point_idx] = GRAPH_MIN_DB + clamp(norm_x, 0, 1) * GRAPH_RANGE_DB;
+      graph_points[point_idx + 1] = GRAPH_MIN_DB + clamp(norm_y, 0, 1) * GRAPH_RANGE_DB;
+      i += 1;
+    );
+  );
+
+  sort_points();
+  update_corner_points();
+  invalidate_compression_threshold();
+);
+
+function update_graph_range_from_slider(remap_existing_points) local(new_range_db) (
+  new_range_db = get_graph_range_db_from_mode(graph_range_mode);
+  (graph_range_mode_prev < -0.5) ? (
+    apply_graph_range_db(new_range_db, remap_existing_points);
+    graph_range_mode_prev = graph_range_mode;
+  ) : (
+    abs(graph_range_mode - graph_range_mode_prev) > 0.001 ? (
+      apply_graph_range_db(new_range_db, remap_existing_points);
+      graph_range_mode_prev = graph_range_mode;
+    );
+  );
+);
+
+//==============================================================================
+// GRAPH DATA MANAGEMENT
+//==============================================================================
+
+function init_graph_points() (
+  // Corner points at graph boundaries
+  graph_points[0] = GRAPH_MIN_DB; graph_points[1] = GRAPH_MIN_DB;
+  graph_points[10] = GRAPH_MAX_DB; graph_points[11] = GRAPH_MAX_DB;
+  
+  // Intermediate points distributed across the graph range (20%, 40%, 60%, 80% of range)
+  // These are calculated relative to GRAPH_MIN_DB so they adapt to any range change
+  graph_points[2] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.2); graph_points[3] = graph_points[2];
+  graph_points[4] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.4); graph_points[5] = graph_points[4];
+  graph_points[6] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.6); graph_points[7] = graph_points[6];
+  graph_points[8] = GRAPH_MIN_DB + (GRAPH_RANGE_DB * 0.8); graph_points[9] = graph_points[8];
+  
   update_corner_points();
 );
 
@@ -267,45 +323,19 @@ function remove_displaced_points(moved_input_db, moved_output_db) (
 //==============================================================================
 
 function calculate_compression_threshold() (
-  // Find leftmost point where compression occurs (input != output) for early exit optimization
-  // Note: Input offset is NOT factored in here - applied when checking threshold
-  comp_curve_min_threshold_db = GRAPH_MAX_DB + 10;
+  // First LUT grid abscissa where the built curve (Bezier + extrapolation) materially
+  // differs from y = x. Must run after comp_lut[] is filled in build_compression_lut().
+  // Matches the audio LUT path so early-exit GR=0 aligns with lookup (no knot/Bezier mismatch).
+  // If no cell deviates within tolerance, curve is treated as unity everywhere → very high threshold.
+  comp_curve_min_threshold_db = 1000;
   
-  i = 1;
-  while (i < num_points - 1) (
-    input_db = graph_points[i*2];
-    output_db = graph_points[i*2 + 1];
-    
-    abs(input_db - output_db) > 0.01 ? (
-      // Threshold is PREVIOUS point (last 1:1 point before compression/expansion starts)
-      i > 1 ? (
-        comp_curve_min_threshold_db = graph_points[(i-1)*2];
-      ) : (
-        comp_curve_min_threshold_db = graph_points[0];
-      );
-      
-      // If first point shows expansion (output < input), or if tangent extension below GRAPH_MIN_DB
-      // would show expansion, we need to allow processing below GRAPH_MIN_DB for expansion to work
-      // Check if expansion extends below GRAPH_MIN_DB
-      (i == 1 && output_db < input_db && num_points >= 3) ? (
-        // First point has expansion - check if tangent extends below GRAPH_MIN_DB with expansion
-        first_x_db = graph_points[2];
-        first_y_db = graph_points[3];
-        second_x_db = graph_points[4];
-        second_y_db = graph_points[5];
-        dx = second_x_db - first_x_db;
-        abs(dx) > 0.0001 ? (
-          slope = (second_y_db - first_y_db) / dx;
-          // Calculate Y at GRAPH_MIN_DB to see if expansion continues below
-          y_at_min_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
-          // If expansion continues below GRAPH_MIN_DB, extend threshold to COMP_LUT_MIN_DB
-          y_at_min_db < GRAPH_MIN_DB ? (
-            comp_curve_min_threshold_db = COMP_LUT_MIN_DB;
-          );
-        );
-      );
-      
-      i = num_points;
+  i = 0;
+  while (i < COMP_LUT_SIZE) (
+    lut_in = COMP_LUT_MIN_DB + (i * COMP_LUT_GRANULARITY);
+    lut_out = comp_lut[i];
+    abs(lut_out - lut_in) > 0.08 ? (
+      comp_curve_min_threshold_db = lut_in;
+      i = COMP_LUT_SIZE;
     ) : (
       i += 1;
     );
@@ -314,9 +344,5 @@ function calculate_compression_threshold() (
   // Convert to linear domain ONCE (avoids expensive log() conversion every sample)
   comp_curve_min_threshold_linear = db_to_linear(comp_curve_min_threshold_db);
   comp_curve_threshold_dirty = 0;
-);
-
-function invalidate_compression_threshold() (
-  comp_curve_threshold_dirty = 1;
 );
 

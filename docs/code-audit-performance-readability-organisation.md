@@ -1,6 +1,6 @@
 # Code audit: performance, readability, organisation, and effectiveness
 
-Audit of the Composure JSFX project (audio chain, UI, and module layout). No code was changed as part of this document.
+Audit of the Composure JSFX project (audio chain, UI, and module layout). This document now includes a status update for follow-up actions that have been implemented since the original audit.
 
 ---
 
@@ -9,7 +9,7 @@ Audit of the Composure JSFX project (audio chain, UI, and module layout). No cod
 ### Audio (`@sample`)
 
 - **`process_complete_audio_chain()`** does substantial work per sample: detection, optional filters, RMS branch, gain reduction, envelope, lookahead, gain application, harmonics, and limiter. Early **compression skip** (`can_skip_compression`) and **envelope skip** (`can_skip_envelope`) help when the signal is below threshold or already at rest.
-- **Debug instrumentation runs on every sample**: `debug_counter_audio_chain += 1` and, approximately once per `srate` samples, a large block that copies and clears many counters (`03_Compression/09_audio_processing_chain.jsfx-inc`). Comments in `Interface/Debug/01_debug.jsfx-inc` describe counters as “always active during development”. For a release-oriented build, gating this behind a single flag (e.g. `debug_profiling_enabled`) or omitting it would remove steady overhead from the hottest path.
+- **Status update:** Per-sample debug aggregation is now gated behind `debug_profiling_enabled`, reducing hot-path overhead when debug profiling is off.
 - **Harmonics**: `apply_harmonic_processing` is invoked separately for left and right channels. If the model shares identical scalar work across channels, hoisting shared calculations (without changing stereo behaviour) could save CPU.
 - **Limiter**: The `abs_final_* > 0.944` guard avoids calling `soft_clip_limiter` most of the time—a reasonable micro-optimization.
 
@@ -20,7 +20,10 @@ Audit of the Composure JSFX project (audio chain, UI, and module layout). No cod
 ### Graphics (`@gfx`)
 
 - Each frame: clearing up to **256** `updated_slider_values` entries, full **graph page** drawing, **reflection blur** (`gfx_blurto`), meters, and trails. Caching **`is_audio_active`** once per frame is a good pattern.
-- **`render_graph_page()`** is invoked from `render_complete_interface()` regardless of the active page; confirm that hidden or inactive views are not doing redundant heavy drawing.
+- **Status update:** Graph-page-only heavy draws (histograms, points, trail dots, threshold overlays) are now gated by page visibility.
+- **Status update:** Reflection blur is now gated by graph page visibility/fade state to reduce unnecessary `@gfx` work when graph is not active.
+- **Status update:** Graph grid density/labels and GR-threshold meter conversions now scale with runtime graph range (`20/40/60 dB`) without changing graph box layout.
+- **Status update:** Grid division and dB-step math are now cached and only recomputed when graph range changes.
 
 ---
 
@@ -38,6 +41,7 @@ Audit of the Composure JSFX project (audio chain, UI, and module layout). No cod
 - **Import order** in `Composure.jsfx` is complex but **documented** (envelope modules before `09_audio_processing_chain`, `05_envelope_parameters` after, etc.). Comments about dependencies such as **`clear_rms_state`** and **`09_audio_processing_chain`** signal **tight coupling** that a future refactor could simplify.
 - **Workspace development rules** describe a strict phased naming scheme (`00_`–`05f_`); this repository uses **directory-based** layout (`01_Utils`, `03_Compression`, `Interface/...`). That is fine operationally but adds **onboarding friction** unless docs cross-reference the two conventions.
 - **External includes**: `../FerglerUI/FerglerUI.jsfx-inc` and `../MathUtils/00_core_math.jsfx-inc` mean the effect is not fully self-contained in this tree. Packaging or contributor docs should state required relative paths.
+- **Status update:** Contributor documentation for external includes and folder-vs-phase mapping now exists in `docs/repo-setup-and-architecture-notes.md`.
 
 ---
 
@@ -53,14 +57,15 @@ Audit of the Composure JSFX project (audio chain, UI, and module layout). No cod
 
 | Priority | Area      | Issue |
 |----------|-----------|--------|
-| High     | `@sample` | Unconditional debug counter work on every sample |
-| Medium   | `@gfx`    | Cost of full graph + blur every frame; verify hidden-page work |
+| Done     | `@sample` | Per-sample debug counter work is now runtime-gated |
+| Done     | `@gfx`    | Hidden-page graph rendering cost reduced for graph-only elements |
+| Done     | `@gfx`    | Reflection blur now skips when graph page is not active |
 | Medium   | Readability | Monolithic audio chain; overlapping util module story |
 | Low      | `@block`  | Optional caching when sliders are unchanged |
-| Low      | Docs/repo | Document FerglerUI + MathUtils paths; align or cross-link folder vs phase rules |
+| Done     | Docs/repo | External include paths and folder-vs-phase mapping documented |
 
 ### Suggested follow-ups
 
-1. Gate or strip **per-sample debug aggregation** for non-debug builds.
-2. Review **`@gfx`** to avoid redundant work when the graph (or heavy overlays) are not visible.
-3. Optionally refactor **`process_complete_audio_chain()`** into smaller functions for readability, preserving JSFX definition order.
+1. Optionally refactor **`process_complete_audio_chain()`** into smaller functions for readability, preserving JSFX definition order.
+2. Consider additional `@gfx` optimization passes beyond current page/blur gating if profiling still shows headroom issues.
+3. Clarify any remaining utility-module overlap guidance (`Interface/Core/02_utils.jsfx-inc` vs `Interface/Core/05_utils.jsfx-inc`) for contributors.

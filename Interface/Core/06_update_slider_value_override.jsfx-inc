@@ -1,0 +1,44 @@
+// Overrides FerglerUI update_slider_value (import this after FerglerUI).
+// Stepped/enum horizontal hit-test must use spacing 1/(N-1) to match rendering:
+// calculate_slider_normalized_pos_and_display_value uses normalized_pos = value_index/(total_options-1).
+// Library used floor(norm * N), which misaligns handles and causes jitter on curve sliders and similar.
+
+@init
+
+function update_slider_value(control_index, mouse_x, mouse_y) local(control_type, param_index, option_count, option_index, step_count, total_options, step_points_base, raw_value, increment, min_val, max_val, normalized_pos, enum_ui) (
+  control_type = control_defs[control_index*11 + 0];
+  get_slider_config(control_index, control_type);
+  min_val = control_defs[control_index*11 + 6];
+  max_val = control_defs[control_index*11 + 7];
+  param_index = control_defs[control_index*11 + 5];
+
+  normalized_pos = calculate_normalized_position(control_index, mouse_x, mouse_y, slider_orientation, format_options);
+
+  option_count = get_dropdown_option_count(param_index);
+  step_count = get_step_point_count(param_index);
+  enum_ui = slider_uses_dropdown_enum_ui(param_index, min_val, max_val);
+  total_options = enum_ui ? option_count : (step_count > 0 ? step_count : 0);
+
+  total_options > 0 ? (
+    total_options > 1 ? (
+      option_index = floor(normalized_pos * (total_options - 1) + 0.5);
+    ) : (
+      option_index = 0;
+    );
+    option_index = max(0, min(total_options - 1, option_index));
+    enum_ui ? (
+      option_index;
+    ) : (
+      step_points_base = get_step_points_base(param_index);
+      step_points_base[option_index];
+    );
+  ) : (
+    raw_value = min_val + normalized_pos * (max_val - min_val);
+    increment = get_slider_increment(param_index);
+    increment > 0 ? (
+      snap_value_to_increment(raw_value, min_val, max_val, increment)
+    ) : (
+      raw_value
+    );
+  );
+);

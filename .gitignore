@@ -9,6 +9,9 @@ JSFX_ARCHITECTURE_RULES.md
 .DS_Store
 backups/15_custom_buttons_pagination_backup.jsfx-inc
 backups/16_page_transitions.jsfx-inc.backup
+python_reference/.venv/
+python_reference/**/__pycache__/
+python_reference/.pytest_cache/
 Images/.DS_Store
 .DS_Store
 Images/.DS_Store

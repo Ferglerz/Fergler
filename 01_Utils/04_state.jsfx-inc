@@ -40,9 +40,6 @@ function init_state_variables() (
   // Initialize custom button state (Interface/Interaction/01_custom_buttons.jsfx-inc)
   init_custom_button_state();
   
-  // Initialize input page (Interface/Pages/02_input_page.jsfx-inc)
-  init_input_page();
-  
   // Calculate lookahead samples (must be done after max_lookahead_samples is set in memory allocation)
   // Update function is defined in 02_InputProcessing/01_dsp_utils.jsfx-inc
   update_lookahead_samples();

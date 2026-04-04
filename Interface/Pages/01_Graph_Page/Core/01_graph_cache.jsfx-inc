@@ -29,50 +29,14 @@ function calculate_curve_hash() local(hash, i) (
   hash;
 );
 
-// Helper function to calculate tangent extension point from first user segment (point 1 to point 2)
-// Uses the same logic as sample_curve_at_db_internal() but for the specific case of extending backwards
-// Returns: (start_x_db, start_y_db) - the point where the extension should start
+// Helper function to calculate curve start point at GRAPH_MIN_DB.
+// Uses the same extrapolation + cap path as audio sampling for UI parity.
 function calculate_tangent_extension_point() local(
-  first_x_db, first_y_db, second_x_db, second_y_db, dx, slope,
-  x_at_bottom_db, start_x_db, start_y_db
+  start_x_db, start_y_db
 ) (
   num_points >= 3 ? (
-    // Get first user segment endpoints (indices 1 and 2 in graph_points)
-    first_x_db = graph_points[2];  // First user point X
-    first_y_db = graph_points[3];  // First user point Y
-    second_x_db = graph_points[4]; // Second user point X
-    second_y_db = graph_points[5]; // Second user point Y
-    
-    // Calculate slope from first segment (same as LUT does)
-    dx = second_x_db - first_x_db;
-    abs(dx) > 0.0001 ? (
-      slope = (second_y_db - first_y_db) / dx;
-      // Extend tangent to the bottom edge (Y = GRAPH_MIN_DB) to match LUT behavior
-      x_at_bottom_db = first_x_db + (GRAPH_MIN_DB - first_y_db) / slope;
-      
-      // If the intersection with the bottom sits inside the graph width, use it directly
-      (x_at_bottom_db >= GRAPH_MIN_DB && x_at_bottom_db <= GRAPH_MAX_DB) ? (
-        start_x_db = x_at_bottom_db;
-        start_y_db = GRAPH_MIN_DB;
-      ) : (
-        // Otherwise clamp to the nearest edge and follow the same tangent
-        x_at_bottom_db < GRAPH_MIN_DB ? (
-          start_x_db = GRAPH_MIN_DB;
-          start_y_db = first_y_db + slope * (GRAPH_MIN_DB - first_x_db);
-        ) : (
-          start_x_db = GRAPH_MAX_DB;
-          start_y_db = first_y_db + slope * (GRAPH_MAX_DB - first_x_db);
-        );
-        // Only clamp when the tangent would rise above the graph bottom
-        start_y_db > GRAPH_MIN_DB ? start_y_db = GRAPH_MIN_DB;
-      );
-    ) : (
-      // Vertical or nearly vertical segment - extend straight down from the first point
-      start_x_db = first_x_db;
-      start_y_db = min(first_y_db, GRAPH_MIN_DB);
-    );
-    // Ensure we never exceed the graph top; bottom clamping handled above
-    start_y_db > GRAPH_MAX_DB ? start_y_db = GRAPH_MAX_DB;
+    start_x_db = GRAPH_MIN_DB;
+    start_y_db = sample_curve_at_db(GRAPH_MIN_DB);
     
     // Return values via global variables (JSFX doesn't support multiple return values)
     tangent_ext_start_x_db = start_x_db;

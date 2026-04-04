@@ -10,6 +10,8 @@
 
 // Fixed dB amount for linear release calculations (10dB reduction)
 LINEAR_RELEASE_FIXED_DB = 10.0;
+// Input-dependent mode: steeper dB blend (u) and snappier quiet-input pole vs nominal release
+INPUT_DEPENDENT_DRAMA = 3;
 
 // Linear release rate (dB per sample) - calculated when release_ms or srate changes
 linear_release_db_per_sample = 0;
@@ -39,8 +41,7 @@ function update_release_coefficient() (
   calculate_linear_release_rate();
   
   // Calculate release coefficient using standard time constant formula (exponential)
-  // This is used when linear_program_release_modes is OFF for program-dependent modes
-  // Fixed mode always uses linear
+  // Used when program release dominates blend (>50%); fixed-dominant blend uses linear dB/s in orchestration
   // Note: For valid release_time_ms values, exp() will never return 0 or 1, so no clamping needed here
   // The safety clamp in apply_envelope_smoothing() handles edge cases
   release_time_ms > 0 ? (
@@ -65,8 +66,8 @@ function update_release_coefficient() (
       curve_fast_coeff_cached = exp(-1000 / ((release_time_ms / CURVE_FAST_MULTIPLIER) * srate));
       curve_slow_coeff_cached = exp(-1000 / ((release_time_ms * CURVE_SLOW_MULTIPLIER) * srate));
       
-      // Cache input-dependent fast coefficient (4x faster than user's release setting)
-      rel_input_fast_cached = exp(-1000 / ((release_time_ms * 0.25) * srate));
+      // Cache input-dependent fast coefficient (shorter TC = release_time_ms * 0.25 / INPUT_DEPENDENT_DRAMA)
+      rel_input_fast_cached = exp(-1000 / ((release_time_ms * (0.25 / INPUT_DEPENDENT_DRAMA)) * srate));
     ) : (
       // Edge case: release_ms is 0 or invalid - use very fast but not instant
       curve_fast_coeff_cached = 1 - EPS;
@@ -79,33 +80,57 @@ function update_release_coefficient() (
 // PROGRAM RELEASE STRATEGIES
 //==============================================================================
 
+// Input-dependent: blend from fast (quiet) to slow (loud) over a knee span in input dB.
+// Anchor = input_level_threshold_db (slider 28). Knee width = |28 - 29| (min 0.5 dB).
+// INPUT_DEPENDENT_DRAMA scales how quickly u crosses 0..1 in dB (higher = more dramatic).
+function input_dependent_u(input_level_db) local(level_above, knee_w) (
+  knee_w = abs(input_level_threshold_db - input_level_threshold_2_db);
+  knee_w < 0.5 ? knee_w = 0.5;
+  level_above = input_level_db - input_level_threshold_db;
+  clamp_coeff(INPUT_DEPENDENT_DRAMA * level_above / knee_w)
+);
+
 //--- Type 2: GR-Dependent (single threshold - legacy) ---
-function release_gr_dependent(gr_amount) local(blend_fast, blend_slow) (
-  blend_fast = clamp_coeff(1 - gr_amount / gr_blend_threshold_reduction_db);
-  blend_slow = clamp_coeff(gr_amount / gr_blend_threshold_reduction_db);
-  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+function release_gr_dependent(gr_amount) local(blend_fast, blend_slow, th, kn, sw) (
+  th = max(0.1, gr_blend_threshold_reduction_db);
+  kn = gr_blend_threshold_reduction_knee_db;
+  kn < 0.05 ? (
+    blend_fast = clamp_coeff(1 - gr_amount / th);
+    blend_slow = clamp_coeff(gr_amount / th);
+  ) : (
+    gr_amount <= th - kn ? sw = 0 : gr_amount >= th ? sw = 1 : sw = (gr_amount - (th - kn)) / kn;
+    sw = clamp_coeff(sw);
+    blend_fast = clamp_coeff(1 - sw);
+    blend_slow = clamp_coeff(sw);
+  );
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
 //--- Type 2: GR-Dependent with separate thresholds for reduction and addition ---
 // gr_amount: current GR amount (absolute value)
 // is_negative_gr: true when GR is negative (reduction/cut, below 1:1), false when positive (addition/boost, above 1:1)
-function release_gr_dependent_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, threshold) (
-  threshold = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
-  blend_fast = clamp_coeff(1 - gr_amount / threshold);
-  blend_slow = clamp_coeff(gr_amount / threshold);
-  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+function release_gr_dependent_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, th, kn, sw) (
+  th = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
+  kn = is_negative_gr ? gr_blend_threshold_reduction_knee_db : gr_blend_threshold_addition_knee_db;
+  th = max(0.1, th);
+  kn < 0.05 ? (
+    blend_fast = clamp_coeff(1 - gr_amount / th);
+    blend_slow = clamp_coeff(gr_amount / th);
+  ) : (
+    gr_amount <= th - kn ? sw = 0 : gr_amount >= th ? sw = 1 : sw = (gr_amount - (th - kn)) / kn;
+    sw = clamp_coeff(sw);
+    blend_fast = clamp_coeff(1 - sw);
+    blend_slow = clamp_coeff(sw);
+  );
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
 //--- Type 1: Input-Dependent (single threshold) ---
-// Below threshold: fast release, above threshold: normal release
-// Blend over 20 dB range: at threshold = 100% fast, 20 dB above = 100% normal
-function release_input_dependent_single(input_level_db) local(level_above_threshold, blend_fast, blend_normal) (
-  level_above_threshold = input_level_db - input_level_threshold_db;
-  blend_fast = clamp_coeff(1 - level_above_threshold / 20);
-  blend_normal = clamp_coeff(level_above_threshold / 20);
-  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+// At/below anchor (slider 29): fast release; toward anchor + knee span: blend to normal release.
+function release_input_dependent_single(input_level_db) local(u, blend_fast, blend_normal) (
+  u = input_dependent_u(input_level_db);
+  blend_fast = 1 - u;
+  blend_normal = u;
   normalized_blend(blend_fast, blend_normal, rel_input_fast_cached, release_coeff)
 );
 
@@ -162,24 +187,29 @@ function release_rate_of_change_inverse(det_delta) local(blend_fast, blend_slow,
 // Inverse of GR-dependent: high GR = slow release, low GR = fast release
 // gr_amount: current GR amount (absolute value)
 // is_negative_gr: true when GR is negative (reduction/cut, below 1:1), false when positive (addition/boost, above 1:1)
-function release_gr_dependent_inverse_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, threshold) (
-  threshold = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
-  // Inverse: swap fast and slow blends
-  blend_slow = clamp_coeff(1 - gr_amount / threshold);
-  blend_fast = clamp_coeff(gr_amount / threshold);
-  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+function release_gr_dependent_inverse_dual(gr_amount, is_negative_gr) local(blend_fast, blend_slow, th, kn, sw) (
+  th = is_negative_gr ? gr_blend_threshold_reduction_db : gr_blend_threshold_addition_db;
+  kn = is_negative_gr ? gr_blend_threshold_reduction_knee_db : gr_blend_threshold_addition_knee_db;
+  th = max(0.1, th);
+  kn < 0.05 ? (
+    blend_slow = clamp_coeff(1 - gr_amount / th);
+    blend_fast = clamp_coeff(gr_amount / th);
+  ) : (
+    gr_amount <= th - kn ? sw = 0 : gr_amount >= th ? sw = 1 : sw = (gr_amount - (th - kn)) / kn;
+    sw = clamp_coeff(sw);
+    blend_fast = sw;
+    blend_slow = 1 - sw;
+  );
   normalized_blend(blend_fast, blend_slow, rel_fast_cached, rel_slow_cached)
 );
 
 //--- Type 5: Input-Dependent Inverse ---
-// Inverse of input-dependent: below threshold: slow release, above threshold: fast release
-// Blend over 20 dB range: at threshold = 100% slow, 20 dB above = 100% fast
-function release_input_dependent_inverse(input_level_db) local(level_above_threshold, blend_fast, blend_normal) (
-  level_above_threshold = input_level_db - input_level_threshold_db;
-  // Inverse: swap fast and normal blends
-  blend_normal = clamp_coeff(1 - level_above_threshold / 20);
-  blend_fast = clamp_coeff(level_above_threshold / 20);
-  // Note: Safety clamp in apply_envelope_smoothing() handles edge cases
+// Quiet (at/below anchor): slow release; loud (anchor + knee): fast release.
+// Uses same u as normal so inverse is a true swap of fast/slow weights vs non-inverse.
+function release_input_dependent_inverse(input_level_db) local(u, blend_fast, blend_normal) (
+  u = input_dependent_u(input_level_db);
+  blend_fast = u;
+  blend_normal = 1 - u;
   normalized_blend(blend_fast, blend_normal, rel_input_fast_cached, release_coeff)
 );
 

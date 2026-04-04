@@ -1,6 +1,6 @@
 # Plan: Compression graph extrapolation cap and configurable dB range
 
-**Status:** Planning document (no implementation in this change).  
+**Status:** Partially implemented. Plan A shipped; Plan B core infrastructure shipped (JSFX slider + runtime range + serialize), with GUI exposure/migration polish still pending.  
 **Product:** Composure (JSFX), repository root `Composure.jsfx` with modular `*.jsfx-inc` includes.
 
 ---
@@ -39,7 +39,7 @@ These definitions should match implementation comments so DSP, LUT, and UI stay 
 
 - **Curve in dB** is built into `curve_segments_db` by `generate_curve_segments_db()` in `03_Compression/03_graph_curves.jsfx-inc`.
 - **Audio** uses `sample_curve_at_db()` → `sample_curve_at_db_internal()` in the same file, then **gain** is derived elsewhere (`03_Compression/06_gain_reduction.jsfx-inc` and chain in `09_audio_processing_chain.jsfx-inc`). Any change to the transfer curve must remain consistent with **strength** and **input offset** application order (verify call order before locking behavior).
-- **Fast path:** `build_compression_lut()` in `03_Compression/05_compression_core.jsfx-inc` fills `comp_lut[]` by calling `sample_curve_at_db()` at `COMP_LUT_GRANULARITY` steps. `lookup_compression_lut()` applies **additional** clamps for `input_db < GRAPH_MIN_DB` and `input_db > GRAPH_MAX_DB`. Any new cap must be implemented in **both** `sample_curve_at_db` *and* `lookup_compression_lut` **or** only in `sample_curve_at_db` with LUT rebuild rules verified so LUT entries and interpolation never contradict the function.
+- **Fast path:** `build_compression_lut()` in `03_Compression/05_compression_core.jsfx-inc` fills `comp_lut[]` by calling `sample_curve_at_db()` at `COMP_LUT_GRANULARITY` steps. ✅ In the core pass, LUT lookup was aligned to the same cap function as direct sampling (`apply_extrapolation_caps`), keeping lookup and sampler behavior consistent.
 
 ### 3.2 LUT extent vs graph extent
 
@@ -63,8 +63,8 @@ These definitions should match implementation comments so DSP, LUT, and UI stay 
 
 ### 3.6 Serialization and presets
 
-- `@serialize` in `Composure.jsfx` persists `graph_initialized`, `num_points`, all `graph_points[*]`, and `curve_amounts[*]`. It does **not** currently persist a **graph range** mode.  
-- **Assumption:** Adding Plan B requires new `file_var` fields **or** encoding range into an unused slider slot; version bump / migration logic may be needed so old projects load with **20 dB** span and valid point clamps.
+- ✅ Updated: `@serialize` now appends `graph_range_mode` after existing graph data for backward-compatible persistence.
+- Remaining: explicit migration notes/tests for older projects and edge-case remap behavior audits.
 
 ### 3.7 Strength parameter
 
@@ -73,12 +73,23 @@ These definitions should match implementation comments so DSP, LUT, and UI stay 
 
 ### 3.8 Hardcoded “20 dB” outside constants
 
-- `Interface/Services/00_coordinate_conversion.jsfx-inc` sets `GR_PIXELS_PER_DB = GRAPH_SIZE / 20` even though `DB_TO_PIXEL_SCALE` uses `GRAPH_RANGE_DB` — this is an **inconsistency** today.  
+- ✅ Fixed: `Interface/Services/00_coordinate_conversion.jsfx-inc` now uses `GRAPH_RANGE_DB` for `GR_PIXELS_PER_DB`.
+- ✅ Follow-up: meter reflection normalization now scales by runtime `GRAPH_RANGE_DB` instead of hardcoded `20`.
+- ✅ Follow-up: GR threshold line conversions/interactions/rendering now use runtime graph span (no hardcoded `-20..+20` assumptions).
+- ✅ Follow-up: graph grid density/labels now adapt to runtime graph span while keeping graph box layout unchanged.
 - Other literals (e.g. meter weight `/ 20` in `Interface/Pages/01_Graph_Page/Meters/01_meter_render.jsfx-inc`, envelope blend comments referencing 20 dB in `03_Compression/Envelope/03_envelope_release.jsfx-inc`) may be **conceptually unrelated** to the graph square; grep and classify before changing.
 
 ---
 
 ## 4. Plan A — Cap extrapolated reduction using the tangent vs output 0 dB
+
+### Implementation status
+
+- ✅ Implemented in core pass:
+  - Tangent extrapolation now runs on both sides in `sample_curve_at_db_internal()`.
+  - Symmetric safety caps are applied via `apply_extrapolation_caps()` in both `sample_curve_at_db()` and `lookup_compression_lut()`.
+  - UI graph cache start-point logic now uses sampled curve output at `GRAPH_MIN_DB` for parity.
+- Note: the shipped cap law is an explicit bounded clamp (no-boost + bounded reduction depth by graph span), not a literal `x_cross` solver.
 
 ### 4.1 Current behavior (precise)
 
@@ -105,11 +116,11 @@ Extend the **same** tangent line until it intersects the horizontal line **outpu
 
 | Area | File | Function / region |
 |------|------|---------------------|
-| Core sampling | `03_Compression/03_graph_curves.jsfx-inc` | `sample_curve_at_db_internal()`, `sample_curve_at_db()` |
-| LUT consistency | `03_Compression/05_compression_core.jsfx-inc` | `build_compression_lut()`, `lookup_compression_lut()` post-process |
-| Graph drawing | `Interface/Pages/01_Graph_Page/Core/01_graph_cache.jsfx-inc` | Tangent extension / first-segment start |
+| Core sampling | `03_Compression/03_graph_curves.jsfx-inc` | `sample_curve_at_db_internal()`, `sample_curve_at_db()` ✅ |
+| LUT consistency | `03_Compression/05_compression_core.jsfx-inc` | `build_compression_lut()`, `lookup_compression_lut()` post-process ✅ |
+| Graph drawing | `Interface/Pages/01_Graph_Page/Core/01_graph_cache.jsfx-inc` | Tangent extension / first-segment start ✅ |
 | Invalidation | `03_Compression/05_compression_core.jsfx-inc` | `invalidate_curve_cache()` and any viz cache |
-| Threshold / expansion | `03_Compression/02_graph_data_core.jsfx-inc` | `calculate_compression_threshold()` interaction |
+| Threshold / expansion | `03_Compression/02_graph_data_core.jsfx-inc` | `calculate_compression_threshold()` interaction (partially reviewed; deeper expansion-policy work pending) |
 
 ### 4.4 Testing suggestions
 
@@ -117,11 +128,10 @@ Extend the **same** tangent line until it intersects the horizontal line **outpu
 - **REAPER:** Extreme quiet input with steep left tangent; confirm GR meter and audio align with drawn curve.
 - **Regression:** Default graphs where tangent is mild; ensure no audible change when cap is inactive by construction.
 
-### 4.5 Open decisions (to resolve before coding)
+### 4.5 Remaining decisions (post-core)
 
-- Apply cap only for `input_db < GRAPH_MIN_DB`, or for **all** `input_db < first_x`?
-- Interaction with **expansion** (output > input in dB domain as coded) and `comp_curve_min_threshold_db`.
-- Whether **makeup** and **strength** are considered part of “the graph contract” for the cap.
+- Interaction with **expansion** (output > input in dB domain as coded) and `comp_curve_min_threshold_db` still needs explicit product policy.
+- Whether **makeup** and **strength** are considered part of “the graph contract” for the cap should be documented in release notes/tests.
 
 ---
 
@@ -135,15 +145,16 @@ Keep a **square** transfer-function editor: same range on X and Y, but allow tha
 
 ### 5.2 Infrastructure approach
 
-1. **Parameters:** Add a user-facing control (e.g. enumerated slider `{20, 40, 60}` dB span) in `Composure.jsfx` **after** assessing slider slot budget (`// SEARCH STOP` marks the end of slider block).
-2. **Runtime constants:** Replace or shadow compile-time `GRAPH_MIN_DB` / `GRAPH_RANGE_DB` in `00_constants.jsfx-inc` with values derived in `@init` / `@slider` from that control, **or** keep compile-time defaults and copy into `graph_min_db_runtime` used everywhere (grep-driven migration). Pure compile-time constants cannot change from a slider without this step.
-3. **Coordinate conversion:** Fix `GR_PIXELS_PER_DB` to use `GRAPH_RANGE_DB` (see §3.8). Recompute `DB_TO_PIXEL_SCALE` / histogram offsets when range changes (`init_graph_optimization_constants()` may need calling from `@slider` when range changes, not only `@init`).
+1. ✅ **Parameters:** Added JSFX slider `graph_range_mode` (`20/40/60 dB`) in `Composure.jsfx`.
+2. ✅ **Runtime constants:** Added runtime range update path (`update_graph_range_from_slider`) that updates `GRAPH_MIN_DB`/`GRAPH_RANGE_DB` in `@init` and `@slider`.
+3. ✅ **Coordinate conversion:** `GR_PIXELS_PER_DB` now uses `GRAPH_RANGE_DB`; optimization constants are reinitialized on range changes.
 4. **Graph data:** `init_graph_points()` already spaces interior points using `GRAPH_RANGE_DB`; corners use `GRAPH_MIN_DB` / `GRAPH_MAX_DB`. Changing range **without** remapping existing `graph_points` will **change** the curve geometry in absolute dB — decide:
-   - **Remap** interior points proportionally when span changes, or
+   - ✅ **Implemented now:** **Remap** interior points proportionally when span changes.
    - **Clamp** out-of-range points, or
    - **Reset** graph on range change (simplest UX, destructive).
-5. **Serialization:** Persist chosen span; on load, clamp or remap points into the new bounds.
-6. **Audit:** Grep for `GRAPH_`, literal `-20`, `/ 20`, and `20 dB` comments across `Interface/` and `03_Compression/` to classify graph-related vs unrelated (envelope blend).
+5. ✅ **Serialization:** Chosen span is now persisted.
+6. **Audit (remaining):** Continue classification of hardcoded `20 dB` values that are semantically unrelated to graph span (envelope/program-release domains, etc.).
+7. **Intentional scope note:** Range mode is currently JSFX-slider-visible only; not yet added to custom GUI controls.
 
 ### 5.3 Risks
 
@@ -155,10 +166,11 @@ Keep a **square** transfer-function editor: same range on X and Y, but allow tha
 
 ## 6. Recommended sequencing
 
-1. Resolve **Plan A** open decisions (§4.5), especially expansion vs cap.
-2. Implement **Plan A** in DSP + LUT + graph cache + tests.
-3. Implement **Plan B** behind a persisted control, with migration and grep cleanup for hardcoded 20 dB.
-4. Final pass: documentation strings in UI and this plan’s **Status** field updated to reflect shipped behavior.
+1. ✅ Plan A core implementation in DSP + LUT + graph cache completed.
+2. Add regression tests (Python/REAPER) for extrapolation caps and threshold/offset interactions.
+3. ✅ Implement Plan B core behind a persisted control (JSFX slider-only exposure for now).
+4. Add GUI exposure for range mode (optional next step, currently intentionally deferred).
+5. Final pass: user-facing documentation for cap semantics and any remaining policy decisions.
 
 ---
 
@@ -182,3 +194,5 @@ Keep a **square** transfer-function editor: same range on X and Y, but allow tha
 | Date | Author | Notes |
 |------|--------|-------|
 | 2026-03-28 | Planning | Initial expanded plan with infrastructure assumptions and open decisions |
+| 2026-03-30 | Implementation update | Marked Plan A core shipped; retained Plan B and unresolved policy/testing work |
+| 2026-03-30 | Implementation update | Marked Plan B core infrastructure shipped; slider remains JSFX-visible only (no custom GUI control yet) |

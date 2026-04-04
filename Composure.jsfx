@@ -8,19 +8,19 @@ desc:Composure
 // GROUP 0: ENVELOPE (1-9)
 // Attack is in dB/s (2 to 1000000), Release is in dB/s (2 to 250), both converted to ms in audio processing
 slider1:attack=1000<2,1000000,1>-Attack
-slider2:attack_curve=0<-2,2,0.01>-Attack Curve
+slider2:attack_curve=0<-2,2,0.25>-Attack Curve
 slider3:release_ms=100<2,250,1>-Release
-slider4:release_curve=0<-2,2,0.01>-Release Curve
+slider4:release_curve=0<-2,2,0.25>-Release Curve
 slider5:hold_ms=0<0,1000,1>-Hold
 slider6:strength=100<0,400,5>-Strength
 
-// GROUP 1: INPUT/DETECTION (7-15)
-slider7:rms_size_ms=0<0,1000,0.1>-RMS Window
+// GROUP 1: INPUT/DETECTION (7-15) — slider 12: hear filtered detection only while dragging HP/LP when On
+slider7:rms_size_ms=0<0,1000,1>-RMS Window
 slider8:rms_normalization=0<0,1,1{Off,On}>-Normalize
 slider9:detection_mode=1<0,1,1{Feedback,Feedforward}>-Detection Mode
 slider10:lookahead_ms=0<0,2000,1>-Lookahead
 slider11:use_sidechain=0<0,1,1{No,Yes}>-Use Sidechain
-slider12:listen_to_sidechain=0<0,1,1{No,Yes}>-Listen
+slider12:sc_adjust_preview_enabled=0<0,1,1{Off,On}>-SC Adj Preview
 slider13:hp_freq=0<0,6000,1>-High Pass
 slider14:lp_freq=0<0,14000,1>-Low Pass
 slider15:input_offset_db=0<-30,30,0>-Input Offset
@@ -33,23 +33,24 @@ slider19:harmonic_even_boost=0<0,200,1>-Even
 slider20:harmonic_odd_boost=0<0,200,1>-Odd
 slider21:makeup_gain_db=0<-20,20,0.1>-Makeup Gain
 
-// GROUP 3: PROGRAM RELEASE & SETTINGS (22-28)
+// GROUP 3: PROGRAM RELEASE & SETTINGS (22-27)
 slider22:prog_release_mode=0<0,2,1{Input-Dependent,GR Dependent,Rate-of-Change}>-Program Release Mode
 slider23:prog_release_inverse=0<0,1,1{Normal,Inverse}>-Program Release Inverse
 slider24:prog_release_blend=0<0,100,1>-Program Release Blend
 slider25:brickwall_limiter=1<0,1,1{Off,On}>-Brickwall Limiter
 slider26:harmonic_amount=1<0,1,0.01>-Amount
 slider27:rate_change_sensitivity_db=3<0.5,20,0.1>-Rate Change Sensitivity (dB)
-slider28:linear_program_release_modes=0<0,1,1{Off,On}>-Linear Program Release Modes
 
-// GROUP 4: THRESHOLDS & ADVANCED (29-35)
-slider29:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
-slider30:input_level_threshold_2_db=-40<-80,0,0.1>-Input Level Threshold 2 (dB)
-slider31:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
-slider32:gr_blend_threshold_reduction_knee_db=2<0,12,0.1>-GR Threshold Cut Knee (dB)
-slider33:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
-slider34:gr_blend_threshold_addition_knee_db=2<0,12,0.1>-GR Threshold Boost Knee (dB)
-slider35:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modifier
+// GROUP 4: THRESHOLDS & ADVANCED (28-35)
+slider28:input_level_threshold_db=-20<-80,0,0.1>-Input Level Threshold (dB)
+slider29:input_level_threshold_2_db=-40<-80,0,0.1>-Input Dep. knee vs Thr 1 (dB)
+slider30:gr_blend_threshold_reduction_db=6<1,24,0.1>-GR Threshold Cut (dB)
+slider31:gr_blend_threshold_reduction_knee_db=2<0,12,0.1>-GR Threshold Cut Knee (dB)
+slider32:gr_blend_threshold_addition_db=6<1,24,0.1>-GR Threshold Boost (dB)
+slider33:gr_blend_threshold_addition_knee_db=2<0,12,0.1>-GR Threshold Boost Knee (dB)
+slider34:rate_change_threshold_modifier=1<0.5,4,0.1>-Rate Change Threshold Modifier
+slider35:graph_range_mode=0<0,2,1{20 dB,40 dB,60 dB}>Graph dB Range
+slider36:mid_side_mode=0<0,1,1{LR,M-S}>-Mid/Side
 
 // SEARCH STOP
 
@@ -84,10 +85,9 @@ filename:13,Images/page_button_depressed.png
 
 // 01_Utils: Foundation utilities (no dependencies)
 import 01_Utils/00_constants.jsfx-inc
-import ../MathUtils/00_core_math.jsfx-inc
 
 // UI_Sliders/Core/00_FileReading: File reading (standalone, needed by 01_Utils/03_memory, 02_InputProcessing, and Interface)
-// Library is now externalized to ../FerglerUI/
+// Library is now externalized to ../FerglerUI/ (pulls in MathUtils first)
 // Imported early because it contains FileReading, which is needed by 03_memory
 import ../FerglerUI/FerglerUI.jsfx-inc
 
@@ -135,6 +135,7 @@ import Interface/Core/04_drawing_primitives.jsfx-inc
 // Debug module (constants first, then debug functions)
 import Interface/Debug/00_debug_constants.jsfx-inc
 import Interface/Debug/01_debug.jsfx-inc
+import Interface/Debug/02_curve_slider_verify.jsfx-inc
 // Services (coordinate conversion, threshold lines)
 import Interface/Services/00_coordinate_conversion.jsfx-inc
 import Interface/Services/01_threshold_lines_core.jsfx-inc
@@ -146,6 +147,7 @@ import Interface/Interaction/00_page_buttons.jsfx-inc
 // Note: Most Interface/Core/05_utils.jsfx-inc functions moved to UI_Sliders library
 // But some utility functions (clamp_x_to_graph, clamp_y_to_graph, draw_text_at, draw_indicator_circle) remain here
 import Interface/Core/05_utils.jsfx-inc
+import Interface/Core/06_update_slider_value_override.jsfx-inc
 
 // Composure-specific control layout (uses FerglerUI library)
 import 04_UI_Controls/01_image_sets.jsfx-inc
@@ -173,9 +175,6 @@ import Interface/Pages/01_Graph_Page/Core/00_graph.jsfx-inc
 // Interface: Custom buttons (depends on Interface constants and drawing, and page buttons)
 // Must be imported before 01_Utils/04_state.jsfx-inc since init_state_variables() calls init_custom_button_state()
 import Interface/Interaction/01_custom_buttons.jsfx-inc
-// Pages (settings, filters)
-import Interface/Pages/03_settings_page.jsfx-inc
-import Interface/Pages/02_input_page.jsfx-inc
 
 // 01_Utils/04_state: State initialization (depends on all modules above)
 // Must be imported after all init functions are defined
@@ -219,6 +218,8 @@ while (i < num_points) (
   i += 1;
 );
 
+file_var(0, graph_range_mode);
+
 //==============================================================================
 // INITIALIZATION SEQUENCE
 //==============================================================================
@@ -261,6 +262,7 @@ function refresh_core_parameters(run_pdc) (
   update_parameter_conversions();
   update_all_audio_parameters();
   smooth_rms_coefficient();
+  listen_fade_one_minus = 1.0 - exp(-1.0 / (LISTEN_CROSSFADE_MS * 0.001 * max(srate, 1)));
   run_pdc ? (
     drive_compensation_inv = 1.0 / max(harmonic_drive, 1);
     pdc_delay = min(lookahead_samples, max_lookahead_samples) | 0;
@@ -281,11 +283,13 @@ allocate_memory();
 init_step_points();
 init_state_variables();
 
-// 2.5. Initialize graph optimization constants (requires GRAPH_SIZE to be defined)
-// Must be called after Interface imports (specifically after Core/03_ui_graph_layout.jsfx-inc)
+// 2.5. Apply graph range mode before graph math/layout initialization.
+update_graph_range_from_slider(0);
+// Pixel scales depend on GRAPH_RANGE_DB; LUT must match curve after range change.
 init_graph_optimization_constants();
+invalidate_curve_cache();
 
-// 2.6. Update meter trail fade duration (depends on srate)
+// 2.7. Update meter trail fade duration (depends on srate)
 update_meter_trail_fade_duration();
 
 
@@ -327,6 +331,11 @@ compression_init_complete = 1;
 
 @slider
 
+// Update graph range first so dependent calculations use current bounds.
+update_graph_range_from_slider(1);
+init_graph_optimization_constants();
+invalidate_curve_cache();
+
 // Unified parameter refresh (conversions, coefficients, smoothing, PDC/drive cache)
 refresh_core_parameters(1);
 
@@ -340,7 +349,7 @@ refresh_core_parameters(1);
 // Start smoothing immediately when slider changes (also smoothed in @block for continuous updates)
 smooth_rms_coefficient();
 
-// --- Settings Parameters (25, 28) ---
+// --- Settings Parameters (25) ---
 // Sync brickwall_limiter variable with slider25
 brickwall_limiter = slider(25);
 
@@ -380,8 +389,8 @@ abs(new_trail_max_dots - trail_max_dots) > 5 ? (
 // Store block-level max values for histograms (captured during previous block)
 // Convert detector level from linear to dB (once per block instead of per sample)
 // Apply input offset to histogram so it shows offset-adjusted input level (what compressor sees)
-input_db_for_histogram = linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL)) + input_offset_db;
-gr_db_for_histogram = gr_db_block_max;
+input_db_for_histogram = clamp(linear_to_db(max(detector_level_block_max, MIN_DETECTOR_LEVEL)) + input_offset_db, MIN_DETECTOR_DB_FLOOR, MAX_CURVE_INPUT_DB);
+gr_db_for_histogram = clamp(gr_db_block_max, -MAX_GR_DB, MAX_GR_DB);
 
 // Reset max trackers for next block
 detector_level_block_max = MIN_DETECTOR_LEVEL;
@@ -406,10 +415,8 @@ while (i < clear_count) (
   i += 1;
 );
 
-// Update mouse state constants dynamically (only when mouse_cap changes)
-// Optimization: Updates constants only when mouse_cap changes, reducing redundant assignments
-// These constants are provided for backward compatibility with existing code
-// Note: mouse_cap_prev is initialized to -1 to ensure first frame always updates
+// Mouse button / modifier constants (refresh only when mouse_cap changes)
+// mouse_cap_prev = -1 forces a full refresh on the first gfx frame
 (mouse_cap_prev == -1 || mouse_cap_prev != mouse_cap) ? (
   MOUSE_LEFT_BUTTON = mouse_cap & 1 ? 1 : 0;      // Left mouse button
   MOUSE_RIGHT_BUTTON = mouse_cap & 2 ? 1 : 0;     // Right mouse button
@@ -422,7 +429,7 @@ while (i < clear_count) (
 
 // Convert detector level to dB once per frame for UI display (instead of per-sample)
 // Apply input offset so dot shows offset-adjusted input level (what compressor sees)
-current_input_db = linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL)) + input_offset_db;
+current_input_db = clamp(linear_to_db(max(detector_level, MIN_DETECTOR_LEVEL)) + input_offset_db, MIN_DETECTOR_DB_FLOOR, MAX_CURVE_INPUT_DB);
 
 // Get current GR values for display (post-strength is already available as current_gr_db)
 
@@ -456,6 +463,7 @@ create_meter_trail_line(gr_db_for_histogram);
 
 // Handle all user interactions (must be called before rendering)
 process_mouse_input();
+update_cursor();
 
 // Render main interface
 render_complete_interface();

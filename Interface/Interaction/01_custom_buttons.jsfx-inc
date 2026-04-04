@@ -14,8 +14,17 @@ page_button_label_offset_y = -35;
 #page_button_label_2 = 62;
 #page_button_label_3 = 63;
 
-function init_custom_button_state() (
+function init_custom_button_state() local(i) (
   init_page_buttons();
+  NUM_PAGE_BUTTONS > 0 ? (
+    i = 0;
+    while (i < NUM_PAGE_BUTTONS) (
+      register_page_button(i, i);
+      i += 1;
+    );
+  ) : (
+    0;
+  );
   // Merged Input/Settings panel always visible (no radio buttons)
   page_fade_amounts[PAGE_FILTERS] = 1;
   page_fade_amounts[PAGE_SETTINGS] = 1;
@@ -40,7 +49,7 @@ function render_custom_buttons() (
   gfx_w > 0 ? (
     update_page_button_positions();
     i = 0; while (i < NUM_PAGE_BUTTONS) (
-      is_pressed = (custom_button_pressed_index == i && MOUSE_LEFT_BUTTON) ? 1 : 0;
+      is_pressed = (custom_button_pressed_index == i && MOUSE_LEFT_BUTTON) ? 1 : is_button_active(i);
       label_slot = (i == 0) ? #page_button_label_0 : #page_button_label_1;
       draw_page_button(i, page_button_x_base[i], page_button_y_base[i], page_button_w, page_button_h, is_pressed, label_slot);
       i += 1;

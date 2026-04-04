@@ -18,8 +18,8 @@ function draw_meter_reflection(meter_x, meter_y, meter_w, meter_h) local(
 ) (
   reflection_y = GRAPH_Y + GRAPH_SIZE + 21; // Reflection position (adjusted to compensate for graph moving up 7px)
 
-  // Normalize gain reduction for color/alpha determination
-  meter_weight = min(1, abs(current_gr_db) / 20);
+  // Normalize gain reduction for color/alpha determination using runtime graph span.
+  meter_weight = min(1, abs(current_gr_db) / max(GRAPH_RANGE_DB, 1));
   meter_alpha = 0.28125 * meter_weight; // 50% of 0.5625
 
   // Only render if visible

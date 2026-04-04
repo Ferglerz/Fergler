@@ -118,6 +118,7 @@ function handle_curve_adjustment() (
   dragging_point > 0 && dragging_point < num_points - 1 ? (
     // Initialize curve drag on first call
     !curve_drag_started ? (
+      sliderchange(-1);
       curve_drag_started = 1;
       curve_drag_start_x = mouse_x;
       curve_drag_start_y = mouse_y;
@@ -225,6 +226,7 @@ function handle_graph_mouse_input() (
         mouse_down = 1;
 
         MOUSE_ALT_KEY ? ( // Alt+click = delete point
+          sliderchange(-1);
           handle_point_deletion();
           dragging_point = -1;
         ) : (
@@ -233,12 +235,16 @@ function handle_graph_mouse_input() (
           
           // Check for double-click to reset point to 1:1
           dragging_point >= 0 && is_double_click_point(dragging_point) ? (
+            sliderchange(-1);
             reset_point_to_1_to_1(dragging_point);
             dragging_point = -1; // Don't start dragging
           ) : (
             dragging_point == -1 && is_point_in_graph(mouse_x, mouse_y) && hovered_threshold_line == -1 ? (
               // Click in empty space - add point (only if not hovering over threshold line)
+              sliderchange(-1);
               dragging_point = handle_point_addition();
+            ) : (
+              dragging_point >= 0 ? (sliderchange(-1);) : (0;);
             );
           );
         );
@@ -273,6 +279,7 @@ function handle_graph_mouse_input() (
   ) : MOUSE_RIGHT_BUTTON ? ( // Right mouse button
     !mouse_down ? (
       mouse_down = 1;
+      sliderchange(-1);
       handle_point_deletion();
     );
   ) : (

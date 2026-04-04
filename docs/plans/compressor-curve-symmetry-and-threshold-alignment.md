@@ -6,8 +6,8 @@ This document turns the code audit into an actionable roadmap. It assumes the pr
 
 ## Goals
 
-1. **Single definition of “curve X”** used for LUT lookup, early-exit/skip paths, and UI readouts (including input offset).
-2. **Documented, intentional** behaviour outside `GRAPH_MIN_DB`…`GRAPH_MAX_DB` (extensions/clamps), with optional symmetry if we decide it is musically desirable.
+1. **Single definition of “curve X”** used for LUT lookup, early-exit/skip paths, and UI readouts (including input offset). ✅ Completed in core pass.
+2. **Documented, intentional** behaviour outside `GRAPH_MIN_DB`…`GRAPH_MAX_DB` (extensions/clamps), with optional symmetry if we decide it is musically desirable. ✅ Core symmetric-capped policy implemented.
 3. **Explicit decision** on whether envelope and GR-blend paths should remain asymmetric (cut vs boost) or be unified.
 
 Non-goals for an initial pass (unless scoped later): redesigning the entire UI graph model, changing Bezier junction logic for aesthetics only, or rewriting harmonic colour without a separate spec.
@@ -34,9 +34,9 @@ Non-goals for an initial pass (unless scoped later): redesigning the entire UI g
 
 ### Proposed work
 
-1. **Rename or clarify in UI/debug** (low risk): e.g. “Curve onset (control point): X dB” vs a separate computed “Diagonal crossing (approx): X dB” if we add it.
-2. **Optional**: Add a numerical **crossing finder** on the sampled curve (`sample_curve_at_db_internal` / segment list) for display and/or for threshold; gate behind precision and performance review.
-3. **Tests**: Python or fixed-point checks for known point layouts (diagonal until point 2, then knee).
+1. ✅ **Completed**: UI/debug wording now clarifies onset semantics (`Curve onset (LUT X)`).
+2. **Optional remaining**: Add a numerical **crossing finder** on the sampled curve (`sample_curve_at_db_internal` / segment list) for display and/or for threshold; gate behind precision and performance review.
+3. **Remaining validation**: Python or fixed-point checks for known point layouts (diagonal until point 2, then knee).
 
 ---
 
@@ -62,13 +62,10 @@ Non-goals for an initial pass (unless scoped later): redesigning the entire UI g
 
 ### Proposed work
 
-1. **Define canonical abscissa** `curve_input_db = detector_db + input_offset_db` (name TBD) used everywhere we mean “position on drawn curve”.
-2. **Threshold in curve space**: Either
-   - store `comp_curve_min_threshold_db` as today but compare using `curve_input_db`, or
-   - store threshold in detector space as `comp_curve_min_threshold_db - input_offset_db` (harder to keep stable when offset changes).
-3. **Prefer comparing in curve space** to match `graph_points` and LUT.
-4. Update `can_skip_compression` to use the same definition (may require converting threshold to linear with `db_to_linear` of `curve_input_db` vs threshold in curve space—careful with ordering).
-5. **Regression**: Listen tests with offset ±10 dB straddling threshold; verify no skip/engage flicker.
+1. ✅ **Completed**: Canonical abscissa uses `curve_input_db = detector_db + input_offset_db`.
+2. ✅ **Completed**: Threshold/skip comparisons are now in curve space to match LUT lookup.
+3. ✅ **Completed**: `can_skip_compression` now follows the same domain as GR lookup.
+4. **Remaining validation**: Listen tests with offset ±10 dB straddling threshold; verify no skip/engage flicker.
 
 ---
 
@@ -94,12 +91,9 @@ Non-goals for an initial pass (unless scoped later): redesigning the entire UI g
 
 ### Proposed work
 
-1. **Document** current rules in user-facing or dev docs as “reference behaviour v1”.
-2. **Design v2 options** (pick one product-wide):
-   - **A**: Keep asymmetry but align **UI drawn preview** (LUT viz / trails) so it never implies symmetry that DSP does not implement.
-   - **B**: Symmetric tangent extension with **explicit caps** (e.g. `min(output, input)` on both sides, or max GR limits).
-   - **C**: User toggle “safe extrapolation” vs “continuous tangent” (maintenance cost).
-3. Implement chosen option in `sample_curve_at_db`, `lookup_compression_lut`, and any UI cache that duplicates the logic (`01_graph_cache.jsfx-inc`).
+1. ✅ **Decision made**: Product policy **B** selected (symmetric tangent extension with explicit caps).
+2. ✅ **Completed**: Implemented in `sample_curve_at_db`, `lookup_compression_lut`, and graph cache path for UI parity.
+3. **Remaining documentation**: Update user-facing docs to describe the new extrapolation contract.
 
 ---
 
@@ -181,11 +175,11 @@ Non-goals for an initial pass (unless scoped later): redesigning the entire UI g
 
 ## Suggested implementation order
 
-1. **Input offset + threshold + skip alignment** (Issue 2)—highest impact on “trust the graph,” moderate code surface.
-2. **Naming / optional diagonal crossing** (Issue 1)—clarifies mental model; low risk if only UI/debug.
-3. **Extrapolation policy** (Issue 3)—product decision required; affects presets.
-4. **Corner consistency tests** (Issue 4)—tightens DSP/UI match.
-5. **Envelope/blend** (Issue 5)—only if explicitly in scope; default to documentation + optional mode.
+1. ✅ **Completed**: Input offset + threshold + skip alignment (Issue 2).
+2. ✅ **Completed**: Naming clarification in UI/debug (Issue 1, core portion).
+3. ✅ **Completed**: Extrapolation policy selection and implementation (Issue 3, policy B).
+4. **Remaining**: Corner consistency tests (Issue 4).
+5. **Out of current scope**: Envelope/blend (Issue 5), only if explicitly requested.
 
 ---
 
@@ -211,10 +205,10 @@ Non-goals for an initial pass (unless scoped later): redesigning the entire UI g
 
 ## Open questions for product / maintainers
 
-1. Should “threshold” in the UI mean **control-point onset**, **diagonal crossing**, or **first dB of GR**?
-2. Is input offset strictly “move the curve under the signal” (curve space), or “trim detector gain” (detector space)? The code currently mixes both.
-3. Do we accept preset drift when extrapolation rules change, or version the curve engine?
+1. ✅ Resolved in core pass: UI/debug threshold now uses **curve onset (LUT X)** semantics.
+2. ✅ Resolved in core pass: offset and skip/gate comparisons now use **curve space** consistently.
+3. Remaining: Do we accept preset drift when extrapolation rules change further, or version the curve engine?
 
 ---
 
-*Last updated: aligned with audit of threshold, LUT, corners, offset, envelope, and harmonics.*
+*Last updated: core alignment implementation landed (threshold/offset/skip parity, symmetric-capped extrapolation, UI/debug parity); remaining items are tests/docs and out-of-scope phases.*
