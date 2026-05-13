@@ -31,7 +31,7 @@ function allocate_memory() (
 
 
   // Always allocate audio buffers (these can be reallocated safely)
-  // Allocate based on lookahead slider's maximum value (slider12)
+  // Allocate based on lookahead slider maximum (slider10: lookahead_ms in Composure.jsfx)
   // Convert from milliseconds to samples: max_ms * 0.001 * srate
   lookahead_max_ms = get_slider_max(10); // Get max from slider definition
   lookahead_needed_samples = ceil(lookahead_max_ms * 0.001 * srate);
@@ -46,6 +46,9 @@ function allocate_memory() (
   
   lookahead_buffer_l = freemem; freemem += max_lookahead_samples;
   lookahead_buffer_r = freemem; freemem += max_lookahead_samples;
+  // Zero-fill so reads before the ring is primed never output garbage (avoids clicks on enable)
+  memset(lookahead_buffer_l, 0, max_lookahead_samples);
+  memset(lookahead_buffer_r, 0, max_lookahead_samples);
 
   // Utilize FerglerUI library to allocate memory for UI components
   // Passing NUM_CONTROLS and NUM_GROUPS as they are defined in Composure constants

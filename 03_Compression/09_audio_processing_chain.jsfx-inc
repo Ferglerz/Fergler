@@ -67,13 +67,30 @@ function init_audio_processing_state() (
   detector_level_block_max = MIN_DETECTOR_LEVEL;
   gr_db_block_max = 0;
   gr_processing_skipped = 0;
-  compression_history = 0;
   program_release_timer = 0;
   prev_detector_db = GRAPH_MIN_DB;  // Initialize for rate-of-change release mode
   listen_crossfade = 0;
   listen_crossfade_prev = 0;
   listen_reinit_pending = 0;
   listen_preview_drag_active = 0;
+  // Denormal / deep-silence line flush (see process_complete_audio_chain)
+  denormal_quiet_i = 0;
+  denormal_flush_done = 0;
+  denormal_flush_hold_samples = max(256, floor(srate * 0.05));
+  // Track brickwall slider for limiter prev-sample stale reset on enable
+  brickwall_limiter_slider_prev = -1;
+);
+
+// After sustained near-silence on the processed input path, flush filter + RMS states
+// to avoid denormal CPU cost and stale tiny accumulators (matches init_rms_state defaults)
+function flush_line_level_denormal_state() (
+  flush_detection_filter_denormal_states();
+  rms_max = 0.5;
+  peak_for_normalize_smooth = 0;
+  rms_smoothed_squared = 0;
+  detect_squared_l = 0;
+  detect_squared_r = 0;
+  detect_squared = 0;
 );
 
 //==============================================================================
@@ -94,6 +111,18 @@ function process_complete_audio_chain() (
   mid_side_mode > 0.5 && has_stereo ? (
     proc_l = (input_l_orig + input_r_orig) * 0.5;
     proc_r = (input_l_orig - input_r_orig) * 0.5;
+  );
+
+  // Near-silence hold: flush biquad + RMS detector state once per silence episode (denormal hygiene)
+  max(abs(proc_l), abs(proc_r)) < 1e-10 ? (
+    denormal_quiet_i += 1;
+    denormal_quiet_i >= denormal_flush_hold_samples && denormal_flush_done < 0.5 ? (
+      flush_line_level_denormal_state();
+      denormal_flush_done = 1;
+    );
+  ) : (
+    denormal_quiet_i = 0;
+    denormal_flush_done = 0;
   );
 
   get_detection_signal(has_stereo, has_sidechain_l, has_sidechain_r, proc_l, proc_r, final_l_prev, final_r_prev);
@@ -127,6 +156,7 @@ function process_complete_audio_chain() (
       prev_detector_db = clamp(linear_to_db(max(pl_seed, MIN_DETECTOR_LEVEL)) + input_offset_db, MIN_DETECTOR_DB_FLOOR, MAX_CURVE_INPUT_DB);
       limiter_prev_l = 0;
       limiter_prev_r = 0;
+      flush_detection_filter_denormal_states();
       listen_reinit_pending = 0;
     );
 
