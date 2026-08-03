@@ -21,6 +21,8 @@ function init_limiter_constants() (
 function init_lookahead_limiter_state() (
   // Audio processing state
   lookahead_pos = 0;
+  // Sentinel so first update_lookahead_samples() clears delay memory if needed
+  lookahead_samples_prev = -999;
 
   // Limiter state variables
   limiter_prev_l = 0;
@@ -31,10 +33,17 @@ function init_lookahead_limiter_state() (
 // LOOKAHEAD PARAMETER UPDATES
 //==============================================================================
 
-function update_lookahead_samples() (
+function update_lookahead_samples() local(ls_new) (
   // Convert lookahead time from milliseconds to samples
   // Clamp to maximum allocated buffer size to prevent buffer overflow
-  lookahead_samples = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+  ls_new = clamp(floor(lookahead_ms * 0.001 * srate), 0, max_lookahead_samples);
+  ls_new != lookahead_samples_prev ? (
+    memset(lookahead_buffer_l, 0, max_lookahead_samples);
+    memset(lookahead_buffer_r, 0, max_lookahead_samples);
+    lookahead_pos = 0;
+  );
+  lookahead_samples = ls_new;
+  lookahead_samples_prev = lookahead_samples;
 );
 
 //==============================================================================

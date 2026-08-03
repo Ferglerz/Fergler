@@ -65,7 +65,7 @@ function apply_enhanced_tube_processing(driven, amount, combined_factor, even_bo
 //==============================================================================
 
 function apply_harmonic_processing(input, gr_amount, envelope_amount, detector_level, type, drive, mix, even_boost, odd_boost) (
-  debug_counter_harmonics += 1;
+  debug_profiling_enabled > 0.5 ? debug_counter_harmonics += 1;
   
   // Early exit if mix is 0% (harmonics off)
   mix <= 0.0001 ? input : (

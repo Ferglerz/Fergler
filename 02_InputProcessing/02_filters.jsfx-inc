@@ -128,6 +128,26 @@ function apply_detection_filters(detect_l, detect_r) (
   );
 );
 
+// Zero tiny biquad state values to avoid denormal CPU load (DENORMAL_THRESHOLD from 00_constants)
+function flush_detection_filter_denormal_states() (
+  abs(hp_x1_l) < DENORMAL_THRESHOLD ? hp_x1_l = 0;
+  abs(hp_x2_l) < DENORMAL_THRESHOLD ? hp_x2_l = 0;
+  abs(hp_y1_l) < DENORMAL_THRESHOLD ? hp_y1_l = 0;
+  abs(hp_y2_l) < DENORMAL_THRESHOLD ? hp_y2_l = 0;
+  abs(hp_x1_r) < DENORMAL_THRESHOLD ? hp_x1_r = 0;
+  abs(hp_x2_r) < DENORMAL_THRESHOLD ? hp_x2_r = 0;
+  abs(hp_y1_r) < DENORMAL_THRESHOLD ? hp_y1_r = 0;
+  abs(hp_y2_r) < DENORMAL_THRESHOLD ? hp_y2_r = 0;
+  abs(lp_x1_l) < DENORMAL_THRESHOLD ? lp_x1_l = 0;
+  abs(lp_x2_l) < DENORMAL_THRESHOLD ? lp_x2_l = 0;
+  abs(lp_y1_l) < DENORMAL_THRESHOLD ? lp_y1_l = 0;
+  abs(lp_y2_l) < DENORMAL_THRESHOLD ? lp_y2_l = 0;
+  abs(lp_x1_r) < DENORMAL_THRESHOLD ? lp_x1_r = 0;
+  abs(lp_x2_r) < DENORMAL_THRESHOLD ? lp_x2_r = 0;
+  abs(lp_y1_r) < DENORMAL_THRESHOLD ? lp_y1_r = 0;
+  abs(lp_y2_r) < DENORMAL_THRESHOLD ? lp_y2_r = 0;
+);
+
 
 //==============================================================================
 // FILTER UTILITIES

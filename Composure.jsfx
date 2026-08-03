@@ -106,7 +106,7 @@ import 03_Compression/06_gain_reduction.jsfx-inc
 import 03_Compression/08_harmonic_models.jsfx-inc
 
 // 03_Compression/Envelope: Envelope processing modules (must be imported before 09_audio_processing_chain)
-// 05_envelope_parameters depends on clear_rms_state from 09_audio_processing_chain, but we handle this by importing utils first
+// 05_envelope_parameters is imported after 09_audio_processing_chain (uses shared RMS coefficient updates only)
 import 03_Compression/Envelope/00_envelope_utils.jsfx-inc
 import 03_Compression/Envelope/01_envelope_attack.jsfx-inc
 import 03_Compression/Envelope/02_envelope_hold.jsfx-inc
@@ -116,7 +116,7 @@ import 03_Compression/Envelope/04_envelope_orchestration.jsfx-inc
 // 03_Compression/09_audio_processing_chain: Audio processing (depends on envelope modules for process_envelope_following)
 import 03_Compression/09_audio_processing_chain.jsfx-inc
 
-// 03_Compression/Envelope/05_envelope_parameters: Parameter updates (depends on clear_rms_state from 09_audio_processing_chain)
+// 03_Compression/Envelope/05_envelope_parameters: RMS coefficient targets (imported after audio chain uses same globals)
 import 03_Compression/Envelope/05_envelope_parameters.jsfx-inc
 
 // Interface: General UI components (constants, utils, drawing, debug, menu)
@@ -350,8 +350,14 @@ refresh_core_parameters(1);
 smooth_rms_coefficient();
 
 // --- Settings Parameters (25) ---
-// Sync brickwall_limiter variable with slider25
-brickwall_limiter = slider(25);
+// Sync brickwall_limiter with slider25; clear limiter inter-sample memory when turning brickwall on (avoids stale prev)
+bwl_slider = slider(25);
+(bwl_slider > 0.5 && brickwall_limiter_slider_prev >= 0 && brickwall_limiter_slider_prev <= 0.5) ? (
+  limiter_prev_l = 0;
+  limiter_prev_r = 0;
+);
+brickwall_limiter_slider_prev = bwl_slider;
+brickwall_limiter = bwl_slider;
 
 
 // --- Trail Parameters (31-32) ---
@@ -398,6 +404,8 @@ gr_db_block_max = 0;
 
 // Real-time parameter refresh (without PDC recalculation)
 refresh_core_parameters(0);
+// Keep silence-based denormal flush window aligned with sample rate
+denormal_flush_hold_samples = max(256, floor(srate * 0.05));
 
 
 //==============================================================================
